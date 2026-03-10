@@ -177,9 +177,9 @@ pub(crate) struct ModuleGraphData {
   ///     assert_eq!(parents_info.module, parent_module_id);
   ///   })
   /// ```
-  dependency_id_to_parents: HashMap<DependencyId, DependencyParents>,
+  dependency_id_to_parents: SecondaryMap<DependencyId, DependencyParents>,
   // TODO try move condition as connection field
-  connection_to_condition: HashMap<DependencyId, DependencyCondition>,
+  connection_to_condition: SecondaryMap<DependencyId, DependencyCondition>,
 
   /************************** Modified by Seal Phase **********************/
   /// ModuleGraphModule indexed by `ModuleIdentifier`.
@@ -350,8 +350,8 @@ impl ModuleGraph {
     }
     if force {
       self.inner.dependencies.remove(dep_id);
-      self.inner.dependency_id_to_parents.remove(dep_id);
-      self.inner.connection_to_condition.remove(dep_id);
+      self.inner.dependency_id_to_parents.remove(*dep_id);
+      self.inner.connection_to_condition.remove(*dep_id);
       if let Some(m_id) = original_module_identifier
         && let Some(module) = self.inner.modules.get_mut(&m_id)
       {
@@ -610,7 +610,7 @@ impl ModuleGraph {
     self
       .inner
       .dependency_id_to_parents
-      .get(dependency_id)
+      .get(*dependency_id)
       .map(|p| &p.module)
   }
 
@@ -621,7 +621,7 @@ impl ModuleGraph {
     self
       .inner
       .dependency_id_to_parents
-      .get(dependency_id)
+      .get(*dependency_id)
       .and_then(|p| p.block.as_ref())
   }
 
@@ -629,7 +629,7 @@ impl ModuleGraph {
     self
       .inner
       .dependency_id_to_parents
-      .get(dependency_id)
+      .get(*dependency_id)
       .map(|p| p.index_in_block)
   }
 
@@ -1068,7 +1068,7 @@ impl ModuleGraph {
     let condition = self
       .inner
       .connection_to_condition
-      .get(&connection.dependency_id)
+      .get(connection.dependency_id)
       .expect("should have condition");
     condition.get_connection_state(
       connection,
@@ -1091,7 +1091,7 @@ impl ModuleGraph {
     let condition = self
       .inner
       .connection_to_condition
-      .get(&connection.dependency_id)
+      .get(connection.dependency_id)
       .expect("should have condition");
     condition.is_connection_active(
       connection,
