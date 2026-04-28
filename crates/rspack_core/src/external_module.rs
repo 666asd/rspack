@@ -196,10 +196,21 @@ fn resolve_external_type<'a>(
       }
     }
     "module-import" => {
+      if matches!(
+        dependency_meta.external_type.as_ref(),
+        Some(ExternalTypeEnum::Import)
+      ) {
+        "import"
+      } else {
+        "module"
+      }
+    }
+    "modern-module" => {
       if let Some(external_type) = dependency_meta.external_type.as_ref() {
         match external_type {
           ExternalTypeEnum::Import => "import",
           ExternalTypeEnum::Module => "module",
+          ExternalTypeEnum::CommonJs => "commonjs",
         }
       } else {
         "module"
@@ -233,6 +244,7 @@ pub struct ExternalModule {
 pub enum ExternalTypeEnum {
   Import,
   Module,
+  CommonJs,
 }
 
 pub type MetaExternalType = Option<ExternalTypeEnum>;
@@ -302,6 +314,10 @@ impl ExternalModule {
     &self.external_type
   }
 
+  pub fn resolve_external_type(&self) -> &str {
+    resolve_external_type(self.external_type.as_str(), &self.dependency_meta)
+  }
+
   pub fn set_external_type(&mut self, new_type: ExternalType) {
     self.external_type = new_type;
   }
@@ -320,10 +336,6 @@ impl ExternalModule {
     }
   }
 
-  fn resolve_external_type(&self) -> &str {
-    resolve_external_type(self.external_type.as_str(), &self.dependency_meta)
-  }
-
   fn get_source(
     &self,
     compilation: &Compilation,
@@ -336,10 +348,24 @@ impl ExternalModule {
     let mut chunk_init_fragments: ChunkInitFragments = Default::default();
     let supports_const = compilation.options.output.environment.supports_const();
     let resolved_external_type = self.resolve_external_type();
+    // `modern-module` resolves by dependency type like `module-import`.
+    // Its require() dependencies are CommonJS externals, with Node.js targets
+    // using the node-commonjs renderer to synthesize require via createRequire.
+    let effective_external_type = if self.external_type == "modern-module"
+      && matches!(
+        self.dependency_meta.external_type.as_ref(),
+        Some(ExternalTypeEnum::CommonJs)
+      )
+      && compilation.platform.is_node()
+    {
+      "node-commonjs"
+    } else {
+      resolved_external_type
+    };
     let module_graph = compilation.get_module_graph();
     let module_graph_cache = &compilation.module_graph_cache_artifact;
 
-    let source = match resolved_external_type {
+    let source = match effective_external_type {
       "this" => format!(
         "{} = (function() {{ return {}; }}());",
         get_namespace_object_export(concatenation_scope, supports_const, runtime_template),
@@ -845,7 +871,13 @@ impl Module for ExternalModule {
   }
 
   fn chunk_condition(&self, chunk_key: &ChunkUkey, compilation: &Compilation) -> Option<bool> {
-    match self.external_type.as_str() {
+    let external_type = if self.external_type == "modern-module" {
+      self.resolve_external_type()
+    } else {
+      self.external_type.as_str()
+    };
+
+    match external_type {
       "css-import" | "module" | "import" | "module-import" if !self.place_in_initial => Some(true),
       _ => Some(
         compilation
