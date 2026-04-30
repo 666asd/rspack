@@ -414,11 +414,12 @@ impl<'parser> JavascriptParser<'parser> {
     parse_meta: ParseMeta,
     parser_runtime_requirements: &'parser ParserRuntimeRequirementsData,
   ) -> Self {
-    let warning_diagnostics: Vec<Diagnostic> = Vec::with_capacity(4);
-    let errors = Vec::with_capacity(4);
-    let dependencies = Vec::with_capacity(64);
-    let blocks = Vec::with_capacity(64);
-    let presentational_dependencies = Vec::with_capacity(64);
+    let warning_diagnostics: Vec<Diagnostic> = Vec::new();
+    let errors = Vec::new();
+    let source_len = source.len();
+    let dependencies = Vec::with_capacity((source_len / 24).clamp(4, 64));
+    let blocks = Vec::with_capacity((source_len / 512).min(4));
+    let presentational_dependencies = Vec::with_capacity((source_len / 32).clamp(4, 32));
     let parser_exports_state: Option<bool> = None;
 
     let mut plugins: Vec<BoxJavascriptParserPlugin> = Vec::with_capacity(32 + parser_plugins.len());
