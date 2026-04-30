@@ -44,17 +44,18 @@ use regex::Regex;
 use rspack_core::{
   AssetParserDataUrl, AssetParserDataUrlOptions, AssetParserOptions, BoxPlugin, ByDependency,
   CacheOptions, ChunkLoading, ChunkLoadingType, CleanOptions, Compiler, CompilerOptions,
-  CompilerPlatform, Context, CrossOriginLoading, CssExportsConvention, CssGeneratorOptions,
-  CssModuleGeneratorOptions, CssModuleParserOptions, CssParserImport, CssParserOptions,
-  DynamicImportMode, EntryDescription, EntryOptions, EntryRuntime, Environment, Experiments,
-  ExternalItem, ExternalType, Filename, GeneratorOptions, GeneratorOptionsMap, ImportMeta,
-  JavascriptParserCommonjsExportsOption, JavascriptParserCommonjsOptions, JavascriptParserOptions,
-  JavascriptParserOrder, JavascriptParserUrl, JsonGeneratorOptions, JsonParserOptions, LibraryName,
-  LibraryNonUmdObject, LibraryOptions, LibraryType, MangleExportsOption, Mode, ModuleNoParseRules,
-  ModuleOptions, ModuleRule, ModuleRuleEffect, ModuleType, NodeDirnameOption, NodeFilenameOption,
-  NodeGlobalOption, NodeOption, Optimization, OutputOptions, ParseOption, ParserOptions,
-  ParserOptionsMap, PathInfo, PublicPath, Resolve, RuleSetCondition, RuleSetLogicalConditions,
-  SideEffectOption, StatsOptions, TrustedTypes, UsedExportsOption, WasmLoading, WasmLoadingType,
+  CompilerPlatform, Context, CrossOriginLoading, CssExportType, CssExportsConvention,
+  CssGeneratorOptions, CssModuleGeneratorOptions, CssModuleParserOptions, CssParserImport,
+  CssParserOptions, DynamicImportMode, EntryDescription, EntryOptions, EntryRuntime, Environment,
+  Experiments, ExternalItem, ExternalType, Filename, GeneratorOptions, GeneratorOptionsMap,
+  ImportMeta, JavascriptParserCommonjsExportsOption, JavascriptParserCommonjsOptions,
+  JavascriptParserOptions, JavascriptParserOrder, JavascriptParserUrl, JsonGeneratorOptions,
+  JsonParserOptions, LibraryName, LibraryNonUmdObject, LibraryOptions, LibraryType,
+  MangleExportsOption, Mode, ModuleNoParseRules, ModuleOptions, ModuleRule, ModuleRuleEffect,
+  ModuleType, NodeDirnameOption, NodeFilenameOption, NodeGlobalOption, NodeOption, Optimization,
+  OutputOptions, ParseOption, ParserOptions, ParserOptionsMap, PathInfo, PublicPath, Resolve,
+  RuleSetCondition, RuleSetConditionWithEmpty, RuleSetLogicalConditions, SideEffectOption,
+  StatsOptions, TrustedTypes, UsedExportsOption, WasmLoading, WasmLoadingType,
   incremental::IncrementalOptions,
 };
 use rspack_error::{Error, Result};
@@ -1771,6 +1772,7 @@ impl ModuleOptionsBuilder {
         named_exports: Some(true),
         resolve_import: Some(CssParserImport::Bool(true)),
         url: Some(true),
+        ..Default::default()
       });
       parser.insert("css/auto".to_string(), css_auto_parser_options);
 
@@ -1779,8 +1781,18 @@ impl ModuleOptionsBuilder {
         named_exports: Some(true),
         resolve_import: Some(CssParserImport::Bool(true)),
         url: Some(true),
+        ..Default::default()
       });
       parser.insert("css/module".to_string(), css_module_parser_options);
+
+      let css_global_parser_options = ParserOptions::CssModule(CssModuleParserOptions {
+        export_type: None,
+        named_exports: Some(true),
+        resolve_import: Some(CssParserImport::Bool(true)),
+        url: Some(true),
+        ..Default::default()
+      });
+      parser.insert("css/global".to_string(), css_global_parser_options);
 
       // CSS generator options
       let exports_only = !target_properties.document();
@@ -1795,11 +1807,10 @@ impl ModuleOptionsBuilder {
 
       generator.insert(
         "css/auto".to_string(),
-        GeneratorOptions::CssAuto(CssModuleGeneratorOptions {
+        GeneratorOptions::CssModule(CssModuleGeneratorOptions {
           exports_only: Some(exports_only),
           exports_convention: Some(CssExportsConvention::default()),
           local_ident_name: Some("[uniqueName]-[id]-[local]".into()),
-
           es_module: Some(true),
           ..Default::default()
         }),
@@ -1811,6 +1822,15 @@ impl ModuleOptionsBuilder {
           exports_only: Some(exports_only),
           exports_convention: Some(CssExportsConvention::default()),
           local_ident_name: Some("[uniqueName]-[id]-[local]".into()),
+          es_module: Some(true),
+          ..Default::default()
+        }),
+      );
+
+      generator.insert(
+        "css/global".to_string(),
+        GeneratorOptions::CssModule(CssModuleGeneratorOptions {
+          exports_only: Some(exports_only),
           es_module: Some(true),
           ..Default::default()
         }),
@@ -2090,6 +2110,43 @@ fn default_rules(async_web_assembly: bool, css: bool) -> Vec<ModuleRule> {
         mimetype: Some(RuleSetCondition::String("text/css".into()).into()),
         effect: ModuleRuleEffect {
           r#type: Some(ModuleType::Css),
+          resolve: Some(resolve.clone()),
+          ..Default::default()
+        },
+        ..Default::default()
+      },
+      ModuleRule {
+        dependency: Some(RuleSetCondition::Regexp(
+          RspackRegex::new("css-import-local-module").expect("should initialize `Regex`"),
+        )),
+        effect: ModuleRuleEffect {
+          r#type: Some(ModuleType::CssModule),
+          resolve: Some(resolve.clone()),
+          ..Default::default()
+        },
+        ..Default::default()
+      },
+      ModuleRule {
+        dependency: Some(RuleSetCondition::Regexp(
+          RspackRegex::new("css-import-global-module").expect("should initialize `Regex`"),
+        )),
+        effect: ModuleRuleEffect {
+          r#type: Some(ModuleType::CssGlobal),
+          resolve: Some(resolve.clone()),
+          ..Default::default()
+        },
+        ..Default::default()
+      },
+      ModuleRule {
+        with: Some(HashMap::from_iter([(
+          "type".into(),
+          RuleSetConditionWithEmpty::new(RuleSetCondition::String("css".into())),
+        )])),
+        effect: ModuleRuleEffect {
+          parser: Some(ParserOptions::CssModule(CssModuleParserOptions {
+            export_type: Some(CssExportType::CssStyleSheet),
+            ..Default::default()
+          })),
           resolve: Some(resolve),
           ..Default::default()
         },
@@ -3761,7 +3818,7 @@ impl ExperimentsBuilder {
     w!(self.async_web_assembly, true);
 
     Ok(Experiments {
-      css: d!(self.css, false),
+      css: d!(self.css, true),
       defer_import: false,
       pure_functions: d!(self.pure_functions, false),
     })

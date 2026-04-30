@@ -421,6 +421,23 @@ pub struct CssModuleParserOptions {
   pub grid: Option<bool>,
 }
 
+impl Default for CssModuleParserOptions {
+  fn default() -> Self {
+    Self {
+      export_type: None,
+      named_exports: None,
+      url: None,
+      resolve_import: None,
+      animation: None,
+      container: None,
+      custom_idents: None,
+      dashed_idents: None,
+      function: None,
+      grid: None,
+    }
+  }
+}
+
 impl From<&CssParserOptions> for CssModuleParserOptions {
   fn from(value: &CssParserOptions) -> Self {
     Self {
@@ -428,12 +445,7 @@ impl From<&CssParserOptions> for CssModuleParserOptions {
       named_exports: value.named_exports,
       url: value.url,
       resolve_import: value.resolve_import.clone(),
-      animation: None,
-      container: None,
-      custom_idents: None,
-      dashed_idents: None,
-      function: None,
-      grid: None,
+      ..Default::default()
     }
   }
 }
@@ -513,8 +525,6 @@ pub enum GeneratorOptions {
   AssetInline(AssetInlineGeneratorOptions),
   AssetResource(AssetResourceGeneratorOptions),
   Css(CssGeneratorOptions),
-  CssAuto(CssModuleGeneratorOptions),
-  CssGlobal(CssModuleGeneratorOptions),
   CssModule(CssModuleGeneratorOptions),
   Json(JsonGeneratorOptions),
   Unknown,
@@ -529,8 +539,8 @@ impl GeneratorOptions {
     AssetResourceGeneratorOptions
   );
   get_variant!(get_css, Css, CssGeneratorOptions);
-  get_variant!(get_css_auto, CssAuto, CssModuleGeneratorOptions);
-  get_variant!(get_css_global, CssGlobal, CssModuleGeneratorOptions);
+  get_variant!(get_css_auto, CssModule, CssModuleGeneratorOptions);
+  get_variant!(get_css_global, CssModule, CssModuleGeneratorOptions);
   get_variant!(get_css_module, CssModule, CssModuleGeneratorOptions);
   get_variant!(get_json, Json, JsonGeneratorOptions);
 

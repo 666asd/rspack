@@ -106,6 +106,7 @@ export const applyRspackOptionsDefaults = (
 
   applyModuleDefaults(options.module, {
     asyncWebAssembly: options.experiments.asyncWebAssembly!,
+    css: options.experiments.css!,
     targetProperties,
     mode: options.mode,
     uniqueName: options.output.uniqueName,
@@ -210,6 +211,7 @@ const applyInfrastructureLoggingDefaults = (
 
 const applyExperimentsDefaults = (experiments: ExperimentsNormalized) => {
   D(experiments, 'futureDefaults', false);
+  D(experiments, 'css', true);
   D(experiments, 'asyncWebAssembly', true);
   D(experiments, 'deferImport', false);
 
@@ -308,6 +310,7 @@ const applyModuleDefaults = (
   module: ModuleOptions,
   {
     asyncWebAssembly,
+    css,
     targetProperties,
     mode,
     uniqueName,
@@ -315,6 +318,7 @@ const applyModuleDefaults = (
     outputModule,
   }: {
     asyncWebAssembly: boolean;
+    css: boolean;
     targetProperties: false | TargetProperties;
     mode?: Mode;
     uniqueName?: string;
@@ -350,48 +354,62 @@ const applyModuleDefaults = (
   F(module.generator, 'json', () => ({}));
   assertNotNill(module.generator.json);
   applyJsonGeneratorOptionsDefaults(module.generator.json);
-  F(module.parser, 'css', () => ({}));
-  assertNotNill(module.parser.css);
-  D(module.parser.css, 'namedExports', true);
-  D(module.parser.css, 'url', true);
 
-  F(module.parser, 'css/auto', () => ({}));
-  assertNotNill(module.parser['css/auto']);
-  D(module.parser['css/auto'], 'namedExports', true);
-  D(module.parser['css/auto'], 'url', true);
+  if (css) {
+    F(module.parser, 'css', () => ({}));
+    assertNotNill(module.parser.css);
+    D(module.parser.css, 'namedExports', true);
+    D(module.parser.css, 'url', true);
 
-  F(module.parser, 'css/module', () => ({}));
-  assertNotNill(module.parser['css/module']);
-  D(module.parser['css/module'], 'namedExports', true);
-  D(module.parser['css/module'], 'url', true);
+    F(module.parser, 'css/auto', () => ({}));
+    assertNotNill(module.parser['css/auto']);
+    D(module.parser['css/auto'], 'namedExports', true);
+    D(module.parser['css/auto'], 'url', true);
 
-  F(module.generator, 'css', () => ({}));
-  assertNotNill(module.generator.css);
-  applyCssGeneratorOptionsDefaults(module.generator.css, {
-    targetProperties,
-  });
+    F(module.parser, 'css/module', () => ({}));
+    assertNotNill(module.parser['css/module']);
+    D(module.parser['css/module'], 'namedExports', true);
+    D(module.parser['css/module'], 'url', true);
 
-  F(module.generator, 'css/auto', () => ({}));
-  assertNotNill(module.generator['css/auto']);
-  applyCssGeneratorOptionsDefaults(module.generator['css/auto'], {
-    targetProperties,
-  });
-  D(module.generator['css/auto'], 'exportsConvention', 'as-is');
-  const localIdentName =
-    mode === 'development'
-      ? uniqueName && uniqueName.length > 0
-        ? '[uniqueName]-[id]-[local]'
-        : '[id]-[local]'
-      : '[fullhash]';
-  D(module.generator['css/auto'], 'localIdentName', localIdentName);
+    F(module.parser, 'css/global', () => ({}));
+    assertNotNill(module.parser['css/global']);
+    D(module.parser['css/global'], 'namedExports', true);
+    D(module.parser['css/global'], 'url', true);
 
-  F(module.generator, 'css/module', () => ({}));
-  assertNotNill(module.generator['css/module']);
-  applyCssGeneratorOptionsDefaults(module.generator['css/module'], {
-    targetProperties,
-  });
-  D(module.generator['css/module'], 'exportsConvention', 'as-is');
-  D(module.generator['css/module'], 'localIdentName', localIdentName);
+    F(module.generator, 'css', () => ({}));
+    assertNotNill(module.generator.css);
+    applyCssGeneratorOptionsDefaults(module.generator.css, {
+      targetProperties,
+    });
+
+    F(module.generator, 'css/auto', () => ({}));
+    assertNotNill(module.generator['css/auto']);
+    applyCssGeneratorOptionsDefaults(module.generator['css/auto'], {
+      targetProperties,
+    });
+    D(module.generator['css/auto'], 'exportsConvention', 'as-is');
+    const localIdentName =
+      mode === 'development'
+        ? uniqueName && uniqueName.length > 0
+          ? '[uniqueName]-[id]-[local]'
+          : '[id]-[local]'
+        : '[fullhash]';
+    D(module.generator['css/auto'], 'localIdentName', localIdentName);
+
+    F(module.generator, 'css/module', () => ({}));
+    assertNotNill(module.generator['css/module']);
+    applyCssGeneratorOptionsDefaults(module.generator['css/module'], {
+      targetProperties,
+    });
+    D(module.generator['css/module'], 'exportsConvention', 'as-is');
+    D(module.generator['css/module'], 'localIdentName', localIdentName);
+
+    F(module.generator, 'css/global', () => ({}));
+    assertNotNill(module.generator['css/global']);
+    applyCssGeneratorOptionsDefaults(module.generator['css/global'], {
+      targetProperties,
+    });
+  }
   // https://github.com/webpack/webpack/blob/main/lib/config/defaults.js#L839
   A(module, 'defaultRules', () => {
     const esm = {
@@ -471,6 +489,45 @@ const applyModuleDefaults = (
       rules.push({
         mimetype: 'application/wasm',
         ...wasm,
+      });
+    }
+
+    if (css) {
+      const resolve = {
+        fullySpecified: true,
+        preferRelative: true,
+      };
+      rules.push({
+        test: /\.css$/i,
+        type: 'css/auto',
+        resolve,
+      });
+      rules.push({
+        mimetype: 'text/css+module',
+        type: 'css/module',
+        resolve,
+      });
+      rules.push({
+        mimetype: 'text/css',
+        type: 'css',
+        resolve,
+      });
+      rules.push({
+        dependency: /css-import-local-module/,
+        type: 'css/module',
+        resolve,
+      });
+      rules.push({
+        dependency: /css-import-global-module/,
+        type: 'css/global',
+        resolve,
+      });
+      rules.push({
+        with: { type: 'css' },
+        parser: {
+          exportType: 'css-style-sheet',
+        },
+        resolve,
       });
     }
 

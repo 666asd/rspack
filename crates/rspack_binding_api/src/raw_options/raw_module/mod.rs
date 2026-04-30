@@ -653,13 +653,13 @@ impl From<RawGeneratorOptions> for GeneratorOptions {
           .expect("should have an \"css\" when RawGeneratorOptions.type is \"css\"")
           .into(),
       ),
-      "css/auto" => Self::CssAuto(
+      "css/auto" => Self::CssModule(
         value
           .css_auto
           .expect("should have an \"css_auto\" when RawGeneratorOptions.type is \"css/auto\"")
           .into(),
       ),
-      "css/global" => Self::CssGlobal(
+      "css/global" => Self::CssModule(
         value
           .css_global
           .expect("should have an \"css_global\" when RawGeneratorOptions.type is \"css/global\"")
