@@ -59,11 +59,11 @@ impl Task<TaskContext> for BuildTask {
         BuildContext {
           compiler_id,
           compilation_id,
-          compiler_options: compiler_options.clone(),
-          resolver_factory: resolver_factory.clone(),
+          compiler_options,
+          resolver_factory,
           plugin_driver: plugin_driver.clone(),
           runtime_template,
-          fs: fs.clone(),
+          fs,
         },
         None,
       )
@@ -218,7 +218,7 @@ impl Task<TaskContext> for BuildResultTask {
       context
         .artifact
         .module_to_lazy_make
-        .update_module_lazy_dependencies(module_identifier, None);
+        .remove_module_lazy_dependencies(&module_identifier);
       all_dependencies
     };
 

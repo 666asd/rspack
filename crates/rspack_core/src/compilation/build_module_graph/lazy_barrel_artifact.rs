@@ -27,17 +27,17 @@ impl ForwardedIdSet {
   }
 
   pub fn from_dependencies(dependencies: &[BoxDependency]) -> Self {
-    let mut set = FxHashSet::default();
+    let mut set = None;
     for dep in dependencies {
       match dep.forward_id() {
         ForwardId::All => return Self::All,
         ForwardId::Id(id) => {
-          set.insert(id);
+          set.get_or_insert_with(FxHashSet::default).insert(id);
         }
         ForwardId::Empty => {}
       }
     }
-    Self::IdSet(set)
+    Self::IdSet(set.unwrap_or_default())
   }
 
   pub fn append(&mut self, other: Self) {
@@ -184,6 +184,16 @@ impl ModuleToLazyMake {
         .insert(module, HasLazyDependencies::Has(lazy_dependencies)),
       None => self.module_to_lazy_dependencies.remove(&module),
     }
+  }
+
+  pub fn remove_module_lazy_dependencies(
+    &mut self,
+    module: &ModuleIdentifier,
+  ) -> Option<HasLazyDependencies> {
+    if self.module_to_lazy_dependencies.is_empty() {
+      return None;
+    }
+    self.module_to_lazy_dependencies.remove(module)
   }
 
   pub fn has_lazy_dependencies(&self, module: &ModuleIdentifier) -> bool {
