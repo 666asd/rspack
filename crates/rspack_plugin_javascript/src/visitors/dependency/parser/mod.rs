@@ -417,9 +417,17 @@ impl<'parser> JavascriptParser<'parser> {
     let warning_diagnostics: Vec<Diagnostic> = Vec::new();
     let errors = Vec::new();
     let source_len = source.len();
-    let dependencies = Vec::with_capacity((source_len / 24).clamp(4, 64));
+    let dependencies = Vec::with_capacity(if source_len < 128 {
+      0
+    } else {
+      (source_len / 24).clamp(4, 64)
+    });
     let blocks = Vec::with_capacity((source_len / 512).min(4));
-    let presentational_dependencies = Vec::with_capacity((source_len / 32).clamp(4, 32));
+    let presentational_dependencies = Vec::with_capacity(if source_len < 128 {
+      0
+    } else {
+      (source_len / 32).clamp(4, 32)
+    });
     let parser_exports_state: Option<bool> = None;
 
     let mut plugins: Vec<BoxJavascriptParserPlugin> = Vec::with_capacity(32 + parser_plugins.len());
