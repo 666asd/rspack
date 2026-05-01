@@ -184,6 +184,7 @@ impl Task<TaskContext> for BuildResultTask {
 
     {
       let mgm = module_graph.module_graph_module_by_identifier_mut(&module_identifier);
+      mgm.reserve_outgoing_connections(all_dependencies.len());
       mgm.all_dependencies_mut().clone_from(&all_dependencies);
     }
 

@@ -84,6 +84,10 @@ impl ModuleGraphModule {
     self.outgoing_connections.insert(dependency_id);
   }
 
+  pub(crate) fn reserve_outgoing_connections(&mut self, additional: usize) {
+    self.outgoing_connections.reserve(additional);
+  }
+
   pub fn remove_outgoing_connection(&mut self, dependency_id: &DependencyId) {
     self.outgoing_connections.remove(dependency_id);
   }

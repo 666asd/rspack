@@ -27,7 +27,68 @@ impl Task<TaskContext> for ProcessDependenciesTask {
       dependencies,
       from_unlazy,
     } = *self;
-    let mut sorted_dependencies = HashMap::default();
+
+    if dependencies.is_empty() {
+      return Ok(vec![]);
+    }
+
+    if dependencies.len() == 1 {
+      let dependency_id = dependencies[0];
+      context
+        .artifact
+        .affected_dependencies
+        .mark_as_add(&dependency_id);
+
+      let module_graph = &mut context.artifact.module_graph;
+      let dependency = module_graph.dependency_by_id(&dependency_id);
+      let is_factorizable =
+        dependency.as_module_dependency().is_some() || dependency.as_context_dependency().is_some();
+      if !is_factorizable {
+        return Ok(vec![]);
+      }
+
+      let module = module_graph
+        .module_by_identifier(&original_module_identifier)
+        .expect("Module expected");
+      let original_module_source = module
+        .as_normal_module()
+        .and_then(|module| module.source().cloned());
+      let original_module_context = module.get_context();
+      let issuer = module
+        .as_normal_module()
+        .and_then(|module| module.name_for_condition());
+      let issuer_layer = module.get_layer().cloned();
+      let resolve_options = module.get_resolve_options();
+      let module_identifier = module.identifier();
+      let dependency_type = dependency.dependency_type();
+      let module_factory = context
+        .dependency_factories
+        .get(dependency_type)
+        .unwrap_or_else(|| {
+          panic!(
+            "No module factory available for dependency type: {}, resourceIdentifier: {:?}",
+            dependency_type,
+            dependency.resource_identifier()
+          )
+        })
+        .clone();
+
+      return Ok(vec![Box::new(FactorizeTask {
+        compiler_id: context.compiler_id,
+        compilation_id: context.compilation_id,
+        module_factory,
+        original_module_identifier: Some(module_identifier),
+        original_module_context,
+        original_module_source,
+        issuer,
+        issuer_layer,
+        dependencies: vec![dependency.clone()],
+        resolve_options,
+        options: context.compiler_options.clone(),
+        resolver_factory: context.resolver_factory.clone(),
+        from_unlazy,
+      })]);
+    }
 
     // First mark all dependencies as added
     for dependency_id in &dependencies {
@@ -39,6 +100,7 @@ impl Task<TaskContext> for ProcessDependenciesTask {
 
     let module_graph = &mut context.artifact.module_graph;
 
+    let mut sorted_dependencies = HashMap::default();
     for dependency_id in dependencies {
       let dependency = module_graph.dependency_by_id(&dependency_id);
       // FIXME: now only module/context dependency can put into resolve queue.
