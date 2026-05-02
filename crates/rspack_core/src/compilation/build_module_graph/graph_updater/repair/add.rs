@@ -44,13 +44,24 @@ impl Task<TaskContext> for AddTask {
       return Ok(vec![]);
     }
 
-    let forwarded_ids = ForwardedIdSet::from_dependencies(&self.dependencies);
-
     // reuse module if module is already added by other dependency
     if module_graph
       .module_graph_module_by_identifier(&module_identifier)
       .is_some()
     {
+      let has_module = module_graph
+        .module_by_identifier(&module_identifier)
+        .is_some();
+      let has_lazy_dependencies = context
+        .artifact
+        .module_to_lazy_make
+        .has_lazy_dependencies(&module_identifier);
+      let forwarded_ids = if !has_module || has_lazy_dependencies {
+        Some(ForwardedIdSet::from_dependencies(&self.dependencies))
+      } else {
+        None
+      };
+
       set_resolved_module(
         module_graph,
         self.original_module_identifier,
@@ -65,14 +76,9 @@ impl Task<TaskContext> for AddTask {
           .mark_as_add(&module_identifier);
       }
 
-      if module_graph
-        .module_by_identifier(&module_identifier)
-        .is_some()
-      {
-        if context
-          .artifact
-          .module_to_lazy_make
-          .has_lazy_dependencies(&module_identifier)
+      if has_module {
+        if let Some(forwarded_ids) = forwarded_ids
+          && has_lazy_dependencies
           && !forwarded_ids.is_empty()
         {
           if let Some(task) = process_unlazy_dependencies(
@@ -90,7 +96,7 @@ impl Task<TaskContext> for AddTask {
           .artifact
           .module_to_lazy_make
           .pending_forwarded_ids(module_identifier);
-        pending_forwarded_ids.append(forwarded_ids);
+        pending_forwarded_ids.append(forwarded_ids.expect("should have forwarded ids"));
       }
 
       return Ok(vec![]);
@@ -102,6 +108,7 @@ impl Task<TaskContext> for AddTask {
       .exports_info_artifact
       .new_exports_info(module_identifier);
 
+    let forwarded_ids = ForwardedIdSet::from_dependencies(&self.dependencies);
     set_resolved_module(
       module_graph,
       self.original_module_identifier,
