@@ -30,6 +30,17 @@ use crate::runtime::CSS_MODULE_EXPORTS_RENDERED_TEMPLATE_ID;
 pub const AUTO_PUBLIC_PATH_PLACEHOLDER: &str = "__RSPACK_PLUGIN_CSS_AUTO_PUBLIC_PATH__";
 pub static LEADING_DIGIT_REGEX: LazyLock<Regex> =
   LazyLock::new(|| Regex::new(r"^((-?[0-9])|--)").expect("Invalid regexp"));
+static CSS_PREPARE_ID_LEADING_REGEX: LazyLock<Regex> =
+  LazyLock::new(|| Regex::new(r"^([.-]|[^a-z0-9_-])+").expect("Invalid regexp"));
+static CSS_PREPARE_ID_REST_REGEX: LazyLock<Regex> =
+  LazyLock::new(|| Regex::new(r"[^a-z0-9@_-]+").expect("Invalid regexp"));
+
+fn css_prepare_id(v: &str) -> String {
+  let without_leading = CSS_PREPARE_ID_LEADING_REGEX.replace(v, "");
+  CSS_PREPARE_ID_REST_REGEX
+    .replace_all(&without_leading, "_")
+    .into_owned()
+}
 
 #[derive(Debug, Clone)]
 pub struct LocalIdentOptions<'a> {
@@ -88,24 +99,18 @@ impl<'a> LocalIdentOptions<'a> {
         hasher.write(local.as_bytes());
       }
       let hash = hasher.digest(hash_digest);
-      LEADING_DIGIT_REGEX
-        .replace(hash.rendered(hash_digest_length), "_${1}")
-        .into_owned()
+      hash.rendered(hash_digest_length).to_string()
     };
-    LocalIdentNameRenderOptions {
+    let id = css_prepare_id(if self.compiler_options.mode.is_development() {
+      &self.relative_resource
+    } else {
+      &hash
+    });
+    let local_ident = LocalIdentNameRenderOptions {
       path_data: PathData::default()
         .filename(&self.relative_resource)
         .hash(&hash)
-        // TODO: should be moduleId, but we don't have it at parse,
-        // and it's lots of work to move css module compile to generator,
-        // so for now let's use hash for compatibility.
-        .id(&PathData::prepare_id(
-          if self.compiler_options.mode.is_development() {
-            &self.relative_resource
-          } else {
-            &hash
-          },
-        )),
+        .id(&id),
       local,
       unique_name: &output.unique_name,
       folder: Path::new(&self.relative_resource)
@@ -115,7 +120,12 @@ impl<'a> LocalIdentOptions<'a> {
         .unwrap_or(""),
     }
     .render_local_ident_name(self.local_name_ident)
-    .await
+    .await?;
+    Ok(
+      LEADING_DIGIT_REGEX
+        .replace(&local_ident, "_${1}")
+        .into_owned(),
+    )
   }
 }
 
