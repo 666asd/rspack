@@ -891,32 +891,6 @@ impl ParserAndGenerator for CssParserAndGenerator {
 
           css_text = css_text.replace(crate::utils::AUTO_PUBLIC_PATH_PLACEHOLDER, "");
 
-          // For exportType: 'style', we need to include CSS from @import dependencies
-          // Collect CSS content from CSS import dependencies
-          let mut imported_css = Vec::new();
-          for dep_id in module.get_dependencies() {
-            let dep = module_graph.dependency_by_id(dep_id);
-            if matches!(dep.dependency_type(), DependencyType::CssImport) {
-              if let Some(mgm) = module_graph.module_graph_module_by_dependency_id(dep_id) {
-                if let Some(target_module) = compilation
-                  .get_module_graph()
-                  .module_by_identifier(&mgm.module_identifier)
-                {
-                  if let Some(source) = target_module.source() {
-                    let dep_css = source.source().into_string_lossy().to_string();
-                    imported_css.push(dep_css);
-                  }
-                }
-              }
-            }
-          }
-
-          // Prepend imported CSS to the main CSS
-          if !imported_css.is_empty() {
-            imported_css.push(css_text);
-            css_text = imported_css.join("\n");
-          }
-
           // 转义 CSS 用于 JavaScript 字符串
           let css_js_string =
             serde_json::to_string(&css_text).map_err(|e| rspack_error::error!("{}", e))?;
@@ -1114,7 +1088,7 @@ impl ParserAndGenerator for CssParserAndGenerator {
                 module,
                 generate_context.runtime,
               )?;
-              let default_target = format!("{module_argument}.exports.default");
+              let default_target = format!("{module_argument}.default");
 
               render_css_modules_exports_module_code(
                 compilation,
