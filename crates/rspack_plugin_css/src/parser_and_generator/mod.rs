@@ -271,26 +271,12 @@ impl ParserAndGenerator for CssParserAndGenerator {
 
     let (deps, warnings) = css_module_lexer::collect_dependencies(&source_code, mode);
 
-    // TODO: Implement knownProperties-based identifier renaming
-    // These options (animation, container, customIdents, dashedIdents, function, grid)
-    // control renaming of CSS identifiers. Currently, css-module-lexer does not
-    // provide dependency types for these identifiers, so we cannot implement
-    // renaming until css-module-lexer is extended or we switch to a different
-    // CSS parser that supports these features.
-    //
-    // When implemented, these should follow the webpack CssParser knownProperties logic:
-    // - animation: Enable/disable renaming of @keyframes names
-    // - container: Enable/disable renaming of @container names
-    // - customIdents: Enable/disable renaming of custom identifiers (e.g., list-style-type)
-    // - dashedIdents: Enable/disable renaming of dashed identifiers (e.g., custom properties)
-    // - function: Enable/disable renaming of @function names
-    // - grid: Enable/disable renaming of grid identifiers
-    let _ = self.animation();
-    let _ = self.container();
-    let _ = self.custom_idents();
-    let _ = self.dashed_idents();
-    let _ = self.function();
-    let _ = self.grid();
+    let animation_enabled = self.animation().unwrap_or(true);
+    let container_enabled = self.container().unwrap_or(true);
+    let custom_idents_enabled = self.custom_idents().unwrap_or(true);
+    let dashed_idents_enabled = self.dashed_idents().unwrap_or(true);
+    let function_enabled = self.function().unwrap_or(true);
+    let grid_enabled = self.grid().unwrap_or(true);
 
     for dependency in deps {
       match dependency {
@@ -408,6 +394,9 @@ impl ParserAndGenerator for CssParserAndGenerator {
           )));
         }
         css_module_lexer::Dependency::LocalKeyframes { name, range, .. } => {
+          if !animation_enabled {
+            continue;
+          }
           let name = unescape(name);
           let (local_ident, convention_names) = self
             .resolve_local_ident_and_update_exports(
@@ -426,6 +415,9 @@ impl ParserAndGenerator for CssParserAndGenerator {
           )));
         }
         css_module_lexer::Dependency::LocalKeyframesDecl { name, range, .. } => {
+          if !animation_enabled {
+            continue;
+          }
           let name = unescape(name);
           let (local_ident, convention_names) = self
             .resolve_local_ident_and_update_exports(
@@ -534,6 +526,277 @@ impl ParserAndGenerator for CssParserAndGenerator {
             );
           }
           dependencies.push(Box::new(CssExportDependency::new(convention_names)));
+        }
+        css_module_lexer::Dependency::LocalContainer { name, range, .. } => {
+          if !container_enabled {
+            continue;
+          }
+          let name = unescape(name);
+          let (local_ident, convention_names) = self
+            .resolve_local_ident_and_update_exports(
+              resource_data,
+              compiler_options,
+              &name,
+              &mut css_exports,
+            )
+            .await?;
+          dependencies.push(Box::new(CssSelfReferenceLocalIdentDependency::new(
+            convention_names,
+            vec![CssSelfReferenceLocalIdentReplacement {
+              local_ident: local_ident.clone(),
+              range: (range.start, range.end).into(),
+            }],
+          )));
+        }
+        css_module_lexer::Dependency::LocalContainerDecl { name, range, .. } => {
+          if !container_enabled {
+            continue;
+          }
+          let name = unescape(name);
+          let (local_ident, convention_names) = self
+            .resolve_local_ident_and_update_exports(
+              resource_data,
+              compiler_options,
+              &name,
+              &mut css_exports,
+            )
+            .await?;
+
+          let local_names = css_local_names.get_or_insert_default();
+          local_names.insert(name.into_owned(), local_ident.clone());
+
+          dependencies.push(Box::new(CssLocalIdentDependency::new(
+            local_ident.clone(),
+            convention_names,
+            range.start,
+            range.end,
+          )));
+        }
+        css_module_lexer::Dependency::LocalCounterStyle { name, range, .. } => {
+          if !custom_idents_enabled {
+            continue;
+          }
+          let name = unescape(name);
+          let (local_ident, convention_names) = self
+            .resolve_local_ident_and_update_exports(
+              resource_data,
+              compiler_options,
+              &name,
+              &mut css_exports,
+            )
+            .await?;
+          dependencies.push(Box::new(CssSelfReferenceLocalIdentDependency::new(
+            convention_names,
+            vec![CssSelfReferenceLocalIdentReplacement {
+              local_ident: local_ident.clone(),
+              range: (range.start, range.end).into(),
+            }],
+          )));
+        }
+        css_module_lexer::Dependency::LocalCounterStyleDecl { name, range, .. } => {
+          if !custom_idents_enabled {
+            continue;
+          }
+          let name = unescape(name);
+          let (local_ident, convention_names) = self
+            .resolve_local_ident_and_update_exports(
+              resource_data,
+              compiler_options,
+              &name,
+              &mut css_exports,
+            )
+            .await?;
+
+          let local_names = css_local_names.get_or_insert_default();
+          local_names.insert(name.into_owned(), local_ident.clone());
+
+          dependencies.push(Box::new(CssLocalIdentDependency::new(
+            local_ident.clone(),
+            convention_names,
+            range.start,
+            range.end,
+          )));
+        }
+        css_module_lexer::Dependency::LocalFontPalette { name, range, .. } => {
+          if !custom_idents_enabled {
+            continue;
+          }
+          let name = unescape(name);
+          let (local_ident, convention_names) = self
+            .resolve_local_ident_and_update_exports(
+              resource_data,
+              compiler_options,
+              &name,
+              &mut css_exports,
+            )
+            .await?;
+          dependencies.push(Box::new(CssSelfReferenceLocalIdentDependency::new(
+            convention_names,
+            vec![CssSelfReferenceLocalIdentReplacement {
+              local_ident: local_ident.clone(),
+              range: (range.start, range.end).into(),
+            }],
+          )));
+        }
+        css_module_lexer::Dependency::LocalFontPaletteDecl { name, range, .. } => {
+          if !custom_idents_enabled {
+            continue;
+          }
+          let name = unescape(name);
+          let (local_ident, convention_names) = self
+            .resolve_local_ident_and_update_exports(
+              resource_data,
+              compiler_options,
+              &name,
+              &mut css_exports,
+            )
+            .await?;
+
+          let local_names = css_local_names.get_or_insert_default();
+          local_names.insert(name.into_owned(), local_ident.clone());
+
+          dependencies.push(Box::new(CssLocalIdentDependency::new(
+            local_ident.clone(),
+            convention_names,
+            range.start,
+            range.end,
+          )));
+        }
+        css_module_lexer::Dependency::LocalVar { name, range, .. } => {
+          if !dashed_idents_enabled {
+            continue;
+          }
+          let name = unescape(name);
+          let (local_ident, convention_names) = self
+            .resolve_local_ident_and_update_exports(
+              resource_data,
+              compiler_options,
+              &name,
+              &mut css_exports,
+            )
+            .await?;
+          dependencies.push(Box::new(CssSelfReferenceLocalIdentDependency::new(
+            convention_names,
+            vec![CssSelfReferenceLocalIdentReplacement {
+              local_ident: local_ident.clone(),
+              range: (range.start, range.end).into(),
+            }],
+          )));
+        }
+        css_module_lexer::Dependency::LocalVarDecl { name, range, .. }
+        | css_module_lexer::Dependency::LocalPropertyDecl { name, range, .. } => {
+          if !dashed_idents_enabled {
+            continue;
+          }
+          let name = unescape(name);
+          let (local_ident, convention_names) = self
+            .resolve_local_ident_and_update_exports(
+              resource_data,
+              compiler_options,
+              &name,
+              &mut css_exports,
+            )
+            .await?;
+
+          let local_names = css_local_names.get_or_insert_default();
+          local_names.insert(name.into_owned(), local_ident.clone());
+
+          dependencies.push(Box::new(CssLocalIdentDependency::new(
+            local_ident.clone(),
+            convention_names,
+            range.start,
+            range.end,
+          )));
+        }
+        css_module_lexer::Dependency::LocalFunction { name, range, .. } => {
+          if !function_enabled {
+            continue;
+          }
+          let name = unescape(name);
+          let (local_ident, convention_names) = self
+            .resolve_local_ident_and_update_exports(
+              resource_data,
+              compiler_options,
+              &name,
+              &mut css_exports,
+            )
+            .await?;
+          dependencies.push(Box::new(CssSelfReferenceLocalIdentDependency::new(
+            convention_names,
+            vec![CssSelfReferenceLocalIdentReplacement {
+              local_ident: local_ident.clone(),
+              range: (range.start, range.end).into(),
+            }],
+          )));
+        }
+        css_module_lexer::Dependency::LocalFunctionDecl { name, range, .. } => {
+          if !function_enabled {
+            continue;
+          }
+          let name = unescape(name);
+          let (local_ident, convention_names) = self
+            .resolve_local_ident_and_update_exports(
+              resource_data,
+              compiler_options,
+              &name,
+              &mut css_exports,
+            )
+            .await?;
+
+          let local_names = css_local_names.get_or_insert_default();
+          local_names.insert(name.into_owned(), local_ident.clone());
+
+          dependencies.push(Box::new(CssLocalIdentDependency::new(
+            local_ident.clone(),
+            convention_names,
+            range.start,
+            range.end,
+          )));
+        }
+        css_module_lexer::Dependency::LocalGrid { name, range, .. } => {
+          if !grid_enabled {
+            continue;
+          }
+          let name = unescape(name);
+          let (local_ident, convention_names) = self
+            .resolve_local_ident_and_update_exports(
+              resource_data,
+              compiler_options,
+              &name,
+              &mut css_exports,
+            )
+            .await?;
+          dependencies.push(Box::new(CssSelfReferenceLocalIdentDependency::new(
+            convention_names,
+            vec![CssSelfReferenceLocalIdentReplacement {
+              local_ident: local_ident.clone(),
+              range: (range.start, range.end).into(),
+            }],
+          )));
+        }
+        css_module_lexer::Dependency::LocalGridDecl { name, range, .. } => {
+          if !grid_enabled {
+            continue;
+          }
+          let name = unescape(name);
+          let (local_ident, convention_names) = self
+            .resolve_local_ident_and_update_exports(
+              resource_data,
+              compiler_options,
+              &name,
+              &mut css_exports,
+            )
+            .await?;
+
+          let local_names = css_local_names.get_or_insert_default();
+          local_names.insert(name.into_owned(), local_ident.clone());
+
+          dependencies.push(Box::new(CssLocalIdentDependency::new(
+            local_ident.clone(),
+            convention_names,
+            range.start,
+            range.end,
+          )));
         }
         _ => {}
       }
