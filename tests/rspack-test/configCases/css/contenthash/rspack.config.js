@@ -9,11 +9,9 @@ module.exports = {
     cssChunkFilename: 'async.[name].[contenthash].css',
   },
   module: {
-    rules: [
-      {
-        test: /\.css$/,
-        type: 'css/auto',
-      },
-    ],
+    rules: [],
+  },
+  experiments: {
+    css: true,
   },
 };

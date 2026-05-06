@@ -3,15 +3,13 @@ module.exports = {
   target: 'node',
   mode: 'development',
   module: {
-    rules: [
-      {
-        test: /\.css$/,
-        type: 'css/auto',
-      },
-    ],
+    rules: [],
   },
   output: {
     module: true,
     chunkFormat: 'module',
+  },
+  experiments: {
+    css: true,
   },
 };

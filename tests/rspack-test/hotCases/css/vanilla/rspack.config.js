@@ -9,11 +9,9 @@ module.exports = {
     __dirname: false,
   },
   module: {
-    rules: [
-      {
-        test: /\.css$/,
-        type: 'css/auto',
-      },
-    ],
+    rules: [],
+  },
+  experiments: {
+    css: true,
   },
 };

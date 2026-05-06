@@ -16,7 +16,6 @@ class CopyPlugin {
       name: 'MockCopyPlugin',
       stage: rspack.Compilation.PROCESS_ASSETS_STAGE_ADDITIONS,
     };
-
     compiler.hooks.thisCompilation.tap(hookOptions, (compilation) => {
       compilation.hooks.processAssets.tap(hookOptions, () => {
         const output = '// some compilation result\n';
@@ -59,6 +58,9 @@ module.exports = [
         },
       ],
     },
+    experiments: {
+      css: true,
+    },
   },
   {
     entry: './index-2.js',
@@ -91,6 +93,9 @@ module.exports = [
           },
         },
       ],
+    },
+    experiments: {
+      css: true,
     },
   },
 ];

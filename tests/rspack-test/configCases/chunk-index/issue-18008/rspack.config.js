@@ -40,9 +40,7 @@ module.exports = {
             const text = sortedModules
               .map(
                 ([m, index]) =>
-                  `${index}: ${m.readableIdentifier(
-                    compilation.requestShortener,
-                  )}`,
+                  `${index}: ${m.readableIdentifier(compilation.requestShortener)}`,
               )
               .join(', ');
             data[`${name}Index`] = text;
@@ -65,11 +63,9 @@ module.exports = {
     },
   ],
   module: {
-    rules: [
-      {
-        test: /\.css$/,
-        type: 'css/auto',
-      },
-    ],
+    rules: [],
+  },
+  experiments: {
+    css: true,
   },
 };

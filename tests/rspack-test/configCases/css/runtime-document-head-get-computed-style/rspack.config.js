@@ -3,12 +3,7 @@ module.exports = {
   target: 'web',
   mode: 'development',
   module: {
-    rules: [
-      {
-        test: /\.css$/,
-        type: 'css/auto',
-      },
-    ],
+    rules: [],
   },
   output: {
     uniqueName: 'test',
@@ -26,7 +21,6 @@ module.exports = {
             (assets) => {
               const name = 'bundle0.css';
               const code = assets[name].source();
-
               compilation.updateAsset(
                 name,
                 new compiler.rspack.sources.RawSource(
@@ -39,4 +33,7 @@ module.exports = {
       },
     },
   ],
+  experiments: {
+    css: true,
+  },
 };

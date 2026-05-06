@@ -11,10 +11,9 @@ module.exports = {
         use: ['./a-pitching-loader.js'],
         type: 'asset/source',
       },
-      {
-        test: /\.css$/,
-        type: 'css/auto',
-      },
     ],
+  },
+  experiments: {
+    css: true,
   },
 };

@@ -18,11 +18,10 @@ const common = (i, options) => ({
         test: /\.png$/,
         type: 'asset',
       },
-      {
-        test: /\.css$/,
-        type: 'css/auto',
-      },
     ],
+  },
+  experiments: {
+    css: true,
   },
   plugins: [
     {
@@ -38,7 +37,6 @@ const common = (i, options) => ({
               const data = fs.readFileSync(
                 path.resolve(__dirname, './test.js'),
               );
-
               compilation.emitAsset(
                 'test.js',
                 new rspack.sources.RawSource(data),

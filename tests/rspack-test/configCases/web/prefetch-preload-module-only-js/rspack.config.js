@@ -2,12 +2,7 @@
 module.exports = {
   entry: './index.mjs',
   module: {
-    rules: [
-      {
-        test: /\.css$/,
-        type: 'css/auto',
-      },
-    ],
+    rules: [],
   },
   name: 'esm',
   target: 'web',
@@ -40,7 +35,6 @@ module.exports = {
                   "Unexpected appearance of the 'modulepreload' preload runtime.",
                 );
               }
-
               if (
                 assets['bundle0.mjs']
                   .source()
@@ -61,5 +55,8 @@ module.exports = {
   },
   optimization: {
     minimize: false,
+  },
+  experiments: {
+    css: true,
   },
 };

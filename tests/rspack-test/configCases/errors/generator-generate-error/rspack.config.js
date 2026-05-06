@@ -13,13 +13,10 @@ module.exports = {
   },
   experiments: {
     asyncWebAssembly: true,
+    css: true,
   },
   module: {
     rules: [
-      {
-        type: 'css/auto',
-        test: /\.css$/,
-      },
       {
         type: 'asset/source',
         test: /source\.txt$/,

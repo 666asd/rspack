@@ -6,11 +6,9 @@ module.exports = {
         localIdentName: '[local]-[hash:base64:6]-[hash]',
       },
     },
-    rules: [
-      {
-        test: /\.css$/,
-        type: 'css/auto',
-      },
-    ],
+    rules: [],
+  },
+  experiments: {
+    css: true,
   },
 };

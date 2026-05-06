@@ -15,6 +15,9 @@ function createConfig(target, concatenateModules) {
     devtool: false,
     target,
     mode: 'development',
+    experiments: {
+      css: true,
+    },
     optimization: {
       chunkIds: 'named',
       concatenateModules,
@@ -37,7 +40,6 @@ function createConfig(target, concatenateModules) {
     ],
   };
 }
-
 module.exports = [
   createConfig('node', false),
   createConfig('node', true),

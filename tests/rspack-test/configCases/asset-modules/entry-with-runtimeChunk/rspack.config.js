@@ -1,17 +1,15 @@
 const path = require('path');
 const fs = require('fs');
 const { rspack } = require('@rspack/core');
-
 const common = {
+  experiments: {
+    css: true,
+  },
   module: {
     rules: [
       {
         test: /\.png$/,
         type: 'asset',
-      },
-      {
-        test: /\.css$/,
-        type: 'css/auto',
       },
     ],
   },
@@ -29,7 +27,6 @@ const common = {
               const data = fs.readFileSync(
                 path.resolve(__dirname, './test.js'),
               );
-
               compilation.emitAsset(
                 'test.js',
                 new rspack.sources.RawSource(data),
@@ -46,7 +43,6 @@ const common = {
     },
   },
 };
-
 const entry = (i) => {
   switch (i % 4) {
     case 0:
@@ -80,7 +76,6 @@ const entry = (i) => {
       break;
   }
 };
-
 const esm = (i) => ({
   ...common,
   ...entry(i),
@@ -93,7 +88,6 @@ const esm = (i) => ({
     module: true,
   },
 });
-
 const node = (i) => ({
   ...common,
   ...entry(i),
@@ -106,7 +100,6 @@ const node = (i) => ({
   },
   target: 'node',
 });
-
 const web = (i) => ({
   ...common,
   ...entry(i),

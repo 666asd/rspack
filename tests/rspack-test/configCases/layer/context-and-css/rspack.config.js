@@ -2,8 +2,14 @@
 module.exports = {
   target: 'web',
   entry: {
-    light: { import: './light.js', layer: 'light' },
-    dark: { import: './dark.js', layer: 'dark' },
+    light: {
+      import: './light.js',
+      layer: 'light',
+    },
+    dark: {
+      import: './dark.js',
+      layer: 'dark',
+    },
   },
   optimization: {
     runtimeChunk: 'single',
@@ -43,10 +49,9 @@ module.exports = {
           },
         ],
       },
-      {
-        test: /\.css$/,
-        type: 'css/auto',
-      },
     ],
+  },
+  experiments: {
+    css: true,
   },
 };

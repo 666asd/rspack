@@ -9,11 +9,10 @@ module.exports = {
         use: 'less-loader',
         type: 'css/auto',
       },
-      {
-        test: /\.css$/,
-        type: 'css/auto',
-      },
     ],
   },
   ignoreWarnings: [/ESModulesLinkingWarning: export 'class'/],
+  experiments: {
+    css: true,
+  },
 };

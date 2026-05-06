@@ -6,17 +6,15 @@ module.exports = {
     crossOriginLoading: 'anonymous',
   },
   module: {
-    rules: [
-      {
-        test: /\.css$/,
-        type: 'css/auto',
-      },
-    ],
+    rules: [],
   },
   optimization: {
     minimize: false,
     splitChunks: {
       minSize: 1,
     },
+  },
+  experiments: {
+    css: true,
   },
 };

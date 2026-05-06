@@ -9,12 +9,10 @@ module.exports = [
           esModule: false,
         },
       },
-      rules: [
-        {
-          test: /\.css$/,
-          type: 'css/auto',
-        },
-      ],
+      rules: [],
+    },
+    experiments: {
+      css: true,
     },
   },
   {
@@ -26,12 +24,10 @@ module.exports = [
           esModule: false,
         },
       },
-      rules: [
-        {
-          test: /\.css$/,
-          type: 'css/auto',
-        },
-      ],
+      rules: [],
+    },
+    experiments: {
+      css: true,
     },
   },
 ];

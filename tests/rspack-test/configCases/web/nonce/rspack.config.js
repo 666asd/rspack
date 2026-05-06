@@ -5,11 +5,9 @@ module.exports = {
     chunkFilename: '[name].js',
   },
   module: {
-    rules: [
-      {
-        test: /\.css$/,
-        type: 'css/auto',
-      },
-    ],
+    rules: [],
+  },
+  experiments: {
+    css: true,
   },
 };

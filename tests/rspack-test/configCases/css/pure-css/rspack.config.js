@@ -1,4 +1,5 @@
 'use strict';
+
 /** @type {import("@rspack/core").Configuration} */
 module.exports = {
   target: 'web',
@@ -10,5 +11,8 @@ module.exports = {
         type: 'css',
       },
     ],
+  },
+  experiments: {
+    css: true,
   },
 };

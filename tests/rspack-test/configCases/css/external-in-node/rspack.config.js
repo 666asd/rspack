@@ -6,11 +6,9 @@ module.exports = {
   entry: '../external-in-node/index.js',
   target: 'node',
   module: {
-    rules: [
-      {
-        test: /\.css$/,
-        type: 'css/auto',
-      },
-    ],
+    rules: [],
+  },
+  experiments: {
+    css: true,
   },
 };

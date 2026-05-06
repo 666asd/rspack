@@ -3,12 +3,7 @@ module.exports = {
   target: 'web',
   mode: 'development',
   module: {
-    rules: [
-      {
-        test: /\.css$/,
-        type: 'css/auto',
-      },
-    ],
+    rules: [],
   },
   entry: {
     main: {
@@ -35,5 +30,8 @@ module.exports = {
   output: {
     filename: '[name].js',
     assetModuleFilename: '[name][ext]',
+  },
+  experiments: {
+    css: true,
   },
 };

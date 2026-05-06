@@ -6,12 +6,7 @@ module.exports = {
     main: './index.js',
   },
   module: {
-    rules: [
-      {
-        test: /\.css$/,
-        type: 'css/auto',
-      },
-    ],
+    rules: [],
   },
   plugins: [
     function () {
@@ -41,9 +36,7 @@ module.exports = {
             const text = sortedModules
               .map(
                 ([m, index]) =>
-                  `${index}: ${m.readableIdentifier(
-                    compilation.requestShortener,
-                  )}`,
+                  `${index}: ${m.readableIdentifier(compilation.requestShortener)}`,
               )
               .join(', ');
             data[`${name}Index`] = text;
@@ -57,4 +50,7 @@ module.exports = {
       this.hooks.compilation.tap('testcase', handler);
     },
   ],
+  experiments: {
+    css: true,
+  },
 };

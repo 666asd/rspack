@@ -3,11 +3,9 @@ module.exports = {
   mode: 'development',
   devtool: false,
   module: {
-    rules: [
-      {
-        test: /\.css$/,
-        type: 'css/auto',
-      },
-    ],
+    rules: [],
+  },
+  experiments: {
+    css: true,
   },
 };

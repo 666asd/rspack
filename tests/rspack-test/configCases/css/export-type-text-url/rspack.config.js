@@ -19,19 +19,28 @@ module.exports = [
         {
           test: /style\.css$/,
           type: 'css/auto',
-          parser: { exportType: 'text' },
+          parser: {
+            exportType: 'text',
+          },
         },
         {
           test: /style-for-sheet\.css$/,
           type: 'css/auto',
-          parser: { exportType: 'css-style-sheet' },
+          parser: {
+            exportType: 'css-style-sheet',
+          },
         },
         {
           test: /style-for-inject\.css$/,
           type: 'css/auto',
-          parser: { exportType: 'style' },
+          parser: {
+            exportType: 'style',
+          },
         },
       ],
+    },
+    experiments: {
+      css: true,
     },
   },
   {
@@ -51,19 +60,28 @@ module.exports = [
         {
           test: /style\.css$/,
           type: 'css/auto',
-          parser: { exportType: 'text' },
+          parser: {
+            exportType: 'text',
+          },
         },
         {
           test: /style-for-sheet\.css$/,
           type: 'css/auto',
-          parser: { exportType: 'css-style-sheet' },
+          parser: {
+            exportType: 'css-style-sheet',
+          },
         },
         {
           test: /style-for-inject\.css$/,
           type: 'css/auto',
-          parser: { exportType: 'style' },
+          parser: {
+            exportType: 'style',
+          },
         },
       ],
+    },
+    experiments: {
+      css: true,
     },
   },
 ];

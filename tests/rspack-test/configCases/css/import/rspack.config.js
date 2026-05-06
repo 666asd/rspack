@@ -7,7 +7,6 @@ module.exports = [
   {
     target: 'web',
     mode: 'development',
-
     resolve: {
       alias: {
         '/alias.css': false,
@@ -31,10 +30,6 @@ module.exports = [
           loader: 'less-loader',
           type: 'css/global',
         },
-        {
-          test: /\.css$/,
-          type: 'css/auto',
-        },
       ],
     },
     externals: {
@@ -53,24 +48,28 @@ module.exports = [
       'external-13.css': 'css-import external-13.css',
       'external-14.css': 'css-import external-14.css',
     },
-    plugins: [new rspack.IgnorePlugin({ resourceRegExp: /ignore\.css/ })],
+    plugins: [
+      new rspack.IgnorePlugin({
+        resourceRegExp: /ignore\.css/,
+      }),
+    ],
+    experiments: {
+      css: true,
+    },
   },
   {
     target: 'web',
     mode: 'development',
-
     module: {
       parser: {
         css: {
           import: false,
         },
       },
-      rules: [
-        {
-          test: /\.css$/,
-          type: 'css/auto',
-        },
-      ],
+      rules: [],
+    },
+    experiments: {
+      css: true,
     },
   },
 ];

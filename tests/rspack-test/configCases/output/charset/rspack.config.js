@@ -12,4 +12,7 @@ module.exports = {
     chunkIds: 'named',
     minimize: false,
   },
+  experiments: {
+    css: true,
+  },
 };

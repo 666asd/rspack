@@ -3,12 +3,7 @@ module.exports = {
   target: 'web',
   mode: 'development',
   module: {
-    rules: [
-      {
-        test: /\.css$/,
-        type: 'css/auto',
-      },
-    ],
+    rules: [],
   },
   output: {
     uniqueName: 'test',
@@ -26,14 +21,10 @@ module.exports = {
             (assets) => {
               const name = 'bundle0.css';
               const code = assets[name].source();
-
               compilation.updateAsset(
                 name,
                 new compiler.rspack.sources.RawSource(
-                  `${code.replace(
-                    'head{',
-                    '.class, head, body{',
-                  )}\n\n.after-head { color: red; }`,
+                  `${code.replace('head{', '.class, head, body{')}\n\n.after-head { color: red; }`,
                 ),
               );
             },
@@ -42,4 +33,7 @@ module.exports = {
       },
     },
   ],
+  experiments: {
+    css: true,
+  },
 };

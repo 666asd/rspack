@@ -8,7 +8,6 @@ module.exports = (env, { testPath }) => [
   {
     target: 'web',
     mode: 'development',
-
     module: {
       rules: [
         {
@@ -25,6 +24,9 @@ module.exports = (env, { testPath }) => [
       __dirname: false,
       __filename: false,
     },
+    experiments: {
+      css: true,
+    },
   },
   {
     target: 'web',
@@ -32,7 +34,6 @@ module.exports = (env, { testPath }) => [
     output: {
       uniqueName: 'my-app',
     },
-
     module: {
       rules: [
         {
@@ -62,5 +63,8 @@ module.exports = (env, { testPath }) => [
         mode: 'create',
       }),
     ],
+    experiments: {
+      css: true,
+    },
   },
 ];

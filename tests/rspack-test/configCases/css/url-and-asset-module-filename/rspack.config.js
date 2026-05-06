@@ -24,6 +24,9 @@ module.exports = [
       cssChunkFilename: 'bundle0/css/[name].css',
       assetModuleFilename: 'bundle0/assets/[name][ext]',
     },
+    experiments: {
+      css: true,
+    },
   },
   {
     ...common,
@@ -31,6 +34,9 @@ module.exports = [
       publicPath: 'https://test.cases/path/',
       cssChunkFilename: 'bundle1/css/[name].css',
       assetModuleFilename: 'bundle1/assets/[name][ext]',
+    },
+    experiments: {
+      css: true,
     },
   },
   {
@@ -41,10 +47,6 @@ module.exports = [
     module: {
       rules: [
         {
-          test: /\.css$/,
-          type: 'css/auto',
-        },
-        {
           test: /\.png$/i,
           type: 'asset/resource',
           generator: {
@@ -54,6 +56,9 @@ module.exports = [
           },
         },
       ],
+    },
+    experiments: {
+      css: true,
     },
   },
 ];

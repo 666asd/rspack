@@ -9,7 +9,11 @@
  * @param {boolean=} options.concatenateModules Whether to concatenate modules
  * @returns {import("@rspack/core").Configuration} Webpack configuration
  */
-const getConfig = ({ concatenateModules } = { concatenateModules: false }) => ({
+const getConfig = (
+  { concatenateModules } = {
+    concatenateModules: false,
+  },
+) => ({
   devtool: false,
   target: 'web',
   mode: 'development',
@@ -99,6 +103,13 @@ const getConfig = ({ concatenateModules } = { concatenateModules: false }) => ({
       },
     },
   },
+  experiments: {
+    css: true,
+  },
 });
-
-module.exports = [getConfig(), getConfig({ concatenateModules: true })];
+module.exports = [
+  getConfig(),
+  getConfig({
+    concatenateModules: true,
+  }),
+];

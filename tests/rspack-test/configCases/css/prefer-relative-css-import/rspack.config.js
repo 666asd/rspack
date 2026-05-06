@@ -9,10 +9,9 @@ module.exports = {
         use: 'less-loader',
         type: 'css/auto',
       },
-      {
-        test: /\.css$/,
-        type: 'css/auto',
-      },
     ],
+  },
+  experiments: {
+    css: true,
   },
 };

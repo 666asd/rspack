@@ -12,17 +12,15 @@ module.exports = {
     crossOriginLoading: 'anonymous',
   },
   module: {
-    rules: [
-      {
-        test: /\.css$/,
-        type: 'css/auto',
-      },
-    ],
+    rules: [],
   },
   performance: {
     hints: false,
   },
   optimization: {
     minimize: false,
+  },
+  experiments: {
+    css: true,
   },
 };

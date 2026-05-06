@@ -2,12 +2,7 @@
 module.exports = {
   entry: './index.mjs',
   module: {
-    rules: [
-      {
-        test: /\.css$/,
-        type: 'css/auto',
-      },
-    ],
+    rules: [],
   },
   name: 'esm',
   target: 'web',
@@ -24,5 +19,8 @@ module.exports = {
   },
   optimization: {
     minimize: false,
+  },
+  experiments: {
+    css: true,
   },
 };

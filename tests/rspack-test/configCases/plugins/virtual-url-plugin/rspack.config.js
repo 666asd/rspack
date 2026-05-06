@@ -3,9 +3,7 @@
 const fs = require('fs');
 const path = require('path');
 const { rspack } = require('@rspack/core');
-
 const { VirtualUrlPlugin } = rspack.experiments.schemes;
-
 const watchDir = path.join(__dirname, './routes');
 
 /** @type {import('webpack').Configuration} */
@@ -67,12 +65,10 @@ const config = {
         test: /\.txt/,
         type: 'asset/source',
       },
-      {
-        test: /\.css$/,
-        type: 'css/auto',
-      },
     ],
   },
+  experiments: {
+    css: true,
+  },
 };
-
 module.exports = config;

@@ -68,6 +68,9 @@ module.exports = [
         'process.env.TARGET': JSON.stringify('web'),
       }),
     ],
+    experiments: {
+      css: true,
+    },
   },
   {
     ...common,
@@ -78,6 +81,9 @@ module.exports = [
         'process.env.TARGET': JSON.stringify('web'),
       }),
     ],
+    experiments: {
+      css: true,
+    },
   },
   {
     ...common,
@@ -88,6 +94,9 @@ module.exports = [
         'process.env.TARGET': JSON.stringify('node'),
       }),
     ],
+    experiments: {
+      css: true,
+    },
   },
   {
     ...common,
@@ -98,5 +107,8 @@ module.exports = [
         'process.env.TARGET': JSON.stringify('node'),
       }),
     ],
+    experiments: {
+      css: true,
+    },
   },
 ];

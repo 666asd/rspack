@@ -9,14 +9,8 @@ module.exports = [
     target: 'web',
     mode: 'development',
     devtool: false,
-
     module: {
-      rules: [
-        {
-          test: /\.css$/,
-          type: 'css/auto',
-        },
-      ],
+      rules: [],
     },
     output: {
       assetModuleFilename: '[name].[hash][ext][query][fragment]',
@@ -32,28 +26,32 @@ module.exports = [
       'external-url-2.png': 'test',
       'schema:test': "asset 'img.png'",
     },
-    plugins: [new rspack.IgnorePlugin({ resourceRegExp: /ignore\.png/ })],
+    plugins: [
+      new rspack.IgnorePlugin({
+        resourceRegExp: /ignore\.png/,
+      }),
+    ],
+    experiments: {
+      css: true,
+    },
   },
   {
     target: 'web',
     mode: 'development',
     devtool: false,
-
     module: {
       parser: {
         css: {
           url: false,
         },
       },
-      rules: [
-        {
-          test: /\.css$/,
-          type: 'css/auto',
-        },
-      ],
+      rules: [],
     },
     output: {
       assetModuleFilename: '[name].[hash][ext][query][fragment]',
+    },
+    experiments: {
+      css: true,
     },
   },
 ];

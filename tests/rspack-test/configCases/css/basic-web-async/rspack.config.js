@@ -2,13 +2,14 @@
 module.exports = {
   target: 'web',
   mode: 'development',
-  externalsPresets: { web: false, webAsync: true },
+  externalsPresets: {
+    web: false,
+    webAsync: true,
+  },
   module: {
-    rules: [
-      {
-        test: /\.css$/,
-        type: 'css/auto',
-      },
-    ],
+    rules: [],
+  },
+  experiments: {
+    css: true,
   },
 };

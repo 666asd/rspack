@@ -8,10 +8,16 @@ module.exports = [
     output: {
       uniqueName: 'my-app',
     },
+    experiments: {
+      css: true,
+    },
   },
   {
     target: 'web',
     mode: 'production',
     performance: false,
+    experiments: {
+      css: true,
+    },
   },
 ];

@@ -8,11 +8,9 @@ module.exports = {
     cssChunkFilename: '[name].[chunkhash].css',
   },
   module: {
-    rules: [
-      {
-        test: /\.css$/,
-        type: 'css/auto',
-      },
-    ],
+    rules: [],
+  },
+  experiments: {
+    css: true,
   },
 };

@@ -22,6 +22,9 @@ module.exports = [
         },
       ],
     },
+    experiments: {
+      css: true,
+    },
   },
   {
     ...common,
@@ -41,6 +44,9 @@ module.exports = [
         },
       ],
     },
+    experiments: {
+      css: true,
+    },
   },
   {
     ...common,
@@ -59,6 +65,9 @@ module.exports = [
           },
         },
       ],
+    },
+    experiments: {
+      css: true,
     },
   },
   // MAYBE: support function type of exportsConvention
@@ -80,6 +89,9 @@ module.exports = [
         },
       ],
     },
+    experiments: {
+      css: true,
+    },
   },
   {
     ...common,
@@ -98,6 +110,9 @@ module.exports = [
           },
         },
       ],
+    },
+    experiments: {
+      css: true,
     },
   },
   {
@@ -118,6 +133,9 @@ module.exports = [
         },
       ],
     },
+    experiments: {
+      css: true,
+    },
   },
   {
     ...common,
@@ -136,6 +154,9 @@ module.exports = [
           },
         },
       ],
+    },
+    experiments: {
+      css: true,
     },
   },
 ];

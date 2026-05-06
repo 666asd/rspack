@@ -96,4 +96,7 @@ module.exports = {
       '~test': path.resolve(__dirname, 'node_modules/test'),
     },
   },
+  experiments: {
+    css: true,
+  },
 };

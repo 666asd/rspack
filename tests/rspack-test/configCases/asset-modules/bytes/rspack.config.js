@@ -12,11 +12,10 @@ module.exports = [
           test: /\.svg$/,
           type: 'asset/bytes',
         },
-        {
-          test: /\.css$/,
-          type: 'css/auto',
-        },
       ],
+    },
+    experiments: {
+      css: true,
     },
   },
   {
@@ -29,11 +28,10 @@ module.exports = [
           test: /\.svg$/,
           type: 'asset/bytes',
         },
-        {
-          test: /\.css$/,
-          type: 'css/auto',
-        },
       ],
+    },
+    experiments: {
+      css: true,
     },
   },
   {
@@ -49,11 +47,10 @@ module.exports = [
           test: /\.svg$/,
           type: 'asset/bytes',
         },
-        {
-          test: /\.css$/,
-          type: 'css/auto',
-        },
       ],
+    },
+    experiments: {
+      css: true,
     },
   },
 ];
