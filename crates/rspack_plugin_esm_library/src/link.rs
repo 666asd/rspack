@@ -1405,8 +1405,7 @@ var {} = {{}};
               &compilation.chunk_hashes_artifact,
               &SourceType::JavaScript,
               compilation.options.output.hash_digest_length,
-            ))
-            .runtime(chunk.runtime().as_str()),
+            )),
           &mut Default::default(),
         )
         .await
