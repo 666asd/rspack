@@ -59,11 +59,11 @@ impl Task<TaskContext> for BuildTask {
         BuildContext {
           compiler_id,
           compilation_id,
-          compiler_options,
-          resolver_factory,
+          compiler_options: compiler_options.clone(),
+          resolver_factory: resolver_factory.clone(),
           plugin_driver: plugin_driver.clone(),
           runtime_template,
-          fs,
+          fs: fs.clone(),
         },
         None,
       )
@@ -106,22 +106,21 @@ impl Task<TaskContext> for BuildResultTask {
       .await?;
 
     let build_info = module.build_info();
-    let module_identifier = module.identifier();
 
     if !module.diagnostics().is_empty() {
       context
         .artifact
         .make_failed_module
-        .insert(module_identifier);
+        .insert(module.identifier());
     }
 
-    tracing::trace!("Module built: {}", module_identifier);
+    tracing::trace!("Module built: {}", module.identifier());
     context
       .artifact
       .module_graph
-      .get_optimization_bailout_mut(&module_identifier)
+      .get_optimization_bailout_mut(&module.identifier())
       .extend(build_result.optimization_bailouts);
-    let resource_id = ResourceId::from(module_identifier);
+    let resource_id = ResourceId::from(module.identifier());
     context
       .artifact
       .file_dependencies
@@ -141,13 +140,12 @@ impl Task<TaskContext> for BuildResultTask {
 
     let module_graph = &mut context.artifact.module_graph;
     let mut lazy_dependencies = LazyDependencies::default();
-    let mut queue = VecDeque::with_capacity(build_result.blocks.len());
-    let mut all_dependencies = Vec::with_capacity(build_result.dependencies.len());
+    let mut queue = VecDeque::new();
+    let mut all_dependencies = vec![];
     let mut handle_block = |dependencies: Vec<BoxDependency>,
                             blocks: Vec<Box<AsyncDependenciesBlock>>,
                             current_block: Option<Box<AsyncDependenciesBlock>>|
      -> Vec<Box<AsyncDependenciesBlock>> {
-      all_dependencies.reserve(dependencies.len());
       for (index_in_block, dependency) in dependencies.into_iter().enumerate() {
         let dependency_id = *dependency.id();
         if let Some(until) = dependency.lazy() {
@@ -161,7 +159,7 @@ impl Task<TaskContext> for BuildResultTask {
           dependency_id,
           DependencyParents {
             block: current_block.as_ref().map(|block| block.identifier()),
-            module: module_identifier,
+            module: module.identifier(),
             index_in_block,
           },
         );
@@ -183,10 +181,11 @@ impl Task<TaskContext> for BuildResultTask {
     }
 
     {
-      let mgm = module_graph.module_graph_module_by_identifier_mut(&module_identifier);
-      mgm.reserve_outgoing_connections(all_dependencies.len());
+      let mgm = module_graph.module_graph_module_by_identifier_mut(&module.identifier());
       mgm.all_dependencies_mut().clone_from(&all_dependencies);
     }
+
+    let module_identifier = module.identifier();
 
     module_graph.add_module(module);
 
@@ -219,7 +218,7 @@ impl Task<TaskContext> for BuildResultTask {
       context
         .artifact
         .module_to_lazy_make
-        .remove_module_lazy_dependencies(&module_identifier);
+        .update_module_lazy_dependencies(module_identifier, None);
       all_dependencies
     };
 

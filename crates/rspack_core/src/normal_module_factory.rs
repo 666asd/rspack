@@ -38,16 +38,6 @@ pub enum NormalModuleFactoryResolveResult {
   Ignored,
 }
 
-struct RuleEffects {
-  module_type: ModuleType,
-  module_layer: Option<ModuleLayer>,
-  resolve_options: Option<Arc<Resolve>>,
-  parser_options: Option<ParserOptions>,
-  generator_options: Option<GeneratorOptions>,
-  side_effects: Option<bool>,
-  extract_source_map: Option<bool>,
-}
-
 #[derive(Debug, Default)]
 pub struct NormalModuleFactoryHooks {
   pub before_resolve: NormalModuleFactoryBeforeResolveHook,
@@ -162,7 +152,7 @@ impl NormalModuleFactory {
     let mut missing_dependencies = Default::default();
 
     let plugin_driver = &self.plugin_driver;
-    let mut loader_resolver = None;
+    let loader_resolver = self.get_loader_resolver();
 
     let mut match_resource_data = None;
     let mut match_module_type = None;
@@ -413,8 +403,8 @@ module.exports = "data:,";
 
     let mut resolved_inline_loaders = vec![];
     for l in inline_loaders {
-      let resolver = loader_resolver.get_or_insert_with(|| self.get_loader_resolver());
-      resolved_inline_loaders.push(resolve_each(plugin_driver, &data.context, resolver, &l).await?)
+      resolved_inline_loaders
+        .push(resolve_each(plugin_driver, &data.context, &loader_resolver, &l).await?)
     }
 
     let user_request = {
@@ -480,15 +470,14 @@ module.exports = "data:,";
       );
 
       for l in post_loaders {
-        let resolver = loader_resolver.get_or_insert_with(|| self.get_loader_resolver());
-        all_loaders.push(resolve_each(plugin_driver, &self.options.context, resolver, &l).await?)
+        all_loaders
+          .push(resolve_each(plugin_driver, &self.options.context, &loader_resolver, &l).await?)
       }
 
       let mut resolved_normal_loaders = vec![];
       for l in normal_loaders {
-        let resolver = loader_resolver.get_or_insert_with(|| self.get_loader_resolver());
         resolved_normal_loaders
-          .push(resolve_each(plugin_driver, &self.options.context, resolver, &l).await?)
+          .push(resolve_each(plugin_driver, &self.options.context, &loader_resolver, &l).await?)
       }
 
       if match_resource_data.is_some() {
@@ -500,8 +489,8 @@ module.exports = "data:,";
       }
 
       for l in pre_loaders {
-        let resolver = loader_resolver.get_or_insert_with(|| self.get_loader_resolver());
-        all_loaders.push(resolve_each(plugin_driver, &self.options.context, resolver, &l).await?)
+        all_loaders
+          .push(resolve_each(plugin_driver, &self.options.context, &loader_resolver, &l).await?)
       }
 
       all_loaders
@@ -518,25 +507,30 @@ module.exports = "data:,";
       resource_data.resource().to_owned()
     };
 
-    let rule_effects = self.calculate_rule_effects(
-      match_module_type,
-      data.issuer_layer.as_ref(),
-      &resolved_module_rules,
-    );
+    let resolved_module_type =
+      self.calculate_module_type(match_module_type, &resolved_module_rules);
+    let resolved_module_layer =
+      self.calculate_module_layer(data.issuer_layer.as_ref(), &resolved_module_rules);
+
+    let resolved_resolve_options = self.calculate_resolve_options(&resolved_module_rules);
+    let (resolved_parser_options, resolved_generator_options) =
+      self.calculate_parser_and_generator_options(&resolved_module_rules);
     let (resolved_parser_options, resolved_generator_options) = self
       .merge_global_parser_and_generator_options(
-        &rule_effects.module_type,
-        rule_effects.parser_options,
-        rule_effects.generator_options,
+        &resolved_module_type,
+        resolved_parser_options,
+        resolved_generator_options,
       );
+    let resolved_side_effects = self.calculate_side_effects(&resolved_module_rules);
+    let resolved_extract_source_map = self.calculate_extract_source_map(&resolved_module_rules);
     let mut resolved_parser_and_generator = self
       .plugin_driver
       .registered_parser_and_generator_builder
-      .get(&rule_effects.module_type)
+      .get(&resolved_module_type)
       .ok_or_else(|| {
         error!(
           "No parser registered for '{}'",
-          rule_effects.module_type.as_str()
+          resolved_module_type.as_str()
         )
       })?(
       resolved_parser_options.as_ref(),
@@ -547,7 +541,7 @@ module.exports = "data:,";
       .normal_module_factory_hooks
       .parser
       .call(
-        &rule_effects.module_type,
+        &resolved_module_type,
         &mut resolved_parser_and_generator,
         resolved_parser_options.as_ref(),
       )
@@ -561,7 +555,7 @@ module.exports = "data:,";
         match_resource: match_resource_data
           .as_ref()
           .map(|d| d.resource().to_owned()),
-        side_effects: rule_effects.side_effects,
+        side_effects: resolved_side_effects,
         context: resource_data.context().map(|c| c.to_owned()),
         resource_resolve_data: resource_data,
       };
@@ -594,17 +588,17 @@ module.exports = "data:,";
         create_data.request.clone(),
         create_data.user_request.clone(),
         create_data.raw_request.clone(),
-        rule_effects.module_type,
-        rule_effects.module_layer,
+        resolved_module_type,
+        resolved_module_layer,
         resolved_parser_and_generator,
         resolved_parser_options,
         resolved_generator_options,
         match_resource_data,
         Arc::new(create_data.resource_resolve_data.clone()),
-        rule_effects.resolve_options,
+        resolved_resolve_options,
         loaders,
         create_data.context.clone().map(|x| x.into()),
-        rule_effects.extract_source_map,
+        resolved_extract_source_map,
       )
       .boxed()
     };
@@ -643,27 +637,9 @@ module.exports = "data:,";
     Ok(rules)
   }
 
-  fn calculate_rule_effects(
-    &self,
-    matched_module_type: Option<ModuleType>,
-    issuer_layer: Option<&ModuleLayer>,
-    module_rules: &[&ModuleRuleEffect],
-  ) -> RuleEffects {
-    let mut resolved_module_type = matched_module_type.unwrap_or(ModuleType::JsAuto);
-    let mut resolved_module_layer = issuer_layer;
+  fn calculate_resolve_options(&self, module_rules: &[&ModuleRuleEffect]) -> Option<Arc<Resolve>> {
     let mut resolved: Option<Resolve> = None;
-    let mut resolved_parser = None;
-    let mut resolved_generator = None;
-    let mut side_effects = None;
-    let mut extract_source_map = None;
-
     for rule in module_rules {
-      if let Some(module_type) = rule.r#type {
-        resolved_module_type = module_type;
-      }
-      if let Some(module_layer) = &rule.layer {
-        resolved_module_layer = Some(module_layer);
-      }
       if let Some(rule_resolve) = &rule.resolve {
         if let Some(r) = resolved {
           resolved = Some(r.merge(rule_resolve.to_owned()));
@@ -671,25 +647,45 @@ module.exports = "data:,";
           resolved = Some(rule_resolve.to_owned());
         }
       }
+    }
+    resolved.map(Arc::new)
+  }
+
+  fn calculate_side_effects(&self, module_rules: &[&ModuleRuleEffect]) -> Option<bool> {
+    let mut side_effect_res = None;
+    // side_effects from module rule has higher priority
+    for rule in module_rules.iter() {
+      if rule.side_effects.is_some() {
+        side_effect_res = rule.side_effects;
+      }
+    }
+    side_effect_res
+  }
+
+  fn calculate_extract_source_map(&self, module_rules: &[&ModuleRuleEffect]) -> Option<bool> {
+    let mut extract_source_map_res = None;
+    // extract_source_map from module rule has higher priority
+    for rule in module_rules.iter() {
+      if rule.extract_source_map.is_some() {
+        extract_source_map_res = rule.extract_source_map;
+      }
+    }
+    extract_source_map_res
+  }
+
+  fn calculate_parser_and_generator_options(
+    &self,
+    module_rules: &[&ModuleRuleEffect],
+  ) -> (Option<ParserOptions>, Option<GeneratorOptions>) {
+    let mut resolved_parser = None;
+    let mut resolved_generator = None;
+
+    for rule in module_rules {
       resolved_parser = resolved_parser.merge_from(&rule.parser);
       resolved_generator = resolved_generator.merge_from(&rule.generator);
-      if rule.side_effects.is_some() {
-        side_effects = rule.side_effects;
-      }
-      if rule.extract_source_map.is_some() {
-        extract_source_map = rule.extract_source_map;
-      }
     }
 
-    RuleEffects {
-      module_type: resolved_module_type,
-      module_layer: resolved_module_layer.cloned(),
-      resolve_options: resolved.map(Arc::new),
-      parser_options: resolved_parser,
-      generator_options: resolved_generator,
-      side_effects,
-      extract_source_map,
-    }
+    (resolved_parser, resolved_generator)
   }
 
   fn merge_global_parser_and_generator_options(
@@ -819,6 +815,36 @@ module.exports = "data:,";
       },
     );
     (parser, generator)
+  }
+
+  fn calculate_module_type(
+    &self,
+    matched_module_type: Option<ModuleType>,
+    module_rules: &[&ModuleRuleEffect],
+  ) -> ModuleType {
+    let mut resolved_module_type = matched_module_type.unwrap_or(ModuleType::JsAuto);
+    for module_rule in module_rules.iter() {
+      if let Some(module_type) = module_rule.r#type {
+        resolved_module_type = module_type;
+      };
+    }
+
+    resolved_module_type
+  }
+
+  fn calculate_module_layer(
+    &self,
+    issuer_layer: Option<&ModuleLayer>,
+    module_rules: &[&ModuleRuleEffect],
+  ) -> Option<ModuleLayer> {
+    let mut resolved_module_layer = issuer_layer;
+    for module_rule in module_rules.iter() {
+      if let Some(module_layer) = &module_rule.layer {
+        resolved_module_layer = Some(module_layer);
+      };
+    }
+
+    resolved_module_layer.cloned()
   }
 
   async fn factorize(&self, data: &mut ModuleFactoryCreateData) -> Result<ModuleFactoryResult> {

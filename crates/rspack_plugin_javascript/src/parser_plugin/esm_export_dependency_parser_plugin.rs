@@ -1,7 +1,6 @@
 use itertools::Itertools;
 use rspack_core::{
-  BoxDependency, ConstDependency, Dependency, DependencyRange, DependencyType, ImportAttributes,
-  ImportPhase, ResourceIdentifier,
+  BoxDependency, ConstDependency, Dependency, DependencyRange, DependencyType, ImportPhase,
 };
 use rspack_util::SpanExt;
 use swc_core::{
@@ -20,7 +19,7 @@ use crate::{
   dependency::{
     DeclarationId, DeclarationInfo, ESMExportExpressionDependency, ESMExportHeaderDependency,
     ESMExportImportedSpecifierDependency, ESMExportSpecifierDependency,
-    ESMImportSideEffectDependency, create_resource_identifier_for_esm_dependency,
+    ESMImportSideEffectDependency,
   },
   parser_plugin::compatibility_plugin::{NESTED_IDENTIFIER_TAG, NestedRequireData},
   utils::object_properties::get_attributes,
@@ -31,21 +30,6 @@ use crate::{
 };
 
 pub struct ESMExportDependencyParserPlugin;
-
-fn get_export_import_resource_identifier(
-  parser: &JavascriptParser,
-  statement: ExportImport,
-  source: &Atom,
-  attributes: Option<&ImportAttributes>,
-) -> ResourceIdentifier {
-  let span = statement.span();
-  if let Some((cached_span, resource_identifier)) = parser.last_esm_import_resource_identifier
-    && cached_span == span
-  {
-    return resource_identifier;
-  }
-  create_resource_identifier_for_esm_dependency(source, attributes)
-}
 
 #[rspack_macros::implemented_javascript_parser_hooks]
 impl JavascriptParserPlugin for ESMExportDependencyParserPlugin {
@@ -89,8 +73,6 @@ impl JavascriptParserPlugin for ESMExportDependencyParserPlugin {
     {
       side_effect_dep.set_lazy();
     }
-    parser.last_esm_import_resource_identifier =
-      Some((statement.span(), side_effect_dep.resource_identifier()));
     parser.add_dependency(Box::new(side_effect_dep));
     Some(true)
   }
@@ -123,31 +105,23 @@ impl JavascriptParserPlugin for ESMExportDependencyParserPlugin {
         .into(),
       );
     }
-    let dep = if let Some(settings) =
-      parser.get_tag_data_ref::<ESMSpecifierData>(local_id, ESM_SPECIFIER_TAG)
-    {
-      let source = settings.source.clone();
-      let source_order = settings.source_order;
-      let ids = settings.ids.clone().into_vec();
-      let phase = settings.phase;
-      let attributes = settings.attributes.clone();
-      let resource_identifier = settings.resource_identifier;
+    let dep = if let Some(settings) = parser.get_tag_data(local_id, ESM_SPECIFIER_TAG) {
+      let settings = ESMSpecifierData::downcast(settings);
       let range = DependencyRange::from(statement.span());
       let loc = parser.to_dependency_location(range);
-      let mut dep = ESMExportImportedSpecifierDependency::new_with_resource_identifier(
-        source,
-        source_order,
-        ids,
+      let mut dep = ESMExportImportedSpecifierDependency::new(
+        settings.source,
+        settings.source_order,
+        settings.ids.into_vec(),
         Some(export_name.clone()),
         None,
         statement.span().into(),
         ESMExportImportedSpecifierDependency::create_export_presence_mode(
           parser.javascript_options,
         ),
-        phase,
-        attributes,
+        settings.phase,
+        settings.attributes,
         loc,
-        resource_identifier,
       );
       if parser
         .factory_meta
@@ -222,10 +196,7 @@ impl JavascriptParserPlugin for ESMExportDependencyParserPlugin {
     } else {
       Some(parser.build_info.all_star_exports.clone())
     };
-    let attributes = statement.get_with_obj().map(get_attributes);
-    let resource_identifier =
-      get_export_import_resource_identifier(parser, statement, source, attributes.as_ref());
-    let mut dep = ESMExportImportedSpecifierDependency::new_with_resource_identifier(
+    let mut dep = ESMExportImportedSpecifierDependency::new(
       source.clone(),
       parser.last_esm_import_order,
       local_id.map(|id| vec![id.clone()]).unwrap_or_default(),
@@ -234,9 +205,8 @@ impl JavascriptParserPlugin for ESMExportDependencyParserPlugin {
       statement.span().into(),
       ESMExportImportedSpecifierDependency::create_export_presence_mode(parser.javascript_options),
       ImportPhase::Evaluation,
-      attributes,
+      statement.get_with_obj().map(get_attributes),
       parser.to_dependency_location(DependencyRange::from(statement.span())),
-      resource_identifier,
     );
     if export_name.is_none() {
       parser.build_info.all_star_exports.push(dep.id);
