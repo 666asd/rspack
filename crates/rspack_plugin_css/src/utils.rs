@@ -1,5 +1,6 @@
 use std::{
   borrow::Cow,
+  fmt::Write,
   hash::Hasher,
   path::Path,
   sync::{Arc, LazyLock},
@@ -15,7 +16,7 @@ use rspack_core::{
   rspack_sources::{ConcatSource, RawStringSource},
   to_identifier,
 };
-use rspack_error::{Diagnostic, Error, Result, Severity};
+use rspack_error::{Diagnostic, Error, Result, Severity, ToStringResultToRspackResultExt};
 use rspack_hash::{HashDigest, HashFunction, HashSalt, RspackHash};
 use rspack_util::{
   atom::Atom,
@@ -24,8 +25,6 @@ use rspack_util::{
   itoa, json_stringify_str,
 };
 use rustc_hash::FxHashSet as HashSet;
-
-use crate::runtime::CSS_MODULE_EXPORTS_RENDERED_TEMPLATE_ID;
 
 pub const AUTO_PUBLIC_PATH_PLACEHOLDER: &str = "__RSPACK_PLUGIN_CSS_AUTO_PUBLIC_PATH__";
 pub static LEADING_DIGIT_REGEX: LazyLock<Regex> =
@@ -177,64 +176,6 @@ pub(crate) fn export_locals_convention(
   res
 }
 
-pub(crate) fn render_css_module_template(
-  compilation: &Compilation,
-  key: &str,
-  params: serde_json::Value,
-) -> Result<String> {
-  compilation
-    .runtime_template
-    .create_runtime_code_template()
-    .render(key, Some(params))
-}
-
-pub(crate) struct CssModuleExportsRenderOptions<'a> {
-  pub is_inject_call: bool,
-  pub css_inject_style: Option<&'a str>,
-  pub module_id: Option<&'a str>,
-  pub css_text: Option<&'a str>,
-  pub css_style_sheet: Option<&'a str>,
-  pub exports_body: Option<&'a str>,
-  pub with_hmr: bool,
-  pub ns_obj: &'a str,
-  pub left: &'a str,
-  pub module_argument: Option<&'a str>,
-  pub assignment: Option<&'a str>,
-  pub right: &'a str,
-  pub default_target: Option<&'a str>,
-  pub default_export: Option<&'a str>,
-  pub accept_hmr: bool,
-}
-
-pub(crate) fn render_css_modules_exports_module_code(
-  compilation: &Compilation,
-  options: CssModuleExportsRenderOptions<'_>,
-) -> Result<String> {
-  render_css_module_template(
-    compilation,
-    CSS_MODULE_EXPORTS_RENDERED_TEMPLATE_ID,
-    serde_json::json!({
-      "_is_inject_call": options.is_inject_call,
-      "_css_inject_style": options.css_inject_style.unwrap_or_default(),
-      "_module_id": options.module_id.unwrap_or_default(),
-      "_css_text": options.css_text.unwrap_or_default(),
-      "_has_css_style_sheet_init": options.css_style_sheet.is_some(),
-      "_css_style_sheet": options.css_style_sheet.unwrap_or_default(),
-      "_has_exports": options.exports_body.is_some(),
-      "_exports_body": options.exports_body.unwrap_or_default(),
-      "_with_hmr": options.with_hmr,
-      "_ns_obj": options.ns_obj,
-      "_left": options.left,
-      "_module_argument": options.module_argument.unwrap_or_default(),
-      "_assignment": options.assignment.unwrap_or_default(),
-      "_right": options.right,
-      "_default_target": options.default_target.unwrap_or_default(),
-      "_default_export": options.default_export.unwrap_or_default(),
-      "_accept_hmr": options.accept_hmr,
-    }),
-  )
-}
-
 #[allow(clippy::too_many_arguments)]
 pub fn css_modules_exports_to_string<'a>(
   exports: FxIndexMap<&'a str, &'a FxIndexSet<CssExport>>,
@@ -247,28 +188,30 @@ pub fn css_modules_exports_to_string<'a>(
   right: &str,
   with_hmr: bool,
 ) -> Result<String> {
-  let exports_body = stringified_exports(exports, compilation, runtime_template, module, runtime)?;
+  let (decl_name, exports_string) =
+    stringified_exports(exports, compilation, runtime_template, module, runtime)?;
+
   let module_argument = runtime_template.render_module_argument(ModuleArgument::Module);
-  render_css_modules_exports_module_code(
-    compilation,
-    CssModuleExportsRenderOptions {
-      is_inject_call: false,
-      css_inject_style: None,
-      module_id: None,
-      css_text: None,
-      css_style_sheet: None,
-      exports_body: Some(&exports_body),
-      with_hmr,
-      ns_obj,
-      left,
-      module_argument: Some(&module_argument),
-      assignment: Some("exports"),
-      right,
-      default_target: None,
-      default_export: None,
-      accept_hmr: false,
-    },
-  )
+
+  let hmr_code = if with_hmr {
+    Cow::Owned(format!(
+      "// only invalidate when locals change
+var stringified_exports = JSON.stringify({decl_name});
+if ({module_argument}.hot.data && {module_argument}.hot.data.exports && {module_argument}.hot.data.exports != stringified_exports) {{
+  {module_argument}.hot.invalidate();
+}} else {{
+  {module_argument}.hot.accept(); 
+}}
+{module_argument}.hot.dispose(function(data) {{ data.exports = stringified_exports; }});"
+    ))
+  } else {
+    Cow::Borrowed("")
+  };
+  let mut code =
+    format!("{exports_string}\n{hmr_code}\n{ns_obj}{left}{module_argument}.exports = {decl_name}",);
+  code += right;
+  code += ";\n";
+  Ok(code)
 }
 
 pub fn stringified_exports<'a>(
@@ -277,7 +220,7 @@ pub fn stringified_exports<'a>(
   runtime_template: &mut ModuleCodeTemplate,
   module: &dyn rspack_core::Module,
   runtime: Option<&RuntimeSpec>,
-) -> Result<String> {
+) -> Result<(&'static str, String)> {
   let mut stringified_exports = String::new();
   let module_graph = compilation.get_module_graph();
   let exports_info = compilation
@@ -299,63 +242,67 @@ pub fn stringified_exports<'a>(
            from,
            id: _,
            orig_name: _,
-         }|
-         -> Result<String> {
-          Ok(match from {
-            None => json_stringify_str(ident),
-            Some(from_name) => {
-              let from = module
-                .get_dependencies()
-                .iter()
-                .find_map(|id| {
-                  let dependency = module_graph.dependency_by_id(id);
-                  let request = if let Some(d) = dependency.as_module_dependency() {
-                    Some(d.request())
-                  } else {
-                    dependency.as_context_dependency().map(|d| d.request())
-                  };
-                  if let Some(request) = request
-                    && request == from_name
-                  {
-                    return module_graph.module_graph_module_by_dependency_id(id);
-                  }
-                  None
-                })
-                .expect("should have css from module");
+         }| match from {
+          None => json_stringify_str(ident),
+          Some(from_name) => {
+            let from = module
+              .get_dependencies()
+              .iter()
+              .find_map(|id| {
+                let dependency = module_graph.dependency_by_id(id);
+                let request = if let Some(d) = dependency.as_module_dependency() {
+                  Some(d.request())
+                } else {
+                  dependency.as_context_dependency().map(|d| d.request())
+                };
+                if let Some(request) = request
+                  && request == from_name
+                {
+                  return module_graph.module_graph_module_by_dependency_id(id);
+                }
+                None
+              })
+              .expect("should have css from module");
 
-              let from_exports_info = compilation
-                .exports_info_artifact
-                .get_exports_info_data(&from.module_identifier);
-              let from_used_name = match from_exports_info
-                .get_read_only_export_info(&Atom::from(ident.as_str()))
-                .get_used_name(None, runtime)
-              {
-                Some(UsedNameItem::Str(name)) => json_stringify_str(&unescape(name.as_str())),
-                _ => json_stringify_str(&unescape(ident)),
-              };
+            let from_exports_info = compilation
+              .exports_info_artifact
+              .get_exports_info_data(&from.module_identifier);
+            let from_used_name = match from_exports_info
+              .get_read_only_export_info(&Atom::from(ident.as_str()))
+              .get_used_name(None, runtime)
+            {
+              Some(UsedNameItem::Str(name)) => json_stringify_str(&unescape(name.as_str())),
+              _ => json_stringify_str(&unescape(ident)),
+            };
 
-              let from = rspack_util::json_stringify(
-                ChunkGraph::get_module_id(&compilation.module_ids_artifact, from.module_identifier)
-                  .expect("should have module"),
-              );
-              format!(
-                "{}({from})[{from_used_name}]",
-                runtime_template.render_runtime_globals(&RuntimeGlobals::REQUIRE)
-              )
-            }
-          })
+            let from = rspack_util::json_stringify(
+              ChunkGraph::get_module_id(&compilation.module_ids_artifact, from.module_identifier)
+                .expect("should have module"),
+            );
+            format!(
+              "{}({from})[{}]",
+              runtime_template.render_runtime_globals(&RuntimeGlobals::REQUIRE),
+              from_used_name
+            )
+          }
         },
       )
-      .collect::<Result<Vec<_>>>()?
+      .collect::<Vec<_>>()
       .join(" + \" \" + ");
-    stringified_exports.push_str(&format!(
-      "  {}: {},\n",
+    writeln!(
+      stringified_exports,
+      "  {}: {},",
       json_stringify_str(&used_name),
       content
-    ));
+    )
+    .to_rspack_result()?;
   }
 
-  Ok(stringified_exports)
+  let decl_name = "exports";
+  Ok((
+    decl_name,
+    format!("var {decl_name} = {{\n{stringified_exports}}};"),
+  ))
 }
 
 pub fn css_modules_exports_to_concatenate_module_string<'a>(
@@ -395,54 +342,52 @@ pub fn css_modules_exports_to_concatenate_module_string<'a>(
            from,
            id: _,
            orig_name: _,
-         }|
-         -> Result<String> {
-          Ok(match from {
-            None => json_stringify_str(ident),
-            Some(from_name) => {
-              let from = module
-                .get_dependencies()
-                .iter()
-                .find_map(|id| {
-                  let dependency = module_graph.dependency_by_id(id);
-                  let request = if let Some(d) = dependency.as_module_dependency() {
-                    Some(d.request())
-                  } else {
-                    dependency.as_context_dependency().map(|d| d.request())
-                  };
-                  if let Some(request) = request
-                    && request == from_name
-                  {
-                    return module_graph.module_graph_module_by_dependency_id(id);
-                  }
-                  None
-                })
-                .expect("should have css from module");
+         }| match from {
+          None => json_stringify_str(ident),
+          Some(from_name) => {
+            let from = module
+              .get_dependencies()
+              .iter()
+              .find_map(|id| {
+                let dependency = module_graph.dependency_by_id(id);
+                let request = if let Some(d) = dependency.as_module_dependency() {
+                  Some(d.request())
+                } else {
+                  dependency.as_context_dependency().map(|d| d.request())
+                };
+                if let Some(request) = request
+                  && request == from_name
+                {
+                  return module_graph.module_graph_module_by_dependency_id(id);
+                }
+                None
+              })
+              .expect("should have css from module");
 
-              let from_exports_info = compilation
-                .exports_info_artifact
-                .get_exports_info_data(&from.module_identifier);
-              let from_used_name = match from_exports_info
-                .get_read_only_export_info(&Atom::from(ident.as_str()))
-                .get_used_name(None, *runtime)
-              {
-                Some(UsedNameItem::Str(name)) => json_stringify_str(&name),
-                _ => json_stringify_str(ident),
-              };
+            let from_exports_info = compilation
+              .exports_info_artifact
+              .get_exports_info_data(&from.module_identifier);
+            let from_used_name = match from_exports_info
+              .get_read_only_export_info(&Atom::from(ident.as_str()))
+              .get_used_name(None, *runtime)
+            {
+              Some(UsedNameItem::Str(name)) => json_stringify_str(&name),
+              _ => json_stringify_str(ident),
+            };
 
-              let from = rspack_util::json_stringify(
-                ChunkGraph::get_module_id(&compilation.module_ids_artifact, from.module_identifier)
-                  .expect("should have module"),
-              );
-              format!(
-                "{}({from})[{from_used_name}]",
-                runtime_template.render_runtime_globals(&RuntimeGlobals::REQUIRE)
-              )
-            }
-          })
+            let from = rspack_util::json_stringify(
+              ChunkGraph::get_module_id(&compilation.module_ids_artifact, from.module_identifier)
+                .expect("should have module"),
+            );
+            format!(
+              "{}({from})[{}]",
+              runtime_template.render_runtime_globals(&RuntimeGlobals::REQUIRE),
+              from_used_name
+            )
+          }
         },
       )
-      .collect::<Result<Vec<_>>>()?
+      .collect::<Vec<_>>()
       .join(" + \" \" + ");
     let mut identifier: Cow<'_, str> = Cow::Owned(to_identifier(&used_name).into_owned());
     if RESERVED_IDENTIFIER.contains(identifier.as_ref()) {

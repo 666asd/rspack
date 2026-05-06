@@ -24,18 +24,6 @@ static CSS_LOADING_WITH_PRELOAD_LINK_TEMPLATE: &str =
   include_str!("./css_loading_with_preload_link.ejs");
 static CSS_INJECT_STYLE_TEMPLATE: &str = include_str!("./css_inject_style.ejs");
 static CSS_STYLE_SHEET_TEMPLATE: &str = include_str!("./css_style_sheet.ejs");
-static CSS_MODULE_EXPORTS_RENDERED_TEMPLATE: &str =
-  include_str!("./css_module_exports_rendered.ejs");
-
-pub(crate) const CSS_MODULE_EXPORTS_RENDERED_TEMPLATE_ID: &str =
-  "rspack/css/module/exports_rendered";
-
-pub(crate) fn css_module_code_generation_templates() -> Vec<(String, String)> {
-  vec![(
-    CSS_MODULE_EXPORTS_RENDERED_TEMPLATE_ID.to_string(),
-    CSS_MODULE_EXPORTS_RENDERED_TEMPLATE.to_string(),
-  )]
-}
 
 static CSS_LOADING_BASIC_RUNTIME_REQUIREMENTS: LazyLock<RuntimeGlobals> =
   LazyLock::new(|| extract_runtime_globals_from_ejs(CSS_LOADING_TEMPLATE));
