@@ -375,6 +375,7 @@ pub static REQUIRE_SCOPE_GLOBALS: LazyLock<RuntimeGlobals> = LazyLock::new(|| {
     | RuntimeGlobals::UNCAUGHT_ERROR_HANDLER
     | RuntimeGlobals::RSPACK_VERSION
     | RuntimeGlobals::RSPACK_UNIQUE_ID
+    | RuntimeGlobals::CSS_INJECT_STYLE
     | RuntimeGlobals::CSS_STYLE_SHEET
     | RuntimeGlobals::ASYNC_STARTUP
     | RuntimeGlobals::RSC_MANIFEST
