@@ -761,10 +761,12 @@ impl ParserAndGenerator for CssParserAndGenerator {
   ) -> Result<BoxSource> {
     match generate_context.requested_source_type {
       SourceType::Css => {
-        generate_context
-          .runtime_template
-          .runtime_requirements_mut()
-          .insert(RuntimeGlobals::HAS_CSS_MODULES);
+        if !self.exports_only() {
+          generate_context
+            .runtime_template
+            .runtime_requirements_mut()
+            .insert(RuntimeGlobals::HAS_CSS_MODULES);
+        }
 
         let mut source = ReplaceSource::new(source.clone());
         let compilation = generate_context.compilation;
@@ -852,7 +854,8 @@ impl ParserAndGenerator for CssParserAndGenerator {
           Some(CssExportType::Style)
             | Some(CssExportType::CssStyleSheet)
             | Some(CssExportType::Text)
-        ) {
+        ) && !(self.exports_only() && matches!(self.export_type(), Some(CssExportType::Style)))
+        {
           let mut concat_source = ConcatSource::default();
 
           // 处理 CSS 依赖并获取最终的 CSS 内容
@@ -1181,6 +1184,7 @@ impl ParserAndGenerator for CssParserAndGenerator {
   ) -> Result<RspackHashDigest> {
     let mut hasher = RspackHash::from(&compilation.options.output);
     self.es_module().dyn_hash(&mut hasher);
+    self.exports_only().dyn_hash(&mut hasher);
     Ok(hasher.digest(&compilation.options.output.hash_digest))
   }
 }
