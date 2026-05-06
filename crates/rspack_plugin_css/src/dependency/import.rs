@@ -8,6 +8,13 @@ use rspack_core::{
 };
 
 #[cacheable]
+#[derive(Debug, Clone, Copy)]
+pub enum CssImportMode {
+  Local,
+  Global,
+}
+
+#[cacheable]
 #[derive(Debug, Clone)]
 pub struct CssImportDependency {
   id: DependencyId,
@@ -16,6 +23,7 @@ pub struct CssImportDependency {
   media: Option<String>,
   supports: Option<String>,
   layer: Option<CssLayer>,
+  mode: Option<CssImportMode>,
   factorize_info: FactorizeInfo,
 }
 
@@ -33,6 +41,7 @@ impl CssImportDependency {
     media: Option<String>,
     supports: Option<String>,
     layer: Option<CssLayer>,
+    mode: Option<CssImportMode>,
   ) -> Self {
     Self {
       id: DependencyId::new(),
@@ -41,6 +50,7 @@ impl CssImportDependency {
       media,
       supports,
       layer,
+      mode,
       factorize_info: Default::default(),
     }
   }
@@ -65,7 +75,11 @@ impl Dependency for CssImportDependency {
   }
 
   fn category(&self) -> &DependencyCategory {
-    &DependencyCategory::CssImport
+    match self.mode {
+      Some(CssImportMode::Local) => &DependencyCategory::CssImportLocalModule,
+      Some(CssImportMode::Global) => &DependencyCategory::CssImportGlobalModule,
+      None => &DependencyCategory::CssImport,
+    }
   }
 
   fn dependency_type(&self) -> &DependencyType {

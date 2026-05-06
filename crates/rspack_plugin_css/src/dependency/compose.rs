@@ -9,6 +9,8 @@ use rspack_core::{
 };
 use rspack_util::atom::Atom;
 
+use super::import::CssImportMode;
+
 #[cacheable]
 #[derive(Debug, Clone)]
 pub struct CssComposeDependency {
@@ -17,16 +19,23 @@ pub struct CssComposeDependency {
   #[cacheable(with=AsVec<AsPreset>)]
   names: Vec<Atom>,
   range: DependencyRange,
+  mode: Option<CssImportMode>,
   factorize_info: FactorizeInfo,
 }
 
 impl CssComposeDependency {
-  pub fn new(request: String, names: Vec<Atom>, range: DependencyRange) -> Self {
+  pub fn new(
+    request: String,
+    names: Vec<Atom>,
+    range: DependencyRange,
+    mode: Option<CssImportMode>,
+  ) -> Self {
     Self {
       id: DependencyId::new(),
       request,
       names,
       range,
+      mode,
       factorize_info: Default::default(),
     }
   }
@@ -39,7 +48,11 @@ impl Dependency for CssComposeDependency {
   }
 
   fn category(&self) -> &DependencyCategory {
-    &DependencyCategory::CssCompose
+    match self.mode {
+      Some(CssImportMode::Local) => &DependencyCategory::CssImportLocalModule,
+      Some(CssImportMode::Global) => &DependencyCategory::CssImportGlobalModule,
+      None => &DependencyCategory::CssCompose,
+    }
   }
 
   fn dependency_type(&self) -> &DependencyType {

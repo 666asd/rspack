@@ -31,7 +31,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::{
   dependency::{
-    CssComposeDependency, CssExportDependency, CssImportDependency, CssLayer,
+    CssComposeDependency, CssExportDependency, CssImportDependency, CssImportMode, CssLayer,
     CssLocalIdentDependency, CssMedia, CssSelfReferenceLocalIdentDependency,
     CssSelfReferenceLocalIdentReplacement, CssSupports, CssUrlDependency,
   },
@@ -43,7 +43,7 @@ use crate::{
 };
 
 static REGEX_IS_MODULES: LazyLock<Regex> =
-  LazyLock::new(|| Regex::new(r"\.module(s)?\.[^.]+$").expect("Invalid regex"));
+  LazyLock::new(|| Regex::new(r"(?i)\.modules?\.[^.]+$").expect("Invalid regex"));
 
 static REGEX_IS_COMMENTS: LazyLock<Regex> =
   LazyLock::new(|| Regex::new(r"/\*[\s\S]*?\*/").expect("Invalid regex"));
@@ -256,6 +256,12 @@ impl ParserAndGenerator for CssParserAndGenerator {
       _ => css_module_lexer::Mode::Css,
     };
 
+    let import_mode = match mode {
+      css_module_lexer::Mode::Local => Some(CssImportMode::Local),
+      css_module_lexer::Mode::Global => Some(CssImportMode::Global),
+      css_module_lexer::Mode::Css | css_module_lexer::Mode::Pure => None,
+    };
+
     let mut diagnostics: Vec<Diagnostic> = vec![];
     let mut dependencies: Vec<Box<dyn Dependency>> = vec![];
     let mut presentational_dependencies: Vec<BoxDependencyTemplate> = vec![];
@@ -369,6 +375,7 @@ impl ParserAndGenerator for CssParserAndGenerator {
                 CssLayer::Named(s.to_string())
               }
             }),
+            import_mode,
           )));
         }
         css_module_lexer::Dependency::Replace { content, range } => presentational_dependencies
@@ -463,6 +470,7 @@ impl ParserAndGenerator for CssParserAndGenerator {
               from.to_string(),
               names.iter().map(|s| s.to_owned().into()).collect(),
               DependencyRange::new(range.start, range.end),
+              import_mode,
             );
             dep_id = Some(*dep.id());
             dependencies.push(Box::new(dep));

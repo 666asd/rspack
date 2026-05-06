@@ -1393,6 +1393,30 @@ fn get_resolve_defaults(mode: Mode, target_properties: &TargetProperties, css: b
       Resolve {
         main_files: Some(vec![]),
         main_fields: Some(vec!["style".to_string(), "...".to_string()]),
+        condition_names: Some(style_conditions.clone()),
+        extensions: Some(vec![".css".to_string()]),
+        prefer_relative: Some(true),
+        ..Default::default()
+      },
+    ));
+
+    by_dependency.push((
+      "css-import-local-module".into(),
+      Resolve {
+        main_files: Some(vec![]),
+        main_fields: Some(vec!["style".to_string(), "...".to_string()]),
+        condition_names: Some(style_conditions.clone()),
+        extensions: Some(vec![".css".to_string()]),
+        prefer_relative: Some(true),
+        ..Default::default()
+      },
+    ));
+
+    by_dependency.push((
+      "css-import-global-module".into(),
+      Resolve {
+        main_files: Some(vec![]),
+        main_fields: Some(vec!["style".to_string(), "...".to_string()]),
         condition_names: Some(style_conditions),
         extensions: Some(vec![".css".to_string()]),
         prefer_relative: Some(true),
