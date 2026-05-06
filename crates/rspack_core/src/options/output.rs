@@ -237,18 +237,47 @@ pub struct PathData<'a> {
 
 static MATCH_ID_REGEX: LazyLock<Regex> =
   LazyLock::new(|| Regex::new(r#"^"\s\+*\s*(.*)\s*\+\s*"$"#).expect("invalid Regex"));
+// Matches leading invalid characters (., -, or any non-alphanumeric except _)
+// These are replaced with a single "_"
+static PREPARE_ID_LEADING_REGEX: LazyLock<Regex> =
+  LazyLock::new(|| Regex::new(r"(?i)^([.-]|[^a-z0-9_-])").expect("invalid Regex"));
+// Matches invalid characters in the middle (@ is allowed for package names like @org/pkg)
 static PREPARE_ID_REGEX: LazyLock<Regex> =
-  LazyLock::new(|| Regex::new(r"(^[.-]|[^a-zA-Z0-9_-])+").expect("invalid Regex"));
+  LazyLock::new(|| Regex::new(r"(?i)[^a-z0-9@_-]+").expect("invalid Regex"));
 
 impl<'a> PathData<'a> {
   pub fn prepare_id(v: &str) -> Cow<'_, str> {
     if let Some(caps) = MATCH_ID_REGEX.captures(v) {
       Cow::Owned(format!(
-        "\" + ({} + \"\").replace(/(^[.-]|[^a-zA-Z0-9_-])+/g, \"_\") + \"",
+        "\" + ({} + \"\").replace(/(^[.-]|[^a-z0-9_-])+/gi, \"_\").replace(/[^a-z0-9@_-]+/gi, \"_\") + \"",
         caps.get(1).expect("capture group should exist").as_str()
       ))
     } else {
-      PREPARE_ID_REGEX.replace_all(v, "_")
+      // Replace leading invalid characters with "_" one at a time until we hit a valid char
+      let mut result = String::with_capacity(v.len());
+      let mut chars = v.chars().peekable();
+      let mut found_leading = false;
+
+      // Handle leading invalid characters
+      while let Some(&ch) = chars.peek() {
+        let is_invalid = ch == '.' || ch == '-' || !ch.is_ascii_alphanumeric() && ch != '_';
+        if is_invalid {
+          if !found_leading {
+            result.push('_');
+            found_leading = true;
+          }
+          chars.next();
+        } else {
+          break;
+        }
+      }
+
+      // Append remaining characters
+      result.extend(chars);
+
+      // Replace remaining invalid characters with "_"
+      let result = PREPARE_ID_REGEX.replace_all(&result, "_");
+      Cow::Owned(result.into_owned())
     }
   }
 

@@ -33,7 +33,10 @@ use crate::{
   },
   parser_and_generator::{CodeGenerationDataUnusedLocalIdent, CssParserAndGenerator},
   plugin::{CssModulesPluginHooks, CssModulesRenderSource, CssPluginInner},
-  runtime::{CssInjectStyleRuntimeModule, CssLoadingRuntimeModule, CssStyleSheetRuntimeModule},
+  runtime::{
+    CssInjectStyleRuntimeModule, CssLoadingRuntimeModule, CssStyleSheetRuntimeModule,
+    css_module_code_generation_templates,
+  },
   utils::AUTO_PUBLIC_PATH_PLACEHOLDER,
 };
 
@@ -270,6 +273,9 @@ async fn compilation(
   compilation: &mut Compilation,
   params: &mut CompilationParams,
 ) -> Result<()> {
+  compilation
+    .runtime_template
+    .add_templates(css_module_code_generation_templates());
   compilation.set_dependency_factory(DependencyType::CssUrl, params.normal_module_factory.clone());
   compilation.set_dependency_factory(
     DependencyType::CssImport,

@@ -36,9 +36,10 @@ use crate::{
     CssSelfReferenceLocalIdentReplacement, CssSupports, CssUrlDependency,
   },
   utils::{
-    LocalIdentOptions, css_modules_exports_to_concatenate_module_string,
-    css_modules_exports_to_string, css_parsing_traceable_error, export_locals_convention,
-    normalize_url, replace_module_request_prefix, unescape,
+    CssModuleExportsRenderOptions, LocalIdentOptions,
+    css_modules_exports_to_concatenate_module_string, css_modules_exports_to_string,
+    css_parsing_traceable_error, export_locals_convention, normalize_url,
+    render_css_modules_exports_module_code, replace_module_request_prefix, unescape,
   },
 };
 
@@ -888,13 +889,32 @@ impl ParserAndGenerator for CssParserAndGenerator {
           let css_source = source.boxed();
           let mut css_text = css_source.source().into_string_lossy().to_string();
 
-          if matches!(
-            self.export_type(),
-            Some(CssExportType::Style)
-              | Some(CssExportType::CssStyleSheet)
-              | Some(CssExportType::Text)
-          ) {
-            css_text = css_text.replace(crate::utils::AUTO_PUBLIC_PATH_PLACEHOLDER, "");
+          css_text = css_text.replace(crate::utils::AUTO_PUBLIC_PATH_PLACEHOLDER, "");
+
+          // For exportType: 'style', we need to include CSS from @import dependencies
+          // Collect CSS content from CSS import dependencies
+          let mut imported_css = Vec::new();
+          for dep_id in module.get_dependencies() {
+            let dep = module_graph.dependency_by_id(dep_id);
+            if matches!(dep.dependency_type(), DependencyType::CssImport) {
+              if let Some(mgm) = module_graph.module_graph_module_by_dependency_id(dep_id) {
+                if let Some(target_module) = compilation
+                  .get_module_graph()
+                  .module_by_identifier(&mgm.module_identifier)
+                {
+                  if let Some(source) = target_module.source() {
+                    let dep_css = source.source().into_string_lossy().to_string();
+                    imported_css.push(dep_css);
+                  }
+                }
+              }
+            }
+          }
+
+          // Prepend imported CSS to the main CSS
+          if !imported_css.is_empty() {
+            imported_css.push(css_text);
+            css_text = imported_css.join("\n");
           }
 
           // 转义 CSS 用于 JavaScript 字符串
@@ -915,16 +935,33 @@ impl ParserAndGenerator for CssParserAndGenerator {
             )
             .map(|id| id.to_string())
             .unwrap_or_default();
+            let css_inject_style = generate_context
+              .runtime_template
+              .render_runtime_globals(&RuntimeGlobals::CSS_INJECT_STYLE);
+            let module_id_json =
+              serde_json::to_string(&module_id).map_err(|e| rspack_error::error!("{}", e))?;
 
             // 生成注入调用
-            let css_inject_call = format!(
-              "{}({}, {});\n",
-              generate_context
-                .runtime_template
-                .render_runtime_globals(&RuntimeGlobals::CSS_INJECT_STYLE),
-              serde_json::to_string(&module_id).map_err(|e| rspack_error::error!("{}", e))?,
-              css_js_string
-            );
+            let css_inject_call = render_css_modules_exports_module_code(
+              compilation,
+              CssModuleExportsRenderOptions {
+                is_inject_call: true,
+                css_inject_style: Some(&css_inject_style),
+                module_id: Some(&module_id_json),
+                css_text: Some(&css_js_string),
+                css_style_sheet: None,
+                exports_body: None,
+                with_hmr: false,
+                ns_obj: "",
+                left: "",
+                module_argument: None,
+                assignment: None,
+                right: "",
+                default_target: None,
+                default_export: None,
+                accept_hmr: false,
+              },
+            )?;
             concat_source.add(RawStringSource::from(css_inject_call));
           }
 
@@ -951,13 +988,9 @@ impl ParserAndGenerator for CssParserAndGenerator {
               (String::new(), String::new(), String::new())
             };
 
-            let css_style_sheet_code = format!(
-              "var __css_style_sheet = {}({});\n",
-              generate_context
-                .runtime_template
-                .render_runtime_globals(&RuntimeGlobals::CSS_STYLE_SHEET),
-              css_js_string
-            );
+            let css_style_sheet_runtime = generate_context
+              .runtime_template
+              .render_runtime_globals(&RuntimeGlobals::CSS_STYLE_SHEET);
 
             let exports_str = if let Some(exports) = &build_info.css_exports {
               if let Some(local_names) = &build_info.css_local_names {
@@ -978,7 +1011,7 @@ impl ParserAndGenerator for CssParserAndGenerator {
                 &generate_context.compilation.exports_info_artifact,
               );
 
-              let (decl_name, exports_string) = crate::utils::stringified_exports(
+              let exports_body = crate::utils::stringified_exports(
                 exports,
                 compilation,
                 generate_context.runtime_template,
@@ -986,42 +1019,55 @@ impl ParserAndGenerator for CssParserAndGenerator {
                 generate_context.runtime,
               )?;
 
-              let hmr_code = if with_hmr {
-                format!(
-                  "// only invalidate when locals change\n\
-                   var stringified_exports = JSON.stringify({decl_name});\n\
-                   if ({module_argument}.hot.data && {module_argument}.hot.data.exports && {module_argument}.hot.data.exports != stringified_exports) {{\n\
-                   {module_argument}.hot.invalidate();\n\
-                   }} else {{\n\
-                   {module_argument}.hot.accept();\n\
-                   }}\n\
-                   {module_argument}.hot.dispose(function(data) {{ data.exports = stringified_exports; }});"
-                )
-              } else {
-                String::new()
-              };
-
-              let mut code = format!(
-                "{css_style_sheet_code}{exports_string}\n{hmr_code}\n{ns_obj}{left}{module_argument}.exports = Object.assign(__css_style_sheet, {decl_name})",
-              );
-              code += &right;
-              code += ";\n";
-              code
+              render_css_modules_exports_module_code(
+                compilation,
+                CssModuleExportsRenderOptions {
+                  is_inject_call: false,
+                  css_inject_style: None,
+                  module_id: None,
+                  css_text: Some(&css_js_string),
+                  css_style_sheet: Some(&css_style_sheet_runtime),
+                  exports_body: Some(&exports_body),
+                  with_hmr,
+                  ns_obj: &ns_obj,
+                  left: &left,
+                  module_argument: Some(&module_argument),
+                  assignment: Some("Object.assign(__css_style_sheet, exports)"),
+                  right: &right,
+                  default_target: None,
+                  default_export: None,
+                  accept_hmr: false,
+                },
+              )?
             } else {
-              let mut code = String::new();
-              code.push_str(&css_style_sheet_code);
-              if self.es_module() {
-                code.push_str(&format!("{ns_obj}({module_argument}.exports = {{}});\n"));
-                code.push_str(&format!(
-                  "{module_argument}.exports.default = __css_style_sheet;\n"
-                ));
-              } else {
-                code.push_str(&format!("{module_argument}.exports = __css_style_sheet;\n"));
-              }
-              if with_hmr {
-                code.push_str(&format!("{module_argument}.hot.accept();\n"));
-              }
-              code
+              let default_target = self
+                .es_module()
+                .then(|| format!("{module_argument}.exports.default"));
+              let default_export = self.es_module().then_some("__css_style_sheet");
+              render_css_modules_exports_module_code(
+                compilation,
+                CssModuleExportsRenderOptions {
+                  is_inject_call: false,
+                  css_inject_style: None,
+                  module_id: None,
+                  css_text: Some(&css_js_string),
+                  css_style_sheet: Some(&css_style_sheet_runtime),
+                  exports_body: None,
+                  with_hmr: false,
+                  ns_obj: &ns_obj,
+                  left: &left,
+                  module_argument: Some(&module_argument),
+                  assignment: Some(if self.es_module() {
+                    "{}"
+                  } else {
+                    "__css_style_sheet"
+                  }),
+                  right: &right,
+                  default_target: default_target.as_deref(),
+                  default_export,
+                  accept_hmr: with_hmr,
+                },
+              )?
             };
 
             RawStringSource::from(exports_str).boxed()
@@ -1044,7 +1090,7 @@ impl ParserAndGenerator for CssParserAndGenerator {
 
             let exports_str = if let Some(exports) = &build_info.css_exports {
               if let Some(local_names) = &build_info.css_local_names {
-                let unused_exports = crate::parser_and_generator::get_unused_local_ident(
+                let unused_exports = get_unused_local_ident(
                   exports,
                   local_names,
                   module.identifier(),
@@ -1054,74 +1100,71 @@ impl ParserAndGenerator for CssParserAndGenerator {
                 generate_context.data.insert(unused_exports);
               }
 
-              let exports = crate::parser_and_generator::get_used_exports(
+              let exports = get_used_exports(
                 exports,
                 module.identifier(),
                 generate_context.runtime,
                 &generate_context.compilation.exports_info_artifact,
               );
 
-              let (decl_name, exports_string) = crate::utils::stringified_exports(
+              let exports_body = crate::utils::stringified_exports(
                 exports,
                 compilation,
                 generate_context.runtime_template,
                 module,
                 generate_context.runtime,
               )?;
+              let default_target = format!("{module_argument}.exports.default");
 
-              let hmr_code = if with_hmr {
-                format!(
-                  "// only invalidate when locals change\n\
-                   var stringified_exports = JSON.stringify({decl_name});\n\
-                   if ({module_argument}.hot.data && {module_argument}.hot.data.exports && {module_argument}.hot.data.exports != stringified_exports) {{\n\
-                   {module_argument}.hot.invalidate();\n\
-                   }} else {{\n\
-                   {module_argument}.hot.accept();\n\
-                   }}\n\
-                   {module_argument}.hot.dispose(function(data) {{ data.exports = stringified_exports; }});"
-                )
-              } else {
-                String::new()
-              };
-
-              // 使用不同的方式构建字符串，避免 format! 中的花括号冲突
-              let mut code = String::new();
-              code.push_str(&exports_string);
-              code.push_str("\n");
-              code.push_str(&hmr_code);
-              code.push_str("\n");
-              code.push_str(&ns_obj);
-              code.push_str(&left);
-              code.push_str(&module_argument);
-              code.push_str(".exports = Object.assign({}, ");
-              code.push_str(&decl_name);
-              code.push_str(")");
-              code.push_str(&right);
-              code.push_str(";\n");
-              // 添加 default 属性
-              code.push_str(&module_argument);
-              code.push_str(".default = ");
-              code.push_str(&css_js_string);
-              code.push_str(";\n");
-              code
+              render_css_modules_exports_module_code(
+                compilation,
+                CssModuleExportsRenderOptions {
+                  is_inject_call: false,
+                  css_inject_style: None,
+                  module_id: None,
+                  css_text: Some(&css_js_string),
+                  css_style_sheet: None,
+                  exports_body: Some(&exports_body),
+                  with_hmr,
+                  ns_obj: &ns_obj,
+                  left: &left,
+                  module_argument: Some(&module_argument),
+                  assignment: Some("Object.assign({}, exports)"),
+                  right: &right,
+                  default_target: Some(default_target.as_str()),
+                  default_export: Some(&css_js_string),
+                  accept_hmr: false,
+                },
+              )?
             } else {
-              let mut code = String::new();
-              if self.es_module() {
-                code.push_str(&format!("{ns_obj}({module_argument}.exports = {{}});\n"));
-                code.push_str(&module_argument);
-                code.push_str(".exports.default = ");
-                code.push_str(&css_js_string);
-                code.push_str(";\n");
-              } else {
-                code.push_str(&module_argument);
-                code.push_str(".exports = ");
-                code.push_str(&css_js_string);
-                code.push_str(";\n");
-              }
-              if with_hmr {
-                code.push_str(&format!("{module_argument}.hot.accept();\n"));
-              }
-              code
+              let default_target = self
+                .es_module()
+                .then(|| format!("{module_argument}.exports.default"));
+              let default_export = self.es_module().then_some(css_js_string.as_str());
+              render_css_modules_exports_module_code(
+                compilation,
+                CssModuleExportsRenderOptions {
+                  is_inject_call: false,
+                  css_inject_style: None,
+                  module_id: None,
+                  css_text: Some(&css_js_string),
+                  css_style_sheet: None,
+                  exports_body: None,
+                  with_hmr: false,
+                  ns_obj: &ns_obj,
+                  left: &left,
+                  module_argument: Some(&module_argument),
+                  assignment: Some(if self.es_module() {
+                    "{}"
+                  } else {
+                    &css_js_string
+                  }),
+                  right: &right,
+                  default_target: default_target.as_deref(),
+                  default_export,
+                  accept_hmr: with_hmr,
+                },
+              )?
             };
 
             RawStringSource::from(exports_str).boxed()
@@ -1367,17 +1410,26 @@ impl CssParserAndGenerator {
         let module_argument = generate_context
           .runtime_template
           .render_module_argument(ModuleArgument::Module);
-        format!(
-          "{}{}{module_argument}.exports = {{}}{};\n{}",
-          &ns_obj,
-          &left,
-          &right,
-          if with_hmr {
-            format!("{module_argument}.hot.accept();\n")
-          } else {
-            Default::default()
-          }
-        )
+        render_css_modules_exports_module_code(
+          generate_context.compilation,
+          CssModuleExportsRenderOptions {
+            is_inject_call: false,
+            css_inject_style: None,
+            module_id: None,
+            css_text: None,
+            css_style_sheet: None,
+            exports_body: None,
+            with_hmr: false,
+            ns_obj: &ns_obj,
+            left: &left,
+            module_argument: Some(&module_argument),
+            assignment: Some("{}"),
+            right: &right,
+            default_target: None,
+            default_export: None,
+            accept_hmr: with_hmr,
+          },
+        )?
       };
       Ok(RawStringSource::from(exports_str).boxed())
     }
