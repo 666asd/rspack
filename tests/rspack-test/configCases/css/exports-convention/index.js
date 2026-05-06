@@ -7,10 +7,10 @@ const target = process.env.TARGET;
 const path = __non_webpack_require__("path");
 
 it("concatenation and mangling should work", () => {
-	expect(styles1.class).toBe(prod ? "_94e40b9f7fcee9c9" : "_style_module_css_camel-case_1-class");
-	expect(styles1["default"]).toBe(prod ? "_35bae0fc11bda5c1" : "_style_module_css_camel-case_1-default");
-	expect(styles1.fooBar).toBe(prod ? "f1dabc703f204afd" : "_style_module_css_camel-case_1-foo_bar");
-	expect(styles1.foo_bar).toBe(prod ? "f1dabc703f204afd" : "_style_module_css_camel-case_1-foo_bar");
+	expect(styles1.class).toBe(prod ? "_94e40b9f7fcee9c9" : "style_module_css_camel-case_1-class");
+	expect(styles1["default"]).toBe(prod ? "_35bae0fc11bda5c1" : "style_module_css_camel-case_1-default");
+	expect(styles1.fooBar).toBe(prod ? "f1dabc703f204afd" : "style_module_css_camel-case_1-foo_bar");
+	expect(styles1.foo_bar).toBe(prod ? "f1dabc703f204afd" : "style_module_css_camel-case_1-foo_bar");
 
 	if (prod) {
 		expect(styles2).toMatchObject({
