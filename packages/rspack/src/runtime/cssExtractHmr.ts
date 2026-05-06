@@ -68,7 +68,7 @@ function noop() {}
 function getCurrentScriptUrl(moduleId: string) {
   let src = srcByModuleId[moduleId];
 
-  if (!src) {
+  if (!src && !noDocument) {
     if (document.currentScript) {
       ({ src } = document.currentScript as HTMLScriptElement);
     } else {
@@ -106,6 +106,10 @@ function getCurrentScriptUrl(moduleId: string) {
 }
 
 function updateCss(el: HTMLLinkElement & Record<string, any>, url?: string) {
+  if (noDocument) {
+    return;
+  }
+
   let normalizedUrl: string;
   if (!url) {
     const href = el.getAttribute('href');
@@ -190,7 +194,7 @@ function getReloadUrl(href: string, src: string[]): string {
 }
 
 function reloadStyle(src: Option<string[]>): boolean {
-  if (!src) {
+  if (!src || noDocument) {
     return false;
   }
 
@@ -223,6 +227,10 @@ function reloadStyle(src: Option<string[]>): boolean {
 }
 
 function reloadAll() {
+  if (noDocument) {
+    return;
+  }
+
   const elements = document.querySelectorAll('link');
 
   forEach.call(elements, (el) => {
