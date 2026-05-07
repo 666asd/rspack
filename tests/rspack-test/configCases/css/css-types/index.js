@@ -35,17 +35,16 @@ it("should compile type: css/module", () => {
     expect(cssString).toContain(`.class2 {
     background: green; 
 }`)
-    expect(style1.class1).toBe('_style1_local_css-class1');
+    expect(style1.class1).toBe('style1_local_css-class1');
 });
 
-// MAYBE: support css/global
-// it("should compile type: css/global", (done) => {
-//     const element = document.createElement(".class3");
-//     const style = getComputedStyle(element);
-//     expect(style.getPropertyValue("color")).toBe(" red");
-//     expect(style2.class4).toBe('_style2_global_css-class4');
-//     done()
-// });
+it("should compile type: css/global", (done) => {
+    const element = document.createElement(".class3");
+    const style = getComputedStyle(element);
+    expect(style.getPropertyValue("color")).toBe(" red");
+    expect(style2.class4).toBe('style2_global_css-class4');
+    done()
+});
 
 it("should not parse css modules in type: css/auto", () => {
     const style = getComputedStyle(document.body);
@@ -74,8 +73,8 @@ it("should parse css modules in type: css/auto", () => {
 
     const cssString = css.join("\n");
 
-    expect(cssString).toContain(`._style4_modules_css-class3 {
+    expect(cssString).toContain(`.style4_modules_css-class3 {
     color: red;
 }`)
-    expect(style3.class3).toBe('_style4_modules_css-class3');
+    expect(style3.class3).toBe('style4_modules_css-class3');
 });
