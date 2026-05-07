@@ -1,16 +1,19 @@
 use std::{borrow::Cow, collections::HashSet};
 
 use rspack_core::{
-  ChunkGraph, CssExport, CssExportType, CssExports, GenerateContext, InitFragmentRenderContext,
-  Module, ModuleArgument, ModuleInitFragments, RESERVED_IDENTIFIER, RuntimeGlobals,
-  TemplateContext, UsageState, UsedNameItem,
+  ChunkGraph, CssExport, CssExportType, CssExports, DependencyType, GenerateContext,
+  InitFragmentRenderContext, Module, ModuleArgument, ModuleInitFragments, RESERVED_IDENTIFIER,
+  RuntimeGlobals, TemplateContext, UsageState, UsedNameItem,
   rspack_sources::{BoxSource, ConcatSource, RawStringSource, ReplaceSource, SourceExt},
   to_identifier,
 };
 use rspack_util::{atom::Atom, fx_hash::FxIndexSet, itoa, json_stringify, json_stringify_str};
 
 use crate::{
-  parser_and_generator::{CssExportsRef, get_unused_local_ident, get_used_exports},
+  dependency::{CssImportDependency, CssMedia, CssSupports},
+  parser_and_generator::{
+    CssExportsRef, CssParserAndGenerator, get_unused_local_ident, get_used_exports,
+  },
   utils::unescape,
 };
 
@@ -79,8 +82,10 @@ impl<'a, 'g> CssGenerator<'a, 'g> {
         self.generate_js_exports();
       }
       Some(CssExportType::Style) => {
+        let css_imports = self.render_css_imports_for_style();
         let css_js_string = self.stringify_css_source_for_javascript();
 
+        self.concat_source.add(RawStringSource::from(css_imports));
         let inject_style = self.render_css_inject_style(&css_js_string);
         self.concat_source.add(RawStringSource::from(inject_style));
         self.generate_js_exports();
@@ -196,10 +201,13 @@ impl<'a, 'g> CssGenerator<'a, 'g> {
   }
 
   fn stringify_css_source_for_javascript(&mut self) -> String {
-    let generate_context = &mut *self.generate_context;
-    let module = self.module;
+    self.stringify_css_source_for_module(self.source, self.module)
+  }
 
-    let mut source = ReplaceSource::new(self.source.clone());
+  fn stringify_css_source_for_module(&mut self, source: &BoxSource, module: &dyn Module) -> String {
+    let generate_context = &mut *self.generate_context;
+
+    let mut source = ReplaceSource::new(source.clone());
     let compilation = generate_context.compilation;
     let mut init_fragments = ModuleInitFragments::default();
     let mut context = TemplateContext {
@@ -226,6 +234,30 @@ impl<'a, 'g> CssGenerator<'a, 'g> {
       }
     });
 
+    for conn in module_graph.get_incoming_connections(&module.identifier()) {
+      let dep = module_graph.dependency_by_id(&conn.dependency_id);
+
+      if matches!(dep.dependency_type(), DependencyType::CssImport) {
+        let Some(css_import_dep) = dep.downcast_ref::<CssImportDependency>() else {
+          panic!(
+            "dependency with type DependencyType::CssImport should only be CssImportDependency"
+          );
+        };
+
+        if let Some(media) = css_import_dep.media() {
+          context.data.insert(CssMedia(media.to_string()));
+        }
+
+        if let Some(supports) = css_import_dep.supports() {
+          context.data.insert(CssSupports(supports.to_string()));
+        }
+
+        if let Some(layer) = css_import_dep.layer() {
+          context.data.insert(layer.clone());
+        }
+      }
+    }
+
     if let Some(dependencies) = module.get_presentational_dependencies() {
       dependencies.iter().for_each(|dependency| {
         if let Some(template) = dependency
@@ -248,6 +280,74 @@ impl<'a, 'g> CssGenerator<'a, 'g> {
     json_stringify_str(&css_text)
   }
 
+  fn render_css_imports_for_style(&mut self) -> String {
+    let mut visited_non_style_modules = HashSet::default();
+    self.render_css_imports_for_style_module(self.module, &mut visited_non_style_modules)
+  }
+
+  fn render_css_imports_for_style_module(
+    &mut self,
+    module: &dyn Module,
+    visited_non_style_modules: &mut HashSet<rspack_collections::Identifier>,
+  ) -> String {
+    let compilation = self.generate_context.compilation;
+    let module_graph = compilation.get_module_graph();
+    let require = self
+      .generate_context
+      .runtime_template
+      .render_runtime_globals(&RuntimeGlobals::REQUIRE);
+    let mut code = String::new();
+
+    for dependency_id in module.get_dependencies() {
+      let dependency = module_graph.dependency_by_id(dependency_id);
+      if !matches!(dependency.dependency_type(), DependencyType::CssImport) {
+        continue;
+      }
+
+      let Some(imported_module) = module_graph.module_graph_module_by_dependency_id(dependency_id)
+      else {
+        continue;
+      };
+
+      let Some(module_id) = ChunkGraph::get_module_id(
+        &compilation.module_ids_artifact,
+        imported_module.module_identifier,
+      ) else {
+        continue;
+      };
+
+      let Some(imported_module) =
+        module_graph.module_by_identifier(&imported_module.module_identifier)
+      else {
+        continue;
+      };
+
+      if Self::is_style_export_css_module(imported_module.as_ref()) {
+        code.push_str(&format!("{require}({});\n", json_stringify(module_id)));
+        continue;
+      }
+
+      if !visited_non_style_modules.insert(imported_module.identifier()) {
+        continue;
+      }
+
+      code.push_str(
+        &self
+          .render_css_imports_for_style_module(imported_module.as_ref(), visited_non_style_modules),
+      );
+
+      let Some(source) = imported_module.source() else {
+        continue;
+      };
+      let css_js_string = self.stringify_css_source_for_module(source, imported_module.as_ref());
+      code.push_str(
+        &self.render_css_inject_style_by_module_id(json_stringify(module_id), &css_js_string),
+      );
+    }
+
+    code
+  }
+
   fn render_css_inject_style(&mut self, css_js_string: &str) -> String {
     let generate_context = &mut *self.generate_context;
     let module = self.module;
@@ -264,14 +364,39 @@ impl<'a, 'g> CssGenerator<'a, 'g> {
     .map(|id| id.to_string())
     .unwrap_or_default();
 
+    self.render_css_inject_style_by_module_id(json_stringify_str(&module_id), css_js_string)
+  }
+
+  fn render_css_inject_style_by_module_id(
+    &mut self,
+    module_id: String,
+    css_js_string: &str,
+  ) -> String {
     format!(
       "{}({}, {});\n",
-      generate_context
+      self
+        .generate_context
         .runtime_template
         .render_runtime_globals(&RuntimeGlobals::CSS_INJECT_STYLE),
-      json_stringify_str(&module_id),
+      module_id,
       css_js_string
     )
+  }
+
+  fn is_style_export_css_module(module: &dyn Module) -> bool {
+    module
+      .as_normal_module()
+      .and_then(|module| {
+        module
+          .parser_and_generator()
+          .downcast_ref::<CssParserAndGenerator>()
+      })
+      .is_some_and(|parser_and_generator| {
+        matches!(
+          parser_and_generator.export_type(),
+          Some(CssExportType::Style)
+        )
+      })
   }
 
   fn generate_css_style_sheet_exports(&mut self, css_js_string: &str) -> String {
