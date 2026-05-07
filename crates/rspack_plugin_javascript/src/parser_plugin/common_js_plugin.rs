@@ -9,7 +9,7 @@ use crate::{
 
 pub struct CommonJsPlugin;
 
-#[rspack_macros::implemented_javascript_parser_hooks]
+#[rspack_macros::implemented_javascript_parser_hooks(stateless)]
 impl JavascriptParserPlugin for CommonJsPlugin {
   fn evaluate_identifier(
     &self,

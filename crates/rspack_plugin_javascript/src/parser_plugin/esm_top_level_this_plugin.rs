@@ -5,7 +5,7 @@ use crate::visitors::JavascriptParser;
 
 pub struct ESMTopLevelThisParserPlugin;
 
-#[rspack_macros::implemented_javascript_parser_hooks]
+#[rspack_macros::implemented_javascript_parser_hooks(stateless)]
 impl JavascriptParserPlugin for ESMTopLevelThisParserPlugin {
   fn this(
     &self,

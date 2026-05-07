@@ -13,7 +13,7 @@ use crate::{
 
 pub struct RequireContextDependencyParserPlugin;
 
-#[rspack_macros::implemented_javascript_parser_hooks]
+#[rspack_macros::implemented_javascript_parser_hooks(stateless)]
 impl JavascriptParserPlugin for RequireContextDependencyParserPlugin {
   fn call(&self, parser: &mut JavascriptParser, expr: &CallExpr, for_name: &str) -> Option<bool> {
     if for_name != "require.context" {

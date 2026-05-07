@@ -132,7 +132,7 @@ impl ModuleHotReplacementParserPlugin {
   }
 }
 
-#[rspack_macros::implemented_javascript_parser_hooks]
+#[rspack_macros::implemented_javascript_parser_hooks(shared = ModuleHotReplacementParserPlugin::new())]
 impl JavascriptParserPlugin for ModuleHotReplacementParserPlugin {
   fn evaluate_identifier(
     &self,
@@ -200,7 +200,7 @@ impl ImportMetaHotReplacementParserPlugin {
   }
 }
 
-#[rspack_macros::implemented_javascript_parser_hooks]
+#[rspack_macros::implemented_javascript_parser_hooks(shared = ImportMetaHotReplacementParserPlugin::new())]
 impl JavascriptParserPlugin for ImportMetaHotReplacementParserPlugin {
   fn evaluate_identifier(
     &self,

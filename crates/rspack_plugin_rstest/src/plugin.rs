@@ -251,7 +251,7 @@ async fn nmf_parser(
       })
       .and_then(|js| js.import_dynamic);
 
-    parser.add_parser_plugin(Box::new(RstestParserPlugin::new(
+    parser.add_parser_plugin(Arc::new(RstestParserPlugin::new(
       crate::parser_plugin::RstestParserPluginOptions {
         module_path_name: self.options.module_path_name,
         hoist_mock_module: self.options.hoist_mock_module,

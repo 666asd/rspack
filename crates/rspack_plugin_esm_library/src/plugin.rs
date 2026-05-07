@@ -743,7 +743,7 @@ async fn parse(
   if module_type.is_js_like()
     && let Some(parser) = parser.downcast_mut::<JavaScriptParserAndGenerator>()
   {
-    parser.add_parser_plugin(Box::new(EsmLibParserPlugin {}));
+    parser.add_parser_plugin(EsmLibParserPlugin::shared());
   }
   Ok(())
 }

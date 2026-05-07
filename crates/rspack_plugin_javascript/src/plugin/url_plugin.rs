@@ -46,7 +46,7 @@ async fn normal_module_factory_parser(
       .expect("should at least have a global javascript parser options");
 
     if !matches!(options.url, Some(JavascriptParserUrl::Disable)) {
-      parser.add_parser_plugin(Box::new(crate::parser_plugin::URLPlugin {
+      parser.add_parser_plugin(Arc::new(crate::parser_plugin::URLPlugin {
         mode: options.url,
       }));
     }

@@ -438,12 +438,12 @@ async fn normal_module_factory_parser(
 ) -> Result<()> {
   if let Some(parser) = parser.downcast_mut::<JavaScriptParserAndGenerator>() {
     if module_type.is_js_auto() {
-      parser.add_parser_plugin(Box::new(ModuleHotReplacementParserPlugin::new()));
-      parser.add_parser_plugin(Box::new(ImportMetaHotReplacementParserPlugin::new()));
+      parser.add_parser_plugin(ModuleHotReplacementParserPlugin::shared());
+      parser.add_parser_plugin(ImportMetaHotReplacementParserPlugin::shared());
     } else if module_type.is_js_dynamic() {
-      parser.add_parser_plugin(Box::new(ModuleHotReplacementParserPlugin::new()));
+      parser.add_parser_plugin(ModuleHotReplacementParserPlugin::shared());
     } else if module_type.is_js_esm() {
-      parser.add_parser_plugin(Box::new(ImportMetaHotReplacementParserPlugin::new()));
+      parser.add_parser_plugin(ImportMetaHotReplacementParserPlugin::shared());
     }
   } else if matches!(
     module_type,

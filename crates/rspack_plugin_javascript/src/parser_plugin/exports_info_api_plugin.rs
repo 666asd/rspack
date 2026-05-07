@@ -13,7 +13,7 @@ const EXPORTS_INFO: &str = "__webpack_exports_info__";
 
 pub struct ExportsInfoApiPlugin;
 
-#[rspack_macros::implemented_javascript_parser_hooks]
+#[rspack_macros::implemented_javascript_parser_hooks(stateless)]
 impl JavascriptParserPlugin for ExportsInfoApiPlugin {
   fn member_chain(
     &self,

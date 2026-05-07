@@ -17,7 +17,7 @@ const SUBSTRING_METHOD_NAME: &str = "substring";
 
 pub struct InitializeEvaluating;
 
-#[rspack_macros::implemented_javascript_parser_hooks]
+#[rspack_macros::implemented_javascript_parser_hooks(stateless)]
 impl JavascriptParserPlugin for InitializeEvaluating {
   fn evaluate_call_expression<'a>(
     &self,

@@ -36,7 +36,7 @@ pub struct ESMSpecifierData {
   pub attributes: Option<ImportAttributes>,
 }
 
-#[rspack_macros::implemented_javascript_parser_hooks]
+#[rspack_macros::implemented_javascript_parser_hooks(stateless)]
 impl JavascriptParserPlugin for ESMImportDependencyParserPlugin {
   fn import(
     &self,

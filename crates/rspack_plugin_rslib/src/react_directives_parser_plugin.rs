@@ -26,7 +26,7 @@ impl ReactDirectivesParserPlugin {
   }
 }
 
-#[rspack_plugin_javascript::implemented_javascript_parser_hooks]
+#[rspack_plugin_javascript::implemented_javascript_parser_hooks(stateless)]
 impl JavascriptParserPlugin for ReactDirectivesParserPlugin {
   fn program(&self, parser: &mut JavascriptParser, ast: &Program) -> Option<bool> {
     let mut directives = Vec::new();

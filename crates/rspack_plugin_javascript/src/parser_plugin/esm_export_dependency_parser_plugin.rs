@@ -31,7 +31,7 @@ use crate::{
 
 pub struct ESMExportDependencyParserPlugin;
 
-#[rspack_macros::implemented_javascript_parser_hooks]
+#[rspack_macros::implemented_javascript_parser_hooks(stateless)]
 impl JavascriptParserPlugin for ESMExportDependencyParserPlugin {
   fn export(&self, parser: &mut JavascriptParser, statement: ExportLocal) -> Option<bool> {
     let range = DependencyRange::from(statement.span());

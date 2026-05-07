@@ -81,7 +81,7 @@ async fn nmf_parser(
   if module_type.is_js_like()
     && let Some(parser) = parser.downcast_mut::<JavaScriptParserAndGenerator>()
   {
-    parser.add_parser_plugin(Box::new(DefineParserPlugin::new(self.walk_data.clone())));
+    parser.add_parser_plugin(Arc::new(DefineParserPlugin::new(self.walk_data.clone())));
   }
   Ok(())
 }

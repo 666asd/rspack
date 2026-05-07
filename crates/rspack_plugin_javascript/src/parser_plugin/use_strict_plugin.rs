@@ -6,7 +6,7 @@ use crate::visitors::JavascriptParser;
 
 pub struct UseStrictPlugin;
 
-#[rspack_macros::implemented_javascript_parser_hooks]
+#[rspack_macros::implemented_javascript_parser_hooks(stateless)]
 impl JavascriptParserPlugin for UseStrictPlugin {
   fn program(
     &self,

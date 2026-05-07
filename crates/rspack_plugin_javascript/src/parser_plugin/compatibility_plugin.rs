@@ -74,7 +74,7 @@ impl CompatibilityPlugin {
   }
 }
 
-#[rspack_macros::implemented_javascript_parser_hooks]
+#[rspack_macros::implemented_javascript_parser_hooks(stateless)]
 impl JavascriptParserPlugin for CompatibilityPlugin {
   fn program(
     &self,

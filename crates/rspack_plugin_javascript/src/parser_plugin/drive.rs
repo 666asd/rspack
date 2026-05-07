@@ -33,13 +33,13 @@ struct PluginBitmaskIter<'a> {
 }
 
 impl<'a> Iterator for PluginBitmaskIter<'a> {
-  type Item = &'a BoxJavascriptParserPlugin;
+  type Item = &'a dyn JavascriptParserPlugin;
 
   fn next(&mut self) -> Option<Self::Item> {
     if self.plugin_bitmask != 0 {
       let idx = self.plugin_bitmask.trailing_zeros() as usize;
       self.plugin_bitmask &= self.plugin_bitmask - 1;
-      return Some(unsafe { self.plugins.get_unchecked(idx) });
+      return Some(unsafe { self.plugins.get_unchecked(idx).as_ref() });
     }
 
     None

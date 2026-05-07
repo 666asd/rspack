@@ -40,7 +40,7 @@ fn is_reserved_param(pat: &Pat) -> bool {
 
 pub struct AMDRequireDependenciesBlockParserPlugin;
 
-#[rspack_macros::implemented_javascript_parser_hooks]
+#[rspack_macros::implemented_javascript_parser_hooks(stateless)]
 impl JavascriptParserPlugin for AMDRequireDependenciesBlockParserPlugin {
   fn call(
     &self,

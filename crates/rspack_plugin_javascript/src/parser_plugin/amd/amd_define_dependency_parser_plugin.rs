@@ -587,7 +587,7 @@ impl AMDDefineDependencyParserPlugin {
   }
 }
 
-#[rspack_macros::implemented_javascript_parser_hooks]
+#[rspack_macros::implemented_javascript_parser_hooks(stateless)]
 impl JavascriptParserPlugin for AMDDefineDependencyParserPlugin {
   fn call(
     &self,
