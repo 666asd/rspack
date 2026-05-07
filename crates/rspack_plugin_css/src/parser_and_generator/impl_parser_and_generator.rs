@@ -21,9 +21,9 @@ use rustc_hash::FxHashMap;
 
 use crate::{
   dependency::{
-    CssComposeDependency, CssExportDependency, CssImportDependency, CssImportMode, CssLayer,
-    CssLocalIdentDependency, CssMedia, CssSelfReferenceLocalIdentDependency, CssSupports,
-    CssUrlDependency,
+    CssComposeDependency, CssExportDependency, CssIcssImportDependency, CssImportDependency,
+    CssImportMode, CssLayer, CssLocalIdentDependency, CssMedia,
+    CssSelfReferenceLocalIdentDependency, CssSupports, CssUrlDependency,
   },
   parser_and_generator::{
     generate::{CssGenerator, update_css_exports},
@@ -34,6 +34,89 @@ use crate::{
     replace_module_request_prefix, unescape,
   },
 };
+
+#[derive(Debug, Clone)]
+struct IcssImportReference {
+  request: String,
+  import_name: String,
+}
+
+fn is_css_identifier_char(c: char) -> bool {
+  c.is_ascii_alphanumeric() || matches!(c, '_' | '-' | '\\')
+}
+
+fn range_contains(ranges: &[css_module_lexer::Range], pos: u32) -> bool {
+  ranges
+    .iter()
+    .any(|range| range.start <= pos && pos < range.end)
+}
+
+fn next_non_whitespace_char(input: &str, mut pos: usize) -> Option<char> {
+  while let Some(c) = input[pos..].chars().next() {
+    if c.is_whitespace() {
+      pos += c.len_utf8();
+      continue;
+    }
+    if c == '/' && input[pos..].starts_with("/*") {
+      let comment = &input[pos + 2..];
+      let end = comment.find("*/")?;
+      pos += end + 4;
+      continue;
+    }
+    return Some(c);
+  }
+  None
+}
+
+fn collect_icss_import_usage_ranges(
+  source: &str,
+  aliases: &FxHashMap<String, IcssImportReference>,
+  removed_ranges: &[css_module_lexer::Range],
+) -> Vec<(IcssImportReference, DependencyRange)> {
+  let mut replacements = Vec::new();
+
+  for (alias, reference) in aliases {
+    let mut offset = 0;
+
+    while let Some(found) = source[offset..].find(alias) {
+      let start = offset + found;
+      let end = start + alias.len();
+      offset = end;
+
+      let start_pos = start as u32;
+      if range_contains(removed_ranges, start_pos) {
+        continue;
+      }
+
+      if source[..start]
+        .chars()
+        .next_back()
+        .is_some_and(|c| is_css_identifier_char(c) || matches!(c, '.' | '#'))
+      {
+        continue;
+      }
+
+      if source[end..]
+        .chars()
+        .next()
+        .is_some_and(is_css_identifier_char)
+      {
+        continue;
+      }
+
+      if next_non_whitespace_char(source, end).is_some_and(|c| c == ':') {
+        continue;
+      }
+
+      replacements.push((
+        reference.clone(),
+        DependencyRange::new(start as u32, end as u32),
+      ));
+    }
+  }
+
+  replacements
+}
 
 #[cacheable_dyn]
 #[async_trait::async_trait]
@@ -57,7 +140,7 @@ impl ParserAndGenerator for CssParserAndGenerator {
         let dep = module_graph.dependency_by_id(&conn.dependency_id);
         matches!(
           dep.dependency_type(),
-          DependencyType::CssImport | DependencyType::EsmImport
+          DependencyType::CssImport | DependencyType::CssIcssImport | DependencyType::EsmImport
         )
       });
 
@@ -142,6 +225,9 @@ impl ParserAndGenerator for CssParserAndGenerator {
     let mut code_generation_dependencies: Vec<BoxModuleDependency> = vec![];
     let mut css_exports: Option<CssExports> = None;
     let mut css_local_names: Option<FxHashMap<String, String>> = None;
+    let mut icss_import_request: Option<String> = None;
+    let mut icss_imports: FxHashMap<String, IcssImportReference> = Default::default();
+    let mut icss_removed_ranges = Vec::new();
 
     let (deps, warnings) = css_module_lexer::collect_dependencies(&source_code, mode);
 
@@ -239,10 +325,18 @@ impl ParserAndGenerator for CssParserAndGenerator {
           )));
         }
         css_module_lexer::Dependency::Replace { content, range } => presentational_dependencies
-          .push(Box::new(ConstDependency::new(
-            (range.start, range.end).into(),
-            content.into(),
-          ))),
+          .push({
+            let original = source_code
+              .get(range.start as usize..range.end as usize)
+              .unwrap_or_default();
+            if original.starts_with(":import(") || original.starts_with(":export") {
+              icss_removed_ranges.push(range.clone());
+            }
+            Box::new(ConstDependency::new(
+              (range.start, range.end).into(),
+              content.into(),
+            ))
+          }),
         css_module_lexer::Dependency::LocalClass { name, range, .. }
         | css_module_lexer::Dependency::LocalId { name, range, .. } => {
           let (_prefix, name) = name.split_at(1); // split '#' or '.'
@@ -373,19 +467,52 @@ impl ParserAndGenerator for CssParserAndGenerator {
           let convention = self.convention();
           let convention_names = export_locals_convention(prop, convention);
           let value = REGEX_IS_COMMENTS.replace_all(value, "");
+          let trimmed_value = value.trim();
           for name in convention_names.iter() {
             update_css_exports(
               exports,
               name.to_owned(),
-              CssExport {
-                ident: value.to_string(),
-                from: None,
-                id: None,
-                orig_name: prop.to_string(),
+              if let Some(import_ref) = icss_imports.get(trimmed_value) {
+                CssExport {
+                  ident: import_ref.import_name.clone(),
+                  from: Some(import_ref.request.clone()),
+                  id: None,
+                  orig_name: prop.to_string(),
+                }
+              } else {
+                CssExport {
+                  ident: value.to_string(),
+                  from: None,
+                  id: None,
+                  orig_name: prop.to_string(),
+                }
               },
             );
           }
           dependencies.push(Box::new(CssExportDependency::new(convention_names)));
+        }
+        css_module_lexer::Dependency::ICSSImportFrom { path } => {
+          icss_import_request = Some(path.trim_matches(|c| c == '\'' || c == '"').to_string());
+        }
+        css_module_lexer::Dependency::ICSSImportValue { prop, value } => {
+          let Some(request) = icss_import_request.clone() else {
+            continue;
+          };
+          let import_name = value.trim().to_string();
+          icss_imports.insert(
+            prop.to_string(),
+            IcssImportReference {
+              request: request.clone(),
+              import_name: import_name.clone(),
+            },
+          );
+          dependencies.push(Box::new(CssIcssImportDependency::new(
+            request,
+            import_name,
+            prop.to_string(),
+            None,
+            import_mode,
+          )));
         }
         css_module_lexer::Dependency::LocalContainer { name, range, .. } => {
           if !container_enabled {
@@ -574,9 +701,21 @@ impl ParserAndGenerator for CssParserAndGenerator {
             )
             .await?;
         }
-        _ => {}
       }
     }
+
+    for (reference, range) in
+      collect_icss_import_usage_ranges(&source_code, &icss_imports, &icss_removed_ranges)
+    {
+      dependencies.push(Box::new(CssIcssImportDependency::new(
+        reference.request,
+        reference.import_name,
+        String::new(),
+        Some(range),
+        import_mode,
+      )));
+    }
+
     for warning in warnings {
       let range = warning.range();
       let error = css_parsing_traceable_error(

@@ -226,6 +226,17 @@ impl<'a, 'g> CssGenerator<'a, 'g> {
       }
     });
 
+    if let Some(dependencies) = module.get_presentational_dependencies() {
+      dependencies.iter().for_each(|dependency| {
+        if let Some(template) = dependency
+          .dependency_template()
+          .and_then(|dependency_type| compilation.get_dependency_template(dependency_type))
+        {
+          template.render(dependency.as_ref(), &mut source, &mut context)
+        }
+      });
+    };
+
     generate_context.concatenation_scope = context.concatenation_scope.take();
 
     let css_source = source.boxed();
@@ -287,10 +298,12 @@ impl<'a, 'g> CssGenerator<'a, 'g> {
     let source = if let Some((decl_name, exports_string)) = self.stringified_used_css_exports() {
       let hmr_code = self.render_exports_hmr(&decl_name);
       let mut code = format!(
-        "{css_style_sheet_code}{exports_string}\n{hmr_code}\n{ns_obj}{left}{module_argument}.exports = Object.assign(__css_style_sheet, {decl_name})",
+        "{css_style_sheet_code}{exports_string}\n{hmr_code}\n{ns_obj}{left}{module_argument}.exports = Object.assign({{}}, {decl_name})",
       );
       code.push_str(&right);
       code.push_str(";\n");
+      code.push_str(&module_argument);
+      code.push_str(".exports.default = __css_style_sheet;\n");
       code
     } else {
       let mut code = css_style_sheet_code;

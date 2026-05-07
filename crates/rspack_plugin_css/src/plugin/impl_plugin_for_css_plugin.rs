@@ -28,8 +28,9 @@ use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use crate::{
   CssPlugin,
   dependency::{
-    CssImportDependencyTemplate, CssLayer, CssLocalIdentDependencyTemplate, CssMedia,
-    CssSelfReferenceLocalIdentDependencyTemplate, CssSupports, CssUrlDependencyTemplate,
+    CssIcssImportDependencyTemplate, CssImportDependencyTemplate, CssLayer,
+    CssLocalIdentDependencyTemplate, CssMedia, CssSelfReferenceLocalIdentDependencyTemplate,
+    CssSupports, CssUrlDependencyTemplate,
   },
   parser_and_generator::{CodeGenerationDataUnusedLocalIdent, CssParserAndGenerator},
   plugin::{CssModulesPluginHooks, CssModulesRenderSource, CssPluginInner},
@@ -276,6 +277,10 @@ async fn compilation(
     params.normal_module_factory.clone(),
   );
   compilation.set_dependency_factory(
+    DependencyType::CssIcssImport,
+    params.normal_module_factory.clone(),
+  );
+  compilation.set_dependency_factory(
     DependencyType::CssCompose,
     params.normal_module_factory.clone(),
   );
@@ -286,6 +291,10 @@ async fn compilation(
   compilation.set_dependency_template(
     CssImportDependencyTemplate::template_type(),
     Arc::new(CssImportDependencyTemplate::default()),
+  );
+  compilation.set_dependency_template(
+    CssIcssImportDependencyTemplate::template_type(),
+    Arc::new(CssIcssImportDependencyTemplate::default()),
   );
   compilation.set_dependency_template(
     CssLocalIdentDependencyTemplate::template_type(),

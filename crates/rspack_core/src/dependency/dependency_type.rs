@@ -61,6 +61,8 @@ pub enum DependencyType {
   CssUrl,
   // css @import
   CssImport,
+  // css icss :import
+  CssIcssImport,
   // css modules compose
   CssCompose,
   // css :export
@@ -170,6 +172,7 @@ impl DependencyType {
       DependencyType::ModuleHotDecline => "module.hot.decline",
       DependencyType::CssUrl => "css url",
       DependencyType::CssImport => "css import",
+      DependencyType::CssIcssImport => "css :import",
       DependencyType::CssCompose => "css compose",
       DependencyType::CssExport => "css export",
       DependencyType::CssLocalIdent => "css local ident",
