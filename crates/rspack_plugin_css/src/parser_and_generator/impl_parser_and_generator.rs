@@ -35,11 +35,13 @@ use crate::{
     CssLocalIdentDependency, CssMedia, CssSelfReferenceLocalIdentDependency,
     CssSelfReferenceLocalIdentReplacement, CssSupports, CssUrlDependency,
   },
-  parser_and_generator::{generate::update_css_exports, *},
+  parser_and_generator::{
+    generate::{CssGenerator, update_css_exports},
+    *,
+  },
   utils::{
-    LocalIdentOptions, css_modules_exports_to_concatenate_module_string,
-    css_modules_exports_to_string, css_parsing_traceable_error, export_locals_convention,
-    normalize_url, replace_module_request_prefix, unescape,
+    LocalIdentOptions, css_parsing_traceable_error, export_locals_convention, normalize_url,
+    replace_module_request_prefix, unescape,
   },
 };
 
@@ -727,7 +729,11 @@ impl ParserAndGenerator for CssParserAndGenerator {
 
         Ok(source.boxed())
       }
-      SourceType::JavaScript => self.generate_javascript_source(source, module, generate_context),
+      SourceType::JavaScript => {
+        let mut generator = CssGenerator::new(source, module, generate_context);
+        let source = generator.generate_javascript_source();
+        Ok(source)
+      }
       _ => panic!(
         "Unsupported source type: {:?}",
         generate_context.requested_source_type

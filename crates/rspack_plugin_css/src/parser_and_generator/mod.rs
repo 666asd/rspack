@@ -5,13 +5,13 @@ use std::sync::LazyLock;
 
 use regex::Regex;
 use rspack_cacheable::cacheable;
-pub use rspack_core::{CssExport, CssExports};
 use rspack_core::{
-  CssExportType, CssExportsConvention, CssModuleGeneratorOptions, CssModuleParserOptions,
-  CssParserImport, Dependency, ExportsInfoArtifact, LocalIdentName, Module, ModuleIdentifier,
-  ParserAndGenerator, RuntimeSpec, SourceType, UsageState,
+  CompilerOptions, CssExportType, CssExportsConvention, CssModuleGeneratorOptions,
+  CssModuleParserOptions, CssParserImport, Dependency, ExportsInfoArtifact, LocalIdentName, Module,
+  ModuleIdentifier, ParserAndGenerator, ResourceData, RuntimeSpec, SourceType, UsageState,
   rspack_sources::{Source, SourceExt},
 };
+pub use rspack_core::{CssExport, CssExports};
 use rspack_error::IntoTWithDiagnosticArray;
 use rspack_util::{
   atom::Atom,
@@ -19,6 +19,15 @@ use rspack_util::{
   fx_hash::{FxIndexMap, FxIndexSet},
 };
 use rustc_hash::{FxHashMap, FxHashSet};
+
+use crate::{
+  dependency::{
+    CssLocalIdentDependency, CssSelfReferenceLocalIdentDependency,
+    CssSelfReferenceLocalIdentReplacement,
+  },
+  parser_and_generator::generate::update_css_exports,
+  utils::{LocalIdentOptions, export_locals_convention, unescape},
+};
 
 static REGEX_IS_MODULES: LazyLock<Regex> =
   LazyLock::new(|| Regex::new(r"(?i)\.modules?\.[^.]+$").expect("Invalid regex"));
@@ -33,6 +42,8 @@ pub(crate) static CSS_MODULE_AND_JS_SOURCE_TYPE_LIST: &[SourceType; 2] =
 
 pub(crate) static CSS_MODULE_EXPORTS_ONLY_SOURCE_TYPE_LIST: &[SourceType; 1] =
   &[SourceType::JavaScript];
+
+pub type CssExportsRef<'a> = FxIndexMap<&'a str, &'a FxIndexSet<CssExport>>;
 
 #[cacheable]
 #[derive(Debug)]
@@ -127,6 +138,113 @@ impl CssParserAndGenerator {
   pub fn export_type(&self) -> &Option<CssExportType> {
     &self.parser_options.export_type
   }
+
+  pub async fn handle_local_ident_usage(
+    &self,
+    name: &str,
+    range: css_module_lexer::Range,
+    resource_data: &ResourceData,
+    compiler_options: &CompilerOptions,
+    css_exports: &mut Option<CssExports>,
+    dependencies: &mut Vec<Box<dyn Dependency>>,
+  ) -> rspack_error::Result<()> {
+    let name = unescape(name);
+    let (local_ident, convention_names) = self
+      .resolve_local_ident_and_update_exports(resource_data, compiler_options, &name, css_exports)
+      .await?;
+    dependencies.push(Box::new(CssSelfReferenceLocalIdentDependency::new(
+      convention_names,
+      vec![CssSelfReferenceLocalIdentReplacement {
+        local_ident,
+        range: (range.start, range.end).into(),
+      }],
+    )));
+    Ok(())
+  }
+
+  pub async fn handle_local_ident_declaration(
+    &self,
+    name: &str,
+    range: css_module_lexer::Range,
+    resource_data: &ResourceData,
+    compiler_options: &CompilerOptions,
+    css_exports: &mut Option<CssExports>,
+    css_local_names: &mut Option<FxHashMap<String, String>>,
+    dependencies: &mut Vec<Box<dyn Dependency>>,
+  ) -> rspack_error::Result<()> {
+    let name = unescape(name);
+    let (local_ident, convention_names) = self
+      .resolve_local_ident_and_update_exports(resource_data, compiler_options, &name, css_exports)
+      .await?;
+
+    let local_names = css_local_names.get_or_insert_default();
+    local_names.insert(name.into_owned(), local_ident.clone());
+
+    dependencies.push(Box::new(CssLocalIdentDependency::new(
+      local_ident,
+      convention_names,
+      range.start,
+      range.end,
+    )));
+    Ok(())
+  }
+
+  pub async fn resolve_local_ident_and_update_exports(
+    &self,
+    resource_data: &ResourceData,
+    compiler_options: &CompilerOptions,
+    name: &str,
+    css_exports: &mut Option<CssExports>,
+  ) -> rspack_error::Result<(String, Vec<String>)> {
+    let local_ident_hash_digest = self
+      .generator_options
+      .local_ident_hash_digest
+      .as_deref()
+      .map(Into::into);
+    let local_ident_hash_digest_length = self
+      .generator_options
+      .local_ident_hash_digest_length
+      .map(|len| len as usize);
+    let local_ident_hash_function = self
+      .generator_options
+      .local_ident_hash_function
+      .as_deref()
+      .map(Into::into);
+    let local_ident_hash_salt = self
+      .generator_options
+      .local_ident_hash_salt
+      .clone()
+      .map(Some)
+      .map(Into::into);
+
+    let local_ident = LocalIdentOptions::new(
+      resource_data,
+      self.local_ident_name(),
+      compiler_options,
+      local_ident_hash_digest.as_ref(),
+      local_ident_hash_digest_length,
+      local_ident_hash_function.as_ref(),
+      local_ident_hash_salt.as_ref(),
+    )
+    .get_local_ident(name)
+    .await?;
+    let convention = self.convention();
+    let exports = css_exports.get_or_insert_default();
+    let convention_names = export_locals_convention(name, convention);
+    for convention_name in convention_names.iter() {
+      update_css_exports(
+        exports,
+        convention_name.to_owned(),
+        CssExport {
+          ident: local_ident.clone(),
+          orig_name: name.to_owned(),
+          from: None,
+          id: None,
+        },
+      );
+    }
+    Ok((local_ident, convention_names))
+  }
 }
 
 pub fn get_used_exports<'a>(
@@ -134,7 +252,7 @@ pub fn get_used_exports<'a>(
   identifier: ModuleIdentifier,
   runtime: Option<&RuntimeSpec>,
   exports_info_artifact: &ExportsInfoArtifact,
-) -> FxIndexMap<&'a str, &'a FxIndexSet<CssExport>> {
+) -> CssExportsRef<'a> {
   let exports_info = exports_info_artifact
     .get_exports_info_optional(&identifier)
     .map(|info| info.as_data(exports_info_artifact));
