@@ -1,7 +1,71 @@
 // Rstest Snapshot v1
 
+exports[`config > configCases-configCases/css/export-selector > should pass 1`] = `
+.module-text_css-class {
+	color: red;
+	background: white;
+}
+
+.module-text_css-another-class {
+	font-size: 16px;
+}
+`;
+
+exports[`config > configCases-configCases/css/export-selector > should pass 2`] = `
+Object {
+  another: module-text-no-esm_css-another,
+  default: Object {
+    another: module-text-no-esm_css-another,
+    default: .module-text-no-esm_css-no-esm-text {
+	color: orange;
+	background: lightgray;
+}
+
+.module-text-no-esm_css-another {
+	text-align: center;
+},
+    no-esm-text: module-text-no-esm_css-no-esm-text,
+  },
+  no-esm-text: module-text-no-esm_css-no-esm-text,
+}
+`;
+
+exports[`config > configCases-configCases/css/export-selector > should pass 3`] = ``;
+
+exports[`config > configCases-configCases/css/export-type > should pass 1`] = `
+.module-text_css-class {
+	color: red;
+	background: white;
+}
+
+.module-text_css-another-class {
+	font-size: 16px;
+}
+`;
+
+exports[`config > configCases-configCases/css/export-type > should pass 2`] = `
+Object {
+  another: module-text-no-esm_css-another,
+  default: Object {
+    another: module-text-no-esm_css-another,
+    default: .module-text-no-esm_css-no-esm-text {
+	color: orange;
+	background: lightgray;
+}
+
+.module-text-no-esm_css-another {
+	text-align: center;
+},
+    no-esm-text: module-text-no-esm_css-no-esm-text,
+  },
+  no-esm-text: module-text-no-esm_css-no-esm-text,
+}
+`;
+
+exports[`config > configCases-configCases/css/export-type > should pass 3`] = ``;
+
 exports[`config > configCases-configCases/css/large > should pass > dev 1`] = `
 Object {
-  placeholder: my-app-_tailwind_module_css-placeholder-gray-700,
+  placeholder: my-app-tailwind_module_css-placeholder-gray-700,
 }
 `;
