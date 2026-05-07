@@ -1,46 +1,36 @@
-use std::{
-  borrow::Cow,
-  sync::{Arc, LazyLock},
-};
+use std::{borrow::Cow, sync::Arc};
 
 use once_cell::sync::OnceCell;
-use regex::Regex;
-use rspack_cacheable::{cacheable, cacheable_dyn};
+use rspack_cacheable::cacheable_dyn;
 use rspack_core::{
   BoxDependencyTemplate, BoxModuleDependency, BuildMetaDefaultObject, BuildMetaExportsType,
-  ChunkGraph, Compilation, CompilerOptions, ConstDependency, CssExportType, CssExportsConvention,
-  CssModuleGeneratorOptions, CssModuleParserOptions, CssParserImport, CssParserImportContext,
-  Dependency, DependencyRange, DependencyType, ExportsInfoArtifact, GenerateContext,
-  LocalIdentName, Module, ModuleArgument, ModuleGraph, ModuleIdentifier, ModuleInitFragments,
-  ModuleType, NormalModule, ParseContext, ParseResult, ParserAndGenerator, Replacer, ResourceData,
+  ChunkGraph, Compilation, ConstDependency, CssExportType, CssParserImport, CssParserImportContext,
+  Dependency, DependencyRange, DependencyType, GenerateContext, Module, ModuleGraph,
+  ModuleInitFragments, ModuleType, NormalModule, ParseContext, ParseResult, ParserAndGenerator,
   RuntimeGlobals, RuntimeSpec, SourceType, StaticExportsDependency, StaticExportsSpec,
-  TemplateContext, UsageState,
+  TemplateContext,
   diagnostics::map_box_diagnostics_to_module_parse_diagnostics,
   remove_bom,
-  rspack_sources::{BoxSource, ConcatSource, RawStringSource, ReplaceSource, Source, SourceExt},
+  rspack_sources::{BoxSource, ReplaceSource, Source, SourceExt},
 };
 pub use rspack_core::{CssExport, CssExports};
 use rspack_error::{Diagnostic, IntoTWithDiagnosticArray, Result, Severity, TWithDiagnosticArray};
 use rspack_hash::{RspackHash, RspackHashDigest};
-use rspack_util::{
-  atom::Atom,
-  ext::DynHash,
-  fx_hash::{FxIndexMap, FxIndexSet},
-};
-use rustc_hash::{FxHashMap, FxHashSet};
+use rspack_util::ext::DynHash;
+use rustc_hash::FxHashMap;
 
 use crate::{
   dependency::{
     CssComposeDependency, CssExportDependency, CssImportDependency, CssImportMode, CssLayer,
-    CssLocalIdentDependency, CssMedia, CssSelfReferenceLocalIdentDependency,
-    CssSelfReferenceLocalIdentReplacement, CssSupports, CssUrlDependency,
+    CssLocalIdentDependency, CssMedia, CssSelfReferenceLocalIdentDependency, CssSupports,
+    CssUrlDependency,
   },
   parser_and_generator::{
     generate::{CssGenerator, update_css_exports},
     *,
   },
   utils::{
-    LocalIdentOptions, css_parsing_traceable_error, export_locals_convention, normalize_url,
+    css_parsing_traceable_error, export_locals_convention, normalize_url,
     replace_module_request_prefix, unescape,
   },
 };
@@ -730,7 +720,15 @@ impl ParserAndGenerator for CssParserAndGenerator {
         Ok(source.boxed())
       }
       SourceType::JavaScript => {
-        let mut generator = CssGenerator::new(source, module, generate_context);
+        let mut generator = CssGenerator::new(
+          source,
+          module,
+          generate_context,
+          self.hot,
+          self.export_type().clone(),
+          self.es_module(),
+          self.exports_only(),
+        );
         let source = generator.generate_javascript_source();
         Ok(source)
       }

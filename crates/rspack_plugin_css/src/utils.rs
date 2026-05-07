@@ -9,7 +9,7 @@ use cow_utils::CowUtils;
 use heck::{ToKebabCase, ToLowerCamelCase};
 use regex::{Captures, Regex};
 use rspack_core::{CompilerOptions, CssExportsConvention, LocalIdentName, PathData, ResourceData};
-use rspack_error::{Diagnostic, Error, Result, Severity, ToStringResultToRspackResultExt};
+use rspack_error::{Diagnostic, Error, Result, Severity};
 use rspack_hash::{HashDigest, HashFunction, HashSalt, RspackHash};
 use rspack_util::identifier::make_paths_relative;
 

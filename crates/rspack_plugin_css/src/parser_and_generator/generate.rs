@@ -1,25 +1,17 @@
-use std::{borrow::Cow, collections::HashSet, fmt::format};
+use std::{borrow::Cow, collections::HashSet};
 
 use rspack_core::{
-  ChunkGraph, CompilerOptions, CssExport, CssExportType, CssExports, Dependency, GenerateContext,
-  InitFragmentRenderContext, Module, ModuleArgument, ModuleInitFragments, RESERVED_IDENTIFIER,
-  ResourceData, RuntimeGlobals, TemplateContext, UsageState, UsedNameItem,
+  ChunkGraph, CssExport, CssExportType, CssExports, GenerateContext, InitFragmentRenderContext,
+  Module, ModuleArgument, ModuleInitFragments, RESERVED_IDENTIFIER, RuntimeGlobals,
+  TemplateContext, UsageState, UsedNameItem,
   rspack_sources::{BoxSource, ConcatSource, RawStringSource, ReplaceSource, SourceExt},
   to_identifier,
 };
-use rspack_error::Result;
 use rspack_util::{atom::Atom, fx_hash::FxIndexSet, itoa, json_stringify, json_stringify_str};
-use rustc_hash::FxHashMap;
 
 use crate::{
-  dependency::{
-    CssLocalIdentDependency, CssSelfReferenceLocalIdentDependency,
-    CssSelfReferenceLocalIdentReplacement,
-  },
-  parser_and_generator::{
-    CssExportsRef, CssParserAndGenerator, get_unused_local_ident, get_used_exports,
-  },
-  utils::{LocalIdentOptions, export_locals_convention, unescape},
+  parser_and_generator::{CssExportsRef, get_unused_local_ident, get_used_exports},
+  utils::unescape,
 };
 
 pub fn update_css_exports(exports: &mut CssExports, name: String, css_export: CssExport) -> bool {
@@ -32,10 +24,10 @@ pub fn update_css_exports(exports: &mut CssExports, name: String, css_export: Cs
   }
 }
 
-pub(crate) struct CssGenerator<'a> {
+pub(crate) struct CssGenerator<'a, 'g> {
   source: &'a BoxSource,
   module: &'a dyn Module,
-  generate_context: &'a mut GenerateContext<'a>,
+  generate_context: &'a mut GenerateContext<'g>,
   with_hmr: bool,
   export_type: Option<CssExportType>,
   es_module: bool,
@@ -44,11 +36,11 @@ pub(crate) struct CssGenerator<'a> {
   concat_source: ConcatSource,
 }
 
-impl<'a> CssGenerator<'a> {
+impl<'a, 'g> CssGenerator<'a, 'g> {
   pub fn new(
     source: &'a BoxSource,
     module: &'a dyn Module,
-    generate_context: &'a mut GenerateContext<'a>,
+    generate_context: &'a mut GenerateContext<'g>,
     with_hmr: bool,
     export_type: Option<CssExportType>,
     es_module: bool,
@@ -79,7 +71,6 @@ impl<'a> CssGenerator<'a> {
   }
 
   pub fn generate_javascript_source(&mut self) -> BoxSource {
-    let concat_source = &mut self.concat_source;
     let export_type = self.export_type.clone();
     let exports_only = self.exports_only;
 
@@ -88,12 +79,12 @@ impl<'a> CssGenerator<'a> {
       Some(CssExportType::Style) => {
         let css_js_string = self.stringify_css_source_for_javascript();
 
-        concat_source.add(RawStringSource::from(
-          self.render_css_inject_style(&css_js_string),
-        ));
-        concat_source.add(self.generate_js_exports());
+        let inject_style = self.render_css_inject_style(&css_js_string);
+        let exports = self.generate_js_exports();
+        self.concat_source.add(RawStringSource::from(inject_style));
+        self.concat_source.add(exports);
 
-        concat_source.boxed()
+        std::mem::take(&mut self.concat_source).boxed()
       }
       Some(CssExportType::CssStyleSheet) => {
         let css_js_string = self.stringify_css_source_for_javascript();
@@ -109,28 +100,27 @@ impl<'a> CssGenerator<'a> {
 
   fn generate_js_exports(&mut self) -> BoxSource {
     let module = self.module;
-    let generate_context = self.generate_context;
     let with_hmr = self.with_hmr;
 
     let build_info = module.build_info();
-    if generate_context.concatenation_scope.is_some() {
-      let mut concate_source = ConcatSource::default();
+    if self.generate_context.concatenation_scope.is_some() {
+      let concate_source = ConcatSource::default();
       if let Some(ref exports) = build_info.css_exports {
-        let exports_info_artifact = &generate_context.compilation.exports_info_artifact;
+        let exports_info_artifact = &self.generate_context.compilation.exports_info_artifact;
         if let Some(local_names) = &build_info.css_local_names {
           let unused_exports = get_unused_local_ident(
             exports,
             local_names,
             module.identifier(),
-            generate_context.runtime,
+            self.generate_context.runtime,
             exports_info_artifact,
           );
-          generate_context.data.insert(unused_exports);
+          self.generate_context.data.insert(unused_exports);
         }
         let exports = get_used_exports(
           exports,
           module.identifier(),
-          generate_context.runtime,
+          self.generate_context.runtime,
           exports_info_artifact,
         );
 
@@ -138,18 +128,20 @@ impl<'a> CssGenerator<'a> {
       }
       concate_source.boxed()
     } else {
-      let exports_info = generate_context
+      let exports_info = self
+        .generate_context
         .compilation
         .exports_info_artifact
         .get_exports_info_data(&module.identifier());
       let (ns_obj, left, right) = if self.es_module()
         && exports_info
           .other_exports_info()
-          .get_used(generate_context.runtime)
+          .get_used(self.generate_context.runtime)
           != UsageState::Unused
       {
         (
-          generate_context
+          self
+            .generate_context
             .runtime_template
             .render_runtime_globals(&RuntimeGlobals::MAKE_NAMESPACE_OBJECT),
           "(".to_string(),
@@ -164,22 +156,23 @@ impl<'a> CssGenerator<'a> {
             exports,
             local_names,
             module.identifier(),
-            generate_context.runtime,
-            &generate_context.compilation.exports_info_artifact,
+            self.generate_context.runtime,
+            &self.generate_context.compilation.exports_info_artifact,
           );
-          generate_context.data.insert(unused_exports);
+          self.generate_context.data.insert(unused_exports);
         }
 
         let exports = get_used_exports(
           exports,
           module.identifier(),
-          generate_context.runtime,
-          &generate_context.compilation.exports_info_artifact,
+          self.generate_context.runtime,
+          &self.generate_context.compilation.exports_info_artifact,
         );
 
         self.css_modules_exports_to_string(exports, &ns_obj, &left, &right)
       } else {
-        let module_argument = generate_context
+        let module_argument = self
+          .generate_context
           .runtime_template
           .render_module_argument(ModuleArgument::Module);
         format!(
@@ -198,8 +191,8 @@ impl<'a> CssGenerator<'a> {
     }
   }
 
-  fn stringify_css_source_for_javascript(&self) -> String {
-    let generate_context = self.generate_context;
+  fn stringify_css_source_for_javascript(&mut self) -> String {
+    let generate_context = &mut *self.generate_context;
     let module = self.module;
 
     let mut source = ReplaceSource::new(self.source.clone());
@@ -240,8 +233,8 @@ impl<'a> CssGenerator<'a> {
     json_stringify_str(&css_text)
   }
 
-  fn render_css_inject_style(&self, css_js_string: &str) -> String {
-    let generate_context = self.generate_context;
+  fn render_css_inject_style(&mut self, css_js_string: &str) -> String {
+    let generate_context = &mut *self.generate_context;
     let module = self.module;
 
     generate_context
@@ -266,30 +259,28 @@ impl<'a> CssGenerator<'a> {
     )
   }
 
-  fn generate_css_style_sheet_exports(&self, css_js_string: &str) -> BoxSource {
-    let generate_context = self.generate_context;
-    let module = self.module;
-
-    generate_context
+  fn generate_css_style_sheet_exports(&mut self, css_js_string: &str) -> BoxSource {
+    self
+      .generate_context
       .runtime_template
       .runtime_requirements_mut()
       .insert(RuntimeGlobals::CSS_STYLE_SHEET);
 
-    let module_argument = generate_context
+    let module_argument = self
+      .generate_context
       .runtime_template
       .render_module_argument(ModuleArgument::Module);
-    let (ns_obj, left, right) = self.get_namespace_object_parts(generate_context);
+    let (ns_obj, left, right) = self.get_namespace_object_parts();
     let css_style_sheet_code = format!(
       "var __css_style_sheet = {}({});\n",
-      generate_context
+      self
+        .generate_context
         .runtime_template
         .render_runtime_globals(&RuntimeGlobals::CSS_STYLE_SHEET),
       css_js_string
     );
 
-    let source = if let Some((decl_name, exports_string)) =
-      self.stringified_used_css_exports(module, generate_context)
-    {
+    let source = if let Some((decl_name, exports_string)) = self.stringified_used_css_exports() {
       let hmr_code = self.render_exports_hmr(&decl_name);
       let mut code = format!(
         "{css_style_sheet_code}{exports_string}\n{hmr_code}\n{ns_obj}{left}{module_argument}.exports = Object.assign(__css_style_sheet, {decl_name})",
@@ -314,20 +305,14 @@ impl<'a> CssGenerator<'a> {
     RawStringSource::from(source).boxed()
   }
 
-  fn generate_css_text_exports(&self, css_js_string: &str) -> BoxSource {
-    let module_argument = self.module_argument;
-    let generate_context = self.generate_context;
-    let with_hmr = self.with_hmr;
-    let module = self.module;
-
-    let module_argument = generate_context
+  fn generate_css_text_exports(&mut self, css_js_string: &str) -> BoxSource {
+    let module_argument = self
+      .generate_context
       .runtime_template
       .render_module_argument(ModuleArgument::Module);
-    let (ns_obj, left, right) = self.get_namespace_object_parts(generate_context);
+    let (ns_obj, left, right) = self.get_namespace_object_parts();
 
-    let source = if let Some((decl_name, exports_string)) =
-      self.stringified_used_css_exports(module, generate_context)
-    {
+    let source = if let Some((decl_name, exports_string)) = self.stringified_used_css_exports() {
       let hmr_code = self.render_exports_hmr(&decl_name);
       let mut code = String::new();
       code.push_str(&exports_string);
@@ -368,30 +353,26 @@ impl<'a> CssGenerator<'a> {
     RawStringSource::from(source).boxed()
   }
 
-  fn stringified_used_css_exports(
-    &self,
-    module: &dyn Module,
-    generate_context: &mut GenerateContext,
-  ) -> Option<(&'static str, String)> {
-    let build_info = module.build_info();
-    let exports = &build_info.css_exports?;
+  fn stringified_used_css_exports(&mut self) -> Option<(&'static str, String)> {
+    let build_info = self.module.build_info();
+    let exports = build_info.css_exports.as_ref()?;
 
     if let Some(local_names) = &build_info.css_local_names {
       let unused_exports = get_unused_local_ident(
         exports,
         local_names,
-        module.identifier(),
-        generate_context.runtime,
-        &generate_context.compilation.exports_info_artifact,
+        self.module.identifier(),
+        self.generate_context.runtime,
+        &self.generate_context.compilation.exports_info_artifact,
       );
-      generate_context.data.insert(unused_exports);
+      self.generate_context.data.insert(unused_exports);
     }
 
     let exports = get_used_exports(
       exports,
-      module.identifier(),
-      generate_context.runtime,
-      &generate_context.compilation.exports_info_artifact,
+      self.module.identifier(),
+      self.generate_context.runtime,
+      &self.generate_context.compilation.exports_info_artifact,
     );
 
     let (decl_name, exports_string) = self.stringified_exports(exports);
@@ -399,13 +380,11 @@ impl<'a> CssGenerator<'a> {
     Some((decl_name, exports_string))
   }
 
-  fn get_namespace_object_parts(
-    &self,
-    generate_context: &mut GenerateContext,
-  ) -> (String, String, String) {
+  fn get_namespace_object_parts(&mut self) -> (String, String, String) {
     if self.es_module() {
       (
-        generate_context
+        self
+          .generate_context
           .runtime_template
           .render_runtime_globals(&RuntimeGlobals::MAKE_NAMESPACE_OBJECT),
         "(".to_string(),
@@ -447,7 +426,7 @@ impl<'a> CssGenerator<'a> {
     }
   }
 
-  fn stringified_exports<'b>(&self, exports: CssExportsRef<'b>) -> (&'static str, String) {
+  fn stringified_exports<'b>(&mut self, exports: CssExportsRef<'b>) -> (&'static str, String) {
     let compilation = self.generate_context.compilation;
     let module = self.module;
     let runtime = self.generate_context.runtime;
@@ -479,16 +458,17 @@ impl<'a> CssGenerator<'a> {
   }
 
   fn css_modules_exports_to_string(
-    &self,
+    &mut self,
     exports: CssExportsRef,
     ns_obj: &str,
     left: &str,
     right: &str,
   ) -> String {
-    let runtime_template = self.generate_context.runtime_template;
-
     let (decl_name, exports_string) = self.stringified_exports(exports);
-    let module_argument = runtime_template.render_module_argument(ModuleArgument::Module);
+    let module_argument = self
+      .generate_context
+      .runtime_template
+      .render_module_argument(ModuleArgument::Module);
     let hmr_code = self.render_exports_hmr(decl_name);
     let mut code = format!(
       "{exports_string}\n{hmr_code}\n{ns_obj}{left}{module_argument}.exports = {decl_name}"
@@ -499,26 +479,20 @@ impl<'a> CssGenerator<'a> {
   }
 
   fn css_modules_exports_to_concatenate_module_string(&mut self, exports: CssExportsRef) {
-    let generate_context = self.generate_context;
-    let module = self.module;
-    let concat_source = &mut self.concat_source;
-
-    let GenerateContext {
-      compilation,
-      concatenation_scope,
-      runtime,
-      ..
-    } = generate_context;
-    let Some(scope) = concatenation_scope else {
+    if self.generate_context.concatenation_scope.is_none() {
       return;
-    };
-    let mut used_identifiers = HashSet::default();
-    let exports_info = compilation
+    }
+    let module = self.module;
+
+    let mut used_identifiers: HashSet<Cow<'_, str>> = HashSet::default();
+    let exports_info = self
+      .generate_context
+      .compilation
       .exports_info_artifact
       .get_exports_info_data(&module.identifier());
     for (key, elements) in exports {
       let export_info = exports_info.get_read_only_export_info(&Atom::from(key));
-      let used_name = match export_info.get_used_name(None, *runtime) {
+      let used_name = match export_info.get_used_name(None, self.generate_context.runtime) {
         Some(UsedNameItem::Str(name)) => name.to_string(),
         _ => key.to_string(),
       };
@@ -534,22 +508,24 @@ impl<'a> CssGenerator<'a> {
         identifier = Cow::Owned(format!("{identifier}{i_str}"));
         i += 1;
       }
-      concat_source.add(RawStringSource::from(format!(
+      self.concat_source.add(RawStringSource::from(format!(
         "var {identifier} = {content};\n"
       )));
       used_identifiers.insert(identifier.clone());
+      let Some(ref mut scope) = self.generate_context.concatenation_scope else {
+        unreachable!();
+      };
       scope.register_export(key.into(), identifier.into_owned());
     }
   }
 
   fn render_css_export_content(
-    &self,
+    &mut self,
     elements: &FxIndexSet<CssExport>,
     unescape_referenced_ident: bool,
   ) -> String {
     let compilation = self.generate_context.compilation;
     let module = self.module;
-    let runtime_template = self.generate_context.runtime_template;
     let runtime = self.generate_context.runtime;
 
     let module_graph = compilation.get_module_graph();
@@ -614,7 +590,10 @@ impl<'a> CssGenerator<'a> {
             );
             format!(
               "{}({from})[{}]",
-              runtime_template.render_runtime_globals(&RuntimeGlobals::REQUIRE),
+              self
+                .generate_context
+                .runtime_template
+                .render_runtime_globals(&RuntimeGlobals::REQUIRE),
               from_used_name
             )
           }

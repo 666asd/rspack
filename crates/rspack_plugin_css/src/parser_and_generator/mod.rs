@@ -7,15 +7,12 @@ use regex::Regex;
 use rspack_cacheable::cacheable;
 use rspack_core::{
   CompilerOptions, CssExportType, CssExportsConvention, CssModuleGeneratorOptions,
-  CssModuleParserOptions, CssParserImport, Dependency, ExportsInfoArtifact, LocalIdentName, Module,
-  ModuleIdentifier, ParserAndGenerator, ResourceData, RuntimeSpec, SourceType, UsageState,
-  rspack_sources::{Source, SourceExt},
+  CssModuleParserOptions, CssParserImport, Dependency, ExportsInfoArtifact, LocalIdentName,
+  ModuleIdentifier, ResourceData, RuntimeSpec, SourceType, UsageState,
 };
 pub use rspack_core::{CssExport, CssExports};
-use rspack_error::IntoTWithDiagnosticArray;
 use rspack_util::{
   atom::Atom,
-  ext::DynHash,
   fx_hash::{FxIndexMap, FxIndexSet},
 };
 use rustc_hash::{FxHashMap, FxHashSet};
