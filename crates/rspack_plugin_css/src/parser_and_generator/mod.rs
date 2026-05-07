@@ -1,4 +1,4 @@
-pub mod generate;
+pub mod generator;
 pub mod impl_parser_and_generator;
 
 use std::sync::LazyLock;
@@ -22,7 +22,7 @@ use crate::{
     CssLocalIdentDependency, CssSelfReferenceLocalIdentDependency,
     CssSelfReferenceLocalIdentReplacement,
   },
-  parser_and_generator::generate::update_css_exports,
+  parser_and_generator::generator::update_css_exports,
   utils::{LocalIdentOptions, export_locals_convention, unescape},
 };
 

@@ -26,7 +26,7 @@ use crate::{
     CssSelfReferenceLocalIdentDependency, CssSupports, CssUrlDependency,
   },
   parser_and_generator::{
-    generate::{CssGenerator, update_css_exports},
+    generator::{CssGenerator, update_css_exports},
     *,
   },
   utils::{

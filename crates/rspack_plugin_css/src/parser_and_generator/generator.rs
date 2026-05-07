@@ -33,7 +33,7 @@ pub fn update_css_exports(exports: &mut CssExports, name: String, css_export: Cs
   }
 }
 
-pub(crate) struct CssGenerator<'a, 'g> {
+pub(crate) struct CssModuleGenerator<'a, 'g> {
   source: &'a BoxSource,
   module: &'a dyn Module,
   generate_context: &'a mut GenerateContext<'g>,
@@ -45,7 +45,7 @@ pub(crate) struct CssGenerator<'a, 'g> {
   concat_source: ConcatSource,
 }
 
-impl<'a, 'g> CssGenerator<'a, 'g> {
+impl<'a, 'g> CssModuleGenerator<'a, 'g> {
   pub fn new(
     source: &'a BoxSource,
     module: &'a dyn Module,
