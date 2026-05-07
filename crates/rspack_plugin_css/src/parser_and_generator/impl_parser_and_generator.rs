@@ -720,7 +720,7 @@ impl ParserAndGenerator for CssParserAndGenerator {
         Ok(source.boxed())
       }
       SourceType::JavaScript => {
-        let mut generator = CssGenerator::new(
+        let generator = CssGenerator::new(
           source,
           module,
           generate_context,

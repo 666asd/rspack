@@ -70,41 +70,45 @@ impl<'a, 'g> CssGenerator<'a, 'g> {
     &self.module_argument
   }
 
-  pub fn generate_javascript_source(&mut self) -> BoxSource {
+  pub fn generate_javascript_source(mut self) -> BoxSource {
     let export_type = self.export_type.clone();
     let exports_only = self.exports_only;
 
     match export_type {
-      Some(CssExportType::Style) if exports_only => self.generate_js_exports(),
+      Some(CssExportType::Style) if exports_only => {
+        self.generate_js_exports();
+      }
       Some(CssExportType::Style) => {
         let css_js_string = self.stringify_css_source_for_javascript();
 
         let inject_style = self.render_css_inject_style(&css_js_string);
-        let exports = self.generate_js_exports();
         self.concat_source.add(RawStringSource::from(inject_style));
-        self.concat_source.add(exports);
-
-        std::mem::take(&mut self.concat_source).boxed()
+        self.generate_js_exports();
       }
       Some(CssExportType::CssStyleSheet) => {
         let css_js_string = self.stringify_css_source_for_javascript();
-        self.generate_css_style_sheet_exports(&css_js_string)
+        let exports = self.generate_css_style_sheet_exports(&css_js_string);
+        self.concat_source.add(RawStringSource::from(exports));
       }
       Some(CssExportType::Text) => {
         let css_js_string = self.stringify_css_source_for_javascript();
-        self.generate_css_text_exports(&css_js_string)
+        let exports = self.generate_css_text_exports(&css_js_string);
+        self.concat_source.add(RawStringSource::from(exports));
       }
-      _ => self.generate_js_exports(),
-    }
+      _ => {
+        self.generate_js_exports();
+      }
+    };
+
+    self.concat_source.boxed()
   }
 
-  fn generate_js_exports(&mut self) -> BoxSource {
+  fn generate_js_exports(&mut self) {
     let module = self.module;
     let with_hmr = self.with_hmr;
 
     let build_info = module.build_info();
     if self.generate_context.concatenation_scope.is_some() {
-      let concate_source = ConcatSource::default();
       if let Some(ref exports) = build_info.css_exports {
         let exports_info_artifact = &self.generate_context.compilation.exports_info_artifact;
         if let Some(local_names) = &build_info.css_local_names {
@@ -126,7 +130,6 @@ impl<'a, 'g> CssGenerator<'a, 'g> {
 
         self.css_modules_exports_to_concatenate_module_string(exports);
       }
-      concate_source.boxed()
     } else {
       let exports_info = self
         .generate_context
@@ -187,7 +190,8 @@ impl<'a, 'g> CssGenerator<'a, 'g> {
           }
         )
       };
-      RawStringSource::from(exports_str).boxed()
+
+      self.concat_source.add(RawStringSource::from(exports_str))
     }
   }
 
@@ -259,7 +263,7 @@ impl<'a, 'g> CssGenerator<'a, 'g> {
     )
   }
 
-  fn generate_css_style_sheet_exports(&mut self, css_js_string: &str) -> BoxSource {
+  fn generate_css_style_sheet_exports(&mut self, css_js_string: &str) -> String {
     self
       .generate_context
       .runtime_template
@@ -302,10 +306,10 @@ impl<'a, 'g> CssGenerator<'a, 'g> {
       code
     };
 
-    RawStringSource::from(source).boxed()
+    source
   }
 
-  fn generate_css_text_exports(&mut self, css_js_string: &str) -> BoxSource {
+  fn generate_css_text_exports(&mut self, css_js_string: &str) -> String {
     let module_argument = self
       .generate_context
       .runtime_template
@@ -328,7 +332,7 @@ impl<'a, 'g> CssGenerator<'a, 'g> {
       code.push_str(&right);
       code.push_str(";\n");
       code.push_str(&module_argument);
-      code.push_str(".default = ");
+      code.push_str(".exports.default = ");
       code.push_str(css_js_string);
       code.push_str(";\n");
       code
@@ -350,7 +354,7 @@ impl<'a, 'g> CssGenerator<'a, 'g> {
       code
     };
 
-    RawStringSource::from(source).boxed()
+    source
   }
 
   fn stringified_used_css_exports(&mut self) -> Option<(&'static str, String)> {
