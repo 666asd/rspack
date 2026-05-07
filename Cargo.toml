@@ -373,6 +373,29 @@ opt-level = "s"
 [profile.release.package.swc_ecma_ext_transforms]
 opt-level = "s"
 
+[profile.release.package.prost]
+opt-level = "s"
+
+[profile.release.package.prost-derive]
+opt-level = "s"
+
+[profile.release.package.rspack_plugin_dll]
+opt-level = "s"
+
+[profile.release.package.rspack_tracing]
+opt-level = "s"
+
+[profile.release.package.rspack_tracing_perfetto]
+opt-level = "s"
+
+[profile.release.package.tracing]
+opt-level = "s"
+
+[profile.release.package.browserslist-rs]
+opt-level = "s"
+
+[profile.release.package.tracing-subscriber]
+opt-level = "s"
 
 [profile.release.package.icu_normalizer]
 opt-level = "s"
