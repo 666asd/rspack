@@ -4,10 +4,16 @@ use rspack_core::{
   ChunkGraph, CssExport, CssExportType, CssExports, DependencyType, GenerateContext,
   InitFragmentRenderContext, Module, ModuleArgument, ModuleInitFragments, RESERVED_IDENTIFIER,
   RuntimeGlobals, TemplateContext, UsageState, UsedNameItem,
-  rspack_sources::{BoxSource, ConcatSource, RawStringSource, ReplaceSource, SourceExt},
+  rspack_sources::{
+    BoxSource, ConcatSource, MapOptions, ObjectPool, OriginalSource, RawStringSource,
+    ReplaceSource, Source, SourceExt,
+  },
   to_identifier,
 };
-use rspack_util::{atom::Atom, fx_hash::FxIndexSet, itoa, json_stringify, json_stringify_str};
+use rspack_util::{
+  atom::Atom, base64::encode_to_string, fx_hash::FxIndexSet, itoa, json_stringify,
+  json_stringify_str,
+};
 
 use crate::{
   dependency::{CssImportDependency, CssMedia, CssSupports},
@@ -105,7 +111,12 @@ impl<'a, 'g> CssGenerator<'a, 'g> {
       }
     };
 
-    self.concat_source.boxed()
+    let generated_source = self.concat_source.source().into_string_lossy().into_owned();
+    if self.module.get_source_map_kind().enabled() {
+      OriginalSource::new(generated_source, self.module.identifier().as_str()).boxed()
+    } else {
+      RawStringSource::from(generated_source).boxed()
+    }
   }
 
   fn generate_js_exports(&mut self) {
@@ -201,10 +212,20 @@ impl<'a, 'g> CssGenerator<'a, 'g> {
   }
 
   fn stringify_css_source_for_javascript(&mut self) -> String {
-    self.stringify_css_source_for_module(self.source, self.module)
+    let css_source = self.generate_css_source_for_module(self.source, self.module);
+    self.stringify_css_source_with_inline_map(css_source)
   }
 
   fn stringify_css_source_for_module(&mut self, source: &BoxSource, module: &dyn Module) -> String {
+    let css_source = self.generate_css_source_for_module(source, module);
+    self.stringify_css_source_with_inline_map(css_source)
+  }
+
+  fn generate_css_source_for_module(
+    &mut self,
+    source: &BoxSource,
+    module: &dyn Module,
+  ) -> BoxSource {
     let generate_context = &mut *self.generate_context;
 
     let mut source = ReplaceSource::new(source.clone());
@@ -271,11 +292,24 @@ impl<'a, 'g> CssGenerator<'a, 'g> {
 
     generate_context.concatenation_scope = context.concatenation_scope.take();
 
-    let css_source = source.boxed();
-    let css_text = css_source
+    source.boxed()
+  }
+
+  fn stringify_css_source_with_inline_map(&self, css_source: BoxSource) -> String {
+    let mut css_text = css_source
       .source()
       .into_string_lossy()
       .replace(crate::utils::AUTO_PUBLIC_PATH_PLACEHOLDER, "");
+
+    if let Some(source_map) = css_source.map(&ObjectPool::default(), &MapOptions::default()) {
+      let base64_map = encode_to_string(source_map.to_json().as_bytes());
+      if !css_text.ends_with('\n') {
+        css_text.push('\n');
+      }
+      css_text.push_str("/*# sourceMappingURL=data:application/json;charset=utf-8;base64,");
+      css_text.push_str(&base64_map);
+      css_text.push_str("*/");
+    }
 
     json_stringify_str(&css_text)
   }
