@@ -3,19 +3,19 @@ use std::{borrow::Cow, sync::Arc};
 use rspack_error::{Result, error};
 use rspack_hook::define_hook;
 use rspack_loader_runner::{Loader, Scheme, get_scheme};
-use rspack_util::MergeFrom;
+use rspack_util::{MergeFrom, json_stringify};
 use sugar_path::SugarPath;
 use winnow::prelude::*;
 
 use crate::{
   AssetInlineGeneratorOptions, AssetResourceGeneratorOptions, BoxLoader, BoxModule,
-  CompilerOptions, Context, CssModuleGeneratorOptions, CssModuleParserOptions, Dependency,
-  DependencyCategory, DependencyType, FactoryMeta, FuncUseCtx, GeneratorOptions, ModuleExt,
-  ModuleFactory, ModuleFactoryCreateData, ModuleFactoryResult, ModuleIdentifier, ModuleLayer,
-  ModuleRuleEffect, ModuleRuleEnforce, ModuleRuleUse, ModuleRuleUseLoader, ModuleType,
-  NormalModule, ParserAndGenerator, ParserOptions, RawModule, Resolve, ResolveArgs,
-  ResolveOptionsWithDependencyType, ResolveResult, Resolver, ResolverFactory, ResourceData,
-  ResourceParsedData, RunnerContext, RuntimeGlobals, SharedPluginDriver,
+  CompilerOptions, Context, CssExportType, CssModuleGeneratorOptions, CssModuleParserOptions,
+  CssParserOptions, Dependency, DependencyCategory, DependencyType, FactoryMeta, FuncUseCtx,
+  GeneratorOptions, ModuleExt, ModuleFactory, ModuleFactoryCreateData, ModuleFactoryResult,
+  ModuleIdentifier, ModuleLayer, ModuleRuleEffect, ModuleRuleEnforce, ModuleRuleUse,
+  ModuleRuleUseLoader, ModuleType, NormalModule, ParserAndGenerator, ParserOptions, RawModule,
+  Resolve, ResolveArgs, ResolveOptionsWithDependencyType, ResolveResult, Resolver, ResolverFactory,
+  ResourceData, ResourceParsedData, RunnerContext, RuntimeGlobals, SharedPluginDriver,
   diagnostics::EmptyDependency, module_rules_matcher, parse_resource, resolve,
   stringify_loaders_and_resource,
 };
@@ -91,6 +91,47 @@ const SLASH: char = '/';
 const QUESTION_MARK: char = '?';
 
 impl NormalModuleFactory {
+  fn apply_import_attributes_overrides(
+    module_type: &ModuleType,
+    dependency: &dyn Dependency,
+    parser_options: Option<ParserOptions>,
+  ) -> Option<ParserOptions> {
+    if dependency
+      .get_attributes()
+      .and_then(|attrs| attrs.get("type"))
+      != Some("css")
+    {
+      return parser_options;
+    }
+
+    match module_type {
+      ModuleType::Css => {
+        let mut parser_options = match parser_options {
+          Some(ParserOptions::Css(options)) => options,
+          None => CssParserOptions {
+            export_type: None,
+            named_exports: None,
+            url: None,
+            resolve_import: None,
+          },
+          _ => unreachable!("css modules should use css parser options"),
+        };
+        parser_options.export_type = Some(CssExportType::CssStyleSheet);
+        Some(ParserOptions::Css(parser_options))
+      }
+      ModuleType::CssAuto | ModuleType::CssModule | ModuleType::CssGlobal => {
+        let mut parser_options = match parser_options {
+          Some(ParserOptions::CssModule(options)) => options,
+          None => CssModuleParserOptions::default(),
+          _ => unreachable!("css modules should use css module parser options"),
+        };
+        parser_options.export_type = Some(CssExportType::CssStyleSheet);
+        Some(ParserOptions::CssModule(parser_options))
+      }
+      _ => parser_options,
+    }
+  }
+
   pub fn new(
     options: Arc<CompilerOptions>,
     loader_resolver_factory: Arc<ResolverFactory>,
@@ -520,6 +561,11 @@ module.exports = "data:,";
         resolved_parser_options,
         resolved_generator_options,
       );
+    let resolved_parser_options = Self::apply_import_attributes_overrides(
+      &resolved_module_type,
+      data.dependencies[0].as_ref(),
+      resolved_parser_options,
+    );
     let resolved_side_effects = self.calculate_side_effects(&resolved_module_rules);
     let resolved_extract_source_map = self.calculate_extract_source_map(&resolved_module_rules);
     let mut resolved_parser_and_generator = self
@@ -583,12 +629,14 @@ module.exports = "data:,";
     {
       module
     } else {
+      let dependency_attributes = data.dependencies[0].get_attributes().map(json_stringify);
       NormalModule::new(
         create_data.request.clone(),
         create_data.user_request.clone(),
         create_data.raw_request.clone(),
         resolved_module_type,
         resolved_module_layer,
+        dependency_attributes,
         resolved_parser_and_generator,
         resolved_parser_options,
         resolved_generator_options,

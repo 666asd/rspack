@@ -161,13 +161,19 @@ impl NormalModule {
     module_type: &ModuleType,
     layer: Option<&ModuleLayer>,
     request: &'request str,
+    dependency_attributes: Option<&str>,
   ) -> Cow<'request, str> {
-    if let Some(layer) = layer {
-      format!("{module_type}|{request}|{layer}").into()
-    } else if *module_type == ModuleType::JsAuto {
-      request.into()
-    } else {
-      format!("{module_type}|{request}").into()
+    match (layer, dependency_attributes) {
+      (Some(layer), Some(attributes)) => {
+        format!("{module_type}|{request}|{layer}|{attributes}").into()
+      }
+      (Some(layer), None) => format!("{module_type}|{request}|{layer}").into(),
+      (None, Some(attributes)) if *module_type == ModuleType::JsAuto => {
+        format!("{request}|{attributes}").into()
+      }
+      (None, Some(attributes)) => format!("{module_type}|{request}|{attributes}").into(),
+      (None, None) if *module_type == ModuleType::JsAuto => request.into(),
+      (None, None) => format!("{module_type}|{request}").into(),
     }
   }
 
@@ -178,6 +184,7 @@ impl NormalModule {
     raw_request: String,
     module_type: impl Into<ModuleType>,
     layer: Option<ModuleLayer>,
+    dependency_attributes: Option<String>,
     parser_and_generator: Box<dyn ParserAndGenerator>,
     parser_options: Option<ParserOptions>,
     generator_options: Option<GeneratorOptions>,
@@ -189,7 +196,12 @@ impl NormalModule {
     extract_source_map: Option<bool>,
   ) -> Self {
     let module_type = module_type.into();
-    let id = Self::create_id(&module_type, layer.as_ref(), &request);
+    let id = Self::create_id(
+      &module_type,
+      layer.as_ref(),
+      &request,
+      dependency_attributes.as_deref(),
+    );
     Self {
       blocks: Vec::new(),
       dependencies: Vec::new(),
