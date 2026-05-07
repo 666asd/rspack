@@ -32,6 +32,38 @@ Object {
 
 exports[`config > configCases-configCases/css/export-selector > should pass 3`] = ``;
 
+exports[`config > configCases-configCases/css/export-selector > should pass 4`] = `
+.module-text_css-class {
+	color: red;
+	background: white;
+}
+
+.module-text_css-another-class {
+	font-size: 16px;
+}
+`;
+
+exports[`config > configCases-configCases/css/export-selector > should pass 5`] = `
+Object {
+  another: module-text-no-esm_css-another,
+  default: Object {
+    another: module-text-no-esm_css-another,
+    default: .module-text-no-esm_css-no-esm-text {
+	color: orange;
+	background: lightgray;
+}
+
+.module-text-no-esm_css-another {
+	text-align: center;
+},
+    no-esm-text: module-text-no-esm_css-no-esm-text,
+  },
+  no-esm-text: module-text-no-esm_css-no-esm-text,
+}
+`;
+
+exports[`config > configCases-configCases/css/export-selector > should pass 6`] = ``;
+
 exports[`config > configCases-configCases/css/export-type > should pass 1`] = `
 .module-text_css-class {
 	color: red;
