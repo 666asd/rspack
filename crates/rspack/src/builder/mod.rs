@@ -963,11 +963,9 @@ impl CompilerOptionsBuilder {
         .push(BuiltinPluginOptions::AsyncWebAssemblyModulesPlugin);
     }
     let css = expect!(experiments_builder.css);
-    if css {
-      builder_context
-        .plugins
-        .push(BuiltinPluginOptions::CssModulesPlugin);
-    }
+    builder_context
+      .plugins
+      .push(BuiltinPluginOptions::CssModulesPlugin);
     let future_defaults = expect!(experiments_builder.future_defaults);
 
     // apply module defaults

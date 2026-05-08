@@ -355,61 +355,60 @@ const applyModuleDefaults = (
   assertNotNill(module.generator.json);
   applyJsonGeneratorOptionsDefaults(module.generator.json);
 
-  if (css) {
-    F(module.parser, 'css', () => ({}));
-    assertNotNill(module.parser.css);
-    D(module.parser.css, 'namedExports', true);
-    D(module.parser.css, 'url', true);
+  F(module.parser, 'css', () => ({}));
+  assertNotNill(module.parser.css);
+  D(module.parser.css, 'namedExports', true);
+  D(module.parser.css, 'url', true);
 
-    F(module.parser, 'css/auto', () => ({}));
-    assertNotNill(module.parser['css/auto']);
-    D(module.parser['css/auto'], 'namedExports', true);
-    D(module.parser['css/auto'], 'url', true);
+  F(module.parser, 'css/auto', () => ({}));
+  assertNotNill(module.parser['css/auto']);
+  D(module.parser['css/auto'], 'namedExports', true);
+  D(module.parser['css/auto'], 'url', true);
 
-    F(module.parser, 'css/module', () => ({}));
-    assertNotNill(module.parser['css/module']);
-    D(module.parser['css/module'], 'namedExports', true);
-    D(module.parser['css/module'], 'url', true);
+  F(module.parser, 'css/module', () => ({}));
+  assertNotNill(module.parser['css/module']);
+  D(module.parser['css/module'], 'namedExports', true);
+  D(module.parser['css/module'], 'url', true);
 
-    F(module.parser, 'css/global', () => ({}));
-    assertNotNill(module.parser['css/global']);
-    D(module.parser['css/global'], 'namedExports', true);
-    D(module.parser['css/global'], 'url', true);
+  F(module.parser, 'css/global', () => ({}));
+  assertNotNill(module.parser['css/global']);
+  D(module.parser['css/global'], 'namedExports', true);
+  D(module.parser['css/global'], 'url', true);
 
-    F(module.generator, 'css', () => ({}));
-    assertNotNill(module.generator.css);
-    applyCssGeneratorOptionsDefaults(module.generator.css, {
-      targetProperties,
-    });
+  F(module.generator, 'css', () => ({}));
+  assertNotNill(module.generator.css);
+  applyCssGeneratorOptionsDefaults(module.generator.css, {
+    targetProperties,
+  });
 
-    F(module.generator, 'css/auto', () => ({}));
-    assertNotNill(module.generator['css/auto']);
-    applyCssGeneratorOptionsDefaults(module.generator['css/auto'], {
-      targetProperties,
-    });
-    D(module.generator['css/auto'], 'exportsConvention', 'as-is');
-    const localIdentName =
-      mode === 'development'
-        ? uniqueName && uniqueName.length > 0
-          ? '[uniqueName]-[id]-[local]'
-          : '[id]-[local]'
-        : '[fullhash]';
-    D(module.generator['css/auto'], 'localIdentName', localIdentName);
+  F(module.generator, 'css/auto', () => ({}));
+  assertNotNill(module.generator['css/auto']);
+  applyCssGeneratorOptionsDefaults(module.generator['css/auto'], {
+    targetProperties,
+  });
+  D(module.generator['css/auto'], 'exportsConvention', 'as-is');
+  const localIdentName =
+    mode === 'development'
+      ? uniqueName && uniqueName.length > 0
+        ? '[uniqueName]-[id]-[local]'
+        : '[id]-[local]'
+      : '[fullhash]';
+  D(module.generator['css/auto'], 'localIdentName', localIdentName);
 
-    F(module.generator, 'css/module', () => ({}));
-    assertNotNill(module.generator['css/module']);
-    applyCssGeneratorOptionsDefaults(module.generator['css/module'], {
-      targetProperties,
-    });
-    D(module.generator['css/module'], 'exportsConvention', 'as-is');
-    D(module.generator['css/module'], 'localIdentName', localIdentName);
+  F(module.generator, 'css/module', () => ({}));
+  assertNotNill(module.generator['css/module']);
+  applyCssGeneratorOptionsDefaults(module.generator['css/module'], {
+    targetProperties,
+  });
+  D(module.generator['css/module'], 'exportsConvention', 'as-is');
+  D(module.generator['css/module'], 'localIdentName', localIdentName);
 
-    F(module.generator, 'css/global', () => ({}));
-    assertNotNill(module.generator['css/global']);
-    applyCssGeneratorOptionsDefaults(module.generator['css/global'], {
-      targetProperties,
-    });
-  }
+  F(module.generator, 'css/global', () => ({}));
+  assertNotNill(module.generator['css/global']);
+  applyCssGeneratorOptionsDefaults(module.generator['css/global'], {
+    targetProperties,
+  });
+
   // https://github.com/webpack/webpack/blob/main/lib/config/defaults.js#L839
   A(module, 'defaultRules', () => {
     const esm = {
