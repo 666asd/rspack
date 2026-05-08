@@ -33,7 +33,31 @@ pub(crate) type DependenciesBlockIdentifierMap<V> =
 pub(crate) type DependenciesBlockIdentifierSet =
   std::collections::HashSet<DependenciesBlockIdentifier, BuildHasherDefault<FxHasher>>;
 
-type ConnectionIdList = Arc<Vec<DependencyId>>;
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+pub(crate) enum ConnectionIdList {
+  One(DependencyId),
+  Many(Arc<[DependencyId]>),
+}
+
+impl ConnectionIdList {
+  fn from_vec(connections: Vec<DependencyId>) -> Self {
+    debug_assert!(!connections.is_empty());
+    if let [connection] = connections.as_slice() {
+      Self::One(*connection)
+    } else {
+      Self::Many(connections.into())
+    }
+  }
+
+  #[inline]
+  fn as_slice(&self) -> &[DependencyId] {
+    match self {
+      Self::One(connection) => std::slice::from_ref(connection),
+      Self::Many(connections) => connections.as_ref(),
+    }
+  }
+}
+
 type PreparedBlockConnectionMap =
   FxIndexMap<(DependenciesBlockIdentifier, ModuleIdentifier), ConnectionIdList>;
 type BlockConnectionMap =
@@ -348,14 +372,14 @@ fn add_chunk_in_group(
 }
 
 fn get_active_state_of_connections(
-  connections: &[DependencyId],
+  connections: &ConnectionIdList,
   runtime: Option<&RuntimeSpec>,
   module_graph: &ModuleGraph,
   module_graph_cache: &ModuleGraphCacheArtifact,
   side_effects_state_artifact: &SideEffectsStateArtifact,
   exports_info_artifact: &ExportsInfoArtifact,
 ) -> ConnectionState {
-  let mut iter = connections.iter();
+  let mut iter = connections.as_slice().iter();
   let id = iter.next().expect("should have connection");
   let mut merged = module_graph
     .connection_by_dependency_id(id)
@@ -2369,7 +2393,7 @@ Or do you want to use the entrypoints '{name}' and '{runtime}' independently on 
           *module,
           connection_map
             .into_iter()
-            .map(|(key, connections)| (key, Arc::new(connections)))
+            .map(|(key, connections)| (key, ConnectionIdList::from_vec(connections)))
             .collect(),
         )
       })
