@@ -326,19 +326,18 @@ impl ParserAndGenerator for CssParserAndGenerator {
             import_mode,
           )));
         }
-        css_module_lexer::Dependency::Replace { content, range } => presentational_dependencies
-          .push({
-            let original = source_code
-              .get(range.start as usize..range.end as usize)
-              .unwrap_or_default();
-            if original.starts_with(":import(") || original.starts_with(":export") {
-              icss_removed_ranges.push(range.clone());
-            }
-            Box::new(ConstDependency::new(
-              (range.start, range.end).into(),
-              content.into(),
-            ))
-          }),
+        css_module_lexer::Dependency::Replace { content, range } => {
+          let original = source_code
+            .get(range.start as usize..range.end as usize)
+            .unwrap_or_default();
+          if original.starts_with(":import(") || original.starts_with(":export") {
+            icss_removed_ranges.push(range.clone());
+          }
+          presentational_dependencies.push(Box::new(ConstDependency::new(
+            (range.start, range.end).into(),
+            content.into(),
+          )));
+        }
         css_module_lexer::Dependency::LocalClass { name, range, .. }
         | css_module_lexer::Dependency::LocalId { name, range, .. } => {
           let (_prefix, name) = name.split_at(1); // split '#' or '.'
