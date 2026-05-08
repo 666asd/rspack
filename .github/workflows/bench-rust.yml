@@ -24,7 +24,7 @@ permissions:
 jobs:
   bench-rust:
     name: 'Bench Rust'
-    runs-on: ${{ fromJSON(inputs.runner) }}
+    runs-on: [self-hosted, benchmark]
     defaults:
       run:
         shell: bash
