@@ -9,16 +9,15 @@ use winnow::prelude::*;
 
 use crate::{
   AssetInlineGeneratorOptions, AssetResourceGeneratorOptions, BoxLoader, BoxModule,
-  CompilerOptions, Context, CssAutoGeneratorOptions, CssAutoParserOptions,
-  CssModuleGeneratorOptions, CssModuleParserOptions, Dependency, DependencyCategory,
-  DependencyType, FactoryMeta, FuncUseCtx, GeneratorOptions, ModuleExt, ModuleFactory,
-  ModuleFactoryCreateData, ModuleFactoryResult, ModuleIdentifier, ModuleLayer, ModuleRuleEffect,
-  ModuleRuleEnforce, ModuleRuleUse, ModuleRuleUseLoader, ModuleType, NormalModule,
-  ParserAndGenerator, ParserOptions, ParserOptionsMap, RawModule, Resolve, ResolveArgs,
-  ResolveOptionsWithDependencyType, ResolveResult, Resolver, ResolverFactory, ResourceData,
-  ResourceParsedData, RunnerContext, RuntimeGlobals, SharedPluginDriver,
-  diagnostics::EmptyDependency, module_rules_matcher, parse_resource, resolve,
-  stringify_loaders_and_resource,
+  CompilerOptions, Context, CssExportType, CssModuleGeneratorOptions, CssModuleParserOptions,
+  CssParserOptions, Dependency, DependencyCategory, DependencyType, FactoryMeta, FuncUseCtx,
+  GeneratorOptions, ModuleExt, ModuleFactory, ModuleFactoryCreateData, ModuleFactoryResult,
+  ModuleIdentifier, ModuleLayer, ModuleRuleEffect, ModuleRuleEnforce, ModuleRuleUse,
+  ModuleRuleUseLoader, ModuleType, NormalModule, ParserAndGenerator, ParserOptions,
+  ParserOptionsMap, RawModule, Resolve, ResolveArgs, ResolveOptionsWithDependencyType,
+  ResolveResult, Resolver, ResolverFactory, ResourceData, ResourceParsedData, RunnerContext,
+  RuntimeGlobals, SharedPluginDriver, diagnostics::EmptyDependency, module_rules_matcher,
+  parse_resource, resolve, stringify_loaders_and_resource,
 };
 
 define_hook!(NormalModuleFactoryBeforeResolve: SeriesBail(data: &mut ModuleFactoryCreateData) -> bool,tracing=false);
@@ -141,19 +140,18 @@ fn resolve_global_parser_options(
         },
       )
     }
-    ModuleType::CssAuto | ModuleType::CssModule => rspack_util::merge_from_optional_with(
-      parser_options.get("css").cloned(),
-      options,
-      |css_options, options| match (css_options, options) {
-        (ParserOptions::Css(a), ParserOptions::CssAuto(b)) => {
-          ParserOptions::CssAuto(Into::<CssAutoParserOptions>::into(a).merge_from(b))
-        }
-        (ParserOptions::Css(a), ParserOptions::CssModule(b)) => {
-          ParserOptions::CssModule(Into::<CssModuleParserOptions>::into(a).merge_from(b))
-        }
-        _ => unreachable!(),
-      },
-    ),
+    ModuleType::CssAuto | ModuleType::CssModule | ModuleType::CssGlobal => {
+      rspack_util::merge_from_optional_with(
+        parser_options.get("css").cloned(),
+        options,
+        |css_options, options| match (css_options, options) {
+          (ParserOptions::Css(a), ParserOptions::CssModule(b)) => {
+            ParserOptions::CssModule(Into::<CssModuleParserOptions>::into(&a).merge_from(b))
+          }
+          _ => unreachable!(),
+        },
+      )
+    }
     _ => options.cloned(),
   }
 }
@@ -171,9 +169,6 @@ fn merge_parser_options_with_local(
         ParserOptions::Asset(a.clone().merge_from(b))
       }
       (ParserOptions::Css(a), ParserOptions::Css(b)) => ParserOptions::Css(a.clone().merge_from(b)),
-      (ParserOptions::CssAuto(a), ParserOptions::CssAuto(b)) => {
-        ParserOptions::CssAuto(a.clone().merge_from(b))
-      }
       (ParserOptions::CssModule(a), ParserOptions::CssModule(b)) => {
         ParserOptions::CssModule(a.clone().merge_from(b))
       }
@@ -305,47 +300,6 @@ const SLASH: char = '/';
 const QUESTION_MARK: char = '?';
 
 impl NormalModuleFactory {
-  fn apply_import_attributes_overrides(
-    module_type: &ModuleType,
-    dependency: &dyn Dependency,
-    parser_options: Option<ParserOptions>,
-  ) -> Option<ParserOptions> {
-    if dependency
-      .get_attributes()
-      .and_then(|attrs| attrs.get("type"))
-      != Some("css")
-    {
-      return parser_options;
-    }
-
-    match module_type {
-      ModuleType::Css => {
-        let mut parser_options = match parser_options {
-          Some(ParserOptions::Css(options)) => options,
-          None => CssParserOptions {
-            export_type: None,
-            named_exports: None,
-            url: None,
-            resolve_import: None,
-          },
-          _ => unreachable!("css modules should use css parser options"),
-        };
-        parser_options.export_type = Some(CssExportType::CssStyleSheet);
-        Some(ParserOptions::Css(parser_options))
-      }
-      ModuleType::CssAuto | ModuleType::CssModule | ModuleType::CssGlobal => {
-        let mut parser_options = match parser_options {
-          Some(ParserOptions::CssModule(options)) => options,
-          None => CssModuleParserOptions::default(),
-          _ => unreachable!("css modules should use css module parser options"),
-        };
-        parser_options.export_type = Some(CssExportType::CssStyleSheet);
-        Some(ParserOptions::CssModule(parser_options))
-      }
-      _ => parser_options,
-    }
-  }
-
   pub fn new(
     options: Arc<CompilerOptions>,
     loader_resolver_factory: Arc<ResolverFactory>,
@@ -777,11 +731,6 @@ module.exports = "data:,";
         resolved_parser_options,
         resolved_generator_options,
       );
-    let resolved_parser_options = Self::apply_import_attributes_overrides(
-      &resolved_module_type,
-      data.dependencies[0].as_ref(),
-      resolved_parser_options,
-    );
     let resolved_side_effects = self.calculate_side_effects(&resolved_module_rules);
     let resolved_extract_source_map = self.calculate_extract_source_map(&resolved_module_rules);
     let mut resolved_parser_and_generator = self
@@ -845,6 +794,7 @@ module.exports = "data:,";
     {
       module
     } else {
+      let dependency_attributes = data.dependencies[0].get_attributes().map(json_stringify);
       let resource_resolve_data = create_data.resource_resolve_data.take_shared();
       NormalModule::new(
         create_data.request.clone(),
