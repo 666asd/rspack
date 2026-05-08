@@ -1136,31 +1136,15 @@ impl JavascriptParser<'_> {
           let mut params = expr.args.iter().map(|arg| &*arg.expr);
           let this = params.next();
           self._walk_iife(&member_expr.obj, params, this)
-        } else if let Expr::Member(member_expr) = &**callee
-          && let Expr::Fn(fn_expr) = &*member_expr.obj
-          && let MemberProp::Ident(ident) = &member_expr.prop
-          && (ident.sym == "call" || ident.sym == "bind")
-          && !expr.args.is_empty()
-          && is_simple_function(&fn_expr.function.params)
-        {
-          // (function(…) { }.call(…))
-          let mut params = expr.args.iter().map(|arg| &*arg.expr);
-          let this = params.next();
-          self._walk_iife(&member_expr.obj, params, this)
         } else if let Expr::Fn(fn_expr) = &**callee
           && is_simple_function(&fn_expr.function.params)
         {
           // (function(…) { })(…)
           self._walk_iife(callee, expr.args.iter().map(|arg| &*arg.expr), None)
-        } else if let Expr::Fn(fn_expr) = &**callee
-          && is_simple_function(&fn_expr.function.params)
-        {
-          // ((…) => { }(…))
-          self._walk_iife(callee, expr.args.iter().map(|arg| &*arg.expr), None)
         } else if let Expr::Arrow(arrow_expr) = &**callee
           && arrow_expr.params.iter().all(|p| p.as_ident().is_some())
         {
-          // (function(…) { }(…))
+          // ((…) => { })(…)
           self._walk_iife(callee, expr.args.iter().map(|arg| &*arg.expr), None)
         } else {
           if let Expr::Member(member) = &**callee {
