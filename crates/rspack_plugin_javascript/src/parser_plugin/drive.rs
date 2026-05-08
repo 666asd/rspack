@@ -21,25 +21,46 @@ use crate::{
 const PLUGIN_BITMASK_BITS: usize = u64::BITS as usize;
 
 pub struct JavaScriptParserPluginDrive {
-  plugins: Vec<BoxJavascriptParserPlugin>,
+  plugins: Vec<JavaScriptParserPluginEntry>,
   // Each bit stores whether the plugin at the same index implements the hook.
   // This keeps hook dispatch allocation-free for the common case while preserving plugin order.
   plugins_by_hook: [u64; JavascriptParserPluginHook::COUNT],
 }
 
+pub enum JavaScriptParserPluginEntry {
+  Static(&'static dyn JavascriptParserPlugin),
+  Boxed(BoxJavascriptParserPlugin),
+}
+
+impl JavaScriptParserPluginEntry {
+  #[inline]
+  fn as_plugin(&self) -> &dyn JavascriptParserPlugin {
+    match self {
+      Self::Static(plugin) => *plugin,
+      Self::Boxed(plugin) => plugin.as_ref(),
+    }
+  }
+}
+
+impl From<BoxJavascriptParserPlugin> for JavaScriptParserPluginEntry {
+  fn from(plugin: BoxJavascriptParserPlugin) -> Self {
+    Self::Boxed(plugin)
+  }
+}
+
 struct PluginBitmaskIter<'a> {
-  plugins: &'a [BoxJavascriptParserPlugin],
+  plugins: &'a [JavaScriptParserPluginEntry],
   plugin_bitmask: u64,
 }
 
 impl<'a> Iterator for PluginBitmaskIter<'a> {
-  type Item = &'a BoxJavascriptParserPlugin;
+  type Item = &'a dyn JavascriptParserPlugin;
 
   fn next(&mut self) -> Option<Self::Item> {
     if self.plugin_bitmask != 0 {
       let idx = self.plugin_bitmask.trailing_zeros() as usize;
       self.plugin_bitmask &= self.plugin_bitmask - 1;
-      return Some(unsafe { self.plugins.get_unchecked(idx) });
+      return Some(unsafe { self.plugins.get_unchecked(idx) }.as_plugin());
     }
 
     None
@@ -47,7 +68,7 @@ impl<'a> Iterator for PluginBitmaskIter<'a> {
 }
 
 impl JavaScriptParserPluginDrive {
-  pub fn new(plugins: Vec<BoxJavascriptParserPlugin>) -> Self {
+  pub fn new(plugins: Vec<JavaScriptParserPluginEntry>) -> Self {
     assert!(
       plugins.len() <= PLUGIN_BITMASK_BITS,
       "JavaScript parser plugin bitmask supports at most {PLUGIN_BITMASK_BITS} parser plugins"
@@ -57,7 +78,7 @@ impl JavaScriptParserPluginDrive {
 
     for (idx, plugin) in plugins.iter().enumerate() {
       let plugin_bit = 1u64 << idx;
-      let mut implemented_hooks = plugin.implemented_hooks().bits();
+      let mut implemented_hooks = plugin.as_plugin().implemented_hooks().bits();
 
       while implemented_hooks != 0 {
         let hook_idx = implemented_hooks.trailing_zeros() as usize;

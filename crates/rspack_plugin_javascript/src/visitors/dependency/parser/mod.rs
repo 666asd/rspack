@@ -49,7 +49,8 @@ use crate::{
   parser_and_generator::ParserRuntimeRequirementsData,
   parser_plugin::{
     self, ImportsReferencesState, InnerGraphParserPlugin, JavaScriptParserPluginDrive,
-    JavascriptParserPlugin, RequireReferencesState, inner_graph::state::InnerGraphState,
+    JavaScriptParserPluginEntry, JavascriptParserPlugin, RequireReferencesState,
+    inner_graph::state::InnerGraphState,
   },
   utils::eval::{self, BasicEvaluatedExpression},
   visitors::{
@@ -60,6 +61,65 @@ use crate::{
     },
   },
 };
+
+static INITIALIZE_EVALUATING_PLUGIN: parser_plugin::InitializeEvaluating =
+  parser_plugin::InitializeEvaluating;
+static JAVASCRIPT_META_INFO_PLUGIN: parser_plugin::JavascriptMetaInfoPlugin =
+  parser_plugin::JavascriptMetaInfoPlugin;
+static CONST_PLUGIN: parser_plugin::ConstPlugin = parser_plugin::ConstPlugin;
+static USE_STRICT_PLUGIN: parser_plugin::UseStrictPlugin = parser_plugin::UseStrictPlugin;
+static REQUIRE_CONTEXT_DEPENDENCY_PARSER_PLUGIN:
+  parser_plugin::RequireContextDependencyParserPlugin =
+  parser_plugin::RequireContextDependencyParserPlugin;
+static REQUIRE_ENSURE_DEPENDENCIES_BLOCK_PARSER_PLUGIN:
+  parser_plugin::RequireEnsureDependenciesBlockParserPlugin =
+  parser_plugin::RequireEnsureDependenciesBlockParserPlugin;
+static COMPATIBILITY_PLUGIN: parser_plugin::CompatibilityPlugin =
+  parser_plugin::CompatibilityPlugin;
+static ESM_TOP_LEVEL_THIS_PARSER_PLUGIN: parser_plugin::ESMTopLevelThisParserPlugin =
+  parser_plugin::ESMTopLevelThisParserPlugin;
+static ESM_DETECTION_PARSER_PLUGIN: parser_plugin::ESMDetectionParserPlugin =
+  parser_plugin::ESMDetectionParserPlugin;
+static IMPORT_META_CONTEXT_DEPENDENCY_PARSER_PLUGIN:
+  parser_plugin::ImportMetaContextDependencyParserPlugin =
+  parser_plugin::ImportMetaContextDependencyParserPlugin;
+static IMPORT_META_DISABLED_PLUGIN: parser_plugin::ImportMetaDisabledPlugin =
+  parser_plugin::ImportMetaDisabledPlugin;
+static ESM_IMPORT_DEPENDENCY_PARSER_PLUGIN: parser_plugin::ESMImportDependencyParserPlugin =
+  parser_plugin::ESMImportDependencyParserPlugin;
+static ESM_EXPORT_DEPENDENCY_PARSER_PLUGIN: parser_plugin::ESMExportDependencyParserPlugin =
+  parser_plugin::ESMExportDependencyParserPlugin;
+static AMD_REQUIRE_DEPENDENCIES_BLOCK_PARSER_PLUGIN:
+  parser_plugin::AMDRequireDependenciesBlockParserPlugin =
+  parser_plugin::AMDRequireDependenciesBlockParserPlugin;
+static AMD_DEFINE_DEPENDENCY_PARSER_PLUGIN: parser_plugin::AMDDefineDependencyParserPlugin =
+  parser_plugin::AMDDefineDependencyParserPlugin;
+static AMD_PARSER_PLUGIN: parser_plugin::AMDParserPlugin = parser_plugin::AMDParserPlugin;
+static COMMON_JS_IMPORTS_PARSER_PLUGIN: parser_plugin::CommonJsImportsParserPlugin =
+  parser_plugin::CommonJsImportsParserPlugin;
+static COMMON_JS_PLUGIN: parser_plugin::CommonJsPlugin = parser_plugin::CommonJsPlugin;
+static IS_INCLUDED_PLUGIN: parser_plugin::IsIncludedPlugin = parser_plugin::IsIncludedPlugin;
+static EXPORTS_INFO_API_PLUGIN: parser_plugin::ExportsInfoApiPlugin =
+  parser_plugin::ExportsInfoApiPlugin;
+static IMPORT_PARSER_PLUGIN: parser_plugin::ImportParserPlugin = parser_plugin::ImportParserPlugin;
+static OVERRIDE_STRICT_PLUGIN: parser_plugin::OverrideStrictPlugin =
+  parser_plugin::OverrideStrictPlugin;
+static INLINE_CONST_PLUGIN: parser_plugin::InlineConstPlugin = parser_plugin::InlineConstPlugin;
+
+#[inline]
+fn static_parser_plugin(
+  plugin: &'static dyn JavascriptParserPlugin,
+) -> JavaScriptParserPluginEntry {
+  JavaScriptParserPluginEntry::Static(plugin)
+}
+
+#[inline]
+fn boxed_parser_plugin<T>(plugin: T) -> JavaScriptParserPluginEntry
+where
+  T: JavascriptParserPlugin + Send + Sync + 'static,
+{
+  JavaScriptParserPluginEntry::Boxed(Box::new(plugin))
+}
 
 pub trait TagInfoData: Clone + Sized + 'static {
   fn into_any(data: Self) -> Box<dyn anymap::CloneAny>;
@@ -426,57 +486,62 @@ impl<'parser> JavascriptParser<'parser> {
     let presentational_dependencies = Vec::with_capacity(64);
     let parser_exports_state: Option<bool> = None;
 
-    let mut plugins: Vec<BoxJavascriptParserPlugin> = Vec::with_capacity(32 + parser_plugins.len());
+    let mut plugins: Vec<JavaScriptParserPluginEntry> =
+      Vec::with_capacity(32 + parser_plugins.len());
 
-    plugins.append(parser_plugins);
+    plugins.extend(
+      parser_plugins
+        .drain(..)
+        .map(JavaScriptParserPluginEntry::from),
+    );
 
-    plugins.push(Box::new(parser_plugin::InitializeEvaluating));
-    plugins.push(Box::new(parser_plugin::JavascriptMetaInfoPlugin));
-    plugins.push(Box::new(parser_plugin::ConstPlugin));
-    plugins.push(Box::new(parser_plugin::UseStrictPlugin));
+    plugins.push(static_parser_plugin(&INITIALIZE_EVALUATING_PLUGIN));
+    plugins.push(static_parser_plugin(&JAVASCRIPT_META_INFO_PLUGIN));
+    plugins.push(static_parser_plugin(&CONST_PLUGIN));
+    plugins.push(static_parser_plugin(&USE_STRICT_PLUGIN));
 
     if matches!(module_type, ModuleType::JsAuto | ModuleType::JsDynamic) {
-      plugins.push(Box::new(
-        parser_plugin::RequireContextDependencyParserPlugin,
+      plugins.push(static_parser_plugin(
+        &REQUIRE_CONTEXT_DEPENDENCY_PARSER_PLUGIN,
       ));
-      plugins.push(Box::new(
-        parser_plugin::RequireEnsureDependenciesBlockParserPlugin,
+      plugins.push(static_parser_plugin(
+        &REQUIRE_ENSURE_DEPENDENCIES_BLOCK_PARSER_PLUGIN,
       ));
     }
-    plugins.push(Box::new(parser_plugin::CompatibilityPlugin));
+    plugins.push(static_parser_plugin(&COMPATIBILITY_PLUGIN));
 
     if module_type.is_js_auto() || module_type.is_js_esm() {
-      plugins.push(Box::new(parser_plugin::ESMTopLevelThisParserPlugin));
-      plugins.push(Box::<parser_plugin::ESMDetectionParserPlugin>::default());
-      plugins.push(Box::new(
-        parser_plugin::ImportMetaContextDependencyParserPlugin,
+      plugins.push(static_parser_plugin(&ESM_TOP_LEVEL_THIS_PARSER_PLUGIN));
+      plugins.push(static_parser_plugin(&ESM_DETECTION_PARSER_PLUGIN));
+      plugins.push(static_parser_plugin(
+        &IMPORT_META_CONTEXT_DEPENDENCY_PARSER_PLUGIN,
       ));
       if matches!(
         javascript_options.import_meta,
         Some(ImportMeta::Enabled | ImportMeta::PreserveUnknown)
       ) {
-        plugins.push(Box::new(parser_plugin::ImportMetaPlugin(
+        plugins.push(boxed_parser_plugin(parser_plugin::ImportMetaPlugin(
           javascript_options.import_meta.expect("should have value"),
         )));
       } else {
-        plugins.push(Box::new(parser_plugin::ImportMetaDisabledPlugin));
+        plugins.push(static_parser_plugin(&IMPORT_META_DISABLED_PLUGIN));
       }
 
-      plugins.push(Box::new(parser_plugin::ESMImportDependencyParserPlugin));
-      plugins.push(Box::new(parser_plugin::ESMExportDependencyParserPlugin));
+      plugins.push(static_parser_plugin(&ESM_IMPORT_DEPENDENCY_PARSER_PLUGIN));
+      plugins.push(static_parser_plugin(&ESM_EXPORT_DEPENDENCY_PARSER_PLUGIN));
     }
 
     if compiler_options.amd.is_some() && (module_type.is_js_auto() || module_type.is_js_dynamic()) {
-      plugins.push(Box::new(
-        parser_plugin::AMDRequireDependenciesBlockParserPlugin,
+      plugins.push(static_parser_plugin(
+        &AMD_REQUIRE_DEPENDENCIES_BLOCK_PARSER_PLUGIN,
       ));
-      plugins.push(Box::new(parser_plugin::AMDDefineDependencyParserPlugin));
-      plugins.push(Box::new(parser_plugin::AMDParserPlugin));
+      plugins.push(static_parser_plugin(&AMD_DEFINE_DEPENDENCY_PARSER_PLUGIN));
+      plugins.push(static_parser_plugin(&AMD_PARSER_PLUGIN));
     }
 
     if module_type.is_js_auto() || module_type.is_js_dynamic() {
-      plugins.push(Box::new(parser_plugin::CommonJsImportsParserPlugin));
-      plugins.push(Box::new(parser_plugin::CommonJsPlugin));
+      plugins.push(static_parser_plugin(&COMMON_JS_IMPORTS_PARSER_PLUGIN));
+      plugins.push(static_parser_plugin(&COMMON_JS_PLUGIN));
       let commonjs_exports = javascript_options
         .commonjs
         .as_ref()
@@ -484,9 +549,11 @@ impl<'parser> JavascriptParser<'parser> {
           commonjs.exports
         });
       if commonjs_exports != JavascriptParserCommonjsExportsOption::Disable {
-        plugins.push(Box::new(parser_plugin::CommonJsExportsParserPlugin::new(
-          commonjs_exports == JavascriptParserCommonjsExportsOption::SkipInEsm,
-        )));
+        plugins.push(boxed_parser_plugin(
+          parser_plugin::CommonJsExportsParserPlugin::new(
+            commonjs_exports == JavascriptParserCommonjsExportsOption::SkipInEsm,
+          ),
+        ));
       }
     }
 
@@ -496,43 +563,47 @@ impl<'parser> JavascriptParser<'parser> {
       (module_type.is_js_auto() || module_type.is_js_dynamic()) && compiler_options.node.is_some();
     let handle_esm = module_type.is_js_auto() || module_type.is_js_esm();
     if handle_cjs || handle_esm {
-      plugins.push(Box::new(parser_plugin::NodeStuffPlugin::new(
+      plugins.push(boxed_parser_plugin(parser_plugin::NodeStuffPlugin::new(
         handle_cjs, handle_esm,
       )));
     }
 
     if module_type.is_js_auto() || module_type.is_js_dynamic() || module_type.is_js_esm() {
-      plugins.push(Box::new(parser_plugin::IsIncludedPlugin));
-      plugins.push(Box::new(parser_plugin::ExportsInfoApiPlugin));
-      plugins.push(Box::new(parser_plugin::APIPlugin::new(
+      plugins.push(static_parser_plugin(&IS_INCLUDED_PLUGIN));
+      plugins.push(static_parser_plugin(&EXPORTS_INFO_API_PLUGIN));
+      plugins.push(boxed_parser_plugin(parser_plugin::APIPlugin::new(
         compiler_options.output.module,
       )));
-      plugins.push(Box::new(parser_plugin::ImportParserPlugin));
-      plugins.push(Box::new(parser_plugin::WorkerPlugin::new(
+      plugins.push(static_parser_plugin(&IMPORT_PARSER_PLUGIN));
+      plugins.push(boxed_parser_plugin(parser_plugin::WorkerPlugin::new(
         javascript_options
           .worker
           .as_ref()
           .expect("should have worker"),
       )));
-      plugins.push(Box::new(parser_plugin::OverrideStrictPlugin));
+      plugins.push(static_parser_plugin(&OVERRIDE_STRICT_PLUGIN));
     }
 
     if compiler_options.optimization.inline_exports {
       build_info.inline_exports = true;
-      plugins.push(Box::new(parser_plugin::InlineConstPlugin));
+      plugins.push(static_parser_plugin(&INLINE_CONST_PLUGIN));
     }
     if compiler_options.optimization.inner_graph {
-      plugins.push(Box::new(parser_plugin::InnerGraphParserPlugin::new(
-        unresolved_mark,
-        compiler_options.experiments.pure_functions,
-      )));
+      plugins.push(boxed_parser_plugin(
+        parser_plugin::InnerGraphParserPlugin::new(
+          unresolved_mark,
+          compiler_options.experiments.pure_functions,
+        ),
+      ));
     }
 
     if compiler_options.optimization.side_effects.is_true() {
-      plugins.push(Box::new(parser_plugin::SideEffectsParserPlugin::new(
-        unresolved_mark,
-        compiler_options.experiments.pure_functions,
-      )));
+      plugins.push(boxed_parser_plugin(
+        parser_plugin::SideEffectsParserPlugin::new(
+          unresolved_mark,
+          compiler_options.experiments.pure_functions,
+        ),
+      ));
     }
 
     let plugin_drive = Rc::new(JavaScriptParserPluginDrive::new(plugins));
