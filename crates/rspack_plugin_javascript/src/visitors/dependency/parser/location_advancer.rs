@@ -31,25 +31,37 @@ impl DependencyLocationAdvancer {
     let segment = &source[from_off..to_off];
     let bytes = segment.as_bytes();
 
-    let (newline_count, last_newline_idx) = memchr::memchr_iter(b'\n', bytes)
-      .enumerate()
-      .last()
-      .map_or((0, None), |(count, idx)| (count + 1, Some(idx)));
-
-    if let Some(last_idx) = last_newline_idx {
-      let line = from_pos
-        .line
-        .checked_add(u32::try_from(newline_count).ok()?)?;
-      let after_newline = &segment[last_idx + 1..];
-      let column = u32::try_from(after_newline.encode_utf16().count() + 1).ok()?; // 1-based column
-      Some(SourcePosition { line, column })
-    } else {
-      let column_advance = u32::try_from(segment.encode_utf16().count()).ok()?;
-      Some(SourcePosition {
+    let Some(first_newline_idx) = memchr::memchr(b'\n', bytes) else {
+      let column_advance = if bytes.is_ascii() {
+        bytes.len()
+      } else {
+        segment.encode_utf16().count()
+      };
+      let column_advance = u32::try_from(column_advance).ok()?;
+      return Some(SourcePosition {
         line: from_pos.line,
         column: from_pos.column.checked_add(column_advance)?,
-      })
+      });
+    };
+
+    let mut newline_count = 1usize;
+    let mut last_newline_idx = first_newline_idx;
+    for idx in memchr::memchr_iter(b'\n', &bytes[first_newline_idx + 1..]) {
+      newline_count += 1;
+      last_newline_idx = first_newline_idx + 1 + idx;
     }
+
+    let line = from_pos
+      .line
+      .checked_add(u32::try_from(newline_count).ok()?)?;
+    let after_newline = &segment[last_newline_idx + 1..];
+    let column = if after_newline.as_bytes().is_ascii() {
+      after_newline.len() + 1
+    } else {
+      after_newline.encode_utf16().count() + 1
+    };
+    let column = u32::try_from(column).ok()?;
+    Some(SourcePosition { line, column })
   }
 
   /// Compute dependency location for a range, using cached results for incremental calculation.
@@ -228,6 +240,18 @@ mod tests {
     let pos = result.unwrap();
     assert_eq!(pos.line, 1);
     assert_eq!(pos.column, 8); // "hello" = 5, emoji = 2 UTF-16 units, so 7 (1-based)
+  }
+
+  #[test]
+  fn test_advance_pos_multiline_with_emoji_column() {
+    let source = "hello\n😀world";
+    let from_pos = SourcePosition { line: 1, column: 1 };
+
+    let result = DependencyLocationAdvancer::advance_pos(source, 0, from_pos, source.len());
+    assert!(result.is_some());
+    let pos = result.unwrap();
+    assert_eq!(pos.line, 2);
+    assert_eq!(pos.column, 8); // emoji = 2 UTF-16 units, plus "world" and 1-based column
   }
 
   #[test]
