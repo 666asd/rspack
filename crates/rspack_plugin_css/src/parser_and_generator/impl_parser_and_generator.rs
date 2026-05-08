@@ -26,7 +26,7 @@ use crate::{
     CssSelfReferenceLocalIdentDependency, CssSupports, CssUrlDependency,
   },
   parser_and_generator::{
-    generator::{CssGenerator, update_css_exports},
+    generator::{CssModuleGenerator, update_css_exports},
     *,
   },
   utils::{
@@ -859,7 +859,7 @@ impl ParserAndGenerator for CssParserAndGenerator {
         Ok(source.boxed())
       }
       SourceType::JavaScript => {
-        let generator = CssGenerator::new(
+        let generator = CssModuleGenerator::new(
           source,
           module,
           generate_context,

@@ -580,9 +580,9 @@ impl<'a, 'g> CssModuleGenerator<'a, 'g> {
         "// only invalidate when locals change\n\
          var stringified_exports = JSON.stringify({decl_name});\n\
          if ({module_argument}.hot.data && {module_argument}.hot.data.exports && {module_argument}.hot.data.exports != stringified_exports) {{\n\
-         {module_argument}.hot.invalidate();\n\
+           {module_argument}.hot.invalidate();\n\
          }} else {{\n\
-         {module_argument}.hot.accept();\n\
+           {module_argument}.hot.accept();\n\
          }}\n\
          {module_argument}.hot.dispose(function(data) {{ data.exports = stringified_exports; }});"
       )
