@@ -62,6 +62,8 @@ type PreparedBlockConnectionMap =
   FxIndexMap<(DependenciesBlockIdentifier, ModuleIdentifier), ConnectionIdList>;
 type BlockConnectionMap =
   DependenciesBlockIdentifierMap<Arc<Vec<(ModuleIdentifier, ConnectionState, ConnectionIdList)>>>;
+type ActiveConnectionStateCache =
+  HashMap<(Option<Arc<RuntimeSpec>>, ConnectionIdList), ConnectionState>;
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub(crate) struct ModuleSet {
@@ -314,6 +316,7 @@ pub(crate) struct CodeSplitter {
   pub(crate) named_chunk_groups: HashMap<String, CgiUkey>,
   pub(crate) named_async_entrypoints: HashMap<String, CgiUkey>,
   pub(crate) block_modules_runtime_map: BlockModulesRuntimeMap,
+  active_connection_state_cache: ActiveConnectionStateCache,
   pub(crate) ordinal_by_module: IdentifierMap<u64>,
   pub(crate) mask_by_chunk: HashMap<ChunkUkey, ModuleSet>,
   module_count: usize,
@@ -411,6 +414,32 @@ fn get_active_state_of_connections(
     }
   }
   merged
+}
+
+fn get_cached_active_state_of_connections(
+  cache: &mut ActiveConnectionStateCache,
+  connections: &ConnectionIdList,
+  runtime: Option<Arc<RuntimeSpec>>,
+  module_graph: &ModuleGraph,
+  module_graph_cache: &ModuleGraphCacheArtifact,
+  side_effects_state_artifact: &SideEffectsStateArtifact,
+  exports_info_artifact: &ExportsInfoArtifact,
+) -> ConnectionState {
+  let key = (runtime.clone(), connections.clone());
+  if let Some(state) = cache.get(&key) {
+    return *state;
+  }
+
+  let state = get_active_state_of_connections(
+    connections,
+    runtime.as_deref(),
+    module_graph,
+    module_graph_cache,
+    side_effects_state_artifact,
+    exports_info_artifact,
+  );
+  cache.insert(key, state);
+  state
 }
 
 impl CodeSplitter {
@@ -1897,6 +1926,7 @@ Or do you want to use the entrypoints '{name}' and '{runtime}' independently on 
       &self.prepared_blocks_map,
       &self.prepared_connection_map,
       runtime_map,
+      &mut self.active_connection_state_cache,
     );
 
     runtime_map
@@ -2070,14 +2100,16 @@ Or do you want to use the entrypoints '{name}' and '{runtime}' independently on 
         let side_effects_state_artifact = &compilation
           .build_module_graph_artifact
           .side_effects_state_artifact;
+        let active_connection_state_cache = &mut self.active_connection_state_cache;
 
         let mut queue_actions = Vec::new();
         let mut modules_to_skip = Vec::new();
 
         skipped_module_connections.retain(|(module, connections)| {
-          let active_state = get_active_state_of_connections(
+          let active_state = get_cached_active_state_of_connections(
+            active_connection_state_cache,
             connections,
-            Some(&runtime),
+            Some(runtime.clone()),
             module_graph,
             module_graph_cache,
             side_effects_state_artifact,
@@ -2338,6 +2370,7 @@ Or do you want to use the entrypoints '{name}' and '{runtime}' independently on 
     compilation: &Compilation,
   ) -> Result<()> {
     self.module_count = all_modules.len();
+    self.active_connection_state_cache.clear();
     let mg = compilation.get_module_graph();
     self.prepared_connection_map = all_modules
       .par_iter()
@@ -2552,6 +2585,7 @@ fn extract_block_modules(
   prepared_blocks_map: &DependenciesBlockIdentifierMap<Vec<AsyncDependenciesBlockIdentifier>>,
   prepared_connection_map: &IdentifierMap<PreparedBlockConnectionMap>,
   map: &mut BlockConnectionMap,
+  active_connection_state_cache: &mut ActiveConnectionStateCache,
 ) {
   let block = module.into();
   let blocks = prepared_blocks_map.get(&block).cloned().unwrap_or_default();
@@ -2573,9 +2607,10 @@ fn extract_block_modules(
     let modules = module_map
       .get_mut(block_id)
       .expect("should have modules in block_modules_runtime_map");
-    let active_state = get_active_state_of_connections(
+    let active_state = get_cached_active_state_of_connections(
+      active_connection_state_cache,
       connections,
-      runtime.as_deref(),
+      runtime.clone(),
       compilation.get_module_graph(),
       &compilation.module_graph_cache_artifact,
       &compilation
