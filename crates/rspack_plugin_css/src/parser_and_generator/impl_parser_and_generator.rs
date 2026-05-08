@@ -17,7 +17,7 @@ pub use rspack_core::{CssExport, CssExports};
 use rspack_error::{Diagnostic, IntoTWithDiagnosticArray, Result, Severity, TWithDiagnosticArray};
 use rspack_hash::{RspackHash, RspackHashDigest};
 use rspack_util::ext::DynHash;
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::{
   dependency::{
@@ -40,6 +40,24 @@ struct IcssImportReference {
   id: DependencyId,
   request: String,
   import_name: String,
+}
+
+fn resolve_icss_import_reference(
+  reference: &IcssImportReference,
+  imports: &FxHashMap<String, IcssImportReference>,
+) -> IcssImportReference {
+  let mut resolved = reference.clone();
+  let mut seen = FxHashSet::default();
+
+  while seen.insert(resolved.request.clone()) {
+    let Some(alias) = imports.get(&resolved.request) else {
+      break;
+    };
+    resolved.id = alias.id;
+    resolved.request = alias.request.clone();
+  }
+
+  resolved
 }
 
 fn is_css_identifier_char(c: char) -> bool {
@@ -228,6 +246,7 @@ impl ParserAndGenerator for CssParserAndGenerator {
     let mut css_exports: Option<CssExports> = None;
     let mut css_local_names: Option<FxHashMap<String, String>> = None;
     let mut icss_import_request: Option<String> = None;
+    let mut icss_import_aliases: FxHashMap<String, String> = Default::default();
     let mut icss_imports: FxHashMap<String, IcssImportReference> = Default::default();
     let mut icss_removed_ranges = Vec::new();
 
@@ -469,11 +488,23 @@ impl ParserAndGenerator for CssParserAndGenerator {
           let convention_names = export_locals_convention(prop, convention);
           let value = REGEX_IS_COMMENTS.replace_all(value, "");
           let trimmed_value = value.trim();
+          let maybe_alias_request = trimmed_value
+            .strip_prefix('"')
+            .and_then(|value| value.strip_suffix('"'))
+            .or_else(|| {
+              trimmed_value
+                .strip_prefix('\'')
+                .and_then(|value| value.strip_suffix('\''))
+            });
+          if let Some(request) = maybe_alias_request {
+            icss_import_aliases.insert(prop.to_string(), request.to_string());
+          }
           for name in convention_names.iter() {
             update_css_exports(
               exports,
               name.to_owned(),
               if let Some(import_ref) = icss_imports.get(trimmed_value) {
+                let import_ref = resolve_icss_import_reference(import_ref, &icss_imports);
                 CssExport {
                   ident: import_ref.import_name.clone(),
                   from: Some(import_ref.request.clone()),
@@ -493,29 +524,46 @@ impl ParserAndGenerator for CssParserAndGenerator {
           dependencies.push(Box::new(CssExportDependency::new(convention_names)));
         }
         css_module_lexer::Dependency::ICSSImportFrom { path } => {
-          icss_import_request = Some(path.trim_matches(|c| c == '\'' || c == '"').to_string());
+          icss_import_request = Some(
+            icss_import_aliases
+              .get(path)
+              .cloned()
+              .unwrap_or_else(|| path.trim_matches(|c| c == '\'' || c == '"').to_string()),
+          );
         }
         css_module_lexer::Dependency::ICSSImportValue { prop, value } => {
           let Some(request) = icss_import_request.clone() else {
             continue;
           };
           let import_name = value.trim().to_string();
-          let dep = CssIcssImportDependency::new(
-            request.clone(),
-            import_name.clone(),
-            prop.to_string(),
-            None,
-            import_mode,
-          );
-          icss_imports.insert(
-            prop.to_string(),
-            IcssImportReference {
-              id: *dep.id(),
-              request,
-              import_name,
-            },
-          );
-          dependencies.push(Box::new(dep));
+          if let Some(alias_ref) = icss_imports.get(&request) {
+            let alias_ref = resolve_icss_import_reference(alias_ref, &icss_imports);
+            icss_imports.insert(
+              prop.to_string(),
+              IcssImportReference {
+                id: alias_ref.id,
+                request: alias_ref.request,
+                import_name,
+              },
+            );
+          } else {
+            let dep = CssIcssImportDependency::new(
+              request.clone(),
+              import_name.clone(),
+              prop.to_string(),
+              None,
+              import_mode,
+            );
+            icss_imports.insert(
+              prop.to_string(),
+              IcssImportReference {
+                id: *dep.id(),
+                request,
+                import_name,
+              },
+            );
+            dependencies.push(Box::new(dep));
+          }
         }
         css_module_lexer::Dependency::LocalContainer { name, range, .. } => {
           if !container_enabled {
