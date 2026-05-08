@@ -22,6 +22,7 @@ module.exports = {
 			  experiments: Object {
 			    asyncWebAssembly: true,
 			    buildHttp: undefined,
+			    css: false,
 			    deferImport: false,
 			    futureDefaults: false,
 			    pureFunctions: false,
@@ -216,6 +217,10 @@ module.exports = {
 			        exportsOnly: false,
 			        localIdentName: [fullhash],
 			      },
+			      css/global: Object {
+			        esModule: true,
+			        exportsOnly: false,
+			      },
 			      css/module: Object {
 			        esModule: true,
 			        exportsConvention: as-is,
@@ -238,6 +243,10 @@ module.exports = {
 			        url: true,
 			      },
 			      css/auto: Object {
+			        namedExports: true,
+			        url: true,
+			      },
+			      css/global: Object {
 			        namedExports: true,
 			        url: true,
 			      },
@@ -463,6 +472,36 @@ module.exports = {
 			        ],
 			      },
 			      css-import: Object {
+			        conditionNames: Array [
+			          production,
+			          style,
+			        ],
+			        extensions: Array [
+			          .css,
+			        ],
+			        mainFields: Array [
+			          style,
+			          ...,
+			        ],
+			        mainFiles: Array [],
+			        preferRelative: true,
+			      },
+			      css-import-global-module: Object {
+			        conditionNames: Array [
+			          production,
+			          style,
+			        ],
+			        extensions: Array [
+			          .css,
+			        ],
+			        mainFields: Array [
+			          style,
+			          ...,
+			        ],
+			        mainFiles: Array [],
+			        preferRelative: true,
+			      },
+			      css-import-local-module: Object {
 			        conditionNames: Array [
 			          production,
 			          style,
