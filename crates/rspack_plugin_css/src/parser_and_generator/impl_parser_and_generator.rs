@@ -5,7 +5,7 @@ use rspack_cacheable::cacheable_dyn;
 use rspack_core::{
   BoxDependencyTemplate, BoxModuleDependency, BuildMetaDefaultObject, BuildMetaExportsType,
   ChunkGraph, Compilation, ConstDependency, CssExportType, CssParserImport, CssParserImportContext,
-  Dependency, DependencyRange, DependencyType, GenerateContext, Module, ModuleGraph,
+  Dependency, DependencyId, DependencyRange, DependencyType, GenerateContext, Module, ModuleGraph,
   ModuleInitFragments, ModuleType, NormalModule, ParseContext, ParseResult, ParserAndGenerator,
   RuntimeGlobals, RuntimeSpec, SourceType, StaticExportsDependency, StaticExportsSpec,
   TemplateContext,
@@ -37,6 +37,7 @@ use crate::{
 
 #[derive(Debug, Clone)]
 struct IcssImportReference {
+  id: DependencyId,
   request: String,
   import_name: String,
 }
@@ -199,6 +200,7 @@ impl ParserAndGenerator for CssParserAndGenerator {
 
     let mode = match module_type {
       ModuleType::CssModule => css_module_lexer::Mode::Local,
+      ModuleType::CssGlobal => css_module_lexer::Mode::Global,
       ModuleType::CssAuto
         if resource_path.is_some()
           && REGEX_IS_MODULES.is_match(
@@ -476,7 +478,7 @@ impl ParserAndGenerator for CssParserAndGenerator {
                 CssExport {
                   ident: import_ref.import_name.clone(),
                   from: Some(import_ref.request.clone()),
-                  id: None,
+                  id: Some(import_ref.id),
                   orig_name: prop.to_string(),
                 }
               } else {
@@ -499,20 +501,22 @@ impl ParserAndGenerator for CssParserAndGenerator {
             continue;
           };
           let import_name = value.trim().to_string();
-          icss_imports.insert(
-            prop.to_string(),
-            IcssImportReference {
-              request: request.clone(),
-              import_name: import_name.clone(),
-            },
-          );
-          dependencies.push(Box::new(CssIcssImportDependency::new(
-            request,
-            import_name,
+          let dep = CssIcssImportDependency::new(
+            request.clone(),
+            import_name.clone(),
             prop.to_string(),
             None,
             import_mode,
-          )));
+          );
+          icss_imports.insert(
+            prop.to_string(),
+            IcssImportReference {
+              id: *dep.id(),
+              request,
+              import_name,
+            },
+          );
+          dependencies.push(Box::new(dep));
         }
         css_module_lexer::Dependency::LocalContainer { name, range, .. } => {
           if !container_enabled {

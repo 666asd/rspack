@@ -17,10 +17,10 @@ it("should able to import with different namedExports (async)", () => new Promis
 	]).then(([style1, style2, style3]) => {
 		expect(style1).toEqual(nsObj({ class: 'style_module_css-class' }));
 		expect(style2).toEqual(nsObj({
-			class: "_style_module_css_default-class",
-			default: nsObj({ class: '_style_module_css_default-class' })
+			class: "style_module_css_default-class",
+			default: nsObj({ class: 'style_module_css_default-class' })
 		}));
-		expect(style3).toEqual(nsObj({ class: '_style_module_css_named-class' }));
+		expect(style3).toEqual(nsObj({ class: 'style_module_css_named-class' }));
 		done()
 	}, done)
 }));

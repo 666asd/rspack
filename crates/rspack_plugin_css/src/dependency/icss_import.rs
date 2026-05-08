@@ -45,31 +45,17 @@ impl CssIcssImportDependency {
   fn resolve_content(&self, compilation: &Compilation, module: &dyn Module) -> Option<String> {
     let module_graph = compilation.get_module_graph();
     let mut seen = HashSet::default();
-    resolve_icss_export(
-      module_graph,
-      module,
-      &self.request,
-      &self.import_name,
-      &mut seen,
-    )
+    let _ = module;
+    resolve_icss_export(module_graph, self.id(), &self.import_name, &mut seen)
   }
 }
 
 fn resolve_icss_export(
   module_graph: &rspack_core::ModuleGraph,
-  module: &dyn Module,
-  request: &str,
+  dep_id: &DependencyId,
   export_name: &str,
   seen: &mut HashSet<(rspack_core::ModuleIdentifier, String)>,
 ) -> Option<String> {
-  let dep_id = module.get_dependencies().iter().find(|id| {
-    module_graph
-      .dependency_by_id(id)
-      .as_module_dependency()
-      .map(|dep| dep.request() == request)
-      .unwrap_or(false)
-  })?;
-
   let target = module_graph.get_module_by_dependency_id(dep_id)?;
   let target_identifier = target.identifier();
   if !seen.insert((target_identifier, export_name.to_string())) {
@@ -84,13 +70,19 @@ fn resolve_icss_export(
     .iter()
     .filter_map(|css_export| match css_export.from.as_deref() {
       None => Some(css_export.ident.clone()),
-      Some(from_request) => resolve_icss_export(
-        module_graph,
-        target_module.as_ref(),
-        from_request,
-        &css_export.ident,
-        seen,
-      ),
+      Some(from_request) => css_export
+        .id
+        .as_ref()
+        .or_else(|| {
+          target_module.get_dependencies().iter().find(|id| {
+            module_graph
+              .dependency_by_id(id)
+              .as_module_dependency()
+              .map(|dep| dep.request() == from_request)
+              .unwrap_or(false)
+          })
+        })
+        .and_then(|dep_id| resolve_icss_export(module_graph, dep_id, &css_export.ident, seen)),
     })
     .collect::<Vec<_>>();
 

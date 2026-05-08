@@ -3,7 +3,7 @@ use std::{borrow::Cow, collections::HashSet};
 use rspack_core::{
   ChunkGraph, CssExport, CssExportType, CssExports, DependencyType, GenerateContext,
   InitFragmentRenderContext, Module, ModuleArgument, ModuleInitFragments, RESERVED_IDENTIFIER,
-  RuntimeGlobals, TemplateContext, UsageState, UsedNameItem,
+  RuntimeGlobals, SourceType, TemplateContext, UsageState, UsedNameItem,
   rspack_sources::{
     BoxSource, ConcatSource, MapOptions, ObjectPool, OriginalSource, RawStringSource,
     ReplaceSource, Source, SourceExt,
@@ -695,6 +695,53 @@ if ({module_argument}.hot.data && {module_argument}.hot.data.exports && {module_
     }
   }
 
+  fn resolve_static_css_export(
+    &self,
+    module: &dyn Module,
+    export_name: &str,
+    seen: &mut HashSet<(rspack_core::ModuleIdentifier, String)>,
+  ) -> Option<String> {
+    let compilation = self.generate_context.compilation;
+    let module_graph = compilation.get_module_graph();
+    let module_identifier = module.identifier();
+    if !seen.insert((module_identifier, export_name.to_string())) {
+      return None;
+    }
+
+    let exports = module.build_info().css_exports.as_ref()?;
+    let values = exports
+      .get(export_name)?
+      .iter()
+      .filter_map(|css_export| match css_export.from.as_deref() {
+        None => Some(css_export.ident.clone()),
+        Some(from_request) => {
+          let target_module = css_export
+            .id
+            .as_ref()
+            .and_then(|id| module_graph.get_module_by_dependency_id(id))
+            .or_else(|| {
+              module.get_dependencies().iter().find_map(|id| {
+                let dependency = module_graph.dependency_by_id(id);
+                let request = dependency
+                  .as_module_dependency()
+                  .map(|dep| dep.request())
+                  .or_else(|| dependency.as_context_dependency().map(|dep| dep.request()));
+                (request == Some(from_request))
+                  .then(|| module_graph.get_module_by_dependency_id(id))?
+              })
+            })?;
+          self.resolve_static_css_export(target_module.as_ref(), &css_export.ident, seen)
+        }
+      })
+      .collect::<Vec<_>>();
+
+    if values.is_empty() {
+      None
+    } else {
+      Some(values.join(" "))
+    }
+  }
+
   fn render_css_export_content(
     &mut self,
     elements: &FxIndexSet<CssExport>,
@@ -711,33 +758,107 @@ if ({module_argument}.hot.data && {module_argument}.hot.data.exports && {module_
         |CssExport {
            ident,
            from,
-           id: _,
+           id,
            orig_name: _,
          }| match from {
           None => json_stringify_str(ident),
           Some(from_name) => {
-            let from = module
-              .get_dependencies()
-              .iter()
-              .find_map(|id| {
-                let dependency = module_graph.dependency_by_id(id);
-                let request = if let Some(d) = dependency.as_module_dependency() {
-                  Some(d.request())
-                } else {
-                  dependency.as_context_dependency().map(|d| d.request())
-                };
-                if let Some(request) = request {
-                  if request == from_name {
-                    return module_graph.module_graph_module_by_dependency_id(id);
-                  }
-                }
+            let current_module_identifier = module.identifier();
+            let chunk_graph = &compilation.build_chunk_graph_artifact.chunk_graph;
+            let current_module_chunks =
+              if chunk_graph.get_number_of_module_chunks(current_module_identifier) > 0 {
+                Some(chunk_graph.get_module_chunks(current_module_identifier))
+              } else {
                 None
+              };
+            let candidate_priority = |target: &dyn Module| {
+              let target_identifier = target.identifier();
+              let supports_javascript = target
+                .source_types(module_graph)
+                .contains(&SourceType::JavaScript);
+              let shares_chunk = current_module_chunks.is_some_and(|current_chunks| {
+                chunk_graph.get_number_of_module_chunks(target_identifier) > 0
+                  && chunk_graph
+                    .get_module_chunks(target_identifier)
+                    .iter()
+                    .any(|chunk| current_chunks.contains(chunk))
+              });
+              (
+                supports_javascript,
+                shares_chunk,
+                ChunkGraph::get_module_id(&compilation.module_ids_artifact, target_identifier)
+                  .is_some(),
+              )
+            };
+            let find_target_module = |dep_id: &rspack_core::DependencyId| {
+              module_graph
+                .get_module_by_dependency_id(dep_id)
+                .map(|target| {
+                  let priority = candidate_priority(target.as_ref());
+                  (target, priority)
+                })
+            };
+            let from = id
+              .as_ref()
+              .and_then(find_target_module)
+              .or_else(|| {
+                module
+                  .get_dependencies()
+                  .iter()
+                  .filter_map(|dep_id| {
+                    let dependency = module_graph.dependency_by_id(dep_id);
+                    let request = if let Some(d) = dependency.as_module_dependency() {
+                      Some(d.request())
+                    } else {
+                      dependency.as_context_dependency().map(|d| d.request())
+                    };
+                    (request == Some(from_name.as_str())).then_some(dep_id)
+                  })
+                  .filter_map(find_target_module)
+                  .max_by_key(|(_, priority)| *priority)
               })
-              .expect("should have css from module");
+              .map(|(target, _)| target)
+              .and_then(|target| {
+                if target
+                  .source_types(module_graph)
+                  .contains(&SourceType::JavaScript)
+                {
+                  Some(target)
+                } else {
+                  let target_name_for_condition = target.name_for_condition();
+                  module_graph
+                    .modules()
+                    .filter_map(|(_, candidate)| {
+                      (candidate.name_for_condition() == target_name_for_condition
+                        && candidate
+                          .source_types(module_graph)
+                          .contains(&SourceType::JavaScript))
+                      .then_some(candidate)
+                    })
+                    .max_by_key(|candidate| candidate_priority(candidate.as_ref()))
+                    .or(Some(target))
+                }
+              })
+              .unwrap_or_else(|| panic!("should have css from module"));
 
             let from_exports_info = compilation
               .exports_info_artifact
-              .get_exports_info_data(&from.module_identifier);
+              .get_exports_info_data(&from.identifier());
+            if !from
+              .source_types(module_graph)
+              .contains(&SourceType::JavaScript)
+            {
+              let ident = if unescape_referenced_ident {
+                unescape(ident)
+              } else {
+                Cow::Borrowed(ident.as_str())
+              };
+              let mut seen = HashSet::default();
+              let resolved = self
+                .resolve_static_css_export(from.as_ref(), ident.as_ref(), &mut seen)
+                .expect("should resolve static css export");
+              return json_stringify_str(&resolved);
+            }
             let from_used_name = match from_exports_info
               .get_read_only_export_info(&Atom::from(ident.as_str()))
               .get_used_name(None, runtime)
@@ -761,7 +882,7 @@ if ({module_argument}.hot.data && {module_argument}.hot.data.exports && {module_
             };
 
             let from = json_stringify(
-              ChunkGraph::get_module_id(&compilation.module_ids_artifact, from.module_identifier)
+              ChunkGraph::get_module_id(&compilation.module_ids_artifact, from.identifier())
                 .expect("should have module"),
             );
             format!(
