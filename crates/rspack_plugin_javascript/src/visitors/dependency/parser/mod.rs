@@ -97,62 +97,11 @@ pub type OptionalMembers = SmallVec<[bool; 2]>;
 pub type MemberRanges = SmallVec<[Span; 2]>;
 
 #[derive(Debug)]
-pub(crate) struct LazyMemberSegment<'ast> {
-  name: Cow<'ast, str>,
-  optional: bool,
-  range: Span,
-}
-
-pub(crate) struct LazyMemberExpressionChain<'ast> {
+pub struct ExtractedMemberExpressionChainData<'ast> {
   pub object: ExprRef<'ast>,
-  segments: SmallVec<[LazyMemberSegment<'ast>; 2]>,
-}
-
-impl LazyMemberExpressionChain<'_> {
-  pub(crate) fn full_name(&self, root: &Atom) -> String {
-    let total_len = root.len()
-      + self.segments.len()
-      + self
-        .segments
-        .iter()
-        .map(|segment| segment.name.len())
-        .sum::<usize>();
-
-    let mut name = String::with_capacity(total_len);
-    name.push_str(root);
-    for segment in self.segments.iter().rev() {
-      name.push('.');
-      name.push_str(&segment.name);
-    }
-    name
-  }
-
-  pub(crate) fn members(&self) -> AtomMembers {
-    self
-      .segments
-      .iter()
-      .rev()
-      .map(|segment| Atom::from(segment.name.as_ref()))
-      .collect()
-  }
-
-  pub(crate) fn members_optionals(&self) -> OptionalMembers {
-    self
-      .segments
-      .iter()
-      .rev()
-      .map(|segment| segment.optional)
-      .collect()
-  }
-
-  pub(crate) fn member_ranges(&self) -> MemberRanges {
-    self
-      .segments
-      .iter()
-      .rev()
-      .map(|segment| segment.range)
-      .collect()
-  }
+  pub members: AtomMembers,
+  pub members_optionals: OptionalMembers,
+  pub member_ranges: MemberRanges,
 }
 
 bitflags! {
@@ -192,6 +141,24 @@ pub struct ExpressionExpressionInfo {
 pub enum ExportedVariableInfo {
   Name(Atom),
   VariableInfo(VariableInfoId),
+}
+
+fn object_and_members_to_name(object: &Atom, members_reversed: &[impl AsRef<str>]) -> String {
+  let total_len = object.len()
+    + members_reversed.len()
+    + members_reversed
+      .iter()
+      .map(|m| m.as_ref().len())
+      .sum::<usize>();
+
+  let mut name = String::with_capacity(total_len);
+  name.push_str(object);
+  let iter = members_reversed.iter();
+  for member in iter.rev() {
+    name.push('.');
+    name.push_str(member.as_ref());
+  }
+  name
 }
 
 pub trait RootName {
@@ -984,21 +951,24 @@ impl<'parser> JavascriptParser<'parser> {
     self.definitions_db.set(self.definitions, name, new_info);
   }
 
-  fn get_member_expression_info_from_chain<'ast>(
+  fn _get_member_expression_info<'ast>(
     &mut self,
-    chain: LazyMemberExpressionChain<'ast>,
+    object: ExprRef<'ast>,
+    mut members: AtomMembers,
+    mut members_optionals: OptionalMembers,
+    mut member_ranges: MemberRanges,
     allowed_types: AllowedMemberTypes,
   ) -> Option<MemberExpressionInfo<'ast>> {
-    match chain.object {
+    match object {
       ExprRef::Call(expr) => {
         if !allowed_types.contains(AllowedMemberTypes::CallExpression) {
           return None;
         }
         let callee = expr.callee.as_expr()?;
-        let (root_name, callee_members) = if let Some(member) = callee.as_member() {
-          let callee_chain = self.extract_lazy_member_expression_chain(ExprRef::Member(member));
-          let root_name = callee_chain.object.get_root_name()?;
-          (root_name, callee_chain.members())
+        let (root_name, mut root_members) = if let Some(member) = callee.as_member() {
+          let extracted = self.extract_member_expression_chain(ExprRef::Member(member));
+          let root_name = extracted.object.get_root_name()?;
+          (root_name, extracted.members)
         } else {
           (callee.get_root_name()?, AtomMembers::new())
         };
@@ -1006,6 +976,10 @@ impl<'parser> JavascriptParser<'parser> {
           info: root_info, ..
         } = self.get_name_info_from_variable(&root_name)?;
 
+        root_members.reverse();
+        members.reverse();
+        members_optionals.reverse();
+        member_ranges.reverse();
         let root_name_for_info = root_name.clone();
         Some(MemberExpressionInfo::Call(CallExpressionInfo {
           call: expr,
@@ -1013,13 +987,13 @@ impl<'parser> JavascriptParser<'parser> {
             || ExportedVariableInfo::Name(root_name_for_info),
             |i| ExportedVariableInfo::VariableInfo(i.id()),
           ),
-          callee_members,
-          members: chain.members(),
-          members_optionals: chain.members_optionals(),
-          member_ranges: chain.member_ranges(),
+          callee_members: root_members,
+          members,
+          members_optionals,
+          member_ranges,
         }))
       }
-      object @ (ExprRef::MetaProp(_) | ExprRef::Ident(_) | ExprRef::This(_)) => {
+      ExprRef::MetaProp(_) | ExprRef::Ident(_) | ExprRef::This(_) => {
         if !allowed_types.contains(AllowedMemberTypes::Expression) {
           return None;
         }
@@ -1030,16 +1004,20 @@ impl<'parser> JavascriptParser<'parser> {
           info: root_info,
         } = self.get_name_info_from_variable(&root_name)?;
 
+        let name = object_and_members_to_name(resolved_root, &members);
+        members.reverse();
+        members_optionals.reverse();
+        member_ranges.reverse();
         let root_name_for_info = root_name.clone();
         Some(MemberExpressionInfo::Expression(ExpressionExpressionInfo {
-          name: chain.full_name(resolved_root),
+          name,
           root_info: root_info.map_or_else(
             || ExportedVariableInfo::Name(root_name_for_info),
             |i| ExportedVariableInfo::VariableInfo(i.id()),
           ),
-          members: chain.members(),
-          members_optionals: chain.members_optionals(),
-          member_ranges: chain.member_ranges(),
+          members,
+          members_optionals,
+          member_ranges,
         }))
       }
       _ => None,
@@ -1055,11 +1033,11 @@ impl<'parser> JavascriptParser<'parser> {
       Expr::Member(_) | Expr::OptChain(_) => {
         self.get_member_expression_info(expr.into(), allowed_types)
       }
-      _ => self.get_member_expression_info_from_chain(
-        LazyMemberExpressionChain {
-          object: expr.into(),
-          segments: SmallVec::new(),
-        },
+      _ => self._get_member_expression_info(
+        expr.into(),
+        AtomMembers::new(),
+        OptionalMembers::new(),
+        MemberRanges::new(),
         allowed_types,
       ),
     }
@@ -1070,46 +1048,57 @@ impl<'parser> JavascriptParser<'parser> {
     expr: ExprRef<'ast>,
     allowed_types: AllowedMemberTypes,
   ) -> Option<MemberExpressionInfo<'ast>> {
-    let chain = self.extract_lazy_member_expression_chain(expr);
-    self.get_member_expression_info_from_chain(chain, allowed_types)
+    let ExtractedMemberExpressionChainData {
+      object,
+      members,
+      members_optionals,
+      member_ranges,
+    } = self.extract_member_expression_chain(expr);
+    self._get_member_expression_info(
+      object,
+      members,
+      members_optionals,
+      member_ranges,
+      allowed_types,
+    )
   }
 
-  pub(crate) fn extract_lazy_member_expression_chain<'ast>(
+  pub fn extract_member_expression_chain<'ast>(
     &self,
     expr: ExprRef<'ast>,
-  ) -> LazyMemberExpressionChain<'ast> {
+  ) -> ExtractedMemberExpressionChainData<'ast> {
     let mut object = expr;
-    let mut segments = SmallVec::new();
+    let mut members = AtomMembers::new();
+    let mut members_optionals = OptionalMembers::new();
+    let mut member_ranges = MemberRanges::new();
     let mut in_optional_chain = self.member_expr_in_optional_chain;
     loop {
       match object {
         ExprRef::Member(expr) => {
-          let name = if let Some(computed) = expr.prop.as_computed() {
+          if let Some(computed) = expr.prop.as_computed() {
             let Expr::Lit(lit) = &*computed.expr else {
               break;
             };
-            match lit {
-              Lit::Str(s) => match s.value.to_atom_lossy() {
-                Cow::Borrowed(value) => Cow::Borrowed(value.as_str()),
-                Cow::Owned(value) => Cow::Owned(value.as_str().to_owned()),
-              },
-              Lit::Bool(b) => Cow::Borrowed(if b.value { "true" } else { "false" }),
-              Lit::Null(_) => Cow::Borrowed("null"),
-              Lit::Num(n) => Cow::Owned(n.value.to_string()),
-              Lit::BigInt(i) => Cow::Owned(i.value.to_string()),
-              Lit::Regex(r) => Cow::Borrowed(r.exp.as_str()),
+            let value = match lit {
+              Lit::Str(s) => s.value.clone(),
+              Lit::Bool(b) => if b.value { "true" } else { "false" }.into(),
+              Lit::Null(_) => "null".into(),
+              Lit::Num(n) => n.value.to_string().into(),
+              Lit::BigInt(i) => i.value.to_string().into(),
+              Lit::Regex(r) => r.exp.clone().into(),
               Lit::JSXText(_) => unreachable!(),
-            }
+            };
+            // Since members are not used across rspack javascript parser plugin,
+            // we directly makes it atom here
+            members.push(value.to_atom_lossy().into_owned());
+            member_ranges.push(expr.obj.span());
           } else if let Some(ident) = expr.prop.as_ident() {
-            Cow::Borrowed(ident.sym.as_str())
+            members.push(ident.sym.clone());
+            member_ranges.push(expr.obj.span());
           } else {
             break;
-          };
-          segments.push(LazyMemberSegment {
-            name,
-            optional: in_optional_chain,
-            range: expr.obj.span(),
-          });
+          }
+          members_optionals.push(in_optional_chain);
           object = expr.obj.as_ref().into();
           in_optional_chain = false;
         }
@@ -1124,7 +1113,12 @@ impl<'parser> JavascriptParser<'parser> {
         _ => break,
       }
     }
-    LazyMemberExpressionChain { object, segments }
+    ExtractedMemberExpressionChainData {
+      object,
+      members,
+      members_optionals,
+      member_ranges,
+    }
   }
 
   fn enter_ident<F>(&mut self, ident: &Ident, on_ident: F)

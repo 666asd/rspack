@@ -38,12 +38,11 @@ impl Visit for NestedNewUrlVisitor {
 }
 
 pub fn is_meta_url(parser: &mut JavascriptParser, expr: &MemberExpr) -> bool {
-  let chain = parser.extract_lazy_member_expression_chain(ExprRef::Member(expr));
+  let chain = parser.extract_member_expression_chain(ExprRef::Member(expr));
   if let ExprRef::MetaProp(meta) = chain.object {
-    let members = chain.members();
     return meta.kind == MetaPropKind::ImportMeta
-      && members.len() == 1
-      && members.first().is_some_and(|member| member == "url");
+      && chain.members.len() == 1
+      && chain.members.first().is_some_and(|member| member == "url");
   }
   false
 }
