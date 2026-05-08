@@ -38,13 +38,12 @@ it("should compile type: css/module", () => {
     expect(style1.class1).toBe('style1_local_css-class1');
 });
 
-it("should compile type: css/global", (done) => {
+it("should compile type: css/global", () => {
     const element = document.createElement("div");
-    div.className = "class3";
+    element.className = "class3";
     const style = getComputedStyle(element);
-    expect(style.getPropertyValue("color")).toBe(" red");
+    expect(style.getPropertyValue("color")).toBe("rgb(255, 0, 0)");
     expect(style2.class4).toBe('style2_global_css-class4');
-    done()
 });
 
 it("should not parse css modules in type: css/auto", () => {
