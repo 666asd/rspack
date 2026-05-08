@@ -34,7 +34,8 @@ impl Content {
   pub fn into_string_lossy(self) -> String {
     match self {
       Content::String(s) => s,
-      Content::Buffer(b) => String::from_utf8_lossy(&b).into_owned(),
+      Content::Buffer(b) => String::from_utf8(b)
+        .unwrap_or_else(|err| String::from_utf8_lossy(err.as_bytes()).into_owned()),
     }
   }
 
@@ -84,6 +85,25 @@ impl From<String> for Content {
 impl From<Vec<u8>> for Content {
   fn from(buf: Vec<u8>) -> Self {
     Self::Buffer(buf)
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::Content;
+
+  #[test]
+  fn into_string_lossy_reuses_valid_utf8_buffer() {
+    let content = Content::Buffer(b"hello".to_vec());
+
+    assert_eq!(content.into_string_lossy(), "hello");
+  }
+
+  #[test]
+  fn into_string_lossy_preserves_lossy_invalid_utf8_behavior() {
+    let content = Content::Buffer(vec![b'a', 0xff, b'b']);
+
+    assert_eq!(content.into_string_lossy(), "a\u{FFFD}b");
   }
 }
 

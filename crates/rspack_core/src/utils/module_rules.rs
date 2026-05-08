@@ -179,48 +179,47 @@ fn module_rule_matcher_sync<'a>(
   attributes: Option<&ImportAttributes>,
   matched_rules: &mut Vec<&'a ModuleRuleEffect>,
 ) -> Option<Result<bool>> {
+  let resource = DataRef::from(resource_data.resource());
   if let Some(test_rule) = &module_rule.rspack_resource {
-    ensure_sync_matched!(test_rule.try_match_sync(resource_data.resource().into()));
+    ensure_sync_matched!(test_rule.try_match_sync(resource));
   }
 
   let resource_path = resource_data
     .path()
     .unwrap_or_else(|| Utf8Path::new(""))
     .as_str();
+  let resource_path = DataRef::from(resource_path);
 
   if let Some(test_rule) = &module_rule.test {
-    ensure_sync_matched!(test_rule.try_match_sync(resource_path.into()));
+    ensure_sync_matched!(test_rule.try_match_sync(resource_path));
   } else if let Some(resource_rule) = &module_rule.resource {
-    ensure_sync_matched!(resource_rule.try_match_sync(resource_path.into()));
+    ensure_sync_matched!(resource_rule.try_match_sync(resource_path));
   }
 
   if let Some(include_rule) = &module_rule.include {
-    ensure_sync_matched!(include_rule.try_match_sync(resource_path.into()));
+    ensure_sync_matched!(include_rule.try_match_sync(resource_path));
   }
 
   if let Some(exclude_rule) = &module_rule.exclude {
-    ensure_sync_not_matched!(exclude_rule.try_match_sync(resource_path.into()));
+    ensure_sync_not_matched!(exclude_rule.try_match_sync(resource_path));
   }
 
   if let Some(resource_query_rule) = &module_rule.resource_query {
-    ensure_sync_matched!(check_optional_sync(
-      resource_query_rule,
-      resource_data.query().map(Into::into),
-    ));
+    let resource_query = resource_data.query().map(DataRef::from);
+    ensure_sync_matched!(check_optional_sync(resource_query_rule, resource_query));
   }
 
   if let Some(resource_fragment_condition) = &module_rule.resource_fragment {
+    let resource_fragment = resource_data.fragment().map(DataRef::from);
     ensure_sync_matched!(check_optional_sync(
       resource_fragment_condition,
-      resource_data.fragment().map(Into::into),
+      resource_fragment,
     ));
   }
 
   if let Some(mimetype_condition) = &module_rule.mimetype {
-    ensure_sync_matched!(check_optional_sync(
-      mimetype_condition,
-      resource_data.mimetype().map(Into::into),
-    ));
+    let mimetype = resource_data.mimetype().map(DataRef::from);
+    ensure_sync_matched!(check_optional_sync(mimetype_condition, mimetype));
   }
 
   if let Some(scheme_condition) = &module_rule.scheme {
@@ -232,18 +231,19 @@ fn module_rule_matcher_sync<'a>(
   }
 
   if let Some(issuer_rule) = &module_rule.issuer {
-    ensure_sync_matched!(check_optional_sync(issuer_rule, issuer.map(Into::into)));
+    ensure_sync_matched!(check_optional_sync(issuer_rule, issuer.map(DataRef::from)));
   }
 
   if let Some(issuer_layer_rule) = &module_rule.issuer_layer {
     ensure_sync_matched!(check_optional_sync(
       issuer_layer_rule,
-      issuer_layer.map(Into::into),
+      issuer_layer.map(DataRef::from),
     ));
   }
 
   if let Some(dependency_rule) = &module_rule.dependency {
-    ensure_sync_matched!(dependency_rule.try_match_sync(dependency.as_str().into()));
+    let dependency = DataRef::from(dependency.as_str());
+    ensure_sync_matched!(dependency_rule.try_match_sync(dependency));
   }
 
   if let Some(description_data) = &module_rule.description_data {
@@ -253,7 +253,7 @@ fn module_rule_matcher_sync<'a>(
           matcher,
           k.split('.')
             .try_fold(resource_description.json(), |acc, key| acc.get(key))
-            .map(Into::into),
+            .map(DataRef::from),
         ));
       }
     } else {
@@ -268,7 +268,7 @@ fn module_rule_matcher_sync<'a>(
       for (k, matcher) in with {
         ensure_sync_matched!(check_optional_sync(
           matcher,
-          attributes.get(k).map(Into::into),
+          attributes.get(k).map(DataRef::from),
         ));
       }
     } else {
