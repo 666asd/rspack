@@ -1,0 +1,9 @@
+Object {
+  btn--info_is-disabled_1: -style_module_css_unique_ame-id-contenthash-[contenthash],
+  btn-info_is-disabled: -style_module_css_unique_ame-id-contenthash-[contenthash],
+  color-red: -style_module_css_unique_ame-id-contenthash-[contenthash],
+  foo: bar,
+  foo_bar: -style_module_css_unique_ame-id-contenthash-[contenthash],
+  my-btn-info_is-disabled: value,
+  simple: -style_module_css_unique_ame-id-contenthash-[contenthash],
+}
