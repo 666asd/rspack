@@ -59,7 +59,7 @@ serde                      = { workspace = true }
 serde_json                 = { workspace = true }
 sugar_path                 = { workspace = true }
 swc_core                   = { workspace = true, features = ["__ecma", "__visit", "__utils", "__ecma_transforms", "ecma_ast", "ecma_parser", "ecma_codegen", "ecma_quote", "common_concurrent", "swc_ecma_ast", "ecma_transforms_react", "ecma_transforms_module", "swc_ecma_codegen", "swc_ecma_visit"] }
-tokio                      = { workspace = true, features = ["rt", "macros"] }
+tokio                      = { workspace = true, features = ["rt", "sync", "time"] }
 tracing                    = { workspace = true }
 urlencoding                = { workspace = true }
 ustr                       = { workspace = true }
@@ -71,6 +71,7 @@ swc_experimental_ecma_semantic = { workspace = true }
 
 [dev-dependencies]
 pretty_assertions = { workspace = true }
+tokio             = { workspace = true, features = ["macros", "rt-multi-thread"] }
 
 [lints]
 workspace = true

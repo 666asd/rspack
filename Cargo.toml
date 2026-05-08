@@ -18,7 +18,7 @@ libraries = [{ path = "linting/*" }]
 
 [workspace.dependencies]
 aho-corasick    = { version = "1.1.4", default-features = false }
-anyhow          = { version = "1.0.102", default-features = false, features = ["backtrace", "std"] }
+anyhow          = { version = "1.0.102", default-features = false, features = ["std"] }
 anymap          = { package = "anymap3", version = "1.0.1", default-features = false, features = ["std"] }
 async-recursion = { version = "1.1.1", default-features = false }
 async-trait     = { version = "0.1.89", default-features = false }
@@ -295,9 +295,6 @@ opt-level = "s"
 [profile.release.package.rspack_plugin_rsdoctor]
 opt-level = "s"
 
-[profile.release.package.backtrace]
-opt-level = "s"
-
 [profile.release.package.aho-corasick]
 opt-level = "s"
 
@@ -337,6 +334,8 @@ opt-level = "s"
 [profile.release.package.rspack_error]
 opt-level = "s"
 
+[profile.release.package.rspack_loader_testing]
+opt-level = "z"
 
 [profile.release.package.rspack_plugin_progress]
 opt-level = "s"
@@ -354,7 +353,7 @@ opt-level = "s"
 opt-level = "s"
 
 [profile.release.package.wasmparser]
-opt-level = "s"
+opt-level = "z"
 
 [profile.release.package.jsonc-parser]
 opt-level = "s"
@@ -387,13 +386,100 @@ opt-level = "s"
 opt-level = "s"
 
 [profile.release.package."cranelift-codegen"]
-opt-level = "s"
+opt-level = "z"
+
+[profile.release.package."cranelift-assembler-x64"]
+opt-level = "z"
+
+[profile.release.package."cranelift-bforest"]
+opt-level = "z"
+
+[profile.release.package."cranelift-bitset"]
+opt-level = "z"
+
+[profile.release.package."cranelift-codegen-shared"]
+opt-level = "z"
+
+[profile.release.package."cranelift-control"]
+opt-level = "z"
+
+[profile.release.package."cranelift-entity"]
+opt-level = "z"
+
+[profile.release.package."cranelift-frontend"]
+opt-level = "z"
+
+[profile.release.package."cranelift-native"]
+opt-level = "z"
+
+[profile.release.package.regalloc2]
+opt-level = "z"
+
+[profile.release.package."pulley-interpreter"]
+opt-level = "z"
+
+[profile.release.package."wasm-encoder"]
+opt-level = "z"
 
 [profile.release.package.wasmtime]
 opt-level = "s"
 
+[profile.release.package.wasmtime-environ]
+opt-level = "z"
+
+[profile.release.package."wasmtime-internal-asm-macros"]
+opt-level = "z"
+
+[profile.release.package."wasmtime-internal-cranelift"]
+opt-level = "z"
+
+[profile.release.package."wasmtime-internal-jit-icache-coherence"]
+opt-level = "z"
+
+[profile.release.package."wasmtime-internal-math"]
+opt-level = "z"
+
+[profile.release.package."wasmtime-internal-slab"]
+opt-level = "z"
+
+[profile.release.package."wasmtime-internal-unwinder"]
+opt-level = "z"
+
+[profile.release.package.wasmprinter]
+opt-level = "z"
+
+[profile.release.package.wast]
+opt-level = "z"
+
 [profile.release.package."wasi-common"]
-opt-level = "s"
+opt-level = "z"
+
+[profile.release.package."cap-fs-ext"]
+opt-level = "z"
+
+[profile.release.package."cap-primitives"]
+opt-level = "z"
+
+[profile.release.package."cap-rand"]
+opt-level = "z"
+
+[profile.release.package."cap-std"]
+opt-level = "z"
+
+[profile.release.package."cap-time-ext"]
+opt-level = "z"
+
+[profile.release.package."io-extras"]
+opt-level = "z"
+
+[profile.release.package."io-lifetimes"]
+opt-level = "z"
+
+[profile.release.package."system-interface"]
+opt-level = "z"
+
+[profile.release.package.wiggle]
+opt-level = "z"
 
 # This is for CI build based on release but with faster build time
 [profile.ci]

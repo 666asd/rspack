@@ -10,7 +10,7 @@ version.workspace = true
 async-trait  = { workspace = true }
 rayon        = { workspace = true }
 rspack_tasks = { workspace = true }
-tokio        = { workspace = true, features = ["rt", "sync", "macros"] }
+tokio        = { workspace = true, features = ["rt", "sync"] }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }

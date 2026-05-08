@@ -569,9 +569,10 @@ fn register_global_trace(
   filter: String,
   #[napi(ts_arg_type = " \"logger\" | \"perfetto\" ")] layer: String,
   output: String,
-) -> anyhow::Result<()> {
+) -> napi::Result<()> {
   #[cfg(not(feature = "browser"))]
-  trace_event::register_global_trace(filter, layer, output)?;
+  trace_event::register_global_trace(filter, layer, output)
+    .map_err(|e| napi::Error::from_reason(e.to_string()))?;
   Ok(())
 }
 
