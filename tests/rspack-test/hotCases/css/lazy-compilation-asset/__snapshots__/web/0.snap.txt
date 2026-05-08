@@ -1,0 +1,13 @@
+# Case lazy-compilation-asset: Step 0
+
+## Changed Files
+
+
+## Asset Files
+- Bundle: bundle.js
+- Bundle: mod_js.chunk.CURRENT_HASH.js
+
+## Manifest
+
+
+## Update

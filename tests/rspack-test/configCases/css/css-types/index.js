@@ -1,6 +1,6 @@
 import './style.css';
 import * as style1 from './style1.local.css'
-// import * as style2 from './style2.global.css'
+import * as style2 from './style2.global.css'
 import './style3.auto.css';
 import * as style3 from './style4.modules.css'
 
@@ -39,7 +39,8 @@ it("should compile type: css/module", () => {
 });
 
 it("should compile type: css/global", (done) => {
-    const element = document.createElement(".class3");
+    const element = document.createElement("div");
+    div.className = "class3";
     const style = getComputedStyle(element);
     expect(style.getPropertyValue("color")).toBe(" red");
     expect(style2.class4).toBe('style2_global_css-class4');

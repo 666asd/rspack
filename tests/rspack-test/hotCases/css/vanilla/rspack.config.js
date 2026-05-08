@@ -8,9 +8,6 @@ module.exports = {
   node: {
     __dirname: false,
   },
-  module: {
-    rules: [],
-  },
   experiments: {
     css: true,
   },

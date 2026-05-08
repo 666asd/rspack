@@ -2,9 +2,6 @@
 module.exports = {
   mode: 'development',
   devtool: false,
-  module: {
-    rules: [],
-  },
   experiments: {
     css: true,
   },
