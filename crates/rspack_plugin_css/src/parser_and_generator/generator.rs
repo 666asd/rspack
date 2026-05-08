@@ -577,14 +577,14 @@ impl<'a, 'g> CssModuleGenerator<'a, 'g> {
 
     if with_hmr {
       format!(
-        "// only invalidate when locals change\n\
-         var stringified_exports = JSON.stringify({decl_name});\n\
-         if ({module_argument}.hot.data && {module_argument}.hot.data.exports && {module_argument}.hot.data.exports != stringified_exports) {{\n\
-           {module_argument}.hot.invalidate();\n\
-         }} else {{\n\
-           {module_argument}.hot.accept();\n\
-         }}\n\
-         {module_argument}.hot.dispose(function(data) {{ data.exports = stringified_exports; }});"
+        "// only invalidate when locals change
+var stringified_exports = JSON.stringify({decl_name});
+if ({module_argument}.hot.data && {module_argument}.hot.data.exports && {module_argument}.hot.data.exports != stringified_exports) {{
+  {module_argument}.hot.invalidate();
+}} else {{
+  {module_argument}.hot.accept();
+}}
+{module_argument}.hot.dispose(function(data) {{ data.exports = stringified_exports; }});"
       )
     } else {
       String::new()
