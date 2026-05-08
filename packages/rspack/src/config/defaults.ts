@@ -211,7 +211,7 @@ const applyInfrastructureLoggingDefaults = (
 
 const applyExperimentsDefaults = (experiments: ExperimentsNormalized) => {
   D(experiments, 'futureDefaults', false);
-  D(experiments, 'css', true);
+  D(experiments, 'css', false);
   D(experiments, 'asyncWebAssembly', true);
   D(experiments, 'deferImport', false);
 
