@@ -1,12 +1,11 @@
 use std::sync::Arc;
 
-use num_bigint::BigUint;
 use rspack_collections::{IdentifierIndexSet, IdentifierMap, IdentifierSet};
 use rspack_error::Result;
 use rustc_hash::FxHashSet;
 use tracing::instrument;
 
-use super::code_splitter::{CgiUkey, CodeSplitter, DependenciesBlockIdentifier};
+use super::code_splitter::{CgiUkey, CodeSplitter, DependenciesBlockIdentifier, ModuleSet};
 use crate::{
   AsyncDependenciesBlockIdentifier, AsyncDependenciesBlockIdentifierSet, ChunkGroupKind,
   ChunkGroupUkey, ChunkUkey, Compilation, GroupOptions, ModuleIdentifier, RuntimeSpec,
@@ -510,13 +509,15 @@ impl CodeSplitter {
       }
     }
     for chunk in compilation.build_chunk_graph_artifact.chunk_by_ukey.keys() {
-      let mut mask = BigUint::from(0u32);
+      let mut mask = ModuleSet::with_module_count(ordinal_by_module.len());
       for module_id in compilation
         .build_chunk_graph_artifact
         .chunk_graph
         .get_chunk_modules_identifier(chunk)
       {
-        let module_ordinal = self.get_module_ordinal(*module_id);
+        let module_ordinal = *ordinal_by_module
+          .get(module_id)
+          .expect("module should have ordinal");
         mask.set_bit(module_ordinal, true);
       }
       self.mask_by_chunk.insert(*chunk, mask);
@@ -806,7 +807,7 @@ impl CodeSplitter {
     &self,
     cache: &ChunkCreateData,
     runtime: &RuntimeSpec,
-    new_available_modules: Arc<BigUint>,
+    new_available_modules: Arc<ModuleSet>,
     options: Option<&GroupOptions>,
   ) -> bool {
     cache.can_rebuild
@@ -818,17 +819,11 @@ impl CodeSplitter {
   pub fn available_modules_affected(
     &self,
     cache: &ChunkCreateData,
-    new_available_modules: Arc<BigUint>,
+    new_available_modules: Arc<ModuleSet>,
   ) -> bool {
     if new_available_modules == cache.available_modules {
       return false;
     }
-
-    // get changed modules
-    // 0010
-    // 0100
-    // diff: 0110
-    let diff = cache.available_modules.as_ref() ^ new_available_modules.as_ref();
 
     let cache_result = cache
       .cache_result
@@ -841,7 +836,7 @@ impl CodeSplitter {
       .chain(cache_result.skipped_modules.iter())
     {
       let m = self.get_module_ordinal(*m);
-      if diff.bit(m) {
+      if cache.available_modules.bit(m) != new_available_modules.bit(m) {
         return true;
       }
     }
@@ -862,7 +857,7 @@ struct CacheResult {
 #[derive(Debug, Clone)]
 pub struct ChunkCreateData {
   // input
-  available_modules: Arc<BigUint>,
+  available_modules: Arc<ModuleSet>,
   options: Option<GroupOptions>,
   runtime: RuntimeSpec,
   pub module: ModuleIdentifier,
