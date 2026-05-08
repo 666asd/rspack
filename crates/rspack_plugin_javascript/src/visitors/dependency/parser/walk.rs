@@ -2,7 +2,7 @@ use std::borrow::Cow;
 
 use swc_core::{
   atoms::Atom,
-  common::{Span, Spanned, SyntaxContext},
+  common::Spanned,
   ecma::ast::{
     ArrayLit, ArrayPat, ArrowExpr, AssignExpr, AssignPat, AssignTarget, AssignTargetPat, AwaitExpr,
     BinExpr, BlockStmt, BlockStmtOrExpr, CallExpr, Callee, CatchClause, Class, ClassExpr,
@@ -32,62 +32,6 @@ use crate::{
 
 fn warp_ident_to_pat(ident: Ident) -> Pat {
   Pat::Ident(ident.into())
-}
-
-enum CallLikeCallee<'ast> {
-  Expr(&'ast Expr),
-  Import,
-  Super,
-}
-
-enum CallLike<'ast> {
-  Call(&'ast CallExpr),
-  Opt {
-    span: Span,
-    ctxt: SyntaxContext,
-    callee: &'ast Expr,
-    args: &'ast [ExprOrSpread],
-    call: Option<CallExpr>,
-  },
-}
-
-impl<'ast> CallLike<'ast> {
-  fn callee(&self) -> CallLikeCallee<'ast> {
-    match self {
-      Self::Call(expr) => match &expr.callee {
-        Callee::Expr(callee) => CallLikeCallee::Expr(callee),
-        Callee::Import(_) => CallLikeCallee::Import,
-        Callee::Super(_) => CallLikeCallee::Super,
-      },
-      Self::Opt { callee, .. } => CallLikeCallee::Expr(callee),
-    }
-  }
-
-  fn args(&self) -> &'ast [ExprOrSpread] {
-    match self {
-      Self::Call(expr) => &expr.args,
-      Self::Opt { args, .. } => args,
-    }
-  }
-
-  fn as_call_expr(&mut self) -> &CallExpr {
-    match self {
-      Self::Call(expr) => expr,
-      Self::Opt {
-        span,
-        ctxt,
-        callee,
-        args,
-        call,
-      } => call.get_or_insert_with(|| CallExpr {
-        ctxt: *ctxt,
-        span: *span,
-        callee: Callee::Expr(Box::new((*callee).clone())),
-        args: args.to_vec(),
-        type_args: None,
-      }),
-    }
-  }
 }
 
 impl JavascriptParser<'_> {
@@ -1071,14 +1015,14 @@ impl JavascriptParser<'_> {
   }
 
   fn walk_opt_call(&mut self, expr: &OptCall) {
-    let mut call = CallLike::Opt {
-      span: expr.span,
+    // TODO: remove clone
+    self.walk_call_expression(&CallExpr {
       ctxt: expr.ctxt,
-      callee: &expr.callee,
-      args: &expr.args,
-      call: None,
-    };
-    self.walk_call_expression_like(&mut call);
+      span: expr.span,
+      callee: Callee::Expr(expr.callee.clone()),
+      args: expr.args.clone(),
+      type_args: None,
+    })
   }
 
   /// Walk IIFE function
@@ -1209,89 +1153,81 @@ impl JavascriptParser<'_> {
   }
 
   fn walk_call_expression(&mut self, expr: &CallExpr) {
-    let mut call = CallLike::Call(expr);
-    self.walk_call_expression_like(&mut call);
-  }
-
-  fn walk_call_expression_like(&mut self, call: &mut CallLike<'_>) {
     fn is_simple_function(params: &[Param]) -> bool {
       params.iter().all(|p| matches!(p.pat, Pat::Ident(_)))
     }
 
     // FIXME: should align to webpack
-    match call.callee() {
-      CallLikeCallee::Expr(callee) => {
-        if let Expr::Member(member_expr) = callee
+    match &expr.callee {
+      Callee::Expr(callee) => {
+        if let Expr::Member(member_expr) = &**callee
           && let Expr::Fn(fn_expr) = &*member_expr.obj
           && let MemberProp::Ident(ident) = &member_expr.prop
           && (ident.sym == "call" || ident.sym == "bind")
-          && !call.args().is_empty()
+          && !expr.args.is_empty()
           && is_simple_function(&fn_expr.function.params)
         {
           // (function(…) { }).call(…)
-          let mut params = call.args().iter().map(|arg| &*arg.expr);
+          let mut params = expr.args.iter().map(|arg| &*arg.expr);
           let this = params.next();
           self._walk_iife(&member_expr.obj, params, this)
-        } else if let Expr::Fn(fn_expr) = callee
+        } else if let Expr::Fn(fn_expr) = &**callee
           && is_simple_function(&fn_expr.function.params)
         {
           // (function(…) { })(…)
-          self._walk_iife(callee, call.args().iter().map(|arg| &*arg.expr), None)
-        } else if let Expr::Arrow(arrow_expr) = callee
+          self._walk_iife(callee, expr.args.iter().map(|arg| &*arg.expr), None)
+        } else if let Expr::Arrow(arrow_expr) = &**callee
           && arrow_expr.params.iter().all(|p| p.as_ident().is_some())
         {
           // ((…) => { })(…)
-          self._walk_iife(callee, call.args().iter().map(|arg| &*arg.expr), None)
+          self._walk_iife(callee, expr.args.iter().map(|arg| &*arg.expr), None)
         } else {
-          if let Expr::Member(member) = callee {
+          if let Expr::Member(member) = &**callee {
             if let Some(MemberExpressionInfo::Call(expr_info)) = self.get_member_expression_info(
               ExprRef::Member(member),
               AllowedMemberTypes::CallExpression,
-            ) {
-              let expr = call.as_call_expr();
-              if expr_info
-                .root_info
-                .call_hooks_name(self, |this, for_name| {
-                  this
-                    .plugin_drive
-                    .clone()
-                    .call_member_chain_of_call_member_chain(
-                      this,
-                      expr,
-                      &expr_info.callee_members,
-                      expr_info.call,
-                      &expr_info.members,
-                      &expr_info.member_ranges,
-                      for_name,
-                    )
-                })
-                .unwrap_or_default()
-              {
-                return;
-              }
+            ) && expr_info
+              .root_info
+              .call_hooks_name(self, |this, for_name| {
+                this
+                  .plugin_drive
+                  .clone()
+                  .call_member_chain_of_call_member_chain(
+                    this,
+                    expr,
+                    &expr_info.callee_members,
+                    expr_info.call,
+                    &expr_info.members,
+                    &expr_info.member_ranges,
+                    for_name,
+                  )
+              })
+              .unwrap_or_default()
+            {
+              return;
             }
             // import(...).then(...)
-            if let Some(import_call) = member.obj.as_call()
-              && import_call.callee.is_import()
+            if let Some(call) = member.obj.as_call()
+              && call.callee.is_import()
               && let Some(prop) = member.prop.as_ident()
               && prop.sym == "then"
               && self
                 .plugin_drive
                 .clone()
-                .import_call(self, import_call, Some(call.as_call_expr()), None)
+                .import_call(self, call, Some(expr), None)
                 .unwrap_or_default()
             {
               return;
             }
             // (await import(...)).a.b()
-            if let Some((import_call, members)) = self.extract_await_import_member(member)
+            if let Some((call, members)) = self.extract_await_import_member(member)
               && self
                 .plugin_drive
                 .clone()
-                .import_call(self, import_call, None, Some((&members, true)))
+                .import_call(self, call, None, Some((&members, true)))
                 .unwrap_or_default()
             {
-              self.walk_expr_or_spread(call.args());
+              self.walk_expr_or_spread(&expr.args);
               return;
             }
           }
@@ -1308,7 +1244,6 @@ impl JavascriptParser<'_> {
               .member_ranges()
               .map_or_else(|| Cow::Owned(Vec::new()), Cow::Borrowed);
             let drive = self.plugin_drive.clone();
-            let expr = call.as_call_expr();
             if evaluated_callee
               .root_info()
               .call_hooks_name(self, |parser, for_name| {
@@ -1348,25 +1283,25 @@ impl JavascriptParser<'_> {
           } else {
             self.walk_expression(callee);
           }
-          self.walk_expr_or_spread(call.args());
+          self.walk_expr_or_spread(&expr.args);
         }
       }
-      CallLikeCallee::Import => {
+      Callee::Import(_) => {
         // In webpack this is walkImportExpression, import() is a ImportExpression instead of CallExpression with Callee::Import
         if self
           .plugin_drive
           .clone()
-          .import_call(self, call.as_call_expr(), None, None)
+          .import_call(self, expr, None, None)
           .unwrap_or_default()
         {
           return;
         }
 
-        self.walk_expr_or_spread(call.args());
+        self.walk_expr_or_spread(&expr.args);
       }
-      CallLikeCallee::Super => {
+      Callee::Super(_) => {
         // Do nothing about super, same as webpack
-        self.walk_expr_or_spread(call.args());
+        self.walk_expr_or_spread(&expr.args);
       }
     }
   }
