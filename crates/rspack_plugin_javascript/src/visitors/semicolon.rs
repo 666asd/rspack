@@ -1,3 +1,5 @@
+/// Auto inserted semicolon
+/// See: https://262.ecma-international.org/7.0/#sec-rules-of-automatic-semicolon-insertion
 use rustc_hash::FxHashSet;
 use swc_core::common::BytePos;
 use swc_experimental_ecma_ast::{
@@ -6,9 +8,6 @@ use swc_experimental_ecma_ast::{
   VisitWith, YieldExpr,
 };
 use swc_experimental_ecma_parser::unstable::{Token, TokenAndSpan};
-
-/// Auto inserted semicolon
-/// See: https://262.ecma-international.org/7.0/#sec-rules-of-automatic-semicolon-insertion
 
 pub struct InsertedSemicolons<'a> {
   pub(crate) ast: &'a Ast,
