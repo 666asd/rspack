@@ -13,7 +13,7 @@ use once_cell::sync::OnceCell;
 use rayon::prelude::*;
 use regex::Regex;
 use rspack_core::{
-  AssetInfo, BindingCell, Compilation, CompilationId, CompilationProcessAssets, Logger, Plugin,
+  AssetInfo, Compilation, CompilationId, CompilationProcessAssets, Logger, Plugin,
   rspack_sources::{BoxSource, RawStringSource, SourceExt, SourceValue},
 };
 use rspack_error::{Result, ToStringResultToRspackResultExt};
@@ -273,7 +273,7 @@ async fn inner_impl(compilation: &mut Compilation) -> Result<()> {
       let info_update = (*old_info).clone();
       Ok((
         new_source.clone(),
-        BindingCell::from(info_update.with_content_hashes(new_hashes)),
+        info_update.with_content_hashes(new_hashes).into(),
       ))
     })?;
     if let Some(new_name) = new_name {

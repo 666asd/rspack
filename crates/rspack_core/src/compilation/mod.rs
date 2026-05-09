@@ -43,7 +43,7 @@ use itertools::Itertools;
 use rayon::prelude::*;
 use rspack_cacheable::{
   cacheable,
-  with::{AsOption, AsPreset},
+  with::{AsInner, AsInnerConverter, AsOption, AsPreset},
 };
 use rspack_collections::{IdentifierDashMap, IdentifierMap, IdentifierSet};
 use rspack_error::{Diagnostic, Result, ToStringResultToRspackResultExt};
@@ -750,37 +750,42 @@ impl Compilation {
     new_info: Option<&AssetInfo>,
     old_info: Option<&AssetInfo>,
   ) {
-    if let Some(old_info) = old_info
-      && let Some(source_map) = &old_info.related.source_map
-      && let Some(entry) = self.assets_related_in.get_mut(source_map)
-    {
-      entry.remove(name);
-    }
-    if let Some(new_info) = new_info
-      && let Some(source_map) = new_info.related.source_map.clone()
-    {
-      let entry = self.assets_related_in.entry(source_map).or_default();
-      entry.insert(name.to_string());
-    }
+    self.set_asset_info_related_in(
+      name,
+      new_info.and_then(|info| info.related.source_map.as_deref()),
+      old_info.and_then(|info| info.related.source_map.as_deref()),
+    );
+  }
+
+  fn set_asset_info_related_in(
+    &mut self,
+    name: &str,
+    new_source_map: Option<&str>,
+    old_source_map: Option<&str>,
+  ) {
+    set_asset_info_related_in(
+      &mut self.assets_related_in,
+      name,
+      new_source_map,
+      old_source_map,
+    );
   }
 
   pub fn update_asset(
     &mut self,
     filename: &str,
-    updater: impl FnOnce(
-      BoxSource,
-      BindingCell<AssetInfo>,
-    ) -> Result<(BoxSource, BindingCell<AssetInfo>)>,
+    updater: impl FnOnce(BoxSource, AssetInfoCell) -> Result<(BoxSource, AssetInfoCell)>,
   ) -> Result<()> {
     let assets = &mut self.assets;
 
-    let (old_info, new_source, new_info) = match assets.remove(filename) {
+    let (old_source_map, new_source, new_info) = match assets.remove(filename) {
       Some(CompilationAsset {
         source: Some(source),
         info: old_info,
       }) => {
-        let (new_source, new_info) = updater(source, old_info.clone())?;
-        (old_info, new_source, new_info)
+        let old_source_map = old_info.related.source_map.clone();
+        let (new_source, new_info) = updater(source, old_info)?;
+        (old_source_map, new_source, new_info)
       }
       _ => {
         return Err(rspack_error::error!(
@@ -789,7 +794,11 @@ impl Compilation {
         ));
       }
     };
-    self.set_asset_info(filename, Some(&new_info), Some(&old_info));
+    self.set_asset_info_related_in(
+      filename,
+      new_info.related.source_map.as_deref(),
+      old_source_map.as_deref(),
+    );
     self.assets.insert(
       filename.to_owned(),
       CompilationAsset {
@@ -1265,7 +1274,8 @@ pub type CompilationAssets = HashMap<String, CompilationAsset>;
 pub struct CompilationAsset {
   #[cacheable(with=AsOption<AsPreset>)]
   pub source: Option<BoxSource>,
-  pub info: BindingCell<AssetInfo>,
+  #[cacheable(with=AsInner)]
+  pub info: AssetInfoCell,
 }
 
 impl From<BoxSource> for CompilationAsset {
@@ -1278,7 +1288,7 @@ impl CompilationAsset {
   pub fn new(source: Option<BoxSource>, info: AssetInfo) -> Self {
     Self {
       source,
-      info: BindingCell::from(info),
+      info: AssetInfoCell::from(info),
     }
   }
 
@@ -1299,7 +1309,126 @@ impl CompilationAsset {
   }
 
   pub fn set_info(&mut self, info: AssetInfo) {
-    self.info = BindingCell::from(info);
+    self.info = AssetInfoCell::from(info);
+  }
+}
+
+#[derive(Debug, Clone)]
+pub struct AssetInfoCell {
+  inner: Arc<BindingCell<AssetInfo>>,
+}
+
+impl AssetInfoCell {
+  pub fn new(info: AssetInfo) -> Self {
+    Self::from(BindingCell::from(info))
+  }
+
+  #[cfg(feature = "napi")]
+  pub fn reflector(&self) -> crate::Reflector {
+    self.inner.reflector()
+  }
+}
+
+impl From<AssetInfo> for AssetInfoCell {
+  fn from(info: AssetInfo) -> Self {
+    Self::new(info)
+  }
+}
+
+impl From<BindingCell<AssetInfo>> for AssetInfoCell {
+  fn from(info: BindingCell<AssetInfo>) -> Self {
+    Self {
+      inner: Arc::new(info),
+    }
+  }
+}
+
+impl Default for AssetInfoCell {
+  fn default() -> Self {
+    Self::new(AssetInfo::default())
+  }
+}
+
+impl std::ops::Deref for AssetInfoCell {
+  type Target = AssetInfo;
+
+  fn deref(&self) -> &Self::Target {
+    self.inner.as_ref().as_ref()
+  }
+}
+
+impl std::ops::DerefMut for AssetInfoCell {
+  fn deref_mut(&mut self) -> &mut Self::Target {
+    Arc::make_mut(&mut self.inner).as_mut()
+  }
+}
+
+impl AsInnerConverter for AssetInfoCell {
+  type Inner = BindingCell<AssetInfo>;
+
+  fn to_inner(&self) -> &Self::Inner {
+    self.inner.as_ref()
+  }
+
+  fn from_inner(data: Self::Inner) -> Self {
+    Self::from(data)
+  }
+}
+
+fn set_asset_info_related_in(
+  assets_related_in: &mut HashMap<String, HashSet<String>>,
+  name: &str,
+  new_source_map: Option<&str>,
+  old_source_map: Option<&str>,
+) {
+  if let Some(source_map) = old_source_map
+    && let Some(entry) = assets_related_in.get_mut(source_map)
+  {
+    entry.remove(name);
+  }
+  if let Some(source_map) = new_source_map {
+    let entry = assets_related_in.entry(source_map.to_string()).or_default();
+    entry.insert(name.to_string());
+  }
+}
+
+#[cfg(test)]
+mod asset_info_cell_tests {
+  use super::*;
+
+  #[test]
+  fn clone_is_copy_on_write() {
+    let original = AssetInfoCell::new(AssetInfo::default().with_version("original".to_string()));
+    let mut cloned = original.clone();
+
+    cloned.version = "cloned".to_string();
+
+    assert_eq!(original.version, "original");
+    assert_eq!(cloned.version, "cloned");
+  }
+
+  #[test]
+  fn asset_info_related_in_uses_preserved_old_source_map() {
+    let mut assets_related_in: HashMap<String, HashSet<String>> = HashMap::default();
+    assets_related_in
+      .entry("old.map".to_string())
+      .or_default()
+      .insert("main.js".to_string());
+
+    let mut info = AssetInfoCell::new(AssetInfo::default());
+    info.related.source_map = Some("old.map".to_string());
+    let old_source_map = info.related.source_map.clone();
+
+    info.related.source_map = Some("new.map".to_string());
+    set_asset_info_related_in(
+      &mut assets_related_in,
+      "main.js",
+      info.related.source_map.as_deref(),
+      old_source_map.as_deref(),
+    );
+
+    assert!(!assets_related_in["old.map"].contains("main.js"));
+    assert!(assets_related_in["new.map"].contains("main.js"));
   }
 }
 

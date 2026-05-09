@@ -390,7 +390,7 @@ impl JsCompilation {
       filename,
       rspack_core::CompilationAsset {
         source: Some(source.try_into()?),
-        info: asset_info,
+        info: asset_info.into(),
       },
     );
     Ok(())
