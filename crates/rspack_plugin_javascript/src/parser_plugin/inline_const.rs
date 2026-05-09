@@ -67,7 +67,7 @@ impl JavascriptParserPlugin for ConstValuePlugin {
     // Propagate inlinable constants. Help the rest const variable declarations that referencing the
     // inlinable constants to evaluate to an inlinable constants.
     let tag_info = parser
-      .definitions_db
+      .definitions_db2
       .expect_get_tag_info(parser.current_tag_info?);
     let data = ConstValueData::downcast(tag_info.data.clone()?);
     let value = match data.value {
@@ -92,8 +92,18 @@ impl JavascriptParserPlugin for ConstValuePlugin {
     if !parser.is_top_level_scope() {
       return None;
     }
-    if !matches!(declaration.kind(), VariableDeclarationKind::Const) || declarator.init.is_none() {
-      return None;
+    if matches!(declaration.kind(), VariableDeclarationKind::Const)
+      && let Some(name) = declarator.name.as_ident()
+      && let Some(init) = &declarator.init
+    {
+      let evaluated = parser.evaluate_expression(init);
+      if let Some(inlinable) = to_evaluated_inlinable_value(&evaluated) {
+        parser.tag_var_no_alias(
+          &name.id.to_id(),
+          INLINABLE_CONST_TAG,
+          Some(InlinableConstData { value: inlinable }),
+        );
+      }
     }
 
     if let Some(name) = declarator.name.as_ident() {
