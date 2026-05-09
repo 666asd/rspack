@@ -1,0 +1,4 @@
+Object {
+  default: classes_module_css-default,
+  module: classes_module_css-module,
+}

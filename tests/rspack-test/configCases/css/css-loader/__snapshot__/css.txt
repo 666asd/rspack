@@ -1,0 +1,3342 @@
+Array [
+  .basic_module_css-class-1, .basic_module_css-class-10 .basic_module_css-bar-1 {
+	color: green;
+}
+
+
+@keyframes basic_module_css-slide-right {
+	0% {
+		transform: translateX(-100%);
+		opacity: 0;
+	}
+	100% {
+		transform: translateX(0);
+		opacity: 1;
+	}
+}
+
+a {
+	animation: basic_module_css-slide-right 300ms forwards ease-out, basic_module_css-fade-in 300ms forwards ease-out;
+}
+
+.basic_module_css-c1/*.c2*/.basic_module_css-c3 { background: red; }
+
+.basic_module_css-c1 { a: 1; }
+.basic_module_css-c2 {  b: 1; }
+
+.basic_module_css-a {
+	color: green;
+}
+
+@keyframes basic_module_css-bounce {
+	0% {
+		transform: translateY(-100%);
+		opacity: 0;
+	}
+	5% {
+		transform: translateY(-100%);
+		opacity: 0;
+	}
+}
+
+@-webkit-keyframes basic_module_css-bounce2 {
+	0% {
+		transform: translateY(-100%);
+		opacity: 0;
+	}
+	5% {
+		transform: translateY(-100%);
+		opacity: 0;
+	}
+}
+
+.basic_module_css-bounce {
+	animation-name: basic_module_css-bounce;
+	animation: basic_module_css-bounce2 Xs ease;
+}
+
+.basic_module_css-bounce2 {
+	color: green;
+	animation: basic_module_css-bounce Xs ease;
+	animation-name: basic_module_css-bounce2;
+}
+
+.basic_module_css-bounce3 {
+	animation: basic_module_css-bounce Xs ease, basic_module_css-bounce2
+}
+
+.basic_module_css-bounce4 {
+	animation: basic_module_css-bounce Xs ease, basic_module_css-bounce2;
+}
+
+.basic_module_css-b {
+	color: green;
+}
+
+@-webkit-keyframes basic_module_css-\@bounce {
+	0%, 100% {
+		transform: translateY(-25%);
+		-webkit-animation-timing-function: cubic-bezier(0.8,0,1,1);
+		animation-timing-function: cubic-bezier(0.8,0,1,1);
+	}
+
+	50% {
+		transform: none;
+		-webkit-animation-timing-function: cubic-bezier(0,0,0.2,1);
+		animation-timing-function: cubic-bezier(0,0,0.2,1);
+	}
+}
+
+@keyframes basic_module_css-\@bounce {
+	0%, 100% {
+		transform: translateY(-25%);
+		-webkit-animation-timing-function: cubic-bezier(0.8,0,1,1);
+		animation-timing-function: cubic-bezier(0.8,0,1,1);
+	}
+
+	50% {
+		transform: none;
+		-webkit-animation-timing-function: cubic-bezier(0,0,0.2,1);
+		animation-timing-function: cubic-bezier(0,0,0.2,1);
+	}
+}
+
+.basic_module_css-container {
+	-webkit-animation: basic_module_css-\@bounce Xs infinite;
+	animation: basic_module_css-\@bounce Xs infinite;
+}
+
+.basic_module_css-abc .basic_module_css-def {
+	color: red;
+}
+
+.basic_module_css-ghi .basic_module_css-jkl {
+	color: blue;
+}
+
+.basic_module_css-className { background: red; }
+#basic_module_css-someId { background: green; }
+.basic_module_css-className .basic_module_css-subClass { color: green; }
+#basic_module_css-someId .basic_module_css-subClass { color: blue; }
+
+.basic_module_css-abc {
+	color: red;
+}
+.basic_module_css-def {
+	
+	background: green;
+}
+
+.basic_module_css-c1[data-attr=".c2)]'"]:not(.basic_module_css-c3):not(.basic_module_css-c4) {
+	background: red;
+}
+
+.basic_module_css-c1 .basic_module_css-c2 .basic_module_css-c3 .c4 .basic_module_css-c5, .basic_module_css-c6 .basic_module_css-c7 { background: red; }
+.basic_module_css-c8 { background: red; }
+
+.basic_module_css-a .basic_module_css-b, .basic_module_css-c .basic_module_css-d, #basic_module_css-id {
+	color: green;
+	font-size: 1.5pt;
+}
+a[href="#b.c"].basic_module_css-x.basic_module_css-y {
+	color: green;
+	font-size: 1.5pt;
+}
+@keyframes basic_module_css-q {
+	2.5% {color: green;}
+}
+
+/* Tests from css-loader */
+
+/* should work with the `default` class and with named export */
+.classes_module_css-default {
+	background: red
+}
+
+
+/* should work with the `module` class and with named export */
+.classes_module_css-module {
+	background: red
+}
+
+.alias_css-imported-alias {
+  display: table;
+}
+
+.alias-1_css-imported-alias-2 {
+  background: red;
+}
+
+.alias-1_css-imported-alias-3 {
+  background: red;
+}
+
+.composes-multiple_module_css-other-class {
+	color: red;
+}
+
+.composes-multiple_module_css-class-1 {
+	color: blue;
+}
+
+.composes-multiple_module_css-class-2 {
+	color: blue;
+}
+
+.global-class {
+	padding: 10px;
+}
+
+.global-class-1 {
+	padding: 10px;
+}
+
+.global-class-2 {
+	padding: 10px;
+}
+
+.composes-multiple_module_css-class {
+	
+	color: gainsboro;
+}
+
+.composes-multiple_module_css-class-other {
+	
+}
+
+
+.global-class {
+	color: red;
+}
+
+.other-global-class {
+	color: red;
+}
+
+.composes-global_module_css-otherClassName {
+	
+	
+	color: blue;
+}
+
+@scope (.scope-at-rule_module_css-light-scheme) {
+	:scope {
+		background-color: plum;
+	}
+
+	.scope-at-rule_module_css-class-a {
+		color: darkmagenta;
+	}
+}
+
+@scope (.scope-at-rule_module_css-dark-scheme) {
+	:scope {
+		background-color: darkmagenta;
+		color: antiquewhite;
+	}
+
+	.scope-at-rule_module_css-class-b {
+		color: plum;
+	}
+}
+
+@scope {
+	:scope {
+		color: red;
+	}
+}
+
+.nesting_module_css-notice {
+	width: 90%;
+	justify-content: center;
+	border-radius: 1rem;
+	border: black solid 2px;
+	background-color: #ffc107;
+	color: black;
+	padding: 1rem;
+
+	.nesting_module_css-notice-heading:before {
+		/* equivalent to `.notice .notice-heading:before` */
+		content: "ℹ︎ ";
+	}
+
+	&.nesting_module_css-warning {
+		/* equivalent to `.notice.warning` */
+		background-color: #d81b60;
+		border-color: #d81b60;
+		color: white;
+		.nesting_module_css-warning-heading:before {
+			/* equivalent to `.notice.warning .warning-heading:before` */
+			content: "! ";
+		}
+	}
+
+	&.nesting_module_css-success {
+		/* equivalent to `.notice.success` */
+		background-color: #004d40;
+		border-color: #004d40;
+		color: white;
+
+		.nesting_module_css-success-heading:before {
+			/* equivalent to `.notice.success .success-heading:before` */
+			content: "✓ ";
+		}
+	}
+}
+
+.nesting_module_css-foo {
+	color: red;
+}
+
+.nesting_module_css-bar {
+	
+
+	&.baz {
+		color: blue;
+	}
+}
+
+.nesting_module_css-foo {
+	display: grid;
+
+	@media (orientation: landscape) {
+		& {
+			grid-auto-flow: column;
+		}
+	}
+}
+
+@media (orientation: landscape) {
+	.nesting_module_css-a {
+		color: red;
+	}
+}
+
+@media (orientation: landscape) {
+	@media (orientation: landscape) {
+		.nesting_module_css-b {
+			color: red;
+			
+		}
+	}
+}
+
+.nesting_module_css-n {
+	
+
+	@media (orientation: landscape) {
+		color: red;
+	}
+}
+
+.package_one_css-imported-relative {
+    display: block;
+}
+
+.node_modules_package_two_css-imported-relative {
+    display: inline;
+}
+
+.prefer-relative_module_css-one {
+	color: yellow;
+	
+}
+
+.prefer-relative_module_css-two {
+	color: yellow;
+	
+}
+
+.animation-name_module_css-a {
+	animation: Xs animation-name_module_css-animationName;
+}
+
+.animation-name_module_css-b {
+	animation: animation-name_module_css-animationName Xs;
+}
+
+.animation-name_module_css-c {
+	animation-name: animation-name_module_css-animationName;
+}
+
+@keyframes animation-name_module_css-animationName {
+	0% {
+		background: white;
+	}
+	100% {
+		background: red;
+	}
+}
+
+.node_modules_\@foo_package_style_module_css-class {
+	color: red;
+}
+
+.node_modules_foo_package_style_module_css-class {
+	color: red;
+}
+
+
+
+
+.at-sign-in-package-name_module_css-myClass {
+	color: red;
+}
+
+
+
+.node_modules_\@otherlocalpackage_style_css-type-heading2 {
+  display: flex;
+}
+
+.node_modules_\@localpackage_style_css-type-heading {
+  color: red;
+  
+  margin: 0;
+  padding: 0;
+}
+
+gray
+
+.resolving-from-node_modules_module_css-copyright {
+  color: gray;
+  
+  margin: 0;
+  padding: 0;
+}
+
+.local-_dent-name_module_css-test {
+  background: red;
+}
+
+.local-_dent-name_module_css-_test {
+  background: blue;
+}
+
+.local-_dent-name_module_css-className {
+  background: red;
+}
+
+#local-_dent-name_module_css-someId {
+  background: green;
+}
+
+.local-_dent-name_module_css-className .local-_dent-name_module_css-subClass {
+  color: green;
+}
+
+#local-_dent-name_module_css-someId .local-_dent-name_module_css-subClass {
+  color: blue;
+}
+
+.local-_dent-name_module_css--a0-34a___f {
+  color: red;
+}
+
+.local-_dent-name_module_css-m_x_\@ {
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+
+.local-_dent-name_module_css-B\&W\? {
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+
+/* matches elements with class=":`(" */
+.local-_dent-name_module_css-\:\`\( {
+  color: aqua;
+}
+
+/* matches elements with class="1a2b3c" */
+.local-_dent-name_module_css-1a2b3c {
+  color: aliceblue;
+}
+
+/* matches the element with id="#fake-id" */
+#local-_dent-name_module_css-\#fake-id {
+  color: antiquewhite;
+}
+
+/* matches the element with id="-a-b-c-" */
+#local-_dent-name_module_css--a-b-c- {
+  color: azure;
+}
+
+/* matches the element with id="©" */
+#local-_dent-name_module_css-© {
+  color: black;
+}
+
+.local-_dent-name_module_css-♥ { background: lime; }
+.local-_dent-name_module_css-© { background: lime; }
+.local-_dent-name_module_css-\😍 { background: lime; }
+.local-_dent-name_module_css-“‘’” { background: lime; }
+.local-_dent-name_module_css-☺☃ { background: lime; }
+.local-_dent-name_module_css-⌘⌥ { background: lime; }
+.local-_dent-name_module_css-\𝄞♪♩♫♬ { background: lime; }
+.local-_dent-name_module_css-\💩 { background: lime; }
+.local-_dent-name_module_css-\? { background: lime; }
+.local-_dent-name_module_css-\@ { background: lime; }
+.local-_dent-name_module_css-\. { background: lime; }
+.local-_dent-name_module_css-\:\) { background: lime; }
+.local-_dent-name_module_css-\:\`\( { background: lime; }
+.local-_dent-name_module_css-123 { background: lime; }
+.local-_dent-name_module_css-1a2b3c { background: lime; }
+.local-_dent-name_module_css-\<p\> { background: lime; }
+.local-_dent-name_module_css-\<\>\<\<\<\>\>\<\> { background: lime; }
+.local-_dent-name_module_css-\+\+\+\+\+\+\+\+\+\+\[\>\+\+\+\+\+\+\+\>\+\+\+\+\+\+\+\+\+\+\>\+\+\+\>\+\<\<\<\<-\]\>\+\+\.\>\+\.\+\+\+\+\+\+\+\.\.\+\+\+\.\>\+\+\.\<\<\+\+\+\+\+\+\+\+\+\+\+\+\+\+\+\.\>\.\+\+\+\.------\.--------\.\>\+\.\>\. { background: lime; }
+.local-_dent-name_module_css-\# { background: lime; }
+.local-_dent-name_module_css-\#\# { background: lime; }
+.local-_dent-name_module_css-\#\.\#\.\# { background: lime; }
+.local-_dent-name_module_css-_ { background: lime; }
+.local-_dent-name_module_css-\{\} { background: lime; }
+.local-_dent-name_module_css-\#fake-id { background: lime; }
+.local-_dent-name_module_css-foo\.bar { background: lime; }
+.local-_dent-name_module_css-\:hover { background: lime; }
+.local-_dent-name_module_css-\:hover\:focus\:active { background: lime; }
+.local-_dent-name_module_css-\[attr\=value\] { background: lime; }
+.local-_dent-name_module_css-f\/o\/o { background: lime; }
+.local-_dent-name_module_css-f\\o\\o { background: lime; }
+.local-_dent-name_module_css-f\*o\*o { background: lime; }
+.local-_dent-name_module_css-f\!o\!o { background: lime; }
+.local-_dent-name_module_css-f\'o\'o { background: lime; }
+.local-_dent-name_module_css-f\~o\~o { background: lime; }
+.local-_dent-name_module_css-f\+o\+o { background: lime; }
+
+.local-_dent-name_module_css-foo\/bar {
+  background: hotpink;
+}
+
+.local-_dent-name_module_css-foo\\bar {
+  background: hotpink;
+}
+
+.local-_dent-name_module_css-foo\/bar\/baz {
+  background: hotpink;
+}
+
+.local-_dent-name_module_css-foo\\bar\\baz {
+  background: hotpink;
+}
+
+.local-_dent-name_module_css_local-ident-name-1-test {
+  background: red;
+}
+
+.local-_dent-name_module_css_local-ident-name-1-_test {
+  background: blue;
+}
+
+.local-_dent-name_module_css_local-ident-name-1-className {
+  background: red;
+}
+
+#local-_dent-name_module_css_local-ident-name-1-someId {
+  background: green;
+}
+
+.local-_dent-name_module_css_local-ident-name-1-className .local-_dent-name_module_css_local-ident-name-1-subClass {
+  color: green;
+}
+
+#local-_dent-name_module_css_local-ident-name-1-someId .local-_dent-name_module_css_local-ident-name-1-subClass {
+  color: blue;
+}
+
+.local-_dent-name_module_css_local-ident-name-1--a0-34a___f {
+  color: red;
+}
+
+.local-_dent-name_module_css_local-ident-name-1-m_x_\@ {
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+
+.local-_dent-name_module_css_local-ident-name-1-B\&W\? {
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+
+/* matches elements with class=":`(" */
+.local-_dent-name_module_css_local-ident-name-1-\:\`\( {
+  color: aqua;
+}
+
+/* matches elements with class="1a2b3c" */
+.local-_dent-name_module_css_local-ident-name-1-1a2b3c {
+  color: aliceblue;
+}
+
+/* matches the element with id="#fake-id" */
+#local-_dent-name_module_css_local-ident-name-1-\#fake-id {
+  color: antiquewhite;
+}
+
+/* matches the element with id="-a-b-c-" */
+#local-_dent-name_module_css_local-ident-name-1--a-b-c- {
+  color: azure;
+}
+
+/* matches the element with id="©" */
+#local-_dent-name_module_css_local-ident-name-1-© {
+  color: black;
+}
+
+.local-_dent-name_module_css_local-ident-name-1-♥ { background: lime; }
+.local-_dent-name_module_css_local-ident-name-1-© { background: lime; }
+.local-_dent-name_module_css_local-ident-name-1-\😍 { background: lime; }
+.local-_dent-name_module_css_local-ident-name-1-“‘’” { background: lime; }
+.local-_dent-name_module_css_local-ident-name-1-☺☃ { background: lime; }
+.local-_dent-name_module_css_local-ident-name-1-⌘⌥ { background: lime; }
+.local-_dent-name_module_css_local-ident-name-1-\𝄞♪♩♫♬ { background: lime; }
+.local-_dent-name_module_css_local-ident-name-1-\💩 { background: lime; }
+.local-_dent-name_module_css_local-ident-name-1-\? { background: lime; }
+.local-_dent-name_module_css_local-ident-name-1-\@ { background: lime; }
+.local-_dent-name_module_css_local-ident-name-1-\. { background: lime; }
+.local-_dent-name_module_css_local-ident-name-1-\:\) { background: lime; }
+.local-_dent-name_module_css_local-ident-name-1-\:\`\( { background: lime; }
+.local-_dent-name_module_css_local-ident-name-1-123 { background: lime; }
+.local-_dent-name_module_css_local-ident-name-1-1a2b3c { background: lime; }
+.local-_dent-name_module_css_local-ident-name-1-\<p\> { background: lime; }
+.local-_dent-name_module_css_local-ident-name-1-\<\>\<\<\<\>\>\<\> { background: lime; }
+.local-_dent-name_module_css_local-ident-name-1-\+\+\+\+\+\+\+\+\+\+\[\>\+\+\+\+\+\+\+\>\+\+\+\+\+\+\+\+\+\+\>\+\+\+\>\+\<\<\<\<-\]\>\+\+\.\>\+\.\+\+\+\+\+\+\+\.\.\+\+\+\.\>\+\+\.\<\<\+\+\+\+\+\+\+\+\+\+\+\+\+\+\+\.\>\.\+\+\+\.------\.--------\.\>\+\.\>\. { background: lime; }
+.local-_dent-name_module_css_local-ident-name-1-\# { background: lime; }
+.local-_dent-name_module_css_local-ident-name-1-\#\# { background: lime; }
+.local-_dent-name_module_css_local-ident-name-1-\#\.\#\.\# { background: lime; }
+.local-_dent-name_module_css_local-ident-name-1-_ { background: lime; }
+.local-_dent-name_module_css_local-ident-name-1-\{\} { background: lime; }
+.local-_dent-name_module_css_local-ident-name-1-\#fake-id { background: lime; }
+.local-_dent-name_module_css_local-ident-name-1-foo\.bar { background: lime; }
+.local-_dent-name_module_css_local-ident-name-1-\:hover { background: lime; }
+.local-_dent-name_module_css_local-ident-name-1-\:hover\:focus\:active { background: lime; }
+.local-_dent-name_module_css_local-ident-name-1-\[attr\=value\] { background: lime; }
+.local-_dent-name_module_css_local-ident-name-1-f\/o\/o { background: lime; }
+.local-_dent-name_module_css_local-ident-name-1-f\\o\\o { background: lime; }
+.local-_dent-name_module_css_local-ident-name-1-f\*o\*o { background: lime; }
+.local-_dent-name_module_css_local-ident-name-1-f\!o\!o { background: lime; }
+.local-_dent-name_module_css_local-ident-name-1-f\'o\'o { background: lime; }
+.local-_dent-name_module_css_local-ident-name-1-f\~o\~o { background: lime; }
+.local-_dent-name_module_css_local-ident-name-1-f\+o\+o { background: lime; }
+
+.local-_dent-name_module_css_local-ident-name-1-foo\/bar {
+  background: hotpink;
+}
+
+.local-_dent-name_module_css_local-ident-name-1-foo\\bar {
+  background: hotpink;
+}
+
+.local-_dent-name_module_css_local-ident-name-1-foo\/bar\/baz {
+  background: hotpink;
+}
+
+.local-_dent-name_module_css_local-ident-name-1-foo\\bar\\baz {
+  background: hotpink;
+}
+
+.local-_dent-name_module_css_local-ident-name-2-test {
+  background: red;
+}
+
+.local-_dent-name_module_css_local-ident-name-2-_test {
+  background: blue;
+}
+
+.local-_dent-name_module_css_local-ident-name-2-className {
+  background: red;
+}
+
+#local-_dent-name_module_css_local-ident-name-2-someId {
+  background: green;
+}
+
+.local-_dent-name_module_css_local-ident-name-2-className .local-_dent-name_module_css_local-ident-name-2-subClass {
+  color: green;
+}
+
+#local-_dent-name_module_css_local-ident-name-2-someId .local-_dent-name_module_css_local-ident-name-2-subClass {
+  color: blue;
+}
+
+.local-_dent-name_module_css_local-ident-name-2--a0-34a___f {
+  color: red;
+}
+
+.local-_dent-name_module_css_local-ident-name-2-m_x_\@ {
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+
+.local-_dent-name_module_css_local-ident-name-2-B\&W\? {
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+
+/* matches elements with class=":`(" */
+.local-_dent-name_module_css_local-ident-name-2-\:\`\( {
+  color: aqua;
+}
+
+/* matches elements with class="1a2b3c" */
+.local-_dent-name_module_css_local-ident-name-2-1a2b3c {
+  color: aliceblue;
+}
+
+/* matches the element with id="#fake-id" */
+#local-_dent-name_module_css_local-ident-name-2-\#fake-id {
+  color: antiquewhite;
+}
+
+/* matches the element with id="-a-b-c-" */
+#local-_dent-name_module_css_local-ident-name-2--a-b-c- {
+  color: azure;
+}
+
+/* matches the element with id="©" */
+#local-_dent-name_module_css_local-ident-name-2-© {
+  color: black;
+}
+
+.local-_dent-name_module_css_local-ident-name-2-♥ { background: lime; }
+.local-_dent-name_module_css_local-ident-name-2-© { background: lime; }
+.local-_dent-name_module_css_local-ident-name-2-\😍 { background: lime; }
+.local-_dent-name_module_css_local-ident-name-2-“‘’” { background: lime; }
+.local-_dent-name_module_css_local-ident-name-2-☺☃ { background: lime; }
+.local-_dent-name_module_css_local-ident-name-2-⌘⌥ { background: lime; }
+.local-_dent-name_module_css_local-ident-name-2-\𝄞♪♩♫♬ { background: lime; }
+.local-_dent-name_module_css_local-ident-name-2-\💩 { background: lime; }
+.local-_dent-name_module_css_local-ident-name-2-\? { background: lime; }
+.local-_dent-name_module_css_local-ident-name-2-\@ { background: lime; }
+.local-_dent-name_module_css_local-ident-name-2-\. { background: lime; }
+.local-_dent-name_module_css_local-ident-name-2-\:\) { background: lime; }
+.local-_dent-name_module_css_local-ident-name-2-\:\`\( { background: lime; }
+.local-_dent-name_module_css_local-ident-name-2-123 { background: lime; }
+.local-_dent-name_module_css_local-ident-name-2-1a2b3c { background: lime; }
+.local-_dent-name_module_css_local-ident-name-2-\<p\> { background: lime; }
+.local-_dent-name_module_css_local-ident-name-2-\<\>\<\<\<\>\>\<\> { background: lime; }
+.local-_dent-name_module_css_local-ident-name-2-\+\+\+\+\+\+\+\+\+\+\[\>\+\+\+\+\+\+\+\>\+\+\+\+\+\+\+\+\+\+\>\+\+\+\>\+\<\<\<\<-\]\>\+\+\.\>\+\.\+\+\+\+\+\+\+\.\.\+\+\+\.\>\+\+\.\<\<\+\+\+\+\+\+\+\+\+\+\+\+\+\+\+\.\>\.\+\+\+\.------\.--------\.\>\+\.\>\. { background: lime; }
+.local-_dent-name_module_css_local-ident-name-2-\# { background: lime; }
+.local-_dent-name_module_css_local-ident-name-2-\#\# { background: lime; }
+.local-_dent-name_module_css_local-ident-name-2-\#\.\#\.\# { background: lime; }
+.local-_dent-name_module_css_local-ident-name-2-_ { background: lime; }
+.local-_dent-name_module_css_local-ident-name-2-\{\} { background: lime; }
+.local-_dent-name_module_css_local-ident-name-2-\#fake-id { background: lime; }
+.local-_dent-name_module_css_local-ident-name-2-foo\.bar { background: lime; }
+.local-_dent-name_module_css_local-ident-name-2-\:hover { background: lime; }
+.local-_dent-name_module_css_local-ident-name-2-\:hover\:focus\:active { background: lime; }
+.local-_dent-name_module_css_local-ident-name-2-\[attr\=value\] { background: lime; }
+.local-_dent-name_module_css_local-ident-name-2-f\/o\/o { background: lime; }
+.local-_dent-name_module_css_local-ident-name-2-f\\o\\o { background: lime; }
+.local-_dent-name_module_css_local-ident-name-2-f\*o\*o { background: lime; }
+.local-_dent-name_module_css_local-ident-name-2-f\!o\!o { background: lime; }
+.local-_dent-name_module_css_local-ident-name-2-f\'o\'o { background: lime; }
+.local-_dent-name_module_css_local-ident-name-2-f\~o\~o { background: lime; }
+.local-_dent-name_module_css_local-ident-name-2-f\+o\+o { background: lime; }
+
+.local-_dent-name_module_css_local-ident-name-2-foo\/bar {
+  background: hotpink;
+}
+
+.local-_dent-name_module_css_local-ident-name-2-foo\\bar {
+  background: hotpink;
+}
+
+.local-_dent-name_module_css_local-ident-name-2-foo\/bar\/baz {
+  background: hotpink;
+}
+
+.local-_dent-name_module_css_local-ident-name-2-foo\\bar\\baz {
+  background: hotpink;
+}
+
+.local-_dent-name_module_css_local-ident-name-3-test {
+  background: red;
+}
+
+.local-_dent-name_module_css_local-ident-name-3-_test {
+  background: blue;
+}
+
+.local-_dent-name_module_css_local-ident-name-3-className {
+  background: red;
+}
+
+#local-_dent-name_module_css_local-ident-name-3-someId {
+  background: green;
+}
+
+.local-_dent-name_module_css_local-ident-name-3-className .local-_dent-name_module_css_local-ident-name-3-subClass {
+  color: green;
+}
+
+#local-_dent-name_module_css_local-ident-name-3-someId .local-_dent-name_module_css_local-ident-name-3-subClass {
+  color: blue;
+}
+
+.local-_dent-name_module_css_local-ident-name-3--a0-34a___f {
+  color: red;
+}
+
+.local-_dent-name_module_css_local-ident-name-3-m_x_\@ {
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+
+.local-_dent-name_module_css_local-ident-name-3-B\&W\? {
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+
+/* matches elements with class=":`(" */
+.local-_dent-name_module_css_local-ident-name-3-\:\`\( {
+  color: aqua;
+}
+
+/* matches elements with class="1a2b3c" */
+.local-_dent-name_module_css_local-ident-name-3-1a2b3c {
+  color: aliceblue;
+}
+
+/* matches the element with id="#fake-id" */
+#local-_dent-name_module_css_local-ident-name-3-\#fake-id {
+  color: antiquewhite;
+}
+
+/* matches the element with id="-a-b-c-" */
+#local-_dent-name_module_css_local-ident-name-3--a-b-c- {
+  color: azure;
+}
+
+/* matches the element with id="©" */
+#local-_dent-name_module_css_local-ident-name-3-© {
+  color: black;
+}
+
+.local-_dent-name_module_css_local-ident-name-3-♥ { background: lime; }
+.local-_dent-name_module_css_local-ident-name-3-© { background: lime; }
+.local-_dent-name_module_css_local-ident-name-3-\😍 { background: lime; }
+.local-_dent-name_module_css_local-ident-name-3-“‘’” { background: lime; }
+.local-_dent-name_module_css_local-ident-name-3-☺☃ { background: lime; }
+.local-_dent-name_module_css_local-ident-name-3-⌘⌥ { background: lime; }
+.local-_dent-name_module_css_local-ident-name-3-\𝄞♪♩♫♬ { background: lime; }
+.local-_dent-name_module_css_local-ident-name-3-\💩 { background: lime; }
+.local-_dent-name_module_css_local-ident-name-3-\? { background: lime; }
+.local-_dent-name_module_css_local-ident-name-3-\@ { background: lime; }
+.local-_dent-name_module_css_local-ident-name-3-\. { background: lime; }
+.local-_dent-name_module_css_local-ident-name-3-\:\) { background: lime; }
+.local-_dent-name_module_css_local-ident-name-3-\:\`\( { background: lime; }
+.local-_dent-name_module_css_local-ident-name-3-123 { background: lime; }
+.local-_dent-name_module_css_local-ident-name-3-1a2b3c { background: lime; }
+.local-_dent-name_module_css_local-ident-name-3-\<p\> { background: lime; }
+.local-_dent-name_module_css_local-ident-name-3-\<\>\<\<\<\>\>\<\> { background: lime; }
+.local-_dent-name_module_css_local-ident-name-3-\+\+\+\+\+\+\+\+\+\+\[\>\+\+\+\+\+\+\+\>\+\+\+\+\+\+\+\+\+\+\>\+\+\+\>\+\<\<\<\<-\]\>\+\+\.\>\+\.\+\+\+\+\+\+\+\.\.\+\+\+\.\>\+\+\.\<\<\+\+\+\+\+\+\+\+\+\+\+\+\+\+\+\.\>\.\+\+\+\.------\.--------\.\>\+\.\>\. { background: lime; }
+.local-_dent-name_module_css_local-ident-name-3-\# { background: lime; }
+.local-_dent-name_module_css_local-ident-name-3-\#\# { background: lime; }
+.local-_dent-name_module_css_local-ident-name-3-\#\.\#\.\# { background: lime; }
+.local-_dent-name_module_css_local-ident-name-3-_ { background: lime; }
+.local-_dent-name_module_css_local-ident-name-3-\{\} { background: lime; }
+.local-_dent-name_module_css_local-ident-name-3-\#fake-id { background: lime; }
+.local-_dent-name_module_css_local-ident-name-3-foo\.bar { background: lime; }
+.local-_dent-name_module_css_local-ident-name-3-\:hover { background: lime; }
+.local-_dent-name_module_css_local-ident-name-3-\:hover\:focus\:active { background: lime; }
+.local-_dent-name_module_css_local-ident-name-3-\[attr\=value\] { background: lime; }
+.local-_dent-name_module_css_local-ident-name-3-f\/o\/o { background: lime; }
+.local-_dent-name_module_css_local-ident-name-3-f\\o\\o { background: lime; }
+.local-_dent-name_module_css_local-ident-name-3-f\*o\*o { background: lime; }
+.local-_dent-name_module_css_local-ident-name-3-f\!o\!o { background: lime; }
+.local-_dent-name_module_css_local-ident-name-3-f\'o\'o { background: lime; }
+.local-_dent-name_module_css_local-ident-name-3-f\~o\~o { background: lime; }
+.local-_dent-name_module_css_local-ident-name-3-f\+o\+o { background: lime; }
+
+.local-_dent-name_module_css_local-ident-name-3-foo\/bar {
+  background: hotpink;
+}
+
+.local-_dent-name_module_css_local-ident-name-3-foo\\bar {
+  background: hotpink;
+}
+
+.local-_dent-name_module_css_local-ident-name-3-foo\/bar\/baz {
+  background: hotpink;
+}
+
+.local-_dent-name_module_css_local-ident-name-3-foo\\bar\\baz {
+  background: hotpink;
+}
+
+.local-_dent-name_module_css_local-ident-name-4-test {
+  background: red;
+}
+
+.local-_dent-name_module_css_local-ident-name-4-_test {
+  background: blue;
+}
+
+.local-_dent-name_module_css_local-ident-name-4-className {
+  background: red;
+}
+
+#local-_dent-name_module_css_local-ident-name-4-someId {
+  background: green;
+}
+
+.local-_dent-name_module_css_local-ident-name-4-className .local-_dent-name_module_css_local-ident-name-4-subClass {
+  color: green;
+}
+
+#local-_dent-name_module_css_local-ident-name-4-someId .local-_dent-name_module_css_local-ident-name-4-subClass {
+  color: blue;
+}
+
+.local-_dent-name_module_css_local-ident-name-4--a0-34a___f {
+  color: red;
+}
+
+.local-_dent-name_module_css_local-ident-name-4-m_x_\@ {
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+
+.local-_dent-name_module_css_local-ident-name-4-B\&W\? {
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+
+/* matches elements with class=":`(" */
+.local-_dent-name_module_css_local-ident-name-4-\:\`\( {
+  color: aqua;
+}
+
+/* matches elements with class="1a2b3c" */
+.local-_dent-name_module_css_local-ident-name-4-1a2b3c {
+  color: aliceblue;
+}
+
+/* matches the element with id="#fake-id" */
+#local-_dent-name_module_css_local-ident-name-4-\#fake-id {
+  color: antiquewhite;
+}
+
+/* matches the element with id="-a-b-c-" */
+#local-_dent-name_module_css_local-ident-name-4--a-b-c- {
+  color: azure;
+}
+
+/* matches the element with id="©" */
+#local-_dent-name_module_css_local-ident-name-4-© {
+  color: black;
+}
+
+.local-_dent-name_module_css_local-ident-name-4-♥ { background: lime; }
+.local-_dent-name_module_css_local-ident-name-4-© { background: lime; }
+.local-_dent-name_module_css_local-ident-name-4-\😍 { background: lime; }
+.local-_dent-name_module_css_local-ident-name-4-“‘’” { background: lime; }
+.local-_dent-name_module_css_local-ident-name-4-☺☃ { background: lime; }
+.local-_dent-name_module_css_local-ident-name-4-⌘⌥ { background: lime; }
+.local-_dent-name_module_css_local-ident-name-4-\𝄞♪♩♫♬ { background: lime; }
+.local-_dent-name_module_css_local-ident-name-4-\💩 { background: lime; }
+.local-_dent-name_module_css_local-ident-name-4-\? { background: lime; }
+.local-_dent-name_module_css_local-ident-name-4-\@ { background: lime; }
+.local-_dent-name_module_css_local-ident-name-4-\. { background: lime; }
+.local-_dent-name_module_css_local-ident-name-4-\:\) { background: lime; }
+.local-_dent-name_module_css_local-ident-name-4-\:\`\( { background: lime; }
+.local-_dent-name_module_css_local-ident-name-4-123 { background: lime; }
+.local-_dent-name_module_css_local-ident-name-4-1a2b3c { background: lime; }
+.local-_dent-name_module_css_local-ident-name-4-\<p\> { background: lime; }
+.local-_dent-name_module_css_local-ident-name-4-\<\>\<\<\<\>\>\<\> { background: lime; }
+.local-_dent-name_module_css_local-ident-name-4-\+\+\+\+\+\+\+\+\+\+\[\>\+\+\+\+\+\+\+\>\+\+\+\+\+\+\+\+\+\+\>\+\+\+\>\+\<\<\<\<-\]\>\+\+\.\>\+\.\+\+\+\+\+\+\+\.\.\+\+\+\.\>\+\+\.\<\<\+\+\+\+\+\+\+\+\+\+\+\+\+\+\+\.\>\.\+\+\+\.------\.--------\.\>\+\.\>\. { background: lime; }
+.local-_dent-name_module_css_local-ident-name-4-\# { background: lime; }
+.local-_dent-name_module_css_local-ident-name-4-\#\# { background: lime; }
+.local-_dent-name_module_css_local-ident-name-4-\#\.\#\.\# { background: lime; }
+.local-_dent-name_module_css_local-ident-name-4-_ { background: lime; }
+.local-_dent-name_module_css_local-ident-name-4-\{\} { background: lime; }
+.local-_dent-name_module_css_local-ident-name-4-\#fake-id { background: lime; }
+.local-_dent-name_module_css_local-ident-name-4-foo\.bar { background: lime; }
+.local-_dent-name_module_css_local-ident-name-4-\:hover { background: lime; }
+.local-_dent-name_module_css_local-ident-name-4-\:hover\:focus\:active { background: lime; }
+.local-_dent-name_module_css_local-ident-name-4-\[attr\=value\] { background: lime; }
+.local-_dent-name_module_css_local-ident-name-4-f\/o\/o { background: lime; }
+.local-_dent-name_module_css_local-ident-name-4-f\\o\\o { background: lime; }
+.local-_dent-name_module_css_local-ident-name-4-f\*o\*o { background: lime; }
+.local-_dent-name_module_css_local-ident-name-4-f\!o\!o { background: lime; }
+.local-_dent-name_module_css_local-ident-name-4-f\'o\'o { background: lime; }
+.local-_dent-name_module_css_local-ident-name-4-f\~o\~o { background: lime; }
+.local-_dent-name_module_css_local-ident-name-4-f\+o\+o { background: lime; }
+
+.local-_dent-name_module_css_local-ident-name-4-foo\/bar {
+  background: hotpink;
+}
+
+.local-_dent-name_module_css_local-ident-name-4-foo\\bar {
+  background: hotpink;
+}
+
+.local-_dent-name_module_css_local-ident-name-4-foo\/bar\/baz {
+  background: hotpink;
+}
+
+.local-_dent-name_module_css_local-ident-name-4-foo\\bar\\baz {
+  background: hotpink;
+}
+
+.local-_dent-name_module_css_local-ident-name-5-test {
+  background: red;
+}
+
+.local-_dent-name_module_css_local-ident-name-5-_test {
+  background: blue;
+}
+
+.local-_dent-name_module_css_local-ident-name-5-className {
+  background: red;
+}
+
+#local-_dent-name_module_css_local-ident-name-5-someId {
+  background: green;
+}
+
+.local-_dent-name_module_css_local-ident-name-5-className .local-_dent-name_module_css_local-ident-name-5-subClass {
+  color: green;
+}
+
+#local-_dent-name_module_css_local-ident-name-5-someId .local-_dent-name_module_css_local-ident-name-5-subClass {
+  color: blue;
+}
+
+.local-_dent-name_module_css_local-ident-name-5--a0-34a___f {
+  color: red;
+}
+
+.local-_dent-name_module_css_local-ident-name-5-m_x_\@ {
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+
+.local-_dent-name_module_css_local-ident-name-5-B\&W\? {
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+
+/* matches elements with class=":`(" */
+.local-_dent-name_module_css_local-ident-name-5-\:\`\( {
+  color: aqua;
+}
+
+/* matches elements with class="1a2b3c" */
+.local-_dent-name_module_css_local-ident-name-5-1a2b3c {
+  color: aliceblue;
+}
+
+/* matches the element with id="#fake-id" */
+#local-_dent-name_module_css_local-ident-name-5-\#fake-id {
+  color: antiquewhite;
+}
+
+/* matches the element with id="-a-b-c-" */
+#local-_dent-name_module_css_local-ident-name-5--a-b-c- {
+  color: azure;
+}
+
+/* matches the element with id="©" */
+#local-_dent-name_module_css_local-ident-name-5-© {
+  color: black;
+}
+
+.local-_dent-name_module_css_local-ident-name-5-♥ { background: lime; }
+.local-_dent-name_module_css_local-ident-name-5-© { background: lime; }
+.local-_dent-name_module_css_local-ident-name-5-\😍 { background: lime; }
+.local-_dent-name_module_css_local-ident-name-5-“‘’” { background: lime; }
+.local-_dent-name_module_css_local-ident-name-5-☺☃ { background: lime; }
+.local-_dent-name_module_css_local-ident-name-5-⌘⌥ { background: lime; }
+.local-_dent-name_module_css_local-ident-name-5-\𝄞♪♩♫♬ { background: lime; }
+.local-_dent-name_module_css_local-ident-name-5-\💩 { background: lime; }
+.local-_dent-name_module_css_local-ident-name-5-\? { background: lime; }
+.local-_dent-name_module_css_local-ident-name-5-\@ { background: lime; }
+.local-_dent-name_module_css_local-ident-name-5-\. { background: lime; }
+.local-_dent-name_module_css_local-ident-name-5-\:\) { background: lime; }
+.local-_dent-name_module_css_local-ident-name-5-\:\`\( { background: lime; }
+.local-_dent-name_module_css_local-ident-name-5-123 { background: lime; }
+.local-_dent-name_module_css_local-ident-name-5-1a2b3c { background: lime; }
+.local-_dent-name_module_css_local-ident-name-5-\<p\> { background: lime; }
+.local-_dent-name_module_css_local-ident-name-5-\<\>\<\<\<\>\>\<\> { background: lime; }
+.local-_dent-name_module_css_local-ident-name-5-\+\+\+\+\+\+\+\+\+\+\[\>\+\+\+\+\+\+\+\>\+\+\+\+\+\+\+\+\+\+\>\+\+\+\>\+\<\<\<\<-\]\>\+\+\.\>\+\.\+\+\+\+\+\+\+\.\.\+\+\+\.\>\+\+\.\<\<\+\+\+\+\+\+\+\+\+\+\+\+\+\+\+\.\>\.\+\+\+\.------\.--------\.\>\+\.\>\. { background: lime; }
+.local-_dent-name_module_css_local-ident-name-5-\# { background: lime; }
+.local-_dent-name_module_css_local-ident-name-5-\#\# { background: lime; }
+.local-_dent-name_module_css_local-ident-name-5-\#\.\#\.\# { background: lime; }
+.local-_dent-name_module_css_local-ident-name-5-_ { background: lime; }
+.local-_dent-name_module_css_local-ident-name-5-\{\} { background: lime; }
+.local-_dent-name_module_css_local-ident-name-5-\#fake-id { background: lime; }
+.local-_dent-name_module_css_local-ident-name-5-foo\.bar { background: lime; }
+.local-_dent-name_module_css_local-ident-name-5-\:hover { background: lime; }
+.local-_dent-name_module_css_local-ident-name-5-\:hover\:focus\:active { background: lime; }
+.local-_dent-name_module_css_local-ident-name-5-\[attr\=value\] { background: lime; }
+.local-_dent-name_module_css_local-ident-name-5-f\/o\/o { background: lime; }
+.local-_dent-name_module_css_local-ident-name-5-f\\o\\o { background: lime; }
+.local-_dent-name_module_css_local-ident-name-5-f\*o\*o { background: lime; }
+.local-_dent-name_module_css_local-ident-name-5-f\!o\!o { background: lime; }
+.local-_dent-name_module_css_local-ident-name-5-f\'o\'o { background: lime; }
+.local-_dent-name_module_css_local-ident-name-5-f\~o\~o { background: lime; }
+.local-_dent-name_module_css_local-ident-name-5-f\+o\+o { background: lime; }
+
+.local-_dent-name_module_css_local-ident-name-5-foo\/bar {
+  background: hotpink;
+}
+
+.local-_dent-name_module_css_local-ident-name-5-foo\\bar {
+  background: hotpink;
+}
+
+.local-_dent-name_module_css_local-ident-name-5-foo\/bar\/baz {
+  background: hotpink;
+}
+
+.local-_dent-name_module_css_local-ident-name-5-foo\\bar\\baz {
+  background: hotpink;
+}
+
+.local-_dent-name_module_css_local-ident-name-6-test {
+  background: red;
+}
+
+.local-_dent-name_module_css_local-ident-name-6-_test {
+  background: blue;
+}
+
+.local-_dent-name_module_css_local-ident-name-6-className {
+  background: red;
+}
+
+#local-_dent-name_module_css_local-ident-name-6-someId {
+  background: green;
+}
+
+.local-_dent-name_module_css_local-ident-name-6-className .local-_dent-name_module_css_local-ident-name-6-subClass {
+  color: green;
+}
+
+#local-_dent-name_module_css_local-ident-name-6-someId .local-_dent-name_module_css_local-ident-name-6-subClass {
+  color: blue;
+}
+
+.local-_dent-name_module_css_local-ident-name-6--a0-34a___f {
+  color: red;
+}
+
+.local-_dent-name_module_css_local-ident-name-6-m_x_\@ {
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+
+.local-_dent-name_module_css_local-ident-name-6-B\&W\? {
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+
+/* matches elements with class=":`(" */
+.local-_dent-name_module_css_local-ident-name-6-\:\`\( {
+  color: aqua;
+}
+
+/* matches elements with class="1a2b3c" */
+.local-_dent-name_module_css_local-ident-name-6-1a2b3c {
+  color: aliceblue;
+}
+
+/* matches the element with id="#fake-id" */
+#local-_dent-name_module_css_local-ident-name-6-\#fake-id {
+  color: antiquewhite;
+}
+
+/* matches the element with id="-a-b-c-" */
+#local-_dent-name_module_css_local-ident-name-6--a-b-c- {
+  color: azure;
+}
+
+/* matches the element with id="©" */
+#local-_dent-name_module_css_local-ident-name-6-© {
+  color: black;
+}
+
+.local-_dent-name_module_css_local-ident-name-6-♥ { background: lime; }
+.local-_dent-name_module_css_local-ident-name-6-© { background: lime; }
+.local-_dent-name_module_css_local-ident-name-6-\😍 { background: lime; }
+.local-_dent-name_module_css_local-ident-name-6-“‘’” { background: lime; }
+.local-_dent-name_module_css_local-ident-name-6-☺☃ { background: lime; }
+.local-_dent-name_module_css_local-ident-name-6-⌘⌥ { background: lime; }
+.local-_dent-name_module_css_local-ident-name-6-\𝄞♪♩♫♬ { background: lime; }
+.local-_dent-name_module_css_local-ident-name-6-\💩 { background: lime; }
+.local-_dent-name_module_css_local-ident-name-6-\? { background: lime; }
+.local-_dent-name_module_css_local-ident-name-6-\@ { background: lime; }
+.local-_dent-name_module_css_local-ident-name-6-\. { background: lime; }
+.local-_dent-name_module_css_local-ident-name-6-\:\) { background: lime; }
+.local-_dent-name_module_css_local-ident-name-6-\:\`\( { background: lime; }
+.local-_dent-name_module_css_local-ident-name-6-123 { background: lime; }
+.local-_dent-name_module_css_local-ident-name-6-1a2b3c { background: lime; }
+.local-_dent-name_module_css_local-ident-name-6-\<p\> { background: lime; }
+.local-_dent-name_module_css_local-ident-name-6-\<\>\<\<\<\>\>\<\> { background: lime; }
+.local-_dent-name_module_css_local-ident-name-6-\+\+\+\+\+\+\+\+\+\+\[\>\+\+\+\+\+\+\+\>\+\+\+\+\+\+\+\+\+\+\>\+\+\+\>\+\<\<\<\<-\]\>\+\+\.\>\+\.\+\+\+\+\+\+\+\.\.\+\+\+\.\>\+\+\.\<\<\+\+\+\+\+\+\+\+\+\+\+\+\+\+\+\.\>\.\+\+\+\.------\.--------\.\>\+\.\>\. { background: lime; }
+.local-_dent-name_module_css_local-ident-name-6-\# { background: lime; }
+.local-_dent-name_module_css_local-ident-name-6-\#\# { background: lime; }
+.local-_dent-name_module_css_local-ident-name-6-\#\.\#\.\# { background: lime; }
+.local-_dent-name_module_css_local-ident-name-6-_ { background: lime; }
+.local-_dent-name_module_css_local-ident-name-6-\{\} { background: lime; }
+.local-_dent-name_module_css_local-ident-name-6-\#fake-id { background: lime; }
+.local-_dent-name_module_css_local-ident-name-6-foo\.bar { background: lime; }
+.local-_dent-name_module_css_local-ident-name-6-\:hover { background: lime; }
+.local-_dent-name_module_css_local-ident-name-6-\:hover\:focus\:active { background: lime; }
+.local-_dent-name_module_css_local-ident-name-6-\[attr\=value\] { background: lime; }
+.local-_dent-name_module_css_local-ident-name-6-f\/o\/o { background: lime; }
+.local-_dent-name_module_css_local-ident-name-6-f\\o\\o { background: lime; }
+.local-_dent-name_module_css_local-ident-name-6-f\*o\*o { background: lime; }
+.local-_dent-name_module_css_local-ident-name-6-f\!o\!o { background: lime; }
+.local-_dent-name_module_css_local-ident-name-6-f\'o\'o { background: lime; }
+.local-_dent-name_module_css_local-ident-name-6-f\~o\~o { background: lime; }
+.local-_dent-name_module_css_local-ident-name-6-f\+o\+o { background: lime; }
+
+.local-_dent-name_module_css_local-ident-name-6-foo\/bar {
+  background: hotpink;
+}
+
+.local-_dent-name_module_css_local-ident-name-6-foo\\bar {
+  background: hotpink;
+}
+
+.local-_dent-name_module_css_local-ident-name-6-foo\/bar\/baz {
+  background: hotpink;
+}
+
+.local-_dent-name_module_css_local-ident-name-6-foo\\bar\\baz {
+  background: hotpink;
+}
+
+.local-_dent-name_module_css_local-ident-name-7-test {
+  background: red;
+}
+
+.local-_dent-name_module_css_local-ident-name-7-_test {
+  background: blue;
+}
+
+.local-_dent-name_module_css_local-ident-name-7-className {
+  background: red;
+}
+
+#local-_dent-name_module_css_local-ident-name-7-someId {
+  background: green;
+}
+
+.local-_dent-name_module_css_local-ident-name-7-className .local-_dent-name_module_css_local-ident-name-7-subClass {
+  color: green;
+}
+
+#local-_dent-name_module_css_local-ident-name-7-someId .local-_dent-name_module_css_local-ident-name-7-subClass {
+  color: blue;
+}
+
+.local-_dent-name_module_css_local-ident-name-7--a0-34a___f {
+  color: red;
+}
+
+.local-_dent-name_module_css_local-ident-name-7-m_x_\@ {
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+
+.local-_dent-name_module_css_local-ident-name-7-B\&W\? {
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+
+/* matches elements with class=":`(" */
+.local-_dent-name_module_css_local-ident-name-7-\:\`\( {
+  color: aqua;
+}
+
+/* matches elements with class="1a2b3c" */
+.local-_dent-name_module_css_local-ident-name-7-1a2b3c {
+  color: aliceblue;
+}
+
+/* matches the element with id="#fake-id" */
+#local-_dent-name_module_css_local-ident-name-7-\#fake-id {
+  color: antiquewhite;
+}
+
+/* matches the element with id="-a-b-c-" */
+#local-_dent-name_module_css_local-ident-name-7--a-b-c- {
+  color: azure;
+}
+
+/* matches the element with id="©" */
+#local-_dent-name_module_css_local-ident-name-7-© {
+  color: black;
+}
+
+.local-_dent-name_module_css_local-ident-name-7-♥ { background: lime; }
+.local-_dent-name_module_css_local-ident-name-7-© { background: lime; }
+.local-_dent-name_module_css_local-ident-name-7-\😍 { background: lime; }
+.local-_dent-name_module_css_local-ident-name-7-“‘’” { background: lime; }
+.local-_dent-name_module_css_local-ident-name-7-☺☃ { background: lime; }
+.local-_dent-name_module_css_local-ident-name-7-⌘⌥ { background: lime; }
+.local-_dent-name_module_css_local-ident-name-7-\𝄞♪♩♫♬ { background: lime; }
+.local-_dent-name_module_css_local-ident-name-7-\💩 { background: lime; }
+.local-_dent-name_module_css_local-ident-name-7-\? { background: lime; }
+.local-_dent-name_module_css_local-ident-name-7-\@ { background: lime; }
+.local-_dent-name_module_css_local-ident-name-7-\. { background: lime; }
+.local-_dent-name_module_css_local-ident-name-7-\:\) { background: lime; }
+.local-_dent-name_module_css_local-ident-name-7-\:\`\( { background: lime; }
+.local-_dent-name_module_css_local-ident-name-7-123 { background: lime; }
+.local-_dent-name_module_css_local-ident-name-7-1a2b3c { background: lime; }
+.local-_dent-name_module_css_local-ident-name-7-\<p\> { background: lime; }
+.local-_dent-name_module_css_local-ident-name-7-\<\>\<\<\<\>\>\<\> { background: lime; }
+.local-_dent-name_module_css_local-ident-name-7-\+\+\+\+\+\+\+\+\+\+\[\>\+\+\+\+\+\+\+\>\+\+\+\+\+\+\+\+\+\+\>\+\+\+\>\+\<\<\<\<-\]\>\+\+\.\>\+\.\+\+\+\+\+\+\+\.\.\+\+\+\.\>\+\+\.\<\<\+\+\+\+\+\+\+\+\+\+\+\+\+\+\+\.\>\.\+\+\+\.------\.--------\.\>\+\.\>\. { background: lime; }
+.local-_dent-name_module_css_local-ident-name-7-\# { background: lime; }
+.local-_dent-name_module_css_local-ident-name-7-\#\# { background: lime; }
+.local-_dent-name_module_css_local-ident-name-7-\#\.\#\.\# { background: lime; }
+.local-_dent-name_module_css_local-ident-name-7-_ { background: lime; }
+.local-_dent-name_module_css_local-ident-name-7-\{\} { background: lime; }
+.local-_dent-name_module_css_local-ident-name-7-\#fake-id { background: lime; }
+.local-_dent-name_module_css_local-ident-name-7-foo\.bar { background: lime; }
+.local-_dent-name_module_css_local-ident-name-7-\:hover { background: lime; }
+.local-_dent-name_module_css_local-ident-name-7-\:hover\:focus\:active { background: lime; }
+.local-_dent-name_module_css_local-ident-name-7-\[attr\=value\] { background: lime; }
+.local-_dent-name_module_css_local-ident-name-7-f\/o\/o { background: lime; }
+.local-_dent-name_module_css_local-ident-name-7-f\\o\\o { background: lime; }
+.local-_dent-name_module_css_local-ident-name-7-f\*o\*o { background: lime; }
+.local-_dent-name_module_css_local-ident-name-7-f\!o\!o { background: lime; }
+.local-_dent-name_module_css_local-ident-name-7-f\'o\'o { background: lime; }
+.local-_dent-name_module_css_local-ident-name-7-f\~o\~o { background: lime; }
+.local-_dent-name_module_css_local-ident-name-7-f\+o\+o { background: lime; }
+
+.local-_dent-name_module_css_local-ident-name-7-foo\/bar {
+  background: hotpink;
+}
+
+.local-_dent-name_module_css_local-ident-name-7-foo\\bar {
+  background: hotpink;
+}
+
+.local-_dent-name_module_css_local-ident-name-7-foo\/bar\/baz {
+  background: hotpink;
+}
+
+.local-_dent-name_module_css_local-ident-name-7-foo\\bar\\baz {
+  background: hotpink;
+}
+
+.local-_dent-name_module_css_local-ident-name-8-test {
+  background: red;
+}
+
+.local-_dent-name_module_css_local-ident-name-8-_test {
+  background: blue;
+}
+
+.local-_dent-name_module_css_local-ident-name-8-className {
+  background: red;
+}
+
+#local-_dent-name_module_css_local-ident-name-8-someId {
+  background: green;
+}
+
+.local-_dent-name_module_css_local-ident-name-8-className .local-_dent-name_module_css_local-ident-name-8-subClass {
+  color: green;
+}
+
+#local-_dent-name_module_css_local-ident-name-8-someId .local-_dent-name_module_css_local-ident-name-8-subClass {
+  color: blue;
+}
+
+.local-_dent-name_module_css_local-ident-name-8--a0-34a___f {
+  color: red;
+}
+
+.local-_dent-name_module_css_local-ident-name-8-m_x_\@ {
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+
+.local-_dent-name_module_css_local-ident-name-8-B\&W\? {
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+
+/* matches elements with class=":`(" */
+.local-_dent-name_module_css_local-ident-name-8-\:\`\( {
+  color: aqua;
+}
+
+/* matches elements with class="1a2b3c" */
+.local-_dent-name_module_css_local-ident-name-8-1a2b3c {
+  color: aliceblue;
+}
+
+/* matches the element with id="#fake-id" */
+#local-_dent-name_module_css_local-ident-name-8-\#fake-id {
+  color: antiquewhite;
+}
+
+/* matches the element with id="-a-b-c-" */
+#local-_dent-name_module_css_local-ident-name-8--a-b-c- {
+  color: azure;
+}
+
+/* matches the element with id="©" */
+#local-_dent-name_module_css_local-ident-name-8-© {
+  color: black;
+}
+
+.local-_dent-name_module_css_local-ident-name-8-♥ { background: lime; }
+.local-_dent-name_module_css_local-ident-name-8-© { background: lime; }
+.local-_dent-name_module_css_local-ident-name-8-\😍 { background: lime; }
+.local-_dent-name_module_css_local-ident-name-8-“‘’” { background: lime; }
+.local-_dent-name_module_css_local-ident-name-8-☺☃ { background: lime; }
+.local-_dent-name_module_css_local-ident-name-8-⌘⌥ { background: lime; }
+.local-_dent-name_module_css_local-ident-name-8-\𝄞♪♩♫♬ { background: lime; }
+.local-_dent-name_module_css_local-ident-name-8-\💩 { background: lime; }
+.local-_dent-name_module_css_local-ident-name-8-\? { background: lime; }
+.local-_dent-name_module_css_local-ident-name-8-\@ { background: lime; }
+.local-_dent-name_module_css_local-ident-name-8-\. { background: lime; }
+.local-_dent-name_module_css_local-ident-name-8-\:\) { background: lime; }
+.local-_dent-name_module_css_local-ident-name-8-\:\`\( { background: lime; }
+.local-_dent-name_module_css_local-ident-name-8-123 { background: lime; }
+.local-_dent-name_module_css_local-ident-name-8-1a2b3c { background: lime; }
+.local-_dent-name_module_css_local-ident-name-8-\<p\> { background: lime; }
+.local-_dent-name_module_css_local-ident-name-8-\<\>\<\<\<\>\>\<\> { background: lime; }
+.local-_dent-name_module_css_local-ident-name-8-\+\+\+\+\+\+\+\+\+\+\[\>\+\+\+\+\+\+\+\>\+\+\+\+\+\+\+\+\+\+\>\+\+\+\>\+\<\<\<\<-\]\>\+\+\.\>\+\.\+\+\+\+\+\+\+\.\.\+\+\+\.\>\+\+\.\<\<\+\+\+\+\+\+\+\+\+\+\+\+\+\+\+\.\>\.\+\+\+\.------\.--------\.\>\+\.\>\. { background: lime; }
+.local-_dent-name_module_css_local-ident-name-8-\# { background: lime; }
+.local-_dent-name_module_css_local-ident-name-8-\#\# { background: lime; }
+.local-_dent-name_module_css_local-ident-name-8-\#\.\#\.\# { background: lime; }
+.local-_dent-name_module_css_local-ident-name-8-_ { background: lime; }
+.local-_dent-name_module_css_local-ident-name-8-\{\} { background: lime; }
+.local-_dent-name_module_css_local-ident-name-8-\#fake-id { background: lime; }
+.local-_dent-name_module_css_local-ident-name-8-foo\.bar { background: lime; }
+.local-_dent-name_module_css_local-ident-name-8-\:hover { background: lime; }
+.local-_dent-name_module_css_local-ident-name-8-\:hover\:focus\:active { background: lime; }
+.local-_dent-name_module_css_local-ident-name-8-\[attr\=value\] { background: lime; }
+.local-_dent-name_module_css_local-ident-name-8-f\/o\/o { background: lime; }
+.local-_dent-name_module_css_local-ident-name-8-f\\o\\o { background: lime; }
+.local-_dent-name_module_css_local-ident-name-8-f\*o\*o { background: lime; }
+.local-_dent-name_module_css_local-ident-name-8-f\!o\!o { background: lime; }
+.local-_dent-name_module_css_local-ident-name-8-f\'o\'o { background: lime; }
+.local-_dent-name_module_css_local-ident-name-8-f\~o\~o { background: lime; }
+.local-_dent-name_module_css_local-ident-name-8-f\+o\+o { background: lime; }
+
+.local-_dent-name_module_css_local-ident-name-8-foo\/bar {
+  background: hotpink;
+}
+
+.local-_dent-name_module_css_local-ident-name-8-foo\\bar {
+  background: hotpink;
+}
+
+.local-_dent-name_module_css_local-ident-name-8-foo\/bar\/baz {
+  background: hotpink;
+}
+
+.local-_dent-name_module_css_local-ident-name-8-foo\\bar\\baz {
+  background: hotpink;
+}
+
+.local-_dent-name_module_css_local-ident-name-9-test {
+  background: red;
+}
+
+.local-_dent-name_module_css_local-ident-name-9-_test {
+  background: blue;
+}
+
+.local-_dent-name_module_css_local-ident-name-9-className {
+  background: red;
+}
+
+#local-_dent-name_module_css_local-ident-name-9-someId {
+  background: green;
+}
+
+.local-_dent-name_module_css_local-ident-name-9-className .local-_dent-name_module_css_local-ident-name-9-subClass {
+  color: green;
+}
+
+#local-_dent-name_module_css_local-ident-name-9-someId .local-_dent-name_module_css_local-ident-name-9-subClass {
+  color: blue;
+}
+
+.local-_dent-name_module_css_local-ident-name-9--a0-34a___f {
+  color: red;
+}
+
+.local-_dent-name_module_css_local-ident-name-9-m_x_\@ {
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+
+.local-_dent-name_module_css_local-ident-name-9-B\&W\? {
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+
+/* matches elements with class=":`(" */
+.local-_dent-name_module_css_local-ident-name-9-\:\`\( {
+  color: aqua;
+}
+
+/* matches elements with class="1a2b3c" */
+.local-_dent-name_module_css_local-ident-name-9-1a2b3c {
+  color: aliceblue;
+}
+
+/* matches the element with id="#fake-id" */
+#local-_dent-name_module_css_local-ident-name-9-\#fake-id {
+  color: antiquewhite;
+}
+
+/* matches the element with id="-a-b-c-" */
+#local-_dent-name_module_css_local-ident-name-9--a-b-c- {
+  color: azure;
+}
+
+/* matches the element with id="©" */
+#local-_dent-name_module_css_local-ident-name-9-© {
+  color: black;
+}
+
+.local-_dent-name_module_css_local-ident-name-9-♥ { background: lime; }
+.local-_dent-name_module_css_local-ident-name-9-© { background: lime; }
+.local-_dent-name_module_css_local-ident-name-9-\😍 { background: lime; }
+.local-_dent-name_module_css_local-ident-name-9-“‘’” { background: lime; }
+.local-_dent-name_module_css_local-ident-name-9-☺☃ { background: lime; }
+.local-_dent-name_module_css_local-ident-name-9-⌘⌥ { background: lime; }
+.local-_dent-name_module_css_local-ident-name-9-\𝄞♪♩♫♬ { background: lime; }
+.local-_dent-name_module_css_local-ident-name-9-\💩 { background: lime; }
+.local-_dent-name_module_css_local-ident-name-9-\? { background: lime; }
+.local-_dent-name_module_css_local-ident-name-9-\@ { background: lime; }
+.local-_dent-name_module_css_local-ident-name-9-\. { background: lime; }
+.local-_dent-name_module_css_local-ident-name-9-\:\) { background: lime; }
+.local-_dent-name_module_css_local-ident-name-9-\:\`\( { background: lime; }
+.local-_dent-name_module_css_local-ident-name-9-123 { background: lime; }
+.local-_dent-name_module_css_local-ident-name-9-1a2b3c { background: lime; }
+.local-_dent-name_module_css_local-ident-name-9-\<p\> { background: lime; }
+.local-_dent-name_module_css_local-ident-name-9-\<\>\<\<\<\>\>\<\> { background: lime; }
+.local-_dent-name_module_css_local-ident-name-9-\+\+\+\+\+\+\+\+\+\+\[\>\+\+\+\+\+\+\+\>\+\+\+\+\+\+\+\+\+\+\>\+\+\+\>\+\<\<\<\<-\]\>\+\+\.\>\+\.\+\+\+\+\+\+\+\.\.\+\+\+\.\>\+\+\.\<\<\+\+\+\+\+\+\+\+\+\+\+\+\+\+\+\.\>\.\+\+\+\.------\.--------\.\>\+\.\>\. { background: lime; }
+.local-_dent-name_module_css_local-ident-name-9-\# { background: lime; }
+.local-_dent-name_module_css_local-ident-name-9-\#\# { background: lime; }
+.local-_dent-name_module_css_local-ident-name-9-\#\.\#\.\# { background: lime; }
+.local-_dent-name_module_css_local-ident-name-9-_ { background: lime; }
+.local-_dent-name_module_css_local-ident-name-9-\{\} { background: lime; }
+.local-_dent-name_module_css_local-ident-name-9-\#fake-id { background: lime; }
+.local-_dent-name_module_css_local-ident-name-9-foo\.bar { background: lime; }
+.local-_dent-name_module_css_local-ident-name-9-\:hover { background: lime; }
+.local-_dent-name_module_css_local-ident-name-9-\:hover\:focus\:active { background: lime; }
+.local-_dent-name_module_css_local-ident-name-9-\[attr\=value\] { background: lime; }
+.local-_dent-name_module_css_local-ident-name-9-f\/o\/o { background: lime; }
+.local-_dent-name_module_css_local-ident-name-9-f\\o\\o { background: lime; }
+.local-_dent-name_module_css_local-ident-name-9-f\*o\*o { background: lime; }
+.local-_dent-name_module_css_local-ident-name-9-f\!o\!o { background: lime; }
+.local-_dent-name_module_css_local-ident-name-9-f\'o\'o { background: lime; }
+.local-_dent-name_module_css_local-ident-name-9-f\~o\~o { background: lime; }
+.local-_dent-name_module_css_local-ident-name-9-f\+o\+o { background: lime; }
+
+.local-_dent-name_module_css_local-ident-name-9-foo\/bar {
+  background: hotpink;
+}
+
+.local-_dent-name_module_css_local-ident-name-9-foo\\bar {
+  background: hotpink;
+}
+
+.local-_dent-name_module_css_local-ident-name-9-foo\/bar\/baz {
+  background: hotpink;
+}
+
+.local-_dent-name_module_css_local-ident-name-9-foo\\bar\\baz {
+  background: hotpink;
+}
+
+.order-1_css-order-1 {
+  color: red;
+}
+
+.order-1_css-order-1-1 {
+  color: aliceblue;
+}
+
+.order-2_css-order-2 {
+  color: blue;
+}
+
+.order-2_css-order-2-2 {
+  color: azure;
+}
+
+.order_module_css-simple {
+	display: block;
+	
+	
+	
+	
+}
+
+.order_module_css-simple-other {
+	display: inline;
+	
+}
+
+
+.button_css-button {
+  border: none;
+  padding: 7px 15px;
+  cursor: pointer;
+}
+
+.primary-button_css-primaryButton {
+  
+  background-color: blue;
+  color: white;
+}
+
+.secondary-button_css-secondaryButton
+{
+  
+  background-color: #555;
+  color: white;
+}
+
+.dedup_module_css-nextButton {
+	
+}
+
+.dedup_module_css-backButton {
+	
+}
+
+
+.foo_less-foo {
+  color: red;
+}
+
+.composes-from-less_module_css-bar {
+	
+}
+
+
+
+
+.node_modules_test_index_css-class {
+	color: red;
+}
+
+#000
+#fff
+
+.tilde_module_css-className {
+	color: #000;
+	background: #fff;
+}
+
+
+/* Tests from css-loader */
+
+/* should work with the `default` class and with named export */
+.classes_module_css-default {
+	background: red
+}
+
+
+/* should work with the `module` class and with named export */
+.classes_module_css-module {
+	background: red
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+.icss_module_css-className {
+	color: classes_module_css-module;
+},
+  .basic_module_css-class-1, .basic_module_css-class-10 .basic_module_css-bar-1 {
+	color: green;
+}
+
+
+@keyframes basic_module_css-slide-right {
+	0% {
+		transform: translateX(-100%);
+		opacity: 0;
+	}
+	100% {
+		transform: translateX(0);
+		opacity: 1;
+	}
+}
+
+a {
+	animation: basic_module_css-slide-right 300ms forwards ease-out, basic_module_css-fade-in 300ms forwards ease-out;
+}
+
+.basic_module_css-c1/*.c2*/.basic_module_css-c3 { background: red; }
+
+.basic_module_css-c1 { a: 1; }
+.basic_module_css-c2 {  b: 1; }
+
+.basic_module_css-a {
+	color: green;
+}
+
+@keyframes basic_module_css-bounce {
+	0% {
+		transform: translateY(-100%);
+		opacity: 0;
+	}
+	5% {
+		transform: translateY(-100%);
+		opacity: 0;
+	}
+}
+
+@-webkit-keyframes basic_module_css-bounce2 {
+	0% {
+		transform: translateY(-100%);
+		opacity: 0;
+	}
+	5% {
+		transform: translateY(-100%);
+		opacity: 0;
+	}
+}
+
+.basic_module_css-bounce {
+	animation-name: basic_module_css-bounce;
+	animation: basic_module_css-bounce2 Xs ease;
+}
+
+.basic_module_css-bounce2 {
+	color: green;
+	animation: basic_module_css-bounce Xs ease;
+	animation-name: basic_module_css-bounce2;
+}
+
+.basic_module_css-bounce3 {
+	animation: basic_module_css-bounce Xs ease, basic_module_css-bounce2
+}
+
+.basic_module_css-bounce4 {
+	animation: basic_module_css-bounce Xs ease, basic_module_css-bounce2;
+}
+
+.basic_module_css-b {
+	color: green;
+}
+
+@-webkit-keyframes basic_module_css-\@bounce {
+	0%, 100% {
+		transform: translateY(-25%);
+		-webkit-animation-timing-function: cubic-bezier(0.8,0,1,1);
+		animation-timing-function: cubic-bezier(0.8,0,1,1);
+	}
+
+	50% {
+		transform: none;
+		-webkit-animation-timing-function: cubic-bezier(0,0,0.2,1);
+		animation-timing-function: cubic-bezier(0,0,0.2,1);
+	}
+}
+
+@keyframes basic_module_css-\@bounce {
+	0%, 100% {
+		transform: translateY(-25%);
+		-webkit-animation-timing-function: cubic-bezier(0.8,0,1,1);
+		animation-timing-function: cubic-bezier(0.8,0,1,1);
+	}
+
+	50% {
+		transform: none;
+		-webkit-animation-timing-function: cubic-bezier(0,0,0.2,1);
+		animation-timing-function: cubic-bezier(0,0,0.2,1);
+	}
+}
+
+.basic_module_css-container {
+	-webkit-animation: basic_module_css-\@bounce Xs infinite;
+	animation: basic_module_css-\@bounce Xs infinite;
+}
+
+.basic_module_css-abc .basic_module_css-def {
+	color: red;
+}
+
+.basic_module_css-ghi .basic_module_css-jkl {
+	color: blue;
+}
+
+.basic_module_css-className { background: red; }
+#basic_module_css-someId { background: green; }
+.basic_module_css-className .basic_module_css-subClass { color: green; }
+#basic_module_css-someId .basic_module_css-subClass { color: blue; }
+
+.basic_module_css-abc {
+	color: red;
+}
+.basic_module_css-def {
+	
+	background: green;
+}
+
+.basic_module_css-c1[data-attr=".c2)]'"]:not(.basic_module_css-c3):not(.basic_module_css-c4) {
+	background: red;
+}
+
+.basic_module_css-c1 .basic_module_css-c2 .basic_module_css-c3 .c4 .basic_module_css-c5, .basic_module_css-c6 .basic_module_css-c7 { background: red; }
+.basic_module_css-c8 { background: red; }
+
+.basic_module_css-a .basic_module_css-b, .basic_module_css-c .basic_module_css-d, #basic_module_css-id {
+	color: green;
+	font-size: 1.5pt;
+}
+a[href="#b.c"].basic_module_css-x.basic_module_css-y {
+	color: green;
+	font-size: 1.5pt;
+}
+@keyframes basic_module_css-q {
+	2.5% {color: green;}
+}
+
+/* Tests from css-loader */
+
+/* should work with the `default` class and with named export */
+.classes_module_css-default {
+	background: red
+}
+
+
+/* should work with the `module` class and with named export */
+.classes_module_css-module {
+	background: red
+}
+
+.alias_css-imported-alias {
+  display: table;
+}
+
+.alias-1_css-imported-alias-2 {
+  background: red;
+}
+
+.alias-1_css-imported-alias-3 {
+  background: red;
+}
+
+.composes-multiple_module_css-other-class {
+	color: red;
+}
+
+.composes-multiple_module_css-class-1 {
+	color: blue;
+}
+
+.composes-multiple_module_css-class-2 {
+	color: blue;
+}
+
+.global-class {
+	padding: 10px;
+}
+
+.global-class-1 {
+	padding: 10px;
+}
+
+.global-class-2 {
+	padding: 10px;
+}
+
+.composes-multiple_module_css-class {
+	
+	color: gainsboro;
+}
+
+.composes-multiple_module_css-class-other {
+	
+}
+
+
+.global-class {
+	color: red;
+}
+
+.other-global-class {
+	color: red;
+}
+
+.composes-global_module_css-otherClassName {
+	
+	
+	color: blue;
+}
+
+@scope (.scope-at-rule_module_css-light-scheme) {
+	:scope {
+		background-color: plum;
+	}
+
+	.scope-at-rule_module_css-class-a {
+		color: darkmagenta;
+	}
+}
+
+@scope (.scope-at-rule_module_css-dark-scheme) {
+	:scope {
+		background-color: darkmagenta;
+		color: antiquewhite;
+	}
+
+	.scope-at-rule_module_css-class-b {
+		color: plum;
+	}
+}
+
+@scope {
+	:scope {
+		color: red;
+	}
+}
+
+.nesting_module_css-notice {
+	width: 90%;
+	justify-content: center;
+	border-radius: 1rem;
+	border: black solid 2px;
+	background-color: #ffc107;
+	color: black;
+	padding: 1rem;
+
+	.nesting_module_css-notice-heading:before {
+		/* equivalent to `.notice .notice-heading:before` */
+		content: "ℹ︎ ";
+	}
+
+	&.nesting_module_css-warning {
+		/* equivalent to `.notice.warning` */
+		background-color: #d81b60;
+		border-color: #d81b60;
+		color: white;
+		.nesting_module_css-warning-heading:before {
+			/* equivalent to `.notice.warning .warning-heading:before` */
+			content: "! ";
+		}
+	}
+
+	&.nesting_module_css-success {
+		/* equivalent to `.notice.success` */
+		background-color: #004d40;
+		border-color: #004d40;
+		color: white;
+
+		.nesting_module_css-success-heading:before {
+			/* equivalent to `.notice.success .success-heading:before` */
+			content: "✓ ";
+		}
+	}
+}
+
+.nesting_module_css-foo {
+	color: red;
+}
+
+.nesting_module_css-bar {
+	
+
+	&.baz {
+		color: blue;
+	}
+}
+
+.nesting_module_css-foo {
+	display: grid;
+
+	@media (orientation: landscape) {
+		& {
+			grid-auto-flow: column;
+		}
+	}
+}
+
+@media (orientation: landscape) {
+	.nesting_module_css-a {
+		color: red;
+	}
+}
+
+@media (orientation: landscape) {
+	@media (orientation: landscape) {
+		.nesting_module_css-b {
+			color: red;
+			
+		}
+	}
+}
+
+.nesting_module_css-n {
+	
+
+	@media (orientation: landscape) {
+		color: red;
+	}
+}
+
+.package_one_css-imported-relative {
+    display: block;
+}
+
+.node_modules_package_two_css-imported-relative {
+    display: inline;
+}
+
+.prefer-relative_module_css-one {
+	color: yellow;
+	
+}
+
+.prefer-relative_module_css-two {
+	color: yellow;
+	
+}
+
+.animation-name_module_css-a {
+	animation: Xs animation-name_module_css-animationName;
+}
+
+.animation-name_module_css-b {
+	animation: animation-name_module_css-animationName Xs;
+}
+
+.animation-name_module_css-c {
+	animation-name: animation-name_module_css-animationName;
+}
+
+@keyframes animation-name_module_css-animationName {
+	0% {
+		background: white;
+	}
+	100% {
+		background: red;
+	}
+}
+
+.node_modules_\@foo_package_style_module_css-class {
+	color: red;
+}
+
+.node_modules_foo_package_style_module_css-class {
+	color: red;
+}
+
+
+
+
+.at-sign-in-package-name_module_css-myClass {
+	color: red;
+}
+
+
+
+.node_modules_\@otherlocalpackage_style_css-type-heading2 {
+  display: flex;
+}
+
+.node_modules_\@localpackage_style_css-type-heading {
+  color: red;
+  
+  margin: 0;
+  padding: 0;
+}
+
+gray
+
+.resolving-from-node_modules_module_css-copyright {
+  color: gray;
+  
+  margin: 0;
+  padding: 0;
+}
+
+.local-_dent-name_module_css-test {
+  background: red;
+}
+
+.local-_dent-name_module_css-_test {
+  background: blue;
+}
+
+.local-_dent-name_module_css-className {
+  background: red;
+}
+
+#local-_dent-name_module_css-someId {
+  background: green;
+}
+
+.local-_dent-name_module_css-className .local-_dent-name_module_css-subClass {
+  color: green;
+}
+
+#local-_dent-name_module_css-someId .local-_dent-name_module_css-subClass {
+  color: blue;
+}
+
+.local-_dent-name_module_css--a0-34a___f {
+  color: red;
+}
+
+.local-_dent-name_module_css-m_x_\@ {
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+
+.local-_dent-name_module_css-B\&W\? {
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+
+/* matches elements with class=":`(" */
+.local-_dent-name_module_css-\:\`\( {
+  color: aqua;
+}
+
+/* matches elements with class="1a2b3c" */
+.local-_dent-name_module_css-1a2b3c {
+  color: aliceblue;
+}
+
+/* matches the element with id="#fake-id" */
+#local-_dent-name_module_css-\#fake-id {
+  color: antiquewhite;
+}
+
+/* matches the element with id="-a-b-c-" */
+#local-_dent-name_module_css--a-b-c- {
+  color: azure;
+}
+
+/* matches the element with id="©" */
+#local-_dent-name_module_css-© {
+  color: black;
+}
+
+.local-_dent-name_module_css-♥ { background: lime; }
+.local-_dent-name_module_css-© { background: lime; }
+.local-_dent-name_module_css-\😍 { background: lime; }
+.local-_dent-name_module_css-“‘’” { background: lime; }
+.local-_dent-name_module_css-☺☃ { background: lime; }
+.local-_dent-name_module_css-⌘⌥ { background: lime; }
+.local-_dent-name_module_css-\𝄞♪♩♫♬ { background: lime; }
+.local-_dent-name_module_css-\💩 { background: lime; }
+.local-_dent-name_module_css-\? { background: lime; }
+.local-_dent-name_module_css-\@ { background: lime; }
+.local-_dent-name_module_css-\. { background: lime; }
+.local-_dent-name_module_css-\:\) { background: lime; }
+.local-_dent-name_module_css-\:\`\( { background: lime; }
+.local-_dent-name_module_css-123 { background: lime; }
+.local-_dent-name_module_css-1a2b3c { background: lime; }
+.local-_dent-name_module_css-\<p\> { background: lime; }
+.local-_dent-name_module_css-\<\>\<\<\<\>\>\<\> { background: lime; }
+.local-_dent-name_module_css-\+\+\+\+\+\+\+\+\+\+\[\>\+\+\+\+\+\+\+\>\+\+\+\+\+\+\+\+\+\+\>\+\+\+\>\+\<\<\<\<-\]\>\+\+\.\>\+\.\+\+\+\+\+\+\+\.\.\+\+\+\.\>\+\+\.\<\<\+\+\+\+\+\+\+\+\+\+\+\+\+\+\+\.\>\.\+\+\+\.------\.--------\.\>\+\.\>\. { background: lime; }
+.local-_dent-name_module_css-\# { background: lime; }
+.local-_dent-name_module_css-\#\# { background: lime; }
+.local-_dent-name_module_css-\#\.\#\.\# { background: lime; }
+.local-_dent-name_module_css-_ { background: lime; }
+.local-_dent-name_module_css-\{\} { background: lime; }
+.local-_dent-name_module_css-\#fake-id { background: lime; }
+.local-_dent-name_module_css-foo\.bar { background: lime; }
+.local-_dent-name_module_css-\:hover { background: lime; }
+.local-_dent-name_module_css-\:hover\:focus\:active { background: lime; }
+.local-_dent-name_module_css-\[attr\=value\] { background: lime; }
+.local-_dent-name_module_css-f\/o\/o { background: lime; }
+.local-_dent-name_module_css-f\\o\\o { background: lime; }
+.local-_dent-name_module_css-f\*o\*o { background: lime; }
+.local-_dent-name_module_css-f\!o\!o { background: lime; }
+.local-_dent-name_module_css-f\'o\'o { background: lime; }
+.local-_dent-name_module_css-f\~o\~o { background: lime; }
+.local-_dent-name_module_css-f\+o\+o { background: lime; }
+
+.local-_dent-name_module_css-foo\/bar {
+  background: hotpink;
+}
+
+.local-_dent-name_module_css-foo\\bar {
+  background: hotpink;
+}
+
+.local-_dent-name_module_css-foo\/bar\/baz {
+  background: hotpink;
+}
+
+.local-_dent-name_module_css-foo\\bar\\baz {
+  background: hotpink;
+}
+
+.local-_dent-name_module_css_local-ident-name-1-test {
+  background: red;
+}
+
+.local-_dent-name_module_css_local-ident-name-1-_test {
+  background: blue;
+}
+
+.local-_dent-name_module_css_local-ident-name-1-className {
+  background: red;
+}
+
+#local-_dent-name_module_css_local-ident-name-1-someId {
+  background: green;
+}
+
+.local-_dent-name_module_css_local-ident-name-1-className .local-_dent-name_module_css_local-ident-name-1-subClass {
+  color: green;
+}
+
+#local-_dent-name_module_css_local-ident-name-1-someId .local-_dent-name_module_css_local-ident-name-1-subClass {
+  color: blue;
+}
+
+.local-_dent-name_module_css_local-ident-name-1--a0-34a___f {
+  color: red;
+}
+
+.local-_dent-name_module_css_local-ident-name-1-m_x_\@ {
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+
+.local-_dent-name_module_css_local-ident-name-1-B\&W\? {
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+
+/* matches elements with class=":`(" */
+.local-_dent-name_module_css_local-ident-name-1-\:\`\( {
+  color: aqua;
+}
+
+/* matches elements with class="1a2b3c" */
+.local-_dent-name_module_css_local-ident-name-1-1a2b3c {
+  color: aliceblue;
+}
+
+/* matches the element with id="#fake-id" */
+#local-_dent-name_module_css_local-ident-name-1-\#fake-id {
+  color: antiquewhite;
+}
+
+/* matches the element with id="-a-b-c-" */
+#local-_dent-name_module_css_local-ident-name-1--a-b-c- {
+  color: azure;
+}
+
+/* matches the element with id="©" */
+#local-_dent-name_module_css_local-ident-name-1-© {
+  color: black;
+}
+
+.local-_dent-name_module_css_local-ident-name-1-♥ { background: lime; }
+.local-_dent-name_module_css_local-ident-name-1-© { background: lime; }
+.local-_dent-name_module_css_local-ident-name-1-\😍 { background: lime; }
+.local-_dent-name_module_css_local-ident-name-1-“‘’” { background: lime; }
+.local-_dent-name_module_css_local-ident-name-1-☺☃ { background: lime; }
+.local-_dent-name_module_css_local-ident-name-1-⌘⌥ { background: lime; }
+.local-_dent-name_module_css_local-ident-name-1-\𝄞♪♩♫♬ { background: lime; }
+.local-_dent-name_module_css_local-ident-name-1-\💩 { background: lime; }
+.local-_dent-name_module_css_local-ident-name-1-\? { background: lime; }
+.local-_dent-name_module_css_local-ident-name-1-\@ { background: lime; }
+.local-_dent-name_module_css_local-ident-name-1-\. { background: lime; }
+.local-_dent-name_module_css_local-ident-name-1-\:\) { background: lime; }
+.local-_dent-name_module_css_local-ident-name-1-\:\`\( { background: lime; }
+.local-_dent-name_module_css_local-ident-name-1-123 { background: lime; }
+.local-_dent-name_module_css_local-ident-name-1-1a2b3c { background: lime; }
+.local-_dent-name_module_css_local-ident-name-1-\<p\> { background: lime; }
+.local-_dent-name_module_css_local-ident-name-1-\<\>\<\<\<\>\>\<\> { background: lime; }
+.local-_dent-name_module_css_local-ident-name-1-\+\+\+\+\+\+\+\+\+\+\[\>\+\+\+\+\+\+\+\>\+\+\+\+\+\+\+\+\+\+\>\+\+\+\>\+\<\<\<\<-\]\>\+\+\.\>\+\.\+\+\+\+\+\+\+\.\.\+\+\+\.\>\+\+\.\<\<\+\+\+\+\+\+\+\+\+\+\+\+\+\+\+\.\>\.\+\+\+\.------\.--------\.\>\+\.\>\. { background: lime; }
+.local-_dent-name_module_css_local-ident-name-1-\# { background: lime; }
+.local-_dent-name_module_css_local-ident-name-1-\#\# { background: lime; }
+.local-_dent-name_module_css_local-ident-name-1-\#\.\#\.\# { background: lime; }
+.local-_dent-name_module_css_local-ident-name-1-_ { background: lime; }
+.local-_dent-name_module_css_local-ident-name-1-\{\} { background: lime; }
+.local-_dent-name_module_css_local-ident-name-1-\#fake-id { background: lime; }
+.local-_dent-name_module_css_local-ident-name-1-foo\.bar { background: lime; }
+.local-_dent-name_module_css_local-ident-name-1-\:hover { background: lime; }
+.local-_dent-name_module_css_local-ident-name-1-\:hover\:focus\:active { background: lime; }
+.local-_dent-name_module_css_local-ident-name-1-\[attr\=value\] { background: lime; }
+.local-_dent-name_module_css_local-ident-name-1-f\/o\/o { background: lime; }
+.local-_dent-name_module_css_local-ident-name-1-f\\o\\o { background: lime; }
+.local-_dent-name_module_css_local-ident-name-1-f\*o\*o { background: lime; }
+.local-_dent-name_module_css_local-ident-name-1-f\!o\!o { background: lime; }
+.local-_dent-name_module_css_local-ident-name-1-f\'o\'o { background: lime; }
+.local-_dent-name_module_css_local-ident-name-1-f\~o\~o { background: lime; }
+.local-_dent-name_module_css_local-ident-name-1-f\+o\+o { background: lime; }
+
+.local-_dent-name_module_css_local-ident-name-1-foo\/bar {
+  background: hotpink;
+}
+
+.local-_dent-name_module_css_local-ident-name-1-foo\\bar {
+  background: hotpink;
+}
+
+.local-_dent-name_module_css_local-ident-name-1-foo\/bar\/baz {
+  background: hotpink;
+}
+
+.local-_dent-name_module_css_local-ident-name-1-foo\\bar\\baz {
+  background: hotpink;
+}
+
+.local-_dent-name_module_css_local-ident-name-2-test {
+  background: red;
+}
+
+.local-_dent-name_module_css_local-ident-name-2-_test {
+  background: blue;
+}
+
+.local-_dent-name_module_css_local-ident-name-2-className {
+  background: red;
+}
+
+#local-_dent-name_module_css_local-ident-name-2-someId {
+  background: green;
+}
+
+.local-_dent-name_module_css_local-ident-name-2-className .local-_dent-name_module_css_local-ident-name-2-subClass {
+  color: green;
+}
+
+#local-_dent-name_module_css_local-ident-name-2-someId .local-_dent-name_module_css_local-ident-name-2-subClass {
+  color: blue;
+}
+
+.local-_dent-name_module_css_local-ident-name-2--a0-34a___f {
+  color: red;
+}
+
+.local-_dent-name_module_css_local-ident-name-2-m_x_\@ {
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+
+.local-_dent-name_module_css_local-ident-name-2-B\&W\? {
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+
+/* matches elements with class=":`(" */
+.local-_dent-name_module_css_local-ident-name-2-\:\`\( {
+  color: aqua;
+}
+
+/* matches elements with class="1a2b3c" */
+.local-_dent-name_module_css_local-ident-name-2-1a2b3c {
+  color: aliceblue;
+}
+
+/* matches the element with id="#fake-id" */
+#local-_dent-name_module_css_local-ident-name-2-\#fake-id {
+  color: antiquewhite;
+}
+
+/* matches the element with id="-a-b-c-" */
+#local-_dent-name_module_css_local-ident-name-2--a-b-c- {
+  color: azure;
+}
+
+/* matches the element with id="©" */
+#local-_dent-name_module_css_local-ident-name-2-© {
+  color: black;
+}
+
+.local-_dent-name_module_css_local-ident-name-2-♥ { background: lime; }
+.local-_dent-name_module_css_local-ident-name-2-© { background: lime; }
+.local-_dent-name_module_css_local-ident-name-2-\😍 { background: lime; }
+.local-_dent-name_module_css_local-ident-name-2-“‘’” { background: lime; }
+.local-_dent-name_module_css_local-ident-name-2-☺☃ { background: lime; }
+.local-_dent-name_module_css_local-ident-name-2-⌘⌥ { background: lime; }
+.local-_dent-name_module_css_local-ident-name-2-\𝄞♪♩♫♬ { background: lime; }
+.local-_dent-name_module_css_local-ident-name-2-\💩 { background: lime; }
+.local-_dent-name_module_css_local-ident-name-2-\? { background: lime; }
+.local-_dent-name_module_css_local-ident-name-2-\@ { background: lime; }
+.local-_dent-name_module_css_local-ident-name-2-\. { background: lime; }
+.local-_dent-name_module_css_local-ident-name-2-\:\) { background: lime; }
+.local-_dent-name_module_css_local-ident-name-2-\:\`\( { background: lime; }
+.local-_dent-name_module_css_local-ident-name-2-123 { background: lime; }
+.local-_dent-name_module_css_local-ident-name-2-1a2b3c { background: lime; }
+.local-_dent-name_module_css_local-ident-name-2-\<p\> { background: lime; }
+.local-_dent-name_module_css_local-ident-name-2-\<\>\<\<\<\>\>\<\> { background: lime; }
+.local-_dent-name_module_css_local-ident-name-2-\+\+\+\+\+\+\+\+\+\+\[\>\+\+\+\+\+\+\+\>\+\+\+\+\+\+\+\+\+\+\>\+\+\+\>\+\<\<\<\<-\]\>\+\+\.\>\+\.\+\+\+\+\+\+\+\.\.\+\+\+\.\>\+\+\.\<\<\+\+\+\+\+\+\+\+\+\+\+\+\+\+\+\.\>\.\+\+\+\.------\.--------\.\>\+\.\>\. { background: lime; }
+.local-_dent-name_module_css_local-ident-name-2-\# { background: lime; }
+.local-_dent-name_module_css_local-ident-name-2-\#\# { background: lime; }
+.local-_dent-name_module_css_local-ident-name-2-\#\.\#\.\# { background: lime; }
+.local-_dent-name_module_css_local-ident-name-2-_ { background: lime; }
+.local-_dent-name_module_css_local-ident-name-2-\{\} { background: lime; }
+.local-_dent-name_module_css_local-ident-name-2-\#fake-id { background: lime; }
+.local-_dent-name_module_css_local-ident-name-2-foo\.bar { background: lime; }
+.local-_dent-name_module_css_local-ident-name-2-\:hover { background: lime; }
+.local-_dent-name_module_css_local-ident-name-2-\:hover\:focus\:active { background: lime; }
+.local-_dent-name_module_css_local-ident-name-2-\[attr\=value\] { background: lime; }
+.local-_dent-name_module_css_local-ident-name-2-f\/o\/o { background: lime; }
+.local-_dent-name_module_css_local-ident-name-2-f\\o\\o { background: lime; }
+.local-_dent-name_module_css_local-ident-name-2-f\*o\*o { background: lime; }
+.local-_dent-name_module_css_local-ident-name-2-f\!o\!o { background: lime; }
+.local-_dent-name_module_css_local-ident-name-2-f\'o\'o { background: lime; }
+.local-_dent-name_module_css_local-ident-name-2-f\~o\~o { background: lime; }
+.local-_dent-name_module_css_local-ident-name-2-f\+o\+o { background: lime; }
+
+.local-_dent-name_module_css_local-ident-name-2-foo\/bar {
+  background: hotpink;
+}
+
+.local-_dent-name_module_css_local-ident-name-2-foo\\bar {
+  background: hotpink;
+}
+
+.local-_dent-name_module_css_local-ident-name-2-foo\/bar\/baz {
+  background: hotpink;
+}
+
+.local-_dent-name_module_css_local-ident-name-2-foo\\bar\\baz {
+  background: hotpink;
+}
+
+.local-_dent-name_module_css_local-ident-name-3-test {
+  background: red;
+}
+
+.local-_dent-name_module_css_local-ident-name-3-_test {
+  background: blue;
+}
+
+.local-_dent-name_module_css_local-ident-name-3-className {
+  background: red;
+}
+
+#local-_dent-name_module_css_local-ident-name-3-someId {
+  background: green;
+}
+
+.local-_dent-name_module_css_local-ident-name-3-className .local-_dent-name_module_css_local-ident-name-3-subClass {
+  color: green;
+}
+
+#local-_dent-name_module_css_local-ident-name-3-someId .local-_dent-name_module_css_local-ident-name-3-subClass {
+  color: blue;
+}
+
+.local-_dent-name_module_css_local-ident-name-3--a0-34a___f {
+  color: red;
+}
+
+.local-_dent-name_module_css_local-ident-name-3-m_x_\@ {
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+
+.local-_dent-name_module_css_local-ident-name-3-B\&W\? {
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+
+/* matches elements with class=":`(" */
+.local-_dent-name_module_css_local-ident-name-3-\:\`\( {
+  color: aqua;
+}
+
+/* matches elements with class="1a2b3c" */
+.local-_dent-name_module_css_local-ident-name-3-1a2b3c {
+  color: aliceblue;
+}
+
+/* matches the element with id="#fake-id" */
+#local-_dent-name_module_css_local-ident-name-3-\#fake-id {
+  color: antiquewhite;
+}
+
+/* matches the element with id="-a-b-c-" */
+#local-_dent-name_module_css_local-ident-name-3--a-b-c- {
+  color: azure;
+}
+
+/* matches the element with id="©" */
+#local-_dent-name_module_css_local-ident-name-3-© {
+  color: black;
+}
+
+.local-_dent-name_module_css_local-ident-name-3-♥ { background: lime; }
+.local-_dent-name_module_css_local-ident-name-3-© { background: lime; }
+.local-_dent-name_module_css_local-ident-name-3-\😍 { background: lime; }
+.local-_dent-name_module_css_local-ident-name-3-“‘’” { background: lime; }
+.local-_dent-name_module_css_local-ident-name-3-☺☃ { background: lime; }
+.local-_dent-name_module_css_local-ident-name-3-⌘⌥ { background: lime; }
+.local-_dent-name_module_css_local-ident-name-3-\𝄞♪♩♫♬ { background: lime; }
+.local-_dent-name_module_css_local-ident-name-3-\💩 { background: lime; }
+.local-_dent-name_module_css_local-ident-name-3-\? { background: lime; }
+.local-_dent-name_module_css_local-ident-name-3-\@ { background: lime; }
+.local-_dent-name_module_css_local-ident-name-3-\. { background: lime; }
+.local-_dent-name_module_css_local-ident-name-3-\:\) { background: lime; }
+.local-_dent-name_module_css_local-ident-name-3-\:\`\( { background: lime; }
+.local-_dent-name_module_css_local-ident-name-3-123 { background: lime; }
+.local-_dent-name_module_css_local-ident-name-3-1a2b3c { background: lime; }
+.local-_dent-name_module_css_local-ident-name-3-\<p\> { background: lime; }
+.local-_dent-name_module_css_local-ident-name-3-\<\>\<\<\<\>\>\<\> { background: lime; }
+.local-_dent-name_module_css_local-ident-name-3-\+\+\+\+\+\+\+\+\+\+\[\>\+\+\+\+\+\+\+\>\+\+\+\+\+\+\+\+\+\+\>\+\+\+\>\+\<\<\<\<-\]\>\+\+\.\>\+\.\+\+\+\+\+\+\+\.\.\+\+\+\.\>\+\+\.\<\<\+\+\+\+\+\+\+\+\+\+\+\+\+\+\+\.\>\.\+\+\+\.------\.--------\.\>\+\.\>\. { background: lime; }
+.local-_dent-name_module_css_local-ident-name-3-\# { background: lime; }
+.local-_dent-name_module_css_local-ident-name-3-\#\# { background: lime; }
+.local-_dent-name_module_css_local-ident-name-3-\#\.\#\.\# { background: lime; }
+.local-_dent-name_module_css_local-ident-name-3-_ { background: lime; }
+.local-_dent-name_module_css_local-ident-name-3-\{\} { background: lime; }
+.local-_dent-name_module_css_local-ident-name-3-\#fake-id { background: lime; }
+.local-_dent-name_module_css_local-ident-name-3-foo\.bar { background: lime; }
+.local-_dent-name_module_css_local-ident-name-3-\:hover { background: lime; }
+.local-_dent-name_module_css_local-ident-name-3-\:hover\:focus\:active { background: lime; }
+.local-_dent-name_module_css_local-ident-name-3-\[attr\=value\] { background: lime; }
+.local-_dent-name_module_css_local-ident-name-3-f\/o\/o { background: lime; }
+.local-_dent-name_module_css_local-ident-name-3-f\\o\\o { background: lime; }
+.local-_dent-name_module_css_local-ident-name-3-f\*o\*o { background: lime; }
+.local-_dent-name_module_css_local-ident-name-3-f\!o\!o { background: lime; }
+.local-_dent-name_module_css_local-ident-name-3-f\'o\'o { background: lime; }
+.local-_dent-name_module_css_local-ident-name-3-f\~o\~o { background: lime; }
+.local-_dent-name_module_css_local-ident-name-3-f\+o\+o { background: lime; }
+
+.local-_dent-name_module_css_local-ident-name-3-foo\/bar {
+  background: hotpink;
+}
+
+.local-_dent-name_module_css_local-ident-name-3-foo\\bar {
+  background: hotpink;
+}
+
+.local-_dent-name_module_css_local-ident-name-3-foo\/bar\/baz {
+  background: hotpink;
+}
+
+.local-_dent-name_module_css_local-ident-name-3-foo\\bar\\baz {
+  background: hotpink;
+}
+
+.local-_dent-name_module_css_local-ident-name-4-test {
+  background: red;
+}
+
+.local-_dent-name_module_css_local-ident-name-4-_test {
+  background: blue;
+}
+
+.local-_dent-name_module_css_local-ident-name-4-className {
+  background: red;
+}
+
+#local-_dent-name_module_css_local-ident-name-4-someId {
+  background: green;
+}
+
+.local-_dent-name_module_css_local-ident-name-4-className .local-_dent-name_module_css_local-ident-name-4-subClass {
+  color: green;
+}
+
+#local-_dent-name_module_css_local-ident-name-4-someId .local-_dent-name_module_css_local-ident-name-4-subClass {
+  color: blue;
+}
+
+.local-_dent-name_module_css_local-ident-name-4--a0-34a___f {
+  color: red;
+}
+
+.local-_dent-name_module_css_local-ident-name-4-m_x_\@ {
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+
+.local-_dent-name_module_css_local-ident-name-4-B\&W\? {
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+
+/* matches elements with class=":`(" */
+.local-_dent-name_module_css_local-ident-name-4-\:\`\( {
+  color: aqua;
+}
+
+/* matches elements with class="1a2b3c" */
+.local-_dent-name_module_css_local-ident-name-4-1a2b3c {
+  color: aliceblue;
+}
+
+/* matches the element with id="#fake-id" */
+#local-_dent-name_module_css_local-ident-name-4-\#fake-id {
+  color: antiquewhite;
+}
+
+/* matches the element with id="-a-b-c-" */
+#local-_dent-name_module_css_local-ident-name-4--a-b-c- {
+  color: azure;
+}
+
+/* matches the element with id="©" */
+#local-_dent-name_module_css_local-ident-name-4-© {
+  color: black;
+}
+
+.local-_dent-name_module_css_local-ident-name-4-♥ { background: lime; }
+.local-_dent-name_module_css_local-ident-name-4-© { background: lime; }
+.local-_dent-name_module_css_local-ident-name-4-\😍 { background: lime; }
+.local-_dent-name_module_css_local-ident-name-4-“‘’” { background: lime; }
+.local-_dent-name_module_css_local-ident-name-4-☺☃ { background: lime; }
+.local-_dent-name_module_css_local-ident-name-4-⌘⌥ { background: lime; }
+.local-_dent-name_module_css_local-ident-name-4-\𝄞♪♩♫♬ { background: lime; }
+.local-_dent-name_module_css_local-ident-name-4-\💩 { background: lime; }
+.local-_dent-name_module_css_local-ident-name-4-\? { background: lime; }
+.local-_dent-name_module_css_local-ident-name-4-\@ { background: lime; }
+.local-_dent-name_module_css_local-ident-name-4-\. { background: lime; }
+.local-_dent-name_module_css_local-ident-name-4-\:\) { background: lime; }
+.local-_dent-name_module_css_local-ident-name-4-\:\`\( { background: lime; }
+.local-_dent-name_module_css_local-ident-name-4-123 { background: lime; }
+.local-_dent-name_module_css_local-ident-name-4-1a2b3c { background: lime; }
+.local-_dent-name_module_css_local-ident-name-4-\<p\> { background: lime; }
+.local-_dent-name_module_css_local-ident-name-4-\<\>\<\<\<\>\>\<\> { background: lime; }
+.local-_dent-name_module_css_local-ident-name-4-\+\+\+\+\+\+\+\+\+\+\[\>\+\+\+\+\+\+\+\>\+\+\+\+\+\+\+\+\+\+\>\+\+\+\>\+\<\<\<\<-\]\>\+\+\.\>\+\.\+\+\+\+\+\+\+\.\.\+\+\+\.\>\+\+\.\<\<\+\+\+\+\+\+\+\+\+\+\+\+\+\+\+\.\>\.\+\+\+\.------\.--------\.\>\+\.\>\. { background: lime; }
+.local-_dent-name_module_css_local-ident-name-4-\# { background: lime; }
+.local-_dent-name_module_css_local-ident-name-4-\#\# { background: lime; }
+.local-_dent-name_module_css_local-ident-name-4-\#\.\#\.\# { background: lime; }
+.local-_dent-name_module_css_local-ident-name-4-_ { background: lime; }
+.local-_dent-name_module_css_local-ident-name-4-\{\} { background: lime; }
+.local-_dent-name_module_css_local-ident-name-4-\#fake-id { background: lime; }
+.local-_dent-name_module_css_local-ident-name-4-foo\.bar { background: lime; }
+.local-_dent-name_module_css_local-ident-name-4-\:hover { background: lime; }
+.local-_dent-name_module_css_local-ident-name-4-\:hover\:focus\:active { background: lime; }
+.local-_dent-name_module_css_local-ident-name-4-\[attr\=value\] { background: lime; }
+.local-_dent-name_module_css_local-ident-name-4-f\/o\/o { background: lime; }
+.local-_dent-name_module_css_local-ident-name-4-f\\o\\o { background: lime; }
+.local-_dent-name_module_css_local-ident-name-4-f\*o\*o { background: lime; }
+.local-_dent-name_module_css_local-ident-name-4-f\!o\!o { background: lime; }
+.local-_dent-name_module_css_local-ident-name-4-f\'o\'o { background: lime; }
+.local-_dent-name_module_css_local-ident-name-4-f\~o\~o { background: lime; }
+.local-_dent-name_module_css_local-ident-name-4-f\+o\+o { background: lime; }
+
+.local-_dent-name_module_css_local-ident-name-4-foo\/bar {
+  background: hotpink;
+}
+
+.local-_dent-name_module_css_local-ident-name-4-foo\\bar {
+  background: hotpink;
+}
+
+.local-_dent-name_module_css_local-ident-name-4-foo\/bar\/baz {
+  background: hotpink;
+}
+
+.local-_dent-name_module_css_local-ident-name-4-foo\\bar\\baz {
+  background: hotpink;
+}
+
+.local-_dent-name_module_css_local-ident-name-5-test {
+  background: red;
+}
+
+.local-_dent-name_module_css_local-ident-name-5-_test {
+  background: blue;
+}
+
+.local-_dent-name_module_css_local-ident-name-5-className {
+  background: red;
+}
+
+#local-_dent-name_module_css_local-ident-name-5-someId {
+  background: green;
+}
+
+.local-_dent-name_module_css_local-ident-name-5-className .local-_dent-name_module_css_local-ident-name-5-subClass {
+  color: green;
+}
+
+#local-_dent-name_module_css_local-ident-name-5-someId .local-_dent-name_module_css_local-ident-name-5-subClass {
+  color: blue;
+}
+
+.local-_dent-name_module_css_local-ident-name-5--a0-34a___f {
+  color: red;
+}
+
+.local-_dent-name_module_css_local-ident-name-5-m_x_\@ {
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+
+.local-_dent-name_module_css_local-ident-name-5-B\&W\? {
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+
+/* matches elements with class=":`(" */
+.local-_dent-name_module_css_local-ident-name-5-\:\`\( {
+  color: aqua;
+}
+
+/* matches elements with class="1a2b3c" */
+.local-_dent-name_module_css_local-ident-name-5-1a2b3c {
+  color: aliceblue;
+}
+
+/* matches the element with id="#fake-id" */
+#local-_dent-name_module_css_local-ident-name-5-\#fake-id {
+  color: antiquewhite;
+}
+
+/* matches the element with id="-a-b-c-" */
+#local-_dent-name_module_css_local-ident-name-5--a-b-c- {
+  color: azure;
+}
+
+/* matches the element with id="©" */
+#local-_dent-name_module_css_local-ident-name-5-© {
+  color: black;
+}
+
+.local-_dent-name_module_css_local-ident-name-5-♥ { background: lime; }
+.local-_dent-name_module_css_local-ident-name-5-© { background: lime; }
+.local-_dent-name_module_css_local-ident-name-5-\😍 { background: lime; }
+.local-_dent-name_module_css_local-ident-name-5-“‘’” { background: lime; }
+.local-_dent-name_module_css_local-ident-name-5-☺☃ { background: lime; }
+.local-_dent-name_module_css_local-ident-name-5-⌘⌥ { background: lime; }
+.local-_dent-name_module_css_local-ident-name-5-\𝄞♪♩♫♬ { background: lime; }
+.local-_dent-name_module_css_local-ident-name-5-\💩 { background: lime; }
+.local-_dent-name_module_css_local-ident-name-5-\? { background: lime; }
+.local-_dent-name_module_css_local-ident-name-5-\@ { background: lime; }
+.local-_dent-name_module_css_local-ident-name-5-\. { background: lime; }
+.local-_dent-name_module_css_local-ident-name-5-\:\) { background: lime; }
+.local-_dent-name_module_css_local-ident-name-5-\:\`\( { background: lime; }
+.local-_dent-name_module_css_local-ident-name-5-123 { background: lime; }
+.local-_dent-name_module_css_local-ident-name-5-1a2b3c { background: lime; }
+.local-_dent-name_module_css_local-ident-name-5-\<p\> { background: lime; }
+.local-_dent-name_module_css_local-ident-name-5-\<\>\<\<\<\>\>\<\> { background: lime; }
+.local-_dent-name_module_css_local-ident-name-5-\+\+\+\+\+\+\+\+\+\+\[\>\+\+\+\+\+\+\+\>\+\+\+\+\+\+\+\+\+\+\>\+\+\+\>\+\<\<\<\<-\]\>\+\+\.\>\+\.\+\+\+\+\+\+\+\.\.\+\+\+\.\>\+\+\.\<\<\+\+\+\+\+\+\+\+\+\+\+\+\+\+\+\.\>\.\+\+\+\.------\.--------\.\>\+\.\>\. { background: lime; }
+.local-_dent-name_module_css_local-ident-name-5-\# { background: lime; }
+.local-_dent-name_module_css_local-ident-name-5-\#\# { background: lime; }
+.local-_dent-name_module_css_local-ident-name-5-\#\.\#\.\# { background: lime; }
+.local-_dent-name_module_css_local-ident-name-5-_ { background: lime; }
+.local-_dent-name_module_css_local-ident-name-5-\{\} { background: lime; }
+.local-_dent-name_module_css_local-ident-name-5-\#fake-id { background: lime; }
+.local-_dent-name_module_css_local-ident-name-5-foo\.bar { background: lime; }
+.local-_dent-name_module_css_local-ident-name-5-\:hover { background: lime; }
+.local-_dent-name_module_css_local-ident-name-5-\:hover\:focus\:active { background: lime; }
+.local-_dent-name_module_css_local-ident-name-5-\[attr\=value\] { background: lime; }
+.local-_dent-name_module_css_local-ident-name-5-f\/o\/o { background: lime; }
+.local-_dent-name_module_css_local-ident-name-5-f\\o\\o { background: lime; }
+.local-_dent-name_module_css_local-ident-name-5-f\*o\*o { background: lime; }
+.local-_dent-name_module_css_local-ident-name-5-f\!o\!o { background: lime; }
+.local-_dent-name_module_css_local-ident-name-5-f\'o\'o { background: lime; }
+.local-_dent-name_module_css_local-ident-name-5-f\~o\~o { background: lime; }
+.local-_dent-name_module_css_local-ident-name-5-f\+o\+o { background: lime; }
+
+.local-_dent-name_module_css_local-ident-name-5-foo\/bar {
+  background: hotpink;
+}
+
+.local-_dent-name_module_css_local-ident-name-5-foo\\bar {
+  background: hotpink;
+}
+
+.local-_dent-name_module_css_local-ident-name-5-foo\/bar\/baz {
+  background: hotpink;
+}
+
+.local-_dent-name_module_css_local-ident-name-5-foo\\bar\\baz {
+  background: hotpink;
+}
+
+.local-_dent-name_module_css_local-ident-name-6-test {
+  background: red;
+}
+
+.local-_dent-name_module_css_local-ident-name-6-_test {
+  background: blue;
+}
+
+.local-_dent-name_module_css_local-ident-name-6-className {
+  background: red;
+}
+
+#local-_dent-name_module_css_local-ident-name-6-someId {
+  background: green;
+}
+
+.local-_dent-name_module_css_local-ident-name-6-className .local-_dent-name_module_css_local-ident-name-6-subClass {
+  color: green;
+}
+
+#local-_dent-name_module_css_local-ident-name-6-someId .local-_dent-name_module_css_local-ident-name-6-subClass {
+  color: blue;
+}
+
+.local-_dent-name_module_css_local-ident-name-6--a0-34a___f {
+  color: red;
+}
+
+.local-_dent-name_module_css_local-ident-name-6-m_x_\@ {
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+
+.local-_dent-name_module_css_local-ident-name-6-B\&W\? {
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+
+/* matches elements with class=":`(" */
+.local-_dent-name_module_css_local-ident-name-6-\:\`\( {
+  color: aqua;
+}
+
+/* matches elements with class="1a2b3c" */
+.local-_dent-name_module_css_local-ident-name-6-1a2b3c {
+  color: aliceblue;
+}
+
+/* matches the element with id="#fake-id" */
+#local-_dent-name_module_css_local-ident-name-6-\#fake-id {
+  color: antiquewhite;
+}
+
+/* matches the element with id="-a-b-c-" */
+#local-_dent-name_module_css_local-ident-name-6--a-b-c- {
+  color: azure;
+}
+
+/* matches the element with id="©" */
+#local-_dent-name_module_css_local-ident-name-6-© {
+  color: black;
+}
+
+.local-_dent-name_module_css_local-ident-name-6-♥ { background: lime; }
+.local-_dent-name_module_css_local-ident-name-6-© { background: lime; }
+.local-_dent-name_module_css_local-ident-name-6-\😍 { background: lime; }
+.local-_dent-name_module_css_local-ident-name-6-“‘’” { background: lime; }
+.local-_dent-name_module_css_local-ident-name-6-☺☃ { background: lime; }
+.local-_dent-name_module_css_local-ident-name-6-⌘⌥ { background: lime; }
+.local-_dent-name_module_css_local-ident-name-6-\𝄞♪♩♫♬ { background: lime; }
+.local-_dent-name_module_css_local-ident-name-6-\💩 { background: lime; }
+.local-_dent-name_module_css_local-ident-name-6-\? { background: lime; }
+.local-_dent-name_module_css_local-ident-name-6-\@ { background: lime; }
+.local-_dent-name_module_css_local-ident-name-6-\. { background: lime; }
+.local-_dent-name_module_css_local-ident-name-6-\:\) { background: lime; }
+.local-_dent-name_module_css_local-ident-name-6-\:\`\( { background: lime; }
+.local-_dent-name_module_css_local-ident-name-6-123 { background: lime; }
+.local-_dent-name_module_css_local-ident-name-6-1a2b3c { background: lime; }
+.local-_dent-name_module_css_local-ident-name-6-\<p\> { background: lime; }
+.local-_dent-name_module_css_local-ident-name-6-\<\>\<\<\<\>\>\<\> { background: lime; }
+.local-_dent-name_module_css_local-ident-name-6-\+\+\+\+\+\+\+\+\+\+\[\>\+\+\+\+\+\+\+\>\+\+\+\+\+\+\+\+\+\+\>\+\+\+\>\+\<\<\<\<-\]\>\+\+\.\>\+\.\+\+\+\+\+\+\+\.\.\+\+\+\.\>\+\+\.\<\<\+\+\+\+\+\+\+\+\+\+\+\+\+\+\+\.\>\.\+\+\+\.------\.--------\.\>\+\.\>\. { background: lime; }
+.local-_dent-name_module_css_local-ident-name-6-\# { background: lime; }
+.local-_dent-name_module_css_local-ident-name-6-\#\# { background: lime; }
+.local-_dent-name_module_css_local-ident-name-6-\#\.\#\.\# { background: lime; }
+.local-_dent-name_module_css_local-ident-name-6-_ { background: lime; }
+.local-_dent-name_module_css_local-ident-name-6-\{\} { background: lime; }
+.local-_dent-name_module_css_local-ident-name-6-\#fake-id { background: lime; }
+.local-_dent-name_module_css_local-ident-name-6-foo\.bar { background: lime; }
+.local-_dent-name_module_css_local-ident-name-6-\:hover { background: lime; }
+.local-_dent-name_module_css_local-ident-name-6-\:hover\:focus\:active { background: lime; }
+.local-_dent-name_module_css_local-ident-name-6-\[attr\=value\] { background: lime; }
+.local-_dent-name_module_css_local-ident-name-6-f\/o\/o { background: lime; }
+.local-_dent-name_module_css_local-ident-name-6-f\\o\\o { background: lime; }
+.local-_dent-name_module_css_local-ident-name-6-f\*o\*o { background: lime; }
+.local-_dent-name_module_css_local-ident-name-6-f\!o\!o { background: lime; }
+.local-_dent-name_module_css_local-ident-name-6-f\'o\'o { background: lime; }
+.local-_dent-name_module_css_local-ident-name-6-f\~o\~o { background: lime; }
+.local-_dent-name_module_css_local-ident-name-6-f\+o\+o { background: lime; }
+
+.local-_dent-name_module_css_local-ident-name-6-foo\/bar {
+  background: hotpink;
+}
+
+.local-_dent-name_module_css_local-ident-name-6-foo\\bar {
+  background: hotpink;
+}
+
+.local-_dent-name_module_css_local-ident-name-6-foo\/bar\/baz {
+  background: hotpink;
+}
+
+.local-_dent-name_module_css_local-ident-name-6-foo\\bar\\baz {
+  background: hotpink;
+}
+
+.local-_dent-name_module_css_local-ident-name-7-test {
+  background: red;
+}
+
+.local-_dent-name_module_css_local-ident-name-7-_test {
+  background: blue;
+}
+
+.local-_dent-name_module_css_local-ident-name-7-className {
+  background: red;
+}
+
+#local-_dent-name_module_css_local-ident-name-7-someId {
+  background: green;
+}
+
+.local-_dent-name_module_css_local-ident-name-7-className .local-_dent-name_module_css_local-ident-name-7-subClass {
+  color: green;
+}
+
+#local-_dent-name_module_css_local-ident-name-7-someId .local-_dent-name_module_css_local-ident-name-7-subClass {
+  color: blue;
+}
+
+.local-_dent-name_module_css_local-ident-name-7--a0-34a___f {
+  color: red;
+}
+
+.local-_dent-name_module_css_local-ident-name-7-m_x_\@ {
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+
+.local-_dent-name_module_css_local-ident-name-7-B\&W\? {
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+
+/* matches elements with class=":`(" */
+.local-_dent-name_module_css_local-ident-name-7-\:\`\( {
+  color: aqua;
+}
+
+/* matches elements with class="1a2b3c" */
+.local-_dent-name_module_css_local-ident-name-7-1a2b3c {
+  color: aliceblue;
+}
+
+/* matches the element with id="#fake-id" */
+#local-_dent-name_module_css_local-ident-name-7-\#fake-id {
+  color: antiquewhite;
+}
+
+/* matches the element with id="-a-b-c-" */
+#local-_dent-name_module_css_local-ident-name-7--a-b-c- {
+  color: azure;
+}
+
+/* matches the element with id="©" */
+#local-_dent-name_module_css_local-ident-name-7-© {
+  color: black;
+}
+
+.local-_dent-name_module_css_local-ident-name-7-♥ { background: lime; }
+.local-_dent-name_module_css_local-ident-name-7-© { background: lime; }
+.local-_dent-name_module_css_local-ident-name-7-\😍 { background: lime; }
+.local-_dent-name_module_css_local-ident-name-7-“‘’” { background: lime; }
+.local-_dent-name_module_css_local-ident-name-7-☺☃ { background: lime; }
+.local-_dent-name_module_css_local-ident-name-7-⌘⌥ { background: lime; }
+.local-_dent-name_module_css_local-ident-name-7-\𝄞♪♩♫♬ { background: lime; }
+.local-_dent-name_module_css_local-ident-name-7-\💩 { background: lime; }
+.local-_dent-name_module_css_local-ident-name-7-\? { background: lime; }
+.local-_dent-name_module_css_local-ident-name-7-\@ { background: lime; }
+.local-_dent-name_module_css_local-ident-name-7-\. { background: lime; }
+.local-_dent-name_module_css_local-ident-name-7-\:\) { background: lime; }
+.local-_dent-name_module_css_local-ident-name-7-\:\`\( { background: lime; }
+.local-_dent-name_module_css_local-ident-name-7-123 { background: lime; }
+.local-_dent-name_module_css_local-ident-name-7-1a2b3c { background: lime; }
+.local-_dent-name_module_css_local-ident-name-7-\<p\> { background: lime; }
+.local-_dent-name_module_css_local-ident-name-7-\<\>\<\<\<\>\>\<\> { background: lime; }
+.local-_dent-name_module_css_local-ident-name-7-\+\+\+\+\+\+\+\+\+\+\[\>\+\+\+\+\+\+\+\>\+\+\+\+\+\+\+\+\+\+\>\+\+\+\>\+\<\<\<\<-\]\>\+\+\.\>\+\.\+\+\+\+\+\+\+\.\.\+\+\+\.\>\+\+\.\<\<\+\+\+\+\+\+\+\+\+\+\+\+\+\+\+\.\>\.\+\+\+\.------\.--------\.\>\+\.\>\. { background: lime; }
+.local-_dent-name_module_css_local-ident-name-7-\# { background: lime; }
+.local-_dent-name_module_css_local-ident-name-7-\#\# { background: lime; }
+.local-_dent-name_module_css_local-ident-name-7-\#\.\#\.\# { background: lime; }
+.local-_dent-name_module_css_local-ident-name-7-_ { background: lime; }
+.local-_dent-name_module_css_local-ident-name-7-\{\} { background: lime; }
+.local-_dent-name_module_css_local-ident-name-7-\#fake-id { background: lime; }
+.local-_dent-name_module_css_local-ident-name-7-foo\.bar { background: lime; }
+.local-_dent-name_module_css_local-ident-name-7-\:hover { background: lime; }
+.local-_dent-name_module_css_local-ident-name-7-\:hover\:focus\:active { background: lime; }
+.local-_dent-name_module_css_local-ident-name-7-\[attr\=value\] { background: lime; }
+.local-_dent-name_module_css_local-ident-name-7-f\/o\/o { background: lime; }
+.local-_dent-name_module_css_local-ident-name-7-f\\o\\o { background: lime; }
+.local-_dent-name_module_css_local-ident-name-7-f\*o\*o { background: lime; }
+.local-_dent-name_module_css_local-ident-name-7-f\!o\!o { background: lime; }
+.local-_dent-name_module_css_local-ident-name-7-f\'o\'o { background: lime; }
+.local-_dent-name_module_css_local-ident-name-7-f\~o\~o { background: lime; }
+.local-_dent-name_module_css_local-ident-name-7-f\+o\+o { background: lime; }
+
+.local-_dent-name_module_css_local-ident-name-7-foo\/bar {
+  background: hotpink;
+}
+
+.local-_dent-name_module_css_local-ident-name-7-foo\\bar {
+  background: hotpink;
+}
+
+.local-_dent-name_module_css_local-ident-name-7-foo\/bar\/baz {
+  background: hotpink;
+}
+
+.local-_dent-name_module_css_local-ident-name-7-foo\\bar\\baz {
+  background: hotpink;
+}
+
+.local-_dent-name_module_css_local-ident-name-8-test {
+  background: red;
+}
+
+.local-_dent-name_module_css_local-ident-name-8-_test {
+  background: blue;
+}
+
+.local-_dent-name_module_css_local-ident-name-8-className {
+  background: red;
+}
+
+#local-_dent-name_module_css_local-ident-name-8-someId {
+  background: green;
+}
+
+.local-_dent-name_module_css_local-ident-name-8-className .local-_dent-name_module_css_local-ident-name-8-subClass {
+  color: green;
+}
+
+#local-_dent-name_module_css_local-ident-name-8-someId .local-_dent-name_module_css_local-ident-name-8-subClass {
+  color: blue;
+}
+
+.local-_dent-name_module_css_local-ident-name-8--a0-34a___f {
+  color: red;
+}
+
+.local-_dent-name_module_css_local-ident-name-8-m_x_\@ {
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+
+.local-_dent-name_module_css_local-ident-name-8-B\&W\? {
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+
+/* matches elements with class=":`(" */
+.local-_dent-name_module_css_local-ident-name-8-\:\`\( {
+  color: aqua;
+}
+
+/* matches elements with class="1a2b3c" */
+.local-_dent-name_module_css_local-ident-name-8-1a2b3c {
+  color: aliceblue;
+}
+
+/* matches the element with id="#fake-id" */
+#local-_dent-name_module_css_local-ident-name-8-\#fake-id {
+  color: antiquewhite;
+}
+
+/* matches the element with id="-a-b-c-" */
+#local-_dent-name_module_css_local-ident-name-8--a-b-c- {
+  color: azure;
+}
+
+/* matches the element with id="©" */
+#local-_dent-name_module_css_local-ident-name-8-© {
+  color: black;
+}
+
+.local-_dent-name_module_css_local-ident-name-8-♥ { background: lime; }
+.local-_dent-name_module_css_local-ident-name-8-© { background: lime; }
+.local-_dent-name_module_css_local-ident-name-8-\😍 { background: lime; }
+.local-_dent-name_module_css_local-ident-name-8-“‘’” { background: lime; }
+.local-_dent-name_module_css_local-ident-name-8-☺☃ { background: lime; }
+.local-_dent-name_module_css_local-ident-name-8-⌘⌥ { background: lime; }
+.local-_dent-name_module_css_local-ident-name-8-\𝄞♪♩♫♬ { background: lime; }
+.local-_dent-name_module_css_local-ident-name-8-\💩 { background: lime; }
+.local-_dent-name_module_css_local-ident-name-8-\? { background: lime; }
+.local-_dent-name_module_css_local-ident-name-8-\@ { background: lime; }
+.local-_dent-name_module_css_local-ident-name-8-\. { background: lime; }
+.local-_dent-name_module_css_local-ident-name-8-\:\) { background: lime; }
+.local-_dent-name_module_css_local-ident-name-8-\:\`\( { background: lime; }
+.local-_dent-name_module_css_local-ident-name-8-123 { background: lime; }
+.local-_dent-name_module_css_local-ident-name-8-1a2b3c { background: lime; }
+.local-_dent-name_module_css_local-ident-name-8-\<p\> { background: lime; }
+.local-_dent-name_module_css_local-ident-name-8-\<\>\<\<\<\>\>\<\> { background: lime; }
+.local-_dent-name_module_css_local-ident-name-8-\+\+\+\+\+\+\+\+\+\+\[\>\+\+\+\+\+\+\+\>\+\+\+\+\+\+\+\+\+\+\>\+\+\+\>\+\<\<\<\<-\]\>\+\+\.\>\+\.\+\+\+\+\+\+\+\.\.\+\+\+\.\>\+\+\.\<\<\+\+\+\+\+\+\+\+\+\+\+\+\+\+\+\.\>\.\+\+\+\.------\.--------\.\>\+\.\>\. { background: lime; }
+.local-_dent-name_module_css_local-ident-name-8-\# { background: lime; }
+.local-_dent-name_module_css_local-ident-name-8-\#\# { background: lime; }
+.local-_dent-name_module_css_local-ident-name-8-\#\.\#\.\# { background: lime; }
+.local-_dent-name_module_css_local-ident-name-8-_ { background: lime; }
+.local-_dent-name_module_css_local-ident-name-8-\{\} { background: lime; }
+.local-_dent-name_module_css_local-ident-name-8-\#fake-id { background: lime; }
+.local-_dent-name_module_css_local-ident-name-8-foo\.bar { background: lime; }
+.local-_dent-name_module_css_local-ident-name-8-\:hover { background: lime; }
+.local-_dent-name_module_css_local-ident-name-8-\:hover\:focus\:active { background: lime; }
+.local-_dent-name_module_css_local-ident-name-8-\[attr\=value\] { background: lime; }
+.local-_dent-name_module_css_local-ident-name-8-f\/o\/o { background: lime; }
+.local-_dent-name_module_css_local-ident-name-8-f\\o\\o { background: lime; }
+.local-_dent-name_module_css_local-ident-name-8-f\*o\*o { background: lime; }
+.local-_dent-name_module_css_local-ident-name-8-f\!o\!o { background: lime; }
+.local-_dent-name_module_css_local-ident-name-8-f\'o\'o { background: lime; }
+.local-_dent-name_module_css_local-ident-name-8-f\~o\~o { background: lime; }
+.local-_dent-name_module_css_local-ident-name-8-f\+o\+o { background: lime; }
+
+.local-_dent-name_module_css_local-ident-name-8-foo\/bar {
+  background: hotpink;
+}
+
+.local-_dent-name_module_css_local-ident-name-8-foo\\bar {
+  background: hotpink;
+}
+
+.local-_dent-name_module_css_local-ident-name-8-foo\/bar\/baz {
+  background: hotpink;
+}
+
+.local-_dent-name_module_css_local-ident-name-8-foo\\bar\\baz {
+  background: hotpink;
+}
+
+.local-_dent-name_module_css_local-ident-name-9-test {
+  background: red;
+}
+
+.local-_dent-name_module_css_local-ident-name-9-_test {
+  background: blue;
+}
+
+.local-_dent-name_module_css_local-ident-name-9-className {
+  background: red;
+}
+
+#local-_dent-name_module_css_local-ident-name-9-someId {
+  background: green;
+}
+
+.local-_dent-name_module_css_local-ident-name-9-className .local-_dent-name_module_css_local-ident-name-9-subClass {
+  color: green;
+}
+
+#local-_dent-name_module_css_local-ident-name-9-someId .local-_dent-name_module_css_local-ident-name-9-subClass {
+  color: blue;
+}
+
+.local-_dent-name_module_css_local-ident-name-9--a0-34a___f {
+  color: red;
+}
+
+.local-_dent-name_module_css_local-ident-name-9-m_x_\@ {
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+
+.local-_dent-name_module_css_local-ident-name-9-B\&W\? {
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+
+/* matches elements with class=":`(" */
+.local-_dent-name_module_css_local-ident-name-9-\:\`\( {
+  color: aqua;
+}
+
+/* matches elements with class="1a2b3c" */
+.local-_dent-name_module_css_local-ident-name-9-1a2b3c {
+  color: aliceblue;
+}
+
+/* matches the element with id="#fake-id" */
+#local-_dent-name_module_css_local-ident-name-9-\#fake-id {
+  color: antiquewhite;
+}
+
+/* matches the element with id="-a-b-c-" */
+#local-_dent-name_module_css_local-ident-name-9--a-b-c- {
+  color: azure;
+}
+
+/* matches the element with id="©" */
+#local-_dent-name_module_css_local-ident-name-9-© {
+  color: black;
+}
+
+.local-_dent-name_module_css_local-ident-name-9-♥ { background: lime; }
+.local-_dent-name_module_css_local-ident-name-9-© { background: lime; }
+.local-_dent-name_module_css_local-ident-name-9-\😍 { background: lime; }
+.local-_dent-name_module_css_local-ident-name-9-“‘’” { background: lime; }
+.local-_dent-name_module_css_local-ident-name-9-☺☃ { background: lime; }
+.local-_dent-name_module_css_local-ident-name-9-⌘⌥ { background: lime; }
+.local-_dent-name_module_css_local-ident-name-9-\𝄞♪♩♫♬ { background: lime; }
+.local-_dent-name_module_css_local-ident-name-9-\💩 { background: lime; }
+.local-_dent-name_module_css_local-ident-name-9-\? { background: lime; }
+.local-_dent-name_module_css_local-ident-name-9-\@ { background: lime; }
+.local-_dent-name_module_css_local-ident-name-9-\. { background: lime; }
+.local-_dent-name_module_css_local-ident-name-9-\:\) { background: lime; }
+.local-_dent-name_module_css_local-ident-name-9-\:\`\( { background: lime; }
+.local-_dent-name_module_css_local-ident-name-9-123 { background: lime; }
+.local-_dent-name_module_css_local-ident-name-9-1a2b3c { background: lime; }
+.local-_dent-name_module_css_local-ident-name-9-\<p\> { background: lime; }
+.local-_dent-name_module_css_local-ident-name-9-\<\>\<\<\<\>\>\<\> { background: lime; }
+.local-_dent-name_module_css_local-ident-name-9-\+\+\+\+\+\+\+\+\+\+\[\>\+\+\+\+\+\+\+\>\+\+\+\+\+\+\+\+\+\+\>\+\+\+\>\+\<\<\<\<-\]\>\+\+\.\>\+\.\+\+\+\+\+\+\+\.\.\+\+\+\.\>\+\+\.\<\<\+\+\+\+\+\+\+\+\+\+\+\+\+\+\+\.\>\.\+\+\+\.------\.--------\.\>\+\.\>\. { background: lime; }
+.local-_dent-name_module_css_local-ident-name-9-\# { background: lime; }
+.local-_dent-name_module_css_local-ident-name-9-\#\# { background: lime; }
+.local-_dent-name_module_css_local-ident-name-9-\#\.\#\.\# { background: lime; }
+.local-_dent-name_module_css_local-ident-name-9-_ { background: lime; }
+.local-_dent-name_module_css_local-ident-name-9-\{\} { background: lime; }
+.local-_dent-name_module_css_local-ident-name-9-\#fake-id { background: lime; }
+.local-_dent-name_module_css_local-ident-name-9-foo\.bar { background: lime; }
+.local-_dent-name_module_css_local-ident-name-9-\:hover { background: lime; }
+.local-_dent-name_module_css_local-ident-name-9-\:hover\:focus\:active { background: lime; }
+.local-_dent-name_module_css_local-ident-name-9-\[attr\=value\] { background: lime; }
+.local-_dent-name_module_css_local-ident-name-9-f\/o\/o { background: lime; }
+.local-_dent-name_module_css_local-ident-name-9-f\\o\\o { background: lime; }
+.local-_dent-name_module_css_local-ident-name-9-f\*o\*o { background: lime; }
+.local-_dent-name_module_css_local-ident-name-9-f\!o\!o { background: lime; }
+.local-_dent-name_module_css_local-ident-name-9-f\'o\'o { background: lime; }
+.local-_dent-name_module_css_local-ident-name-9-f\~o\~o { background: lime; }
+.local-_dent-name_module_css_local-ident-name-9-f\+o\+o { background: lime; }
+
+.local-_dent-name_module_css_local-ident-name-9-foo\/bar {
+  background: hotpink;
+}
+
+.local-_dent-name_module_css_local-ident-name-9-foo\\bar {
+  background: hotpink;
+}
+
+.local-_dent-name_module_css_local-ident-name-9-foo\/bar\/baz {
+  background: hotpink;
+}
+
+.local-_dent-name_module_css_local-ident-name-9-foo\\bar\\baz {
+  background: hotpink;
+}
+
+.order-1_css-order-1 {
+  color: red;
+}
+
+.order-1_css-order-1-1 {
+  color: aliceblue;
+}
+
+.order-2_css-order-2 {
+  color: blue;
+}
+
+.order-2_css-order-2-2 {
+  color: azure;
+}
+
+.order_module_css-simple {
+	display: block;
+	
+	
+	
+	
+}
+
+.order_module_css-simple-other {
+	display: inline;
+	
+}
+
+
+.button_css-button {
+  border: none;
+  padding: 7px 15px;
+  cursor: pointer;
+}
+
+.primary-button_css-primaryButton {
+  
+  background-color: blue;
+  color: white;
+}
+
+.secondary-button_css-secondaryButton
+{
+  
+  background-color: #555;
+  color: white;
+}
+
+.dedup_module_css-nextButton {
+	
+}
+
+.dedup_module_css-backButton {
+	
+}
+
+
+.foo_less-foo {
+  color: red;
+}
+
+.composes-from-less_module_css-bar {
+	
+}
+
+
+
+
+.node_modules_test_index_css-class {
+	color: red;
+}
+
+#000
+#fff
+
+.tilde_module_css-className {
+	color: #000;
+	background: #fff;
+}
+
+
+/* Tests from css-loader */
+
+/* should work with the `default` class and with named export */
+.classes_module_css-default {
+	background: red
+}
+
+
+/* should work with the `module` class and with named export */
+.classes_module_css-module {
+	background: red
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+.icss_module_css-className {
+	color: classes_module_css-module;
+},
+]

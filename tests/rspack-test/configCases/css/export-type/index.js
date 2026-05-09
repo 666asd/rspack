@@ -13,7 +13,7 @@ import icssStylesheet, { "sheet-button" as icssStylesheetButton } from "./icss-s
 
 it("should export CSS text as default when exportType is text (css/module)", () => {
 	expect(typeof moduleText).toBe("string");
-	expect(moduleText).toMatchSnapshot();
+	expect(moduleText).toMatchFileSnapshotSync(`${__SNAPSHOT__}/module-text.txt`);
 
 	expect(moduleTextClass).toBeTruthy();
 });
@@ -30,7 +30,7 @@ it("should export CSS text when exportType is text and esModule is false (css/mo
 	// Named export, warn
 	expect(moduleTextNoEsm["no-esm-text"]).toBeTruthy();
 	expect(moduleTextNoEsm.default["no-esm-text"]).toBeTruthy();
-	expect(moduleTextNoEsm).toMatchSnapshot();
+	expect(moduleTextNoEsm).toMatchFileSnapshotSync(`${__SNAPSHOT__}/module-text-no-esm.txt`);
 });
 
 
@@ -43,7 +43,7 @@ it("should export CSS text when exportType is text and esModule is false (css/au
 it("should handle @import with layer, supports, and media queries", () => {
 	expect(typeof moduleWithImports).toBe("string");
 	expect(typeof parentModuleWithImports).toBe("string");
-	expect(parentModuleWithImports).toMatchSnapshot();
+	expect(parentModuleWithImports).toMatchFileSnapshotSync(`${__SNAPSHOT__}/parent-module-with-imports.txt`);
 });
 
 it("should handle ICSS :import with exportType text", () => {

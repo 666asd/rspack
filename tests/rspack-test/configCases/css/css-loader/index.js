@@ -25,38 +25,44 @@ import * as styles23 from "./tilde.module.css";
 import * as styles24 from "./icss.module.css";
 
 it("should work", () => {
-	const links = document.getElementsByTagName("link");
+	const links = Array.from(document.getElementsByTagName("link"));
 	const css = [];
 
 	// Skip first because import it by default
 	for (const link of links.slice(1)) {
-		css.push(link.sheet.css);
+		css.push(getLinkSheet(link));
 	}
 
-	expect(basic).toMatchSnapshot();
-	expect(styles).toMatchSnapshot();
-	expect(styles1).toMatchSnapshot();
-	expect(styles3).toMatchSnapshot();
-	expect(styles4).toMatchSnapshot();
-	expect(styles5).toMatchSnapshot();
-	expect(styles6).toMatchSnapshot();
-	expect(styles7).toMatchSnapshot();
-	expect(styles8).toMatchSnapshot();
-	expect(styles9).toMatchSnapshot();
-	expect(styles10).toMatchSnapshot();
-	expect(styles11).toMatchSnapshot();
-	expect(styles12).toMatchSnapshot();
-	expect(styles13).toMatchSnapshot();
-	expect(styles14).toMatchSnapshot();
-	expect(styles15).toMatchSnapshot();
-	expect(styles16).toMatchSnapshot();
-	expect(styles17).toMatchSnapshot();
-	expect(styles18).toMatchSnapshot();
-	expect(styles19).toMatchSnapshot();
-	expect(styles20).toMatchSnapshot();
-	expect(styles21).toMatchSnapshot();
-	expect(styles22).toMatchSnapshot();
-	expect(styles23).toMatchSnapshot();
-	expect(styles24).toMatchSnapshot();
-	expect(css).toMatchSnapshot();
+	const snapshots = [
+		["basic", basic],
+		["classes", styles],
+		["composes-multiple", styles1],
+		["composes-global", styles3],
+		["scope-at-rule", styles4],
+		["nesting", styles5],
+		["prefer-relative", styles6],
+		["animation-name", styles7],
+		["at-sign-in-package-name", styles8],
+		["resolving-from-node-modules", styles9],
+		["local-ident-name", styles10],
+		["local-ident-name-1", styles11],
+		["local-ident-name-2", styles12],
+		["local-ident-name-3", styles13],
+		["local-ident-name-4", styles14],
+		["local-ident-name-5", styles15],
+		["local-ident-name-6", styles16],
+		["local-ident-name-7", styles17],
+		["local-ident-name-8", styles18],
+		["local-ident-name-9", styles19],
+		["order", styles20],
+		["dedup", styles21],
+		["composes-from-less", styles22],
+		["tilde", styles23],
+		["icss", styles24],
+		["css", css],
+	];
+
+	for (const [name, value] of snapshots) {
+		expect(value).toMatchFileSnapshotSync(`${__SNAPSHOT__}/${name}.txt`);
+	}
 });
