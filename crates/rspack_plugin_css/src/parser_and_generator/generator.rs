@@ -199,11 +199,7 @@ impl<'a, 'g> CssModuleGenerator<'a, 'g> {
           &ns_obj,
           &left,
           &right,
-          if with_hmr {
-            format!("{module_argument}.hot.accept();\n")
-          } else {
-            Default::default()
-          }
+          self.render_accept_hmr()
         )
       };
 
@@ -576,15 +572,16 @@ impl<'a, 'g> CssModuleGenerator<'a, 'g> {
     let module_argument = self.module_argument();
 
     if with_hmr {
+      let accept_hmr = self.render_accept_hmr();
+
       format!(
         "// only invalidate when locals change
 var stringified_exports = JSON.stringify({decl_name});
 if ({module_argument}.hot.data && {module_argument}.hot.data.exports && {module_argument}.hot.data.exports != stringified_exports) {{
   {module_argument}.hot.invalidate();
 }} else {{
-  {module_argument}.hot.accept();
-}}
-{module_argument}.hot.dispose(function(data) {{ data.exports = stringified_exports; }});"
+  {accept_hmr}}}
+{module_argument}.hot.dispose(function(data) {{ data.exports = stringified_exports; }});",
       )
     } else {
       String::new()

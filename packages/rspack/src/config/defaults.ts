@@ -110,6 +110,7 @@ export const applyRspackOptionsDefaults = (
     targetProperties,
     mode: options.mode,
     uniqueName: options.output.uniqueName,
+    hashFunction: options.output.hashFunction,
     deferImport: options.experiments.deferImport,
     outputModule: options.output.module,
   });
@@ -314,6 +315,7 @@ const applyModuleDefaults = (
     targetProperties,
     mode,
     uniqueName,
+    hashFunction,
     deferImport,
     outputModule,
   }: {
@@ -322,6 +324,7 @@ const applyModuleDefaults = (
     targetProperties: false | TargetProperties;
     mode?: Mode;
     uniqueName?: string;
+    hashFunction?: string;
     deferImport?: boolean;
     outputModule: RspackOptionsNormalized['output']['module'];
   },
@@ -393,7 +396,21 @@ const applyModuleDefaults = (
         ? '[uniqueName]-[id]-[local]'
         : '[id]-[local]'
       : '[fullhash]';
+  const localIdentHashFunction = hashFunction ?? 'md4';
+  const localIdentHashDigest = 'base64url';
+  const localIdentHashDigestLength = 6;
   D(module.generator['css/auto'], 'localIdentName', localIdentName);
+  D(
+    module.generator['css/auto'],
+    'localIdentHashFunction',
+    localIdentHashFunction,
+  );
+  D(module.generator['css/auto'], 'localIdentHashDigest', localIdentHashDigest);
+  D(
+    module.generator['css/auto'],
+    'localIdentHashDigestLength',
+    localIdentHashDigestLength,
+  );
 
   F(module.generator, 'css/module', () => ({}));
   assertNotNill(module.generator['css/module']);
@@ -402,6 +419,21 @@ const applyModuleDefaults = (
   });
   D(module.generator['css/module'], 'exportsConvention', 'as-is');
   D(module.generator['css/module'], 'localIdentName', localIdentName);
+  D(
+    module.generator['css/module'],
+    'localIdentHashFunction',
+    localIdentHashFunction,
+  );
+  D(
+    module.generator['css/module'],
+    'localIdentHashDigest',
+    localIdentHashDigest,
+  );
+  D(
+    module.generator['css/module'],
+    'localIdentHashDigestLength',
+    localIdentHashDigestLength,
+  );
 
   F(module.generator, 'css/global', () => ({}));
   assertNotNill(module.generator['css/global']);
@@ -410,6 +442,21 @@ const applyModuleDefaults = (
   });
   D(module.generator['css/global'], 'exportsConvention', 'as-is');
   D(module.generator['css/global'], 'localIdentName', localIdentName);
+  D(
+    module.generator['css/global'],
+    'localIdentHashFunction',
+    localIdentHashFunction,
+  );
+  D(
+    module.generator['css/global'],
+    'localIdentHashDigest',
+    localIdentHashDigest,
+  );
+  D(
+    module.generator['css/global'],
+    'localIdentHashDigestLength',
+    localIdentHashDigestLength,
+  );
 
   // https://github.com/webpack/webpack/blob/main/lib/config/defaults.js#L839
   A(module, 'defaultRules', () => {

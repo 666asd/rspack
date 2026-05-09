@@ -1,11 +1,22 @@
 'use strict';
 
 const path = require('path');
+const rspack = require('@rspack/core');
 
 /** @typedef {import("@rspack/core").PathData} PathData */
+/** @typedef {import("@rspack/core").Configuration} Configuration */
+/** @typedef {"link" | "text" | "css-style-sheet" | "style"} ExportType */
 
-/** @type {import("@rspack/core").Configuration} */
-module.exports = {
+const EXPORT_TYPES =
+  /** @type {ExportType[]} */
+  (['link', 'text', 'css-style-sheet', 'style']);
+
+/**
+ * @param {ExportType} exportType
+ * @returns {Configuration}
+ */
+const createConfig = (exportType) => ({
+  name: exportType,
   target: 'web',
   mode: 'development',
   devtool: false,
@@ -81,15 +92,63 @@ module.exports = {
         test: /.css$/,
         resourceQuery: /\?local-ident-name-9$/,
         generator: {
-          /**
-           * @param {PathData} pathData path data
-           * @returns {string} local ident name
-           */
-          localIdentName: (pathData) =>
-            `prefix-${pathData.filename}---${pathData.local}---${pathData.hash}-postfix`,
+          localIdentName:
+            'prefix-./[name][ext][query]---[local]---[fullhash]-postfix',
+        },
+      },
+      {
+        test: /.css$/,
+        resourceQuery: /\?local-ident-name-10$/,
+        generator: {
+          localIdentName: '[name]--[local]--[fullhash]',
+          localIdentHashSalt: 'my-custom-salt',
+        },
+      },
+      {
+        test: /.css$/,
+        resourceQuery: /\?local-ident-name-11$/,
+        generator: {
+          localIdentName: '[name]--[local]--[fullhash]',
+          localIdentHashDigest: 'hex',
+          localIdentHashDigestLength: 8,
+        },
+      },
+      {
+        test: /.css$/,
+        resourceQuery: /\?local-ident-name-12$/,
+        generator: {
+          localIdentName: '[name]--[local]--[fullhash]',
+          localIdentHashDigest: 'base64',
+          localIdentHashDigestLength: 8,
+        },
+      },
+      {
+        test: /.css$/,
+        resourceQuery: /\?local-ident-name-13$/,
+        generator: {
+          localIdentName: '[name]--[local]--[fullhash]',
+          localIdentHashFunction: 'md4',
+          localIdentHashDigest: 'base64url',
+          localIdentHashDigestLength: 6,
+        },
+      },
+      {
+        test: /.css$/,
+        resourceQuery: /\?local-ident-name-14$/,
+        generator: {
+          localIdentName: '[name]--[local]--[fullhash]',
+          localIdentHashFunction: 'sha256',
+          localIdentHashSalt: 'another-salt',
+          localIdentHashDigest: 'hex',
+          localIdentHashDigestLength: 12,
         },
       },
     ],
+    parser: {
+      css: {
+        exportType,
+      },
+    },
   },
   resolve: {
     alias: {
@@ -99,4 +158,11 @@ module.exports = {
   experiments: {
     css: true,
   },
-};
+  plugins: [
+    new rspack.DefinePlugin({
+      'process.env.EXPORT_TYPE': JSON.stringify(exportType),
+    }),
+  ],
+});
+
+module.exports = EXPORT_TYPES.map(createConfig);

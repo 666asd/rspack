@@ -1,29 +1,26 @@
 import * as pureStyle from "./style.css";
 import * as styles from "./style.modules.css";
 
-it("should work", (done) => {
+it("should work", async () => {
   expect(pureStyle).toEqual({});
 
   if (typeof document !== "undefined") {
     const style = getComputedStyle(document.body);
-    expect(style.getPropertyValue("background")).toBe(" red");
+		expect(style.getPropertyValue("background")).toBe("red");
   }
 
   expect(styles.foo).toBe("style_modules_css-foo");
 
-  import(/* webpackPrefetch: true */ "./style2.css").then((x) => {
-    expect(x).toEqual({});
+  const x = await import(/* webpackPrefetch: true */ "./style2.css");
+  expect(x).toEqual({});
 
-    if (typeof document !== "undefined") {
-      const style = getComputedStyle(document.body);
-      expect(style.getPropertyValue("color")).toBe(" blue");
-    }
+  if (typeof document !== "undefined") {
+    const style = getComputedStyle(document.body);
+		expect(style.getPropertyValue("color")).toBe("rgb(0, 0, 255)");
+  }
 
-    import(/* webpackPrefetch: true */ "./style2.modules.css").then((x) => {
-      expect(x.bar).toBe("style2_modules_css-bar");
-      done();
-    }, done);
-  }, done);
+  const y = await import(/* webpackPrefetch: true */ "./style2.modules.css");
+  expect(y.bar).toBe("style2_modules_css-bar");
 });
 
 it("should work in web worker", async () => {

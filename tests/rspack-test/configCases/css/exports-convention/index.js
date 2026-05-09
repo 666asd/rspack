@@ -32,8 +32,8 @@ it("concatenation and mangling should work", () => {
 	}
 });
 
-it("should have correct convention for css exports name", async () => {
-	await Promise.all([
+it("should have correct convention for css exports name", () =>
+	Promise.all([
 		import("./style.module.css?as-is"),
 		import("./style.module.css?camel-case"),
 		import("./style.module.css?camel-case-only"),
@@ -47,5 +47,4 @@ it("should have correct convention for css exports name", async () => {
 		expect(dashes).toMatchFileSnapshotSync(path.join(__SNAPSHOT__, `dashes.${__STATS_I__}.txt`));
 		expect(dashesOnly).toMatchFileSnapshotSync(path.join(__SNAPSHOT__, `dashes-only.${__STATS_I__}.txt`));
 		// expect(upper).toMatchSnapshot('upper');
-	})
-});
+	}));

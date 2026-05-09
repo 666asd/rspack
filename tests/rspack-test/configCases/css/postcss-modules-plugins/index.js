@@ -7,7 +7,7 @@
 // import * as values from "./postcss-modules-values.modules.css";
 
 it("should work", () => {
-  expect(true).toBe(true);
+	expect(true).toBe(true);
 
 	// const links = document.getElementsByTagName("link");
 	// const css = [];

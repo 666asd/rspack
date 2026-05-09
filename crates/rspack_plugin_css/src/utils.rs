@@ -17,9 +17,9 @@ pub const AUTO_PUBLIC_PATH_PLACEHOLDER: &str = "__RSPACK_PLUGIN_CSS_AUTO_PUBLIC_
 pub static LEADING_DIGIT_REGEX: LazyLock<Regex> =
   LazyLock::new(|| Regex::new(r"^((-?[0-9])|--)").expect("Invalid regexp"));
 static CSS_PREPARE_ID_LEADING_REGEX: LazyLock<Regex> =
-  LazyLock::new(|| Regex::new(r"^([.-]|[^a-z0-9_-])+").expect("Invalid regexp"));
+  LazyLock::new(|| Regex::new(r"^([.-]|[^a-zA-Z0-9_-])+").expect("Invalid regexp"));
 static CSS_PREPARE_ID_REST_REGEX: LazyLock<Regex> =
-  LazyLock::new(|| Regex::new(r"[^a-z0-9@_-]+").expect("Invalid regexp"));
+  LazyLock::new(|| Regex::new(r"[^a-zA-Z0-9@_-]+").expect("Invalid regexp"));
 
 fn css_prepare_id(v: &str) -> String {
   let without_leading = CSS_PREPARE_ID_LEADING_REGEX.replace(v, "");
@@ -64,6 +64,11 @@ impl<'a> LocalIdentOptions<'a> {
 
   pub async fn get_local_ident(&self, local: &str) -> Result<String> {
     let output = &self.compiler_options.output;
+    let template = self
+      .local_name_ident
+      .template
+      .template()
+      .unwrap_or_default();
     let hash_function = self
       .local_ident_hash_function
       .unwrap_or(&output.hash_function);
@@ -72,21 +77,35 @@ impl<'a> LocalIdentOptions<'a> {
     let hash_digest_length = self
       .local_ident_hash_digest_length
       .unwrap_or(output.hash_digest_length);
-    let hash = {
+    let hash = if template.contains("[hash") || template.contains("[fullhash") {
       let mut hasher = RspackHash::with_salt(hash_function, hash_salt);
-      hasher.write(self.relative_resource.as_bytes());
-      let contains_local = self
-        .local_name_ident
-        .template
-        .template()
-        .map(|t| t.contains("[local]"))
-        .unwrap_or_default();
-      if !contains_local {
-        hasher.write(local.as_bytes());
+      if !output.unique_name.is_empty() {
+        hasher.write(output.unique_name.as_bytes());
       }
-      let hash = hasher.digest(hash_digest);
-      hash.rendered(hash_digest_length).to_string()
+      hasher.write(self.relative_resource.as_bytes());
+      hasher.write(local.as_bytes());
+      hasher
+        .digest(hash_digest)
+        .rendered(hash_digest_length)
+        .to_string()
+    } else {
+      String::new()
     };
+    let resource_path = self
+      .relative_resource
+      .split(['?', '#'])
+      .next()
+      .unwrap_or(&self.relative_resource);
+    let ext = Path::new(resource_path)
+      .extension()
+      .and_then(|s| s.to_str())
+      .map(|ext| format!(".{ext}"))
+      .unwrap_or_default();
+    let chunk_name = Path::new(resource_path)
+      .file_name()
+      .and_then(|s| s.to_str())
+      .map(|base| base.strip_suffix(&ext).unwrap_or(base).to_string())
+      .unwrap_or_default();
     let id = css_prepare_id(if self.compiler_options.mode.is_development() {
       &self.relative_resource
     } else {
@@ -95,6 +114,7 @@ impl<'a> LocalIdentOptions<'a> {
     let local_ident = LocalIdentNameRenderOptions {
       path_data: PathData::default()
         .filename(&self.relative_resource)
+        .chunk_name(&chunk_name)
         .hash(&hash)
         .id(&id),
       local,
