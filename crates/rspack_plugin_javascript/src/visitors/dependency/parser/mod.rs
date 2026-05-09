@@ -32,7 +32,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use smallvec::SmallVec;
 use swc_core::{
   atoms::Atom,
-  common::{BytePos, Mark, Span, Spanned, comments::Comments},
+  common::{BytePos, Span, Spanned, SyntaxContext, comments::Comments},
   ecma::{
     ast::{
       ArrayPat, AssignPat, AssignTargetPat, CallExpr, Decl, Expr, Ident, Lit, MemberExpr,
@@ -414,7 +414,7 @@ impl<'parser> JavascriptParser<'parser> {
     build_meta: &'parser mut BuildMeta,
     build_info: &'parser mut BuildInfo,
     semicolons: &'parser mut FxHashSet<BytePos>,
-    unresolved_mark: Mark,
+    unresolved_context: SyntaxContext,
     parser_plugins: &'parser mut Vec<BoxJavascriptParserPlugin>,
     parse_meta: ParseMeta,
     parser_runtime_requirements: &'parser ParserRuntimeRequirementsData,
@@ -526,14 +526,14 @@ impl<'parser> JavascriptParser<'parser> {
     )));
     if compiler_options.optimization.inner_graph {
       plugins.push(Box::new(parser_plugin::InnerGraphParserPlugin::new(
-        unresolved_mark,
+        unresolved_context,
         compiler_options.experiments.pure_functions,
       )));
     }
 
     if compiler_options.optimization.side_effects.is_true() {
       plugins.push(Box::new(parser_plugin::SideEffectsParserPlugin::new(
-        unresolved_mark,
+        unresolved_context,
         compiler_options.experiments.pure_functions,
       )));
     }

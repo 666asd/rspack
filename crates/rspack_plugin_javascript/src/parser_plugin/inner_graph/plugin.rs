@@ -6,7 +6,7 @@ use rspack_util::SpanExt;
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use swc_core::{
   atoms::Atom,
-  common::{BytePos, Mark, Span, Spanned, SyntaxContext},
+  common::{BytePos, Span, Spanned, SyntaxContext},
   ecma::ast::{
     AssignOp, ClassMember, DefaultDecl, ExportDefaultExpr, Expr, ModuleDecl, Pat, VarDeclarator,
   },
@@ -38,9 +38,9 @@ pub struct InnerGraphParserPlugin {
 pub static TOP_LEVEL_SYMBOL: &str = "inner graph top level symbol";
 
 impl InnerGraphParserPlugin {
-  pub fn new(unresolved_mark: Mark, analyze_pure_annotation: bool) -> Self {
+  pub fn new(unresolved_context: SyntaxContext, analyze_pure_annotation: bool) -> Self {
     Self {
-      unresolved_context: SyntaxContext::empty().apply_mark(unresolved_mark),
+      unresolved_context,
       analyze_pure_annotation,
     }
   }

@@ -409,9 +409,9 @@ dependencies = [
 
 [[package]]
 name = "bumpalo"
-version = "3.16.0"
+version = "3.20.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "79296716171880943b8470b5f8d03aa55eb2e645a4874bdbb28adb49162e012c"
+checksum = "5d20789868f4b01b2f2caec9f5c4e0213b41e3e5702a50157d699ae31ced2fcb"
 dependencies = [
  "allocator-api2",
 ]
@@ -2108,7 +2108,7 @@ checksum = "3640c1c38b8e4e43584d8df18be5fc6b0aa314ce6ebf51b53313d4306cca8e46"
 dependencies = [
  "hermit-abi 0.5.2",
  "libc",
- "windows-sys 0.61.2",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -2692,7 +2692,7 @@ version = "0.50.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7957b9740744892f114936ab4a57b3f487491bbeafaf8083688b16841a4240e5"
 dependencies = [
- "windows-sys 0.61.2",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -4537,6 +4537,11 @@ dependencies = [
  "smallvec",
  "sugar_path",
  "swc_core",
+ "swc_experimental_ecma_ast",
+ "swc_experimental_ecma_ast_compat",
+ "swc_experimental_ecma_parser",
+ "swc_experimental_ecma_semantic",
+ "swc_experimental_ecma_transforms_base",
  "tokio",
  "tracing",
  "url",
@@ -5591,7 +5596,7 @@ dependencies = [
  "cfg-if",
  "libc",
  "psm",
- "windows-sys 0.61.2",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -6634,6 +6639,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "swc_experimental_ecma_ast_compat"
+version = "0.6.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0a0607762be31e4423a0d75aebe9f110b6ab48cf0658711189a2f69cff6eabe0"
+dependencies = [
+ "bumpalo",
+ "stacker",
+ "swc_core",
+ "swc_experimental_ecma_ast",
+ "swc_experimental_ecma_semantic",
+]
+
+[[package]]
 name = "swc_experimental_ecma_parser"
 version = "0.6.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6661,6 +6679,18 @@ dependencies = [
  "swc_core",
  "swc_experimental_ecma_ast",
  "swc_experimental_ecma_visit",
+]
+
+[[package]]
+name = "swc_experimental_ecma_transforms_base"
+version = "0.6.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "80c686053df8e60b336add04a59d26b5544ac9574884ec91def3852525f61209"
+dependencies = [
+ "indexmap",
+ "rustc-hash",
+ "swc_core",
+ "swc_experimental_ecma_ast",
 ]
 
 [[package]]
@@ -6999,7 +7029,7 @@ dependencies = [
  "getrandom 0.3.2",
  "once_cell",
  "rustix 1.0.8",
- "windows-sys 0.61.2",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]

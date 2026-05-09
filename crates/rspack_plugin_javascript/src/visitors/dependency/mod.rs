@@ -8,9 +8,14 @@ use rspack_core::{
   ParserOptions, ResourceData, SideEffectsBailoutItemWithSpan,
 };
 use rspack_error::Diagnostic;
-use rspack_javascript_compiler::ast::Program;
 use rustc_hash::FxHashSet;
-use swc_core::common::{BytePos, Mark, comments::Comments};
+use swc_core::{
+  common::{
+    BytePos, SyntaxContext,
+    comments::{Comments, SingleThreadedComments},
+  },
+  ecma::ast::Program,
+};
 
 pub use self::{
   context_dependency_helper::{ContextModuleScanResult, create_context_dependency},
@@ -36,6 +41,7 @@ pub struct ScanDependenciesResult {
 pub fn scan_dependencies(
   source: &str,
   program: &Program,
+  comments: Option<SingleThreadedComments>,
   resource_data: &ResourceData,
   compiler_options: &CompilerOptions,
   module_type: &ModuleType,
@@ -46,7 +52,7 @@ pub fn scan_dependencies(
   module_identifier: ModuleIdentifier,
   module_parser_options: Option<&ParserOptions>,
   semicolons: &mut FxHashSet<BytePos>,
-  unresolved_mark: Mark,
+  unresolved_ctxt: SyntaxContext,
   parser_plugins: &mut Vec<BoxJavascriptParserPlugin>,
   parse_meta: ParseMeta,
   parser_runtime_requirements: &ParserRuntimeRequirementsData,
@@ -57,7 +63,7 @@ pub fn scan_dependencies(
     module_parser_options
       .and_then(|p| p.get_javascript())
       .expect("should at least have a global javascript parser options"),
-    program.comments.as_ref().map(|c| c as &dyn Comments),
+    comments.as_ref().map(|c| c as &dyn Comments),
     &module_identifier,
     module_type,
     module_layer,
@@ -66,12 +72,12 @@ pub fn scan_dependencies(
     build_meta,
     build_info,
     semicolons,
-    unresolved_mark,
+    unresolved_ctxt,
     parser_plugins,
     parse_meta,
     parser_runtime_requirements,
   );
 
-  parser.walk_program(program.get_inner_program());
+  parser.walk_program(program);
   parser.into_results()
 }

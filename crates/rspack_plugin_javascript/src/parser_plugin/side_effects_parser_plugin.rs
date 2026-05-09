@@ -8,7 +8,7 @@ use rustc_hash::FxHashSet;
 use swc_core::{
   atoms::Atom,
   common::{
-    BytePos, Mark, Span, Spanned, SyntaxContext,
+    BytePos, Span, Spanned, SyntaxContext,
     comments::{CommentKind, Comments},
   },
   ecma::{
@@ -39,9 +39,9 @@ pub struct SideEffectsParserPlugin {
 }
 
 impl SideEffectsParserPlugin {
-  pub fn new(unresolved_mark: Mark, analyze_side_effects_free: bool) -> Self {
+  pub fn new(unresolve_ctxt: SyntaxContext, analyze_side_effects_free: bool) -> Self {
     Self {
-      unresolve_ctxt: SyntaxContext::empty().apply_mark(unresolved_mark),
+      unresolve_ctxt,
       analyze_side_effects_free,
     }
   }
