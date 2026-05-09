@@ -10,13 +10,25 @@ use swc_experimental_ecma_parser::unstable::{Token, TokenAndSpan};
 /// Auto inserted semicolon
 /// See: https://262.ecma-international.org/7.0/#sec-rules-of-automatic-semicolon-insertion
 
-pub(crate) struct InsertedSemicolons<'a> {
+pub struct InsertedSemicolons<'a> {
   pub(crate) ast: &'a Ast,
   pub(crate) semicolons: &'a mut FxHashSet<BytePos>,
   pub(crate) tokens: &'a [TokenAndSpan],
 }
 
-impl InsertedSemicolons<'_> {
+impl<'a> InsertedSemicolons<'a> {
+  pub fn new(
+    ast: &'a Ast,
+    semicolons: &'a mut FxHashSet<BytePos>,
+    tokens: &'a [TokenAndSpan],
+  ) -> Self {
+    Self {
+      ast,
+      semicolons,
+      tokens,
+    }
+  }
+
   /// Find the starting token of this span.
   /// Returns [None] if there's no token is found.
   /// This might be happen if there's an error in the lexer.

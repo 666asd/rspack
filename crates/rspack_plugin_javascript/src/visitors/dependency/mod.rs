@@ -41,7 +41,7 @@ pub struct ScanDependenciesResult {
 pub fn scan_dependencies(
   source: &str,
   program: &Program,
-  comments: Option<SingleThreadedComments>,
+  comments: Option<&SingleThreadedComments>,
   resource_data: &ResourceData,
   compiler_options: &CompilerOptions,
   module_type: &ModuleType,

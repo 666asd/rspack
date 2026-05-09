@@ -312,7 +312,7 @@ impl ParserAndGenerator for JavaScriptParserAndGenerator {
         scan_dependencies(
           &source_string,
           program,
-          Some(comments),
+          Some(&comments),
           resource_data,
           compiler_options,
           module_type,
