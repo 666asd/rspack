@@ -7,7 +7,7 @@ use std::{
 use rspack_error::{Error, Severity, cyan, yellow};
 use rspack_fs::ReadableFileSystem;
 use rspack_loader_runner::DescriptionData;
-use rspack_paths::{ArcPathSet, AssertUtf8};
+use rspack_paths::{ArcPath, ArcPathSet, AssertUtf8};
 use rspack_util::location::byte_line_column_to_offset;
 
 use super::{ResolveResult, Resource, boxfs::BoxFS};
@@ -167,20 +167,26 @@ impl Resolver {
     ResolveDependencies,
   ) {
     let resolver = &self.resolver;
-    let mut context = Default::default();
+    let mut context = rspack_resolver::ResolvePreHashedContext::default();
     let result = resolver
-      .resolve_with_context(path, request, &mut context)
+      .resolve_with_prehashed_context(path, request, &mut context)
       .await;
     let dependencies = ResolveDependencies {
       file_dependencies: context
         .file_dependencies
         .into_iter()
-        .map(Into::into)
+        .map(|dependency| {
+          let hash = dependency.precomputed_hash();
+          ArcPath::from_path_buf_with_hash(dependency.into_path_buf(), hash)
+        })
         .collect(),
       missing_dependencies: context
         .missing_dependencies
         .into_iter()
-        .map(Into::into)
+        .map(|dependency| {
+          let hash = dependency.precomputed_hash();
+          ArcPath::from_path_buf_with_hash(dependency.into_path_buf(), hash)
+        })
         .collect(),
     };
     let result = match result {

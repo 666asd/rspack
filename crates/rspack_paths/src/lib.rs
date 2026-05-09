@@ -54,7 +54,7 @@ impl<'a> AssertUtf8 for &'a Path {
 }
 
 #[cacheable(with=Custom)]
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone)]
 pub struct ArcPath {
   path: Arc<Path>,
   // Pre-calculating and caching the hash value upon creation, making hashing operations
@@ -69,13 +69,39 @@ impl Debug for ArcPath {
 }
 
 impl ArcPath {
+  #[inline]
   pub fn new(path: Arc<Path>) -> Self {
-    let mut hasher = FxHasher::default();
-    path.hash(&mut hasher);
-    let hash = hasher.finish();
+    let hash = Self::hash_path(path.as_ref());
     Self { path, hash }
   }
+
+  #[inline]
+  pub fn from_path_buf_with_hash(path: PathBuf, hash: u64) -> Self {
+    Self::new_with_hash(path.into(), hash)
+  }
+
+  #[inline]
+  fn new_with_hash(path: Arc<Path>, hash: u64) -> Self {
+    debug_assert_eq!(hash, Self::hash_path(path.as_ref()));
+    Self { path, hash }
+  }
+
+  #[inline]
+  fn hash_path(path: &Path) -> u64 {
+    let mut hasher = FxHasher::default();
+    path.hash(&mut hasher);
+    hasher.finish()
+  }
 }
+
+impl PartialEq for ArcPath {
+  #[inline]
+  fn eq(&self, other: &Self) -> bool {
+    self.hash == other.hash && (Arc::ptr_eq(&self.path, &other.path) || self.path == other.path)
+  }
+}
+
+impl Eq for ArcPath {}
 
 impl Deref for ArcPath {
   type Target = Arc<Path>;
