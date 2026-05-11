@@ -1,7 +1,0 @@
-.localName {
-	background: red;
-}
-
-.bar {
-	composes: localName;
-}
