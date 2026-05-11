@@ -5,7 +5,7 @@ it("should allow to create css modules", async () => {
 		? __non_webpack_require__("./407.bundle1.js")
 		: __non_webpack_require__("./use-style_js.bundle0.js");
 	const { default: x } = await import("./use-style.js");
-	expect(x).toMatchSnapshot(prod ? "prod" : "dev");
+	expect(x).toMatchFileSnapshotSync(`${__SNAPSHOT__}/${prod ? "prod" : "dev"}.txt`);
 });
 
 it("should allow to process tailwind as global css", async () => {
