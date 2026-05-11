@@ -420,6 +420,7 @@ impl JavascriptParserPlugin for InnerGraphParserPlugin {
       && is_pure_class(
         parser,
         self.analyze_pure_annotation,
+        false,
         class_decl.class(),
         self.unresolved_context,
         parser.comments,
@@ -456,6 +457,7 @@ impl JavascriptParserPlugin for InnerGraphParserPlugin {
         && is_pure_class(
           parser,
           self.analyze_pure_annotation,
+          false,
           &class_expr.class,
           self.unresolved_context,
           parser.comments,
@@ -471,6 +473,7 @@ impl JavascriptParserPlugin for InnerGraphParserPlugin {
         && is_pure_function(
           parser,
           self.analyze_pure_annotation,
+          false,
           &fn_expr.function,
           self.unresolved_context,
           parser.comments,
@@ -493,6 +496,7 @@ impl JavascriptParserPlugin for InnerGraphParserPlugin {
       && is_pure_expression(
         parser,
         self.analyze_pure_annotation,
+        false,
         expr,
         self.unresolved_context,
         parser.comments,
@@ -543,6 +547,7 @@ impl JavascriptParserPlugin for InnerGraphParserPlugin {
         && is_pure_class(
           parser,
           self.analyze_pure_annotation,
+          false,
           &init.as_class().expect("should be class").class,
           self.unresolved_context,
           parser.comments,
@@ -558,6 +563,7 @@ impl JavascriptParserPlugin for InnerGraphParserPlugin {
       } else if is_pure_expression(
         parser,
         self.analyze_pure_annotation,
+        false,
         init,
         self.unresolved_context,
         parser.comments,
@@ -655,6 +661,7 @@ impl JavascriptParserPlugin for InnerGraphParserPlugin {
     let is_pure_super_class = is_pure_expression(
       parser,
       self.analyze_pure_annotation,
+      false,
       super_class,
       self.unresolved_context,
       parser.comments,
@@ -744,6 +751,7 @@ impl JavascriptParserPlugin for InnerGraphParserPlugin {
     let pure_member = is_pure_class_member(
       parser,
       self.analyze_pure_annotation,
+      false,
       element,
       self.unresolved_context,
       parser.comments,

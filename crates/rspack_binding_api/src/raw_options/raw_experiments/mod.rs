@@ -15,6 +15,8 @@ pub struct RawExperiments {
   pub css: Option<bool>,
   pub defer_import: bool,
   pub pure_functions: bool,
+  #[napi(js_name = "builtinPureGlobals")]
+  pub builtin_pure_globals: bool,
 }
 
 impl From<RawExperiments> for Experiments {
@@ -23,6 +25,7 @@ impl From<RawExperiments> for Experiments {
       css: value.css.unwrap_or(false),
       defer_import: value.defer_import,
       pure_functions: value.pure_functions,
+      builtin_pure_globals: value.builtin_pure_globals,
     }
   }
 }

@@ -1706,6 +1706,7 @@ CompilerOptions {
         css: false,
         defer_import: false,
         pure_functions: false,
+        builtin_pure_globals: false,
     },
     incremental: IncrementalOptions {
         silent: true,

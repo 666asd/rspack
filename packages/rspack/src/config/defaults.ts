@@ -228,6 +228,8 @@ const applyExperimentsDefaults = (experiments: ExperimentsNormalized) => {
 
   // IGNORE(experiments.pureFunctions): Rspack specific configuration for pure function annotations and hints
   D(experiments, 'pureFunctions', false);
+  // IGNORE(experiments.builtinPureGlobals): Rspack specific side-effects analysis for known built-in globals
+  D(experiments, 'builtinPureGlobals', false);
 };
 
 const applyIncrementalDefaults = (options: RspackOptionsNormalized) => {

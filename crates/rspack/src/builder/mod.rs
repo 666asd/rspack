@@ -3667,6 +3667,7 @@ pub struct ExperimentsBuilder {
   async_web_assembly: Option<bool>,
   // TODO: lazy compilation
   pure_functions: Option<bool>,
+  builtin_pure_globals: Option<bool>,
 }
 
 impl From<Experiments> for ExperimentsBuilder {
@@ -3676,6 +3677,7 @@ impl From<Experiments> for ExperimentsBuilder {
       css: Some(value.css),
       async_web_assembly: None,
       pure_functions: Some(value.pure_functions),
+      builtin_pure_globals: Some(value.builtin_pure_globals),
     }
   }
 }
@@ -3687,6 +3689,7 @@ impl From<&mut ExperimentsBuilder> for ExperimentsBuilder {
       css: value.css.take(),
       async_web_assembly: value.async_web_assembly.take(),
       pure_functions: value.pure_functions.take(),
+      builtin_pure_globals: value.builtin_pure_globals.take(),
     }
   }
 }
@@ -3728,6 +3731,7 @@ impl ExperimentsBuilder {
       css: d!(self.css, false),
       defer_import: false,
       pure_functions: d!(self.pure_functions, false),
+      builtin_pure_globals: d!(self.builtin_pure_globals, false),
     })
   }
 }

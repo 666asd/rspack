@@ -533,6 +533,7 @@ impl<'parser> JavascriptParser<'parser> {
       plugins.push(Box::new(parser_plugin::SideEffectsParserPlugin::new(
         unresolved_mark,
         compiler_options.experiments.pure_functions,
+        compiler_options.experiments.builtin_pure_globals,
       )));
     }
 

@@ -2240,6 +2240,7 @@ export interface RawExperiments {
   css?: boolean
   deferImport: boolean
   pureFunctions: boolean
+  builtinPureGlobals: boolean
 }
 
 export interface RawExposeOptions {

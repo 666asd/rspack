@@ -2937,6 +2937,11 @@ export type Experiments = {
    * @default false
    */
   pureFunctions?: boolean;
+  /**
+   * Enable built-in-global pure-call side-effects analysis.
+   * @default false
+   */
+  builtinPureGlobals?: boolean;
 };
 //#endregion
 
