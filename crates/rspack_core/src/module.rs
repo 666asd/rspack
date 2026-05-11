@@ -473,7 +473,7 @@ pub trait Module:
     None
   }
 
-  fn get_context(&self) -> Option<Box<Context>> {
+  fn get_context(&self) -> Option<&Context> {
     None
   }
 

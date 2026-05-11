@@ -23,7 +23,7 @@ pub struct FactorizeTask {
   pub module_factory: Arc<dyn ModuleFactory>,
   pub original_module_identifier: Option<ModuleIdentifier>,
   pub original_module_source: Option<BoxSource>,
-  pub original_module_context: Option<Box<Context>>,
+  pub original_module_context: Option<Context>,
   pub issuer: Option<Box<str>>,
   pub issuer_layer: Option<ModuleLayer>,
   pub dependencies: Vec<BoxDependency>,

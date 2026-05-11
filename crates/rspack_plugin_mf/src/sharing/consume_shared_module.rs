@@ -155,8 +155,8 @@ impl Module for ConsumeSharedModule {
     Some(self.lib_ident.as_str().into())
   }
 
-  fn get_context(&self) -> Option<Box<Context>> {
-    Some(Box::new(self.context.clone()))
+  fn get_context(&self) -> Option<&Context> {
+    Some(&self.context)
   }
 
   fn get_exports_type(

@@ -2105,8 +2105,8 @@ impl Module for ConcatenatedModule {
     }
   }
 
-  fn get_context(&self) -> Option<Box<Context>> {
-    self.root_module_ctxt.context.clone().map(Box::new)
+  fn get_context(&self) -> Option<&Context> {
+    self.root_module_ctxt.context.as_ref()
   }
 
   // Port from https://github.com/webpack/webpack/blob/main/lib/ConcatenatedModule.js#L1120

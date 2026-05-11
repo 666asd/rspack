@@ -124,8 +124,8 @@ impl Module for LazyCompilationProxyModule {
     &MODULE_TYPE
   }
 
-  fn get_context(&self) -> Option<Box<Context>> {
-    Some(self.context.clone())
+  fn get_context(&self) -> Option<&Context> {
+    Some(&self.context)
   }
 
   fn get_layer(&self) -> Option<&ModuleLayer> {

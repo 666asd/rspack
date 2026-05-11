@@ -99,7 +99,7 @@ impl Task<TaskContext> for ProcessDependenciesTask {
         compilation_id: context.compilation_id,
         module_factory,
         original_module_identifier: Some(module.identifier()),
-        original_module_context: module.get_context(),
+        original_module_context: module.get_context().cloned(),
         original_module_source,
         issuer: module
           .as_normal_module()

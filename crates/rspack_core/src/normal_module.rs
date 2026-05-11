@@ -104,7 +104,7 @@ pub struct NormalModule {
 
   id: ModuleIdentifier,
   /// Context of this module
-  context: Box<Context>,
+  context: Context,
   /// Request with loaders from config
   #[cacheable(with=AsPreset)]
   request: Ustr,
@@ -198,7 +198,7 @@ impl NormalModule {
       blocks: Vec::new(),
       dependencies: Vec::new(),
       id: ModuleIdentifier::from(id.as_ref()),
-      context: Box::new(context.unwrap_or_else(|| get_context(&resource_data))),
+      context: context.unwrap_or_else(|| get_context(&resource_data)),
       request,
       user_request,
       raw_request,
@@ -751,8 +751,8 @@ impl Module for NormalModule {
     }
   }
 
-  fn get_context(&self) -> Option<Box<Context>> {
-    Some(self.context.clone())
+  fn get_context(&self) -> Option<&Context> {
+    Some(&self.context)
   }
 
   fn get_layer(&self) -> Option<&ModuleLayer> {
