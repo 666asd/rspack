@@ -28,6 +28,7 @@ use rspack_util::{
 };
 use serde_json::json;
 use tracing::{Instrument, info_span};
+use ustr::Ustr;
 
 use crate::{
   AsyncDependenciesBlockIdentifier, BoxDependencyTemplate, BoxLoader, BoxModule,
@@ -105,11 +106,14 @@ pub struct NormalModule {
   /// Context of this module
   context: Box<Context>,
   /// Request with loaders from config
-  request: String,
+  #[cacheable(with=AsPreset)]
+  request: Ustr,
   /// Request intended by user (without loaders from config)
-  user_request: String,
+  #[cacheable(with=AsPreset)]
+  user_request: Ustr,
   /// Request without resolving
-  raw_request: String,
+  #[cacheable(with=AsPreset)]
+  raw_request: Ustr,
   /// The resolved module type of a module
   module_type: ModuleType,
   /// Layer of the module
@@ -195,9 +199,9 @@ impl NormalModule {
       dependencies: Vec::new(),
       id: ModuleIdentifier::from(id.as_ref()),
       context: Box::new(context.unwrap_or_else(|| get_context(&resource_data))),
-      request,
-      user_request,
-      raw_request,
+      request: Ustr::from(request.as_str()),
+      user_request: Ustr::from(user_request.as_str()),
+      raw_request: Ustr::from(raw_request.as_str()),
       module_type,
       layer,
       parser_and_generator,
@@ -240,19 +244,19 @@ impl NormalModule {
   }
 
   pub fn request(&self) -> &str {
-    &self.request
+    self.request.as_str()
   }
 
   pub fn user_request(&self) -> &str {
-    &self.user_request
+    self.user_request.as_str()
   }
 
-  pub fn user_request_mut(&mut self) -> &mut String {
-    &mut self.user_request
+  pub fn set_user_request(&mut self, user_request: impl AsRef<str>) {
+    self.user_request = Ustr::from(user_request.as_ref());
   }
 
   pub fn raw_request(&self) -> &str {
-    &self.raw_request
+    self.raw_request.as_str()
   }
 
   pub fn loaders(&self) -> &[BoxLoader] {
@@ -359,7 +363,7 @@ impl Module for NormalModule {
   }
 
   fn readable_identifier(&self, context: &Context) -> Cow<'_, str> {
-    Cow::Owned(context.shorten(&self.user_request))
+    Cow::Owned(context.shorten(self.user_request.as_str()))
   }
 
   fn size(&self, source_type: Option<&SourceType>, _compilation: Option<&Compilation>) -> f64 {
@@ -563,7 +567,7 @@ impl Module for NormalModule {
         module_parser_options: self.parser_options.as_deref(),
         module_type: &self.module_type,
         module_layer: self.layer.as_ref(),
-        module_user_request: &self.user_request,
+        module_user_request: self.user_request.as_str(),
         module_match_resource: self.match_resource.as_ref(),
         module_source_map_kind: self.source_map_kind,
         loaders: &self.loaders,
@@ -645,7 +649,7 @@ impl Module for NormalModule {
     let Some(source) = &self.source else {
       return Err(error!(
         "Failed to generate code because ast or source is not set for module {}",
-        self.request
+        self.request.as_str()
       ));
     };
 
