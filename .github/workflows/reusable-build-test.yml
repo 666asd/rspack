@@ -73,10 +73,19 @@ jobs:
           image: mcr.microsoft.com/playwright:v1.59.1-jammy
           # .cache is required by download artifact, and mount in ./.github/actions/docker/run
           # .tool_cache is required by pnpm
-          options: -v ${{ runner.tool_cache }}:${{runner.tool_cache}}
+          options: >-
+            --ulimit nofile=1048576:1048576
+            -v ${{ runner.tool_cache }}:${{runner.tool_cache}}
           script: |
             export PATH=${{ steps.calculate-node-bin-path.outputs.path }}:$PATH
             export WASM=1
+            echo "nofile soft limit: $(ulimit -Sn)"
+            echo "nofile hard limit: $(ulimit -Hn)"
+            for key in max_user_instances max_user_watches max_queued_events; do
+              if [[ -r "/proc/sys/fs/inotify/$key" ]]; then
+                echo "fs.inotify.$key=$(cat "/proc/sys/fs/inotify/$key")"
+              fi
+            done
             pnpm run build:js
             pnpm run test:e2e-browser
   test:
