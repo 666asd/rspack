@@ -8,7 +8,7 @@ use std::{
   },
 };
 
-use criterion::{BatchSize, Criterion};
+use criterion::{BatchSize, Criterion, criterion_group};
 use rspack_core::{
   CacheOptions, Mode,
   cache::persistent::{PersistentCacheOptions, snapshot::SnapshotOptions, storage::StorageOptions},
@@ -32,35 +32,45 @@ const UPDATED_TEXT: &str = "Hello from cache";
 // This benchmark intentionally keeps setup light and does not perform extra
 // correctness validation of cache state. Functional/cache-correctness behavior
 // is covered by dedicated test cases elsewhere.
-pub fn persistent_cache_restore_benchmark(c: &mut Criterion) {
+pub fn persistent_cache_benchmark(c: &mut Criterion) {
+  let mut group = c.benchmark_group("persistent_cache");
+  let rt = rspack_benchmark::build_tokio_rt();
+  let pending_cleanup = RefCell::new(Vec::new());
+
   persistent_cache_benchmark_case(
-    c,
+    &mut group,
+    &rt,
+    &pending_cleanup,
     "rust@persistent_cache_restore@basic-react-development",
     |_| {},
   );
-}
 
-pub fn persistent_cache_restore_after_single_file_change_benchmark(c: &mut Criterion) {
   persistent_cache_benchmark_case(
-    c,
+    &mut group,
+    &rt,
+    &pending_cleanup,
     "rust@persistent_cache_restore_after_single_file_change@basic-react-development",
     |measured_case| {
       mutate_leaf_module(&measured_case.project_dir);
     },
   );
+
+  group.finish();
+
+  cleanup_pending_workspaces(&pending_cleanup);
 }
 
+criterion_group!(persistent_cache, persistent_cache_benchmark);
+
 fn persistent_cache_benchmark_case<F>(
-  c: &mut Criterion,
+  group: &mut criterion::BenchmarkGroup<'_, criterion::measurement::WallTime>,
+  rt: &tokio::runtime::Runtime,
+  pending_cleanup: &RefCell<Vec<PathBuf>>,
   benchmark_id: &str,
   prepare_restore_case: F,
 ) where
   F: Fn(&PreparedCase),
 {
-  let mut group = c.benchmark_group("persistent_cache");
-  let rt = rspack_benchmark::build_tokio_rt();
-  let pending_cleanup = RefCell::new(Vec::new());
-
   group.bench_function(benchmark_id, |b| {
     b.iter_batched(
       || {
@@ -87,10 +97,6 @@ fn persistent_cache_benchmark_case<F>(
       BatchSize::PerIteration,
     );
   });
-
-  group.finish();
-
-  cleanup_pending_workspaces(&pending_cleanup);
 }
 
 struct PreparedCase {

@@ -18,6 +18,4 @@ pub mod bundle_basic_react_production_sourcemap;
 pub mod bundle_threejs_development;
 pub mod bundle_threejs_production_sourcemap;
 pub mod module_graph_api;
-pub mod persistent_cache_restore;
-pub mod persistent_cache_restore_after_single_file_change;
 pub mod scan_dependencies;
