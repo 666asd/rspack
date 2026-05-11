@@ -5,6 +5,7 @@ use rspack_hook::define_hook;
 use rspack_loader_runner::{Loader, Scheme, get_scheme};
 use rspack_util::MergeFrom;
 use sugar_path::SugarPath;
+use ustr::Ustr;
 use winnow::prelude::*;
 
 use crate::{
@@ -966,9 +967,9 @@ module.exports = "data:,";
     } else {
       let resource_resolve_data = create_data.resource_resolve_data.take_shared();
       NormalModule::new(
-        create_data.request.clone(),
-        create_data.user_request.clone(),
-        create_data.raw_request.clone(),
+        Ustr::from(create_data.request.as_str()),
+        Ustr::from(create_data.user_request.as_str()),
+        Ustr::from(create_data.raw_request.as_str()),
         resolved_module_type,
         resolved_module_layer,
         resolved_parser_and_generator,

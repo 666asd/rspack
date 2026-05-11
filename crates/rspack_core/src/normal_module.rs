@@ -177,9 +177,9 @@ impl NormalModule {
 
   #[allow(clippy::too_many_arguments)]
   pub fn new(
-    request: String,
-    user_request: String,
-    raw_request: String,
+    request: Ustr,
+    user_request: Ustr,
+    raw_request: Ustr,
     module_type: impl Into<ModuleType>,
     layer: Option<ModuleLayer>,
     parser_and_generator: Box<dyn ParserAndGenerator>,
@@ -193,15 +193,15 @@ impl NormalModule {
     extract_source_map: Option<bool>,
   ) -> Self {
     let module_type = module_type.into();
-    let id = Self::create_id(&module_type, layer.as_ref(), &request);
+    let id = Self::create_id(&module_type, layer.as_ref(), request.as_str());
     Self {
       blocks: Vec::new(),
       dependencies: Vec::new(),
       id: ModuleIdentifier::from(id.as_ref()),
       context: Box::new(context.unwrap_or_else(|| get_context(&resource_data))),
-      request: Ustr::from(request.as_str()),
-      user_request: Ustr::from(user_request.as_str()),
-      raw_request: Ustr::from(raw_request.as_str()),
+      request,
+      user_request,
+      raw_request,
       module_type,
       layer,
       parser_and_generator,
