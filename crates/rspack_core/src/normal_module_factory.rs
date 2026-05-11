@@ -17,8 +17,8 @@ use crate::{
   ParserAndGenerator, ParserOptions, ParserOptionsMap, RawModule, Resolve, ResolveArgs,
   ResolveOptionsWithDependencyType, ResolveResult, Resolver, ResolverFactory, ResourceData,
   ResourceParsedData, RunnerContext, RuntimeGlobals, SharedPluginDriver,
-  diagnostics::EmptyDependency, module_rules_matcher, parse_resource, resolve,
-  stringify_loaders_and_resource,
+  diagnostics::EmptyDependency, module_rules_matcher, options::GeneratorOptionsMap, parse_resource,
+  resolve, stringify_loaders_and_resource,
 };
 
 define_hook!(NormalModuleFactoryBeforeResolve: SeriesBail(data: &mut ModuleFactoryCreateData) -> bool,tracing=false);
@@ -191,6 +191,104 @@ fn merge_parser_options_with_local(
   }
 }
 
+fn create_global_generator_options_cache(
+  generator_options: Option<&GeneratorOptionsMap>,
+) -> HashMap<String, Arc<GeneratorOptions>> {
+  let mut cache = HashMap::new();
+  let Some(generator_options) = generator_options else {
+    return cache;
+  };
+
+  for (key, options) in generator_options.iter() {
+    cache.insert(key.clone(), Arc::new(options.clone()));
+  }
+
+  for module_type in [
+    ModuleType::AssetInline,
+    ModuleType::AssetResource,
+    ModuleType::CssAuto,
+    ModuleType::CssModule,
+    ModuleType::Json,
+  ] {
+    if let Some(options) = resolve_global_generator_options(generator_options, &module_type) {
+      cache.insert(module_type.as_str().to_owned(), Arc::new(options));
+    }
+  }
+
+  cache
+}
+
+fn resolve_global_generator_options(
+  generator_options: &GeneratorOptionsMap,
+  module_type: &ModuleType,
+) -> Option<GeneratorOptions> {
+  let options = generator_options.get(module_type.as_str());
+  match module_type {
+    ModuleType::AssetInline | ModuleType::AssetResource => rspack_util::merge_from_optional_with(
+      generator_options.get("asset").cloned(),
+      options,
+      |asset_options, options| match (asset_options, options) {
+        (GeneratorOptions::Asset(a), GeneratorOptions::AssetInline(b)) => {
+          GeneratorOptions::AssetInline(Into::<AssetInlineGeneratorOptions>::into(a).merge_from(b))
+        }
+        (GeneratorOptions::Asset(a), GeneratorOptions::AssetResource(b)) => {
+          GeneratorOptions::AssetResource(
+            Into::<AssetResourceGeneratorOptions>::into(a).merge_from(b),
+          )
+        }
+        _ => unreachable!(),
+      },
+    ),
+    ModuleType::CssAuto | ModuleType::CssModule => rspack_util::merge_from_optional_with(
+      generator_options.get("css").cloned(),
+      options,
+      |css_options, options| match (css_options, options) {
+        (GeneratorOptions::Css(a), GeneratorOptions::CssAuto(b)) => {
+          GeneratorOptions::CssAuto(Into::<CssAutoGeneratorOptions>::into(a).merge_from(b))
+        }
+        (GeneratorOptions::Css(a), GeneratorOptions::CssModule(b)) => {
+          GeneratorOptions::CssModule(Into::<CssModuleGeneratorOptions>::into(a).merge_from(b))
+        }
+        _ => unreachable!(),
+      },
+    ),
+    ModuleType::Json => rspack_util::merge_from_optional_with(
+      generator_options.get("json").cloned(),
+      options,
+      |json_options, options| match (json_options, options) {
+        (GeneratorOptions::Json(a), GeneratorOptions::Json(b)) => {
+          GeneratorOptions::Json(a.merge_from(b))
+        }
+        _ => unreachable!(),
+      },
+    ),
+    _ => options.cloned(),
+  }
+}
+
+fn merge_generator_options_with_local(
+  global_generator: Option<Arc<GeneratorOptions>>,
+  local_generator: Option<&GeneratorOptions>,
+) -> Option<Arc<GeneratorOptions>> {
+  match (global_generator, local_generator) {
+    (None, None) => None,
+    (None, Some(local)) => Some(Arc::new(local.clone())),
+    (Some(global), None) => Some(global),
+    (Some(global), Some(local)) => Some(Arc::new(match (&*global, local) {
+      (GeneratorOptions::Asset(_), GeneratorOptions::Asset(_))
+      | (GeneratorOptions::AssetInline(_), GeneratorOptions::AssetInline(_))
+      | (GeneratorOptions::AssetResource(_), GeneratorOptions::AssetResource(_))
+      | (GeneratorOptions::Css(_), GeneratorOptions::Css(_))
+      | (GeneratorOptions::CssAuto(_), GeneratorOptions::CssAuto(_))
+      | (GeneratorOptions::CssModule(_), GeneratorOptions::CssModule(_))
+      | (GeneratorOptions::Json(_), GeneratorOptions::Json(_)) => {
+        Arc::as_ref(&global).clone().merge_from(local)
+      }
+      (global, _) => global.clone(),
+    })),
+  }
+}
+
 #[derive(Debug, Default)]
 pub struct NormalModuleFactoryHooks {
   pub before_resolve: NormalModuleFactoryBeforeResolveHook,
@@ -214,6 +312,7 @@ pub struct NormalModuleFactoryHooks {
 pub struct NormalModuleFactory {
   options: Arc<CompilerOptions>,
   global_parser_options: HashMap<String, Arc<ParserOptions>>,
+  global_generator_options: HashMap<String, Arc<GeneratorOptions>>,
   loader_resolver_factory: Arc<ResolverFactory>,
   plugin_driver: SharedPluginDriver,
 }
@@ -242,7 +341,10 @@ impl ModuleFactory for NormalModuleFactory {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::JavascriptParserOptions;
+  use crate::{
+    AssetGeneratorOptions, AssetResourceGeneratorOptions, JavascriptParserOptions,
+    JsonGeneratorOptions,
+  };
 
   #[test]
   fn reuse_global_parser_options_when_local_options_are_empty() {
@@ -280,6 +382,66 @@ mod tests {
   }
 
   #[test]
+  fn reuse_global_generator_options_when_local_options_are_empty() {
+    let global = Arc::new(GeneratorOptions::Json(JsonGeneratorOptions {
+      json_parse: Some(true),
+    }));
+
+    let resolved = merge_generator_options_with_local(Some(Arc::clone(&global)), None)
+      .expect("global generator options should be reused");
+
+    assert!(Arc::ptr_eq(&resolved, &global));
+  }
+
+  #[test]
+  fn merge_local_generator_options_into_global_generator_options() {
+    let global = Arc::new(GeneratorOptions::Json(JsonGeneratorOptions {
+      json_parse: Some(true),
+    }));
+    let local = GeneratorOptions::Json(JsonGeneratorOptions {
+      json_parse: Some(false),
+    });
+
+    let resolved = merge_generator_options_with_local(Some(global), Some(&local))
+      .expect("merged generator options should exist");
+
+    let options = resolved
+      .get_json()
+      .expect("json generator options should be resolved");
+    assert_eq!(options.json_parse, Some(false));
+  }
+
+  #[test]
+  fn cache_merged_global_generator_options_by_module_type() {
+    let generator_options = GeneratorOptionsMap::from_iter([
+      (
+        "asset".to_string(),
+        GeneratorOptions::Asset(AssetGeneratorOptions {
+          emit: Some(false),
+          ..Default::default()
+        }),
+      ),
+      (
+        "asset/resource".to_string(),
+        GeneratorOptions::AssetResource(AssetResourceGeneratorOptions {
+          binary: Some(true),
+          ..Default::default()
+        }),
+      ),
+    ]);
+
+    let cache = create_global_generator_options_cache(Some(&generator_options));
+    let resolved = cache
+      .get(ModuleType::AssetResource.as_str())
+      .expect("asset/resource generator options should be cached")
+      .get_asset_resource()
+      .expect("asset/resource generator options should be resolved");
+
+    assert_eq!(resolved.emit, Some(false));
+    assert_eq!(resolved.binary, Some(true));
+  }
+
+  #[test]
   fn reuse_create_data_resource_resolve_data_for_normal_module() {
     let resource_data = ResourceData::new_with_resource("/a.js".to_string());
     let mut create_data = NormalModuleCreateData {
@@ -311,9 +473,12 @@ impl NormalModuleFactory {
     plugin_driver: SharedPluginDriver,
   ) -> Self {
     let global_parser_options = create_global_parser_options_cache(options.module.parser.as_ref());
+    let global_generator_options =
+      create_global_generator_options_cache(options.module.generator.as_ref());
     Self {
       options,
       global_parser_options,
+      global_generator_options,
       loader_resolver_factory,
       plugin_driver,
     }
@@ -749,7 +914,7 @@ module.exports = "data:,";
         )
       })?(
       resolved_parser_options.as_deref(),
-      resolved_generator_options.as_ref(),
+      resolved_generator_options.as_deref(),
     );
     self
       .plugin_driver
@@ -909,75 +1074,17 @@ module.exports = "data:,";
     module_type: &ModuleType,
     parser: Option<ParserOptions>,
     generator: Option<GeneratorOptions>,
-  ) -> (Option<Arc<ParserOptions>>, Option<GeneratorOptions>) {
+  ) -> (Option<Arc<ParserOptions>>, Option<Arc<GeneratorOptions>>) {
     let global_parser = self
       .global_parser_options
       .get(module_type.as_str())
       .map(Arc::clone);
-    let global_generator = self.options.module.generator.as_ref().and_then(|g| {
-      let options = g.get(module_type.as_str());
-
-      match module_type {
-        ModuleType::AssetInline | ModuleType::AssetResource => {
-          rspack_util::merge_from_optional_with(
-            g.get("asset").cloned(),
-            options,
-            |asset_options, options| match (asset_options, options) {
-              (GeneratorOptions::Asset(a), GeneratorOptions::AssetInline(b)) => {
-                GeneratorOptions::AssetInline(
-                  Into::<AssetInlineGeneratorOptions>::into(a).merge_from(b),
-                )
-              }
-              (GeneratorOptions::Asset(a), GeneratorOptions::AssetResource(b)) => {
-                GeneratorOptions::AssetResource(
-                  Into::<AssetResourceGeneratorOptions>::into(a).merge_from(b),
-                )
-              }
-              _ => unreachable!(),
-            },
-          )
-        }
-        ModuleType::CssAuto | ModuleType::CssModule => rspack_util::merge_from_optional_with(
-          g.get("css").cloned(),
-          options,
-          |css_options, options| match (css_options, options) {
-            (GeneratorOptions::Css(a), GeneratorOptions::CssAuto(b)) => {
-              GeneratorOptions::CssAuto(Into::<CssAutoGeneratorOptions>::into(a).merge_from(b))
-            }
-            (GeneratorOptions::Css(a), GeneratorOptions::CssModule(b)) => {
-              GeneratorOptions::CssModule(Into::<CssModuleGeneratorOptions>::into(a).merge_from(b))
-            }
-            _ => unreachable!(),
-          },
-        ),
-        ModuleType::Json => rspack_util::merge_from_optional_with(
-          g.get("json").cloned(),
-          options,
-          |json_options, options| match (json_options, options) {
-            (GeneratorOptions::Json(a), GeneratorOptions::Json(b)) => {
-              GeneratorOptions::Json(a.merge_from(b))
-            }
-            _ => unreachable!(),
-          },
-        ),
-        _ => options.cloned(),
-      }
-    });
+    let global_generator = self
+      .global_generator_options
+      .get(module_type.as_str())
+      .map(Arc::clone);
     let parser = merge_parser_options_with_local(global_parser, parser.as_ref());
-    let generator = rspack_util::merge_from_optional_with(
-      global_generator,
-      generator.as_ref(),
-      |global, local| match (&global, local) {
-        (GeneratorOptions::Asset(_), GeneratorOptions::Asset(_))
-        | (GeneratorOptions::AssetInline(_), GeneratorOptions::AssetInline(_))
-        | (GeneratorOptions::AssetResource(_), GeneratorOptions::AssetResource(_))
-        | (GeneratorOptions::Css(_), GeneratorOptions::Css(_))
-        | (GeneratorOptions::CssAuto(_), GeneratorOptions::CssAuto(_))
-        | (GeneratorOptions::CssModule(_), GeneratorOptions::CssModule(_))
-        | (GeneratorOptions::Json(_), GeneratorOptions::Json(_)) => global.merge_from(local),
-        _ => global,
-      },
-    );
+    let generator = merge_generator_options_with_local(global_generator, generator.as_ref());
     (parser, generator)
   }
 

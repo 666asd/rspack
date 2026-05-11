@@ -133,7 +133,7 @@ pub struct NormalModule {
   /// Parser options derived from [Rule.parser]
   parser_options: Option<Arc<ParserOptions>>,
   /// Generator options derived from [Rule.generator]
-  generator_options: Option<GeneratorOptions>,
+  generator_options: Option<Arc<GeneratorOptions>>,
   /// enable/disable extracting source map
   extract_source_map: Option<bool>,
 
@@ -180,7 +180,7 @@ impl NormalModule {
     layer: Option<ModuleLayer>,
     parser_and_generator: Box<dyn ParserAndGenerator>,
     parser_options: Option<Arc<ParserOptions>>,
-    generator_options: Option<GeneratorOptions>,
+    generator_options: Option<Arc<GeneratorOptions>>,
     match_resource: Option<ResourceData>,
     resource_data: Arc<ResourceData>,
     resolve_options: Option<Arc<Resolve>>,
@@ -302,15 +302,15 @@ impl NormalModule {
   }
 
   pub fn get_generator_options(&self) -> Option<&GeneratorOptions> {
-    self.generator_options.as_ref()
+    self.generator_options.as_deref()
   }
 
   pub fn get_generator_options_mut(&mut self) -> Option<&mut GeneratorOptions> {
-    self.generator_options.as_mut()
+    self.generator_options.as_mut().map(Arc::make_mut)
   }
 
   pub fn set_generator_options(&mut self, generator_options: Option<GeneratorOptions>) {
-    self.generator_options = generator_options;
+    self.generator_options = generator_options.map(Arc::new);
   }
 }
 
@@ -489,7 +489,7 @@ impl Module for NormalModule {
 
     let is_binary = self
       .generator_options
-      .as_ref()
+      .as_deref()
       .and_then(|g| match g {
         GeneratorOptions::Asset(g) => g.binary,
         GeneratorOptions::AssetInline(g) => g.binary,
