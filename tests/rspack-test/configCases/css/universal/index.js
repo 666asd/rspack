@@ -2,7 +2,7 @@ import * as pureStyle from "./style.css";
 import * as styles from "./style.modules.css";
 
 it("should work", async () => {
-  expect(pureStyle).toEqual({});
+  expect(pureStyle).toEqual(nsObj({}));
 
   if (typeof document !== "undefined") {
     const style = getComputedStyle(document.body);
@@ -12,7 +12,7 @@ it("should work", async () => {
   expect(styles.foo).toBe("style_modules_css-foo");
 
   const x = await import(/* webpackPrefetch: true */ "./style2.css");
-  expect(x).toEqual({});
+  expect(x).toEqual(nsObj({}));
 
   if (typeof document !== "undefined") {
     const style = getComputedStyle(document.body);
