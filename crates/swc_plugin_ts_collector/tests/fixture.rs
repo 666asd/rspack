@@ -7,7 +7,7 @@ use std::{
 
 use rspack_javascript_compiler::{JavaScriptCompiler, transform::SwcOptions};
 use rspack_swc_plugin_ts_collector::{ExportedEnumCollector, TypeExportsCollector};
-use rustc_hash::{FxHashMap, FxHashSet};
+use rspack_util::atom::{AtomHashMap, AtomHashSet};
 use swc_core::{
   common::{FileName, SyntaxContext, comments::SingleThreadedComments},
   ecma::{
@@ -53,7 +53,7 @@ fn type_exports() {
     let compiler = JavaScriptCompiler::new();
     let mut options = SwcOptions::default();
     options.config.jsc.syntax = Some(Syntax::Typescript(TsSyntax::default()));
-    let mut type_exports_results = FxHashSet::default();
+    let mut type_exports_results = AtomHashSet::default();
     let comments = Rc::new(SingleThreadedComments::default());
     let _ = compiler
       .transform(
@@ -83,7 +83,7 @@ fn enums() {
     let compiler = JavaScriptCompiler::new();
     let mut options = SwcOptions::default();
     options.config.jsc.syntax = Some(Syntax::Typescript(TsSyntax::default()));
-    let mut enum_results = FxHashMap::default();
+    let mut enum_results = AtomHashMap::default();
     let comments = Rc::new(SingleThreadedComments::default());
     let _ = compiler
       .transform(

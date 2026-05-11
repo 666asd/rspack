@@ -7,7 +7,8 @@ use std::{
 };
 
 use rayon::prelude::*;
-use rustc_hash::{FxHashMap, FxHashSet as HashSet};
+use rspack_util::atom::AtomHashSet;
+use rustc_hash::FxHashMap;
 pub mod api_plugin;
 mod drive;
 mod flag_dependency_exports_plugin;
@@ -105,7 +106,7 @@ struct InlinedModuleInfo {
 struct RenameInfoPatch {
   inlined_modules_to_info: IdentifierMap<InlinedModuleInfo>,
   non_inlined_module_through_idents: Vec<ConcatenatedModuleIdent>,
-  all_used_names: HashSet<Atom>,
+  all_used_names: AtomHashSet,
 }
 
 #[plugin]
@@ -1026,7 +1027,7 @@ var {} = {{}};
 
     let mut inlined_modules_to_info: IdentifierMap<InlinedModuleInfo> = IdentifierMap::default();
     let mut non_inlined_module_through_idents: Vec<ConcatenatedModuleIdent> = Vec::new();
-    let mut all_used_names: HashSet<Atom> =
+    let mut all_used_names: AtomHashSet =
       RESERVED_NAMES.iter().map(|item| Atom::new(*item)).collect();
     let mut renamed_inline_modules: IdentifierMap<Arc<dyn Source>> = IdentifierMap::default();
 

@@ -5242,6 +5242,7 @@ version = "0.100.2"
 dependencies = [
  "insta",
  "rspack_javascript_compiler",
+ "rspack_util",
  "rustc-hash",
  "swc_core",
 ]
@@ -5323,6 +5324,7 @@ dependencies = [
  "swc_core",
  "swc_plugin_runner",
  "unicase",
+ "ustr-fxhash",
  "wasi-common",
  "wasmtime",
 ]

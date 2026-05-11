@@ -8,8 +8,7 @@ use rspack_core::{
   ModuleGraph, ModuleGraphCacheArtifact, ReferencedExport, ResourceIdentifier, RuntimeSpec,
   create_exports_object_referenced,
 };
-use rspack_util::fx_hash::FxIndexSet;
-use swc_core::atoms::Atom;
+use rspack_util::atom::AtomIndexSet;
 
 #[cacheable]
 #[derive(Debug, Clone)]
@@ -17,7 +16,7 @@ pub struct ClientReferenceDependency {
   id: DependencyId,
   request: String,
   #[cacheable(with=AsVec<AsPreset>)]
-  referenced_exports: FxIndexSet<Atom>,
+  referenced_exports: AtomIndexSet,
   is_server_side_rendering: bool,
   resource_identifier: ResourceIdentifier,
   factorize_info: FactorizeInfo,
@@ -26,7 +25,7 @@ pub struct ClientReferenceDependency {
 impl ClientReferenceDependency {
   pub fn new(
     request: String,
-    referenced_exports: FxIndexSet<Atom>,
+    referenced_exports: AtomIndexSet,
     is_server_side_rendering: bool,
   ) -> Self {
     let resource_identifier = format!("rsc-client-reference={request}").into();

@@ -16,7 +16,6 @@ use rspack_core::{
 use rspack_error::{Result, impl_empty_diagnosable_trait};
 use rspack_hash::{RspackHash, RspackHashDigest};
 use rspack_util::{json_stringify_str, source_map::SourceMapKind};
-use rustc_hash::FxHashSet;
 
 use super::{
   container_exposed_dependency::ContainerExposedDependency, container_plugin::ExposeOptions,
@@ -65,7 +64,7 @@ impl ContainerEntryModule {
       factory_meta: None,
       build_info: BuildInfo {
         strict: true,
-        top_level_declarations: Some(FxHashSet::default()),
+        top_level_declarations: Some(Default::default()),
         ..Default::default()
       },
       build_meta: BuildMeta {
@@ -93,7 +92,7 @@ impl ContainerEntryModule {
       factory_meta: None,
       build_info: BuildInfo {
         strict: true,
-        top_level_declarations: Some(FxHashSet::default()),
+        top_level_declarations: Some(Default::default()),
         ..Default::default()
       },
       build_meta: BuildMeta {

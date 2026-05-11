@@ -2,7 +2,7 @@ use rspack_core::{
   BoxDependency, Dependency, DependencyId, DependencyRange, UsedByExports,
   UsedByExportsDeferredPureCheck,
 };
-use rspack_util::SpanExt;
+use rspack_util::{SpanExt, atom::AtomHashSet};
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use swc_core::{
   atoms::Atom,
@@ -202,7 +202,7 @@ impl InnerGraphParserPlugin {
             let finalized_set = set
               .iter()
               .map(|item| item.to_atom(&state.symbol_map))
-              .collect::<HashSet<_>>();
+              .collect::<AtomHashSet>();
             UsedByExports::set(finalized_set)
           }
           InnerGraphMapValue::True => UsedByExports::bool(true),

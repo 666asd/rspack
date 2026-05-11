@@ -21,15 +21,15 @@ use rspack_sources::{
 };
 use rspack_util::{
   SpanExt,
+  atom::{Atom, AtomHashMap, AtomHashSet, AtomIndexMap, AtomIndexSet},
   ext::DynHash,
-  fx_hash::{FxIndexMap, FxIndexSet},
+  fx_hash::FxIndexMap,
   itoa, json_stringify, json_stringify_str,
   source_map::SourceMapKind,
   swc::join_atom,
 };
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use swc_core::{
-  atoms::Atom,
   common::{Spanned, SyntaxContext, comments::SingleThreadedComments},
   ecma::visit::swc_ecma_ast,
 };
@@ -63,7 +63,7 @@ use crate::{
 
 type ExportsDefinitionArgs = Vec<(String, String)>;
 define_hook!(ConcatenatedModuleExportsDefinitions: SeriesBail(exports_definitions: &mut ExportsDefinitionArgs, is_entry_module: bool) -> bool);
-define_hook!(ConcatenatedModuleConcatenatedInfo: Series(compilation: &Compilation, module: ModuleIdentifier, runtime: Option<&RuntimeSpec>, info: &mut ConcatenatedModuleInfo, all_used_names: &mut HashSet<Atom>));
+define_hook!(ConcatenatedModuleConcatenatedInfo: Series(compilation: &Compilation, module: ModuleIdentifier, runtime: Option<&RuntimeSpec>, info: &mut ConcatenatedModuleInfo, all_used_names: &mut AtomHashSet));
 
 #[derive(Debug, Default)]
 pub struct ConcatenatedModuleHooks {
@@ -149,13 +149,13 @@ static REGEX: LazyLock<Regex> = LazyLock::new(|| {
 
 #[derive(Default)]
 struct NameAllocator {
-  used_names: HashSet<Atom>,
+  used_names: AtomHashSet,
   used_strings: HashSet<String>,
-  suffix_counters: HashMap<Atom, u32>,
+  suffix_counters: AtomHashMap<u32>,
 }
 
 impl NameAllocator {
-  fn new(used_names: HashSet<Atom>) -> Self {
+  fn new(used_names: AtomHashSet) -> Self {
     let mut used_strings: HashSet<String> = HashSet::default();
     used_strings.reserve(used_names.len());
     for name in &used_names {
@@ -165,7 +165,7 @@ impl NameAllocator {
     Self {
       used_names,
       used_strings,
-      suffix_counters: HashMap::default(),
+      suffix_counters: AtomHashMap::default(),
     }
   }
 
@@ -280,7 +280,7 @@ impl ConcatenationEntryExternal {
 
 #[derive(Clone, Debug, Default)]
 pub struct ConcatenatedImportMapItem {
-  pub specifiers: HashSet<Atom>,
+  pub specifiers: AtomHashSet,
   pub namespace: Option<Atom>,
 }
 
@@ -299,9 +299,9 @@ pub struct ConcatenatedModuleInfo {
   pub has_ast: bool,
   pub source: Option<ReplaceSource>,
   pub internal_source: Option<Arc<dyn Source>>,
-  pub internal_names: HashMap<Atom, Atom>,
-  pub export_map: Option<HashMap<Atom, String>>,
-  pub raw_export_map: Option<HashMap<Atom, String>>,
+  pub internal_names: AtomHashMap<Atom>,
+  pub export_map: Option<AtomHashMap<String>>,
+  pub raw_export_map: Option<AtomHashMap<String>>,
   pub import_map: ConcatenatedImportMap,
   pub namespace_object_name: Option<Atom>,
   pub interop_namespace_object_used: bool,
@@ -312,7 +312,7 @@ pub struct ConcatenatedModuleInfo {
   pub interop_default_access_name: Option<Atom>,
   pub global_scope_ident: Vec<ConcatenatedModuleIdent>,
   pub idents: Vec<ConcatenatedModuleIdent>,
-  pub all_used_names: HashSet<Atom>,
+  pub all_used_names: AtomHashSet,
   pub binding_to_ref: FxIndexMap<(Atom, SyntaxContext), Vec<ConcatenatedModuleIdent>>,
 
   pub public_path_auto_replacement: Option<bool>,
@@ -997,7 +997,7 @@ impl Module for ConcatenatedModule {
     // Generate source code and analyze scopes
     // Prepare a ReplaceSource for the final source
     //
-    let mut all_used_names: HashSet<Atom> = RESERVED_NAMES.iter().map(|s| Atom::new(*s)).collect();
+    let mut all_used_names: AtomHashSet = RESERVED_NAMES.iter().map(|s| Atom::new(*s)).collect();
 
     let arc_map = Arc::new(module_to_info_map);
 
@@ -1037,7 +1037,7 @@ impl Module for ConcatenatedModule {
       module_to_info_map.insert(id, module_info);
     }
 
-    let mut top_level_declarations: HashSet<Atom> = HashSet::default();
+    let mut top_level_declarations = AtomHashSet::default();
     let mut public_path_auto_replace: bool = false;
     let mut static_url_replace: bool = false;
 
@@ -1521,9 +1521,9 @@ impl Module for ConcatenatedModule {
     // Move it off the critical path once all replacements are applied.
     fast_set(&mut changes, Vec::new());
 
-    let mut exports_map: FxIndexMap<Atom, String> = FxIndexMap::default();
-    let mut unused_exports: FxIndexSet<Atom> = FxIndexSet::default();
-    let mut inlined_exports: FxIndexSet<Atom> = FxIndexSet::default();
+    let mut exports_map = AtomIndexMap::<String>::default();
+    let mut unused_exports = AtomIndexSet::default();
+    let mut inlined_exports = AtomIndexSet::default();
 
     let root_info = module_to_info_map
       .get(&self.root_module_ctxt.id)
@@ -2603,7 +2603,7 @@ impl ConcatenatedModule {
       module_info.global_ctxt = semantic.unresolved_scope_id().to_ctxt();
 
       let top_level_scope_id = semantic.top_level_scope_id();
-      let mut all_used_names = HashSet::default();
+      let mut all_used_names = AtomHashSet::default();
       all_used_names.reserve(ids.len());
       module_info.idents.reserve(ids.len());
       module_info.global_scope_ident.reserve(ids.len());
@@ -3305,7 +3305,7 @@ pub fn is_esm_dep_like(dep: &BoxDependency) -> bool {
   )
 }
 
-pub fn find_new_name(old_name: &str, used_names: &HashSet<Atom>, extra_info: &[Atom]) -> Atom {
+pub fn find_new_name(old_name: &str, used_names: &AtomHashSet, extra_info: &[Atom]) -> Atom {
   let mut name = old_name.to_string();
 
   for info_part in extra_info {

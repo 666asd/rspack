@@ -10,7 +10,7 @@ use std::{
 
 use indoc::formatdoc;
 use rspack_core::{RscMeta, RscModuleType};
-use rspack_util::fx_hash::FxIndexMap;
+use rspack_util::{atom::AtomIndexMap, fx_hash::FxIndexMap};
 use rustc_hash::FxHashSet;
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
@@ -767,7 +767,7 @@ impl<'a, C: Comments> ServerActions<'a, C> {
     let action_ids = export_names_ordered_by_reference_id
       .iter()
       .map(|(ref_id, export_name)| ((**ref_id).clone(), export_name.atom().into_owned()))
-      .collect::<FxIndexMap<_, _>>();
+      .collect::<AtomIndexMap<_>>();
 
     let mut rsc_meta = self.rsc_meta.borrow_mut();
     match rsc_meta.as_mut() {

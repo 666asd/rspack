@@ -21,7 +21,7 @@ pub use rspack_core::{CssExport, CssExports};
 use rspack_error::{Diagnostic, IntoTWithDiagnosticArray, Result, Severity, TWithDiagnosticArray};
 use rspack_hash::{RspackHash, RspackHashDigest};
 use rspack_util::{
-  atom::Atom,
+  atom::{Atom, AtomHashSet},
   ext::DynHash,
   fx_hash::{FxIndexMap, FxIndexSet},
 };
@@ -789,7 +789,7 @@ fn get_unused_local_ident(
   exports_info_artifact: &ExportsInfoArtifact,
 ) -> CodeGenerationDataUnusedLocalIdent {
   let exports_names = exports.iter().fold(
-    FxHashMap::<&str, FxHashSet<Atom>>::default(),
+    FxHashMap::<&str, AtomHashSet>::default(),
     |mut map, (name, css_exports)| {
       css_exports.iter().for_each(|css_export| {
         if let Some(set) = map.get_mut(css_export.orig_name.as_str()) {
@@ -797,7 +797,7 @@ fn get_unused_local_ident(
         } else {
           map.insert(
             &css_export.orig_name,
-            FxHashSet::from_iter([Atom::from(name.clone())]),
+            AtomHashSet::from_iter([Atom::from(name.clone())]),
           );
         }
       });

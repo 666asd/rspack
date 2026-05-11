@@ -26,7 +26,7 @@ use rspack_core::{
   property_name, render_make_deferred_namespace_mode_from_exports_type, to_normal_comment,
 };
 use rspack_error::{Diagnostic, Error, Severity};
-use rspack_util::json_stringify;
+use rspack_util::{atom::AtomHashSet, json_stringify};
 use rustc_hash::{FxHashSet as HashSet, FxHasher};
 use swc_core::ecma::atoms::Atom;
 
@@ -97,7 +97,7 @@ impl ESMExportImportedSpecifierDependency {
   }
 
   // Because it is shared by multiply ESMExportImportedSpecifierDependency, so put it to `BuildInfo`
-  pub fn active_exports<'a>(&self, module_graph: &'a ModuleGraph) -> &'a HashSet<Atom> {
+  pub fn active_exports<'a>(&self, module_graph: &'a ModuleGraph) -> &'a AtomHashSet {
     let build_info = module_graph
       .get_parent_module(&self.id)
       .and_then(|ident| module_graph.module_by_identifier(ident))
@@ -329,7 +329,7 @@ impl ESMExportImportedSpecifierDependency {
       UsageState::Unused
     );
 
-    let ignored_exports: HashSet<Atom> = {
+    let ignored_exports: AtomHashSet = {
       let mut e = self.active_exports(module_graph).clone();
       e.insert("default".into());
       e
@@ -347,7 +347,7 @@ impl ESMExportImportedSpecifierDependency {
           .into_iter()
           .take(other_star_exports.names_slice)
           .filter(|name| !ignored_exports.contains(name))
-          .collect::<HashSet<_>>()
+          .collect::<AtomHashSet>()
       });
 
     if !no_extra_exports && !no_extra_imports {
@@ -358,10 +358,10 @@ impl ESMExportImportedSpecifierDependency {
       };
     }
 
-    let mut exports = HashSet::default();
-    let mut checked = HashSet::default();
+    let mut exports = AtomHashSet::default();
+    let mut checked = AtomHashSet::default();
     let mut hidden = if hidden_exports.is_some() {
-      Some(HashSet::default())
+      Some(AtomHashSet::default())
     } else {
       None
     };

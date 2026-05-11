@@ -5,8 +5,10 @@ use rspack_cacheable::{
   cacheable,
   with::{AsPreset, AsVec},
 };
-use rspack_util::{atom::Atom, json_stringify, ryu_js};
-use rustc_hash::FxHashSet as HashSet;
+use rspack_util::{
+  atom::{Atom, AtomHashSet},
+  json_stringify, ryu_js,
+};
 
 use crate::{DependencyId, property_access};
 
@@ -199,7 +201,7 @@ pub struct UsedByExports {
 }
 
 impl UsedByExports {
-  pub fn set(exports: HashSet<Atom>) -> Self {
+  pub fn set(exports: AtomHashSet) -> Self {
     Self {
       condition: UsedByExportsCondition::Set(exports),
       deferred_pure_checks: Vec::new(),
@@ -225,7 +227,7 @@ impl UsedByExports {
 #[cacheable]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum UsedByExportsCondition {
-  Set(#[cacheable(with=AsVec<AsPreset>)] HashSet<Atom>),
+  Set(#[cacheable(with=AsVec<AsPreset>)] AtomHashSet),
   Bool(bool),
 }
 

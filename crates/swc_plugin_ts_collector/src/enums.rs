@@ -1,6 +1,7 @@
 use std::borrow::Borrow;
 
-use rustc_hash::{FxHashMap, FxHashSet};
+use rspack_util::atom::{AtomHashMap, AtomHashSet};
+use rustc_hash::FxHashMap;
 use swc_core::{
   atoms::{Atom, Wtf8Atom, wtf8::Wtf8Buf},
   common::SyntaxContext,
@@ -19,10 +20,10 @@ type EnumKeyValueMap = FxHashMap<Wtf8Atom, EnumMemberValue>;
 #[derive(Debug)]
 pub struct ExportedEnumCollector<'a> {
   const_only: bool,
-  export_idents: FxHashSet<Atom>,
-  bailout_idents: FxHashSet<Atom>,
+  export_idents: AtomHashSet,
+  bailout_idents: AtomHashSet,
   unresolved_ctxt: SyntaxContext,
-  collected: &'a mut FxHashMap<Atom, EnumKeyValueMap>,
+  collected: &'a mut AtomHashMap<EnumKeyValueMap>,
 }
 
 #[derive(Debug, Clone)]
@@ -36,7 +37,7 @@ impl<'a> ExportedEnumCollector<'a> {
   pub fn new(
     const_only: bool,
     unresolved_ctxt: SyntaxContext,
-    collected: &'a mut FxHashMap<Atom, EnumKeyValueMap>,
+    collected: &'a mut AtomHashMap<EnumKeyValueMap>,
   ) -> Self {
     Self {
       const_only,

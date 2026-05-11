@@ -6,8 +6,10 @@ use rspack_core::{
   ModuleIdentifier, RuntimeCodeTemplate, RuntimeGlobals, find_new_name,
   rspack_sources::{ConcatSource, RawStringSource},
 };
-use rspack_util::fx_hash::{FxHashMap, FxHashSet, FxIndexMap, FxIndexSet};
-use swc_core::atoms::Atom;
+use rspack_util::{
+  atom::{Atom, AtomHashMap, AtomHashSet, AtomIndexMap, AtomIndexSet},
+  fx_hash::{FxHashMap, FxIndexMap, FxIndexSet},
+};
 
 #[derive(Debug, Clone)]
 pub enum Ref {
@@ -71,14 +73,14 @@ pub struct ExternalInterop {
   pub default_exported: Option<Atom>,
   pub namespace_object: Option<Atom>,
   pub namespace_object2: Option<Atom>,
-  pub property_access: FxIndexMap<Atom, Atom>,
+  pub property_access: AtomIndexMap<Atom>,
 }
 
 fn get_or_create_interop_name(
   required_symbol: &mut Option<Atom>,
   field: &mut Option<Atom>,
   suffix: &str,
-  used_names: &mut FxHashSet<Atom>,
+  used_names: &mut AtomHashSet,
 ) -> Atom {
   if required_symbol.is_none() {
     let new_name = find_new_name("", used_names, &[]);
@@ -102,7 +104,7 @@ fn get_or_create_interop_name(
 }
 
 impl ExternalInterop {
-  pub fn namespace(&mut self, used_names: &mut FxHashSet<Atom>) -> Atom {
+  pub fn namespace(&mut self, used_names: &mut AtomHashSet) -> Atom {
     get_or_create_interop_name(
       &mut self.required_symbol,
       &mut self.namespace_object,
@@ -111,7 +113,7 @@ impl ExternalInterop {
     )
   }
 
-  pub fn namespace2(&mut self, used_names: &mut FxHashSet<Atom>) -> Atom {
+  pub fn namespace2(&mut self, used_names: &mut AtomHashSet) -> Atom {
     get_or_create_interop_name(
       &mut self.required_symbol,
       &mut self.namespace_object2,
@@ -120,7 +122,7 @@ impl ExternalInterop {
     )
   }
 
-  pub fn default_access(&mut self, used_names: &mut FxHashSet<Atom>) -> Atom {
+  pub fn default_access(&mut self, used_names: &mut AtomHashSet) -> Atom {
     get_or_create_interop_name(
       &mut self.required_symbol,
       &mut self.default_access,
@@ -129,7 +131,7 @@ impl ExternalInterop {
     )
   }
 
-  pub fn default_exported(&mut self, used_names: &mut FxHashSet<Atom>) -> Atom {
+  pub fn default_exported(&mut self, used_names: &mut AtomHashSet) -> Atom {
     if self.required_symbol.is_none() {
       let new_name = find_new_name("", used_names, &[]);
       used_names.insert(new_name.clone());
@@ -147,7 +149,7 @@ impl ExternalInterop {
     default_exported_symbol
   }
 
-  pub fn property_access(&mut self, atom: &Atom, used_names: &mut FxHashSet<Atom>) -> Atom {
+  pub fn property_access(&mut self, atom: &Atom, used_names: &mut AtomHashSet) -> Atom {
     self.property_access.get(atom).cloned().unwrap_or_else(|| {
       let local_name = find_new_name(atom, used_names, &[]);
       used_names.insert(local_name.clone());
@@ -259,28 +261,28 @@ pub struct ChunkLinkContext {
   specifier order doesn't matter, we can sort them based on name
   Map<module_id, Map<local_name, export_name>>
   */
-  exports: FxHashMap<Atom, FxIndexSet<Atom>>,
+  exports: AtomHashMap<AtomIndexSet>,
 
   /**
   symbols that this chunk provides
   */
-  pub exported_symbols: FxHashSet<Atom>,
+  pub exported_symbols: AtomHashSet,
 
   /**
   exports that need to be re-exported
   Map<chunk, Map<local_name, export_name>>
   */
-  re_exports: FxIndexMap<ReExportFrom, FxHashMap<Atom, FxHashSet<Atom>>>,
+  re_exports: FxIndexMap<ReExportFrom, AtomHashMap<AtomHashSet>>,
 
   /**
    * re exports in raw form, used for rendering export * from 'module'
    */
-  pub raw_star_exports: FxIndexMap<String, FxIndexSet<Atom>>,
+  pub raw_star_exports: FxIndexMap<String, AtomIndexSet>,
 
   /**
   import order matters, it affects execution order
   */
-  pub imports: IdentifierIndexMap<FxHashMap<Atom, Atom>>,
+  pub imports: IdentifierIndexMap<AtomHashMap<Atom>>,
 
   /**
   raw import statements
@@ -328,7 +330,7 @@ pub struct ChunkLinkContext {
   /**
   all used symbols in current chunk
   */
-  pub used_names: FxHashSet<Atom>,
+  pub used_names: AtomHashSet,
 
   /**
   whether `__webpack_require__` is exported by a runtime module instead of chunk exports
@@ -366,21 +368,19 @@ impl ChunkLinkContext {
     }
   }
 
-  pub fn exports(&self) -> &FxHashMap<Atom, FxIndexSet<Atom>> {
+  pub fn exports(&self) -> &AtomHashMap<AtomIndexSet> {
     &self.exports
   }
 
-  pub fn exports_mut(&mut self) -> &mut FxHashMap<Atom, FxIndexSet<Atom>> {
+  pub fn exports_mut(&mut self) -> &mut AtomHashMap<AtomIndexSet> {
     &mut self.exports
   }
 
-  pub fn re_exports(&self) -> &FxIndexMap<ReExportFrom, FxHashMap<Atom, FxHashSet<Atom>>> {
+  pub fn re_exports(&self) -> &FxIndexMap<ReExportFrom, AtomHashMap<AtomHashSet>> {
     &self.re_exports
   }
 
-  pub fn re_exports_mut(
-    &mut self,
-  ) -> &mut FxIndexMap<ReExportFrom, FxHashMap<Atom, FxHashSet<Atom>>> {
+  pub fn re_exports_mut(&mut self) -> &mut FxIndexMap<ReExportFrom, AtomHashMap<AtomHashSet>> {
     &mut self.re_exports
   }
 }

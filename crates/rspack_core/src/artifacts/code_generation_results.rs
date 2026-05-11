@@ -9,7 +9,7 @@ use anymap::CloneAny;
 use rspack_collections::IdentifierMap;
 use rspack_hash::{HashDigest, HashFunction, HashSalt, RspackHash, RspackHashDigest};
 use rspack_sources::BoxSource;
-use rspack_util::atom::Atom;
+use rspack_util::atom::AtomHashSet;
 use rustc_hash::{FxHashMap as HashMap, FxHashSet};
 use serde::Serialize;
 
@@ -80,15 +80,15 @@ impl CodeGenerationDataAssetInfo {
 
 #[derive(Clone, Debug)]
 pub struct CodeGenerationDataTopLevelDeclarations {
-  inner: FxHashSet<Atom>,
+  inner: AtomHashSet,
 }
 
 impl CodeGenerationDataTopLevelDeclarations {
-  pub fn new(inner: FxHashSet<Atom>) -> Self {
+  pub fn new(inner: AtomHashSet) -> Self {
     Self { inner }
   }
 
-  pub fn inner(&self) -> &FxHashSet<Atom> {
+  pub fn inner(&self) -> &AtomHashSet {
     &self.inner
   }
 }

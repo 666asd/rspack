@@ -1,5 +1,4 @@
-use rspack_util::atom::Atom;
-use rustc_hash::FxHashSet;
+use rspack_util::atom::{Atom, AtomHashSet};
 
 use crate::{
   CanInlineUse, DependencyId, ExportInfo, ExportInfoData, ExportProvided, ExportsInfoData,
@@ -43,7 +42,7 @@ impl ExportsInfoData {
   pub fn set_unknown_exports_provided(
     &mut self,
     can_mangle: bool,
-    exclude_exports: Option<&FxHashSet<Atom>>,
+    exclude_exports: Option<&AtomHashSet>,
     target_key: Option<DependencyId>,
     target_module: Option<DependencyId>,
     priority: Option<u8>,

@@ -9,9 +9,11 @@ use rspack_error::{Result, TWithDiagnosticArray};
 use rspack_hash::RspackHashDigest;
 use rspack_loader_runner::{AdditionalData, ParseMeta, ResourceData};
 use rspack_sources::BoxSource;
-use rspack_util::{ext::AsAny, source_map::SourceMapKind};
-use rustc_hash::{FxHashMap, FxHashSet};
-use swc_core::atoms::Atom;
+use rspack_util::{
+  atom::{AtomHashMap, AtomHashSet},
+  ext::AsAny,
+  source_map::SourceMapKind,
+};
 
 use crate::{
   AsyncDependenciesBlock, BoxDependency, BoxDependencyTemplate, BoxLoader, BoxModuleDependency,
@@ -48,9 +50,9 @@ pub struct ParseContext<'a> {
 #[derive(Debug, Default, Clone)]
 pub struct CollectedTypeScriptInfo {
   #[cacheable(with=AsVec<AsPreset>)]
-  pub type_exports: FxHashSet<Atom>,
+  pub type_exports: AtomHashSet,
   #[cacheable(with=AsMap<AsPreset>)]
-  pub exported_enums: FxHashMap<Atom, TSEnumValue>,
+  pub exported_enums: AtomHashMap<TSEnumValue>,
 }
 
 pub const COLLECTED_TYPESCRIPT_INFO_PARSE_META_KEY: &str = "rspack-collected-ts-info";
@@ -58,17 +60,17 @@ pub const COLLECTED_TYPESCRIPT_INFO_PARSE_META_KEY: &str = "rspack-collected-ts-
 #[cacheable]
 #[derive(Debug, Default, Clone)]
 pub struct TSEnumValue(
-  #[cacheable(with=AsMap<AsPreset>)] FxHashMap<Atom, Option<EvaluatedInlinableValue>>,
+  #[cacheable(with=AsMap<AsPreset>)] AtomHashMap<Option<EvaluatedInlinableValue>>,
 );
 
 impl TSEnumValue {
-  pub fn new(value: FxHashMap<Atom, Option<EvaluatedInlinableValue>>) -> Self {
+  pub fn new(value: AtomHashMap<Option<EvaluatedInlinableValue>>) -> Self {
     Self(value)
   }
 }
 
 impl Deref for TSEnumValue {
-  type Target = FxHashMap<Atom, Option<EvaluatedInlinableValue>>;
+  type Target = AtomHashMap<Option<EvaluatedInlinableValue>>;
 
   fn deref(&self) -> &Self::Target {
     &self.0

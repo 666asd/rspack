@@ -1,4 +1,4 @@
-use rustc_hash::{FxHashMap, FxHashSet};
+use rspack_util::atom::{AtomHashMap, AtomHashSet};
 use swc_core::{
   atoms::Atom,
   ecma::{
@@ -9,14 +9,14 @@ use swc_core::{
 
 #[derive(Debug)]
 pub struct TypeExportsCollector<'a> {
-  type_idents: FxHashSet<Atom>,
-  export_idents: FxHashMap<Atom, Atom>,
+  type_idents: AtomHashSet,
+  export_idents: AtomHashMap<Atom>,
 
-  type_exports: &'a mut FxHashSet<Atom>,
+  type_exports: &'a mut AtomHashSet,
 }
 
 impl<'a> TypeExportsCollector<'a> {
-  pub fn new(type_exports: &'a mut FxHashSet<Atom>) -> Self {
+  pub fn new(type_exports: &'a mut AtomHashSet) -> Self {
     Self {
       type_idents: Default::default(),
       export_idents: Default::default(),

@@ -19,7 +19,7 @@ use rspack_hash::RspackHashDigest;
 use rspack_paths::ArcPathSet;
 use rspack_sources::BoxSource;
 use rspack_util::{
-  atom::Atom,
+  atom::{Atom, AtomHashSet, AtomIndexMap},
   ext::{AsAny, DynHash},
   fx_hash::{FxIndexMap, FxIndexSet},
   source_map::ModuleSourceMapConfig,
@@ -88,7 +88,7 @@ pub struct RscMeta {
   pub is_cjs: bool,
 
   #[cacheable(with=AsMap<AsPreset, AsPreset>)]
-  pub action_ids: FxIndexMap<Atom, Atom>,
+  pub action_ids: AtomIndexMap<Atom>,
 }
 
 #[cacheable]
@@ -150,7 +150,7 @@ pub struct BuildInfo {
   pub build_dependencies: ArcPathSet,
   pub value_dependencies: HashMap<String, String>,
   #[cacheable(with=AsVec<AsPreset>)]
-  pub esm_named_exports: HashSet<Atom>,
+  pub esm_named_exports: AtomHashSet,
   pub all_star_exports: Vec<DependencyId>,
   pub need_create_require: bool,
   #[cacheable(with=AsOption<AsPreset>)]
@@ -160,9 +160,9 @@ pub struct BuildInfo {
   pub css_exports: Option<CssExports>,
   pub css_local_names: Option<HashMap<String, String>>,
   #[cacheable(with=AsOption<AsVec<AsPreset>>)]
-  pub side_effects_free: Option<HashSet<Atom>>,
+  pub side_effects_free: Option<AtomHashSet>,
   #[cacheable(with=AsOption<AsVec<AsPreset>>)]
-  pub top_level_declarations: Option<HashSet<Atom>>,
+  pub top_level_declarations: Option<AtomHashSet>,
   pub module_concatenation_bailout: Option<String>,
   pub assets: BindingCell<HashMap<String, CompilationAsset>>,
   pub module: bool,
@@ -191,7 +191,7 @@ impl Default for BuildInfo {
       missing_dependencies: ArcPathSet::default(),
       build_dependencies: ArcPathSet::default(),
       value_dependencies: HashMap::default(),
-      esm_named_exports: HashSet::default(),
+      esm_named_exports: AtomHashSet::default(),
       all_star_exports: Vec::default(),
       need_create_require: false,
       json_data: None,

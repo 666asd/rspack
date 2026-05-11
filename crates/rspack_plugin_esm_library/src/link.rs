@@ -25,7 +25,7 @@ use rspack_plugin_javascript::{
 use rspack_plugin_runtime::should_export_webpack_require_for_module_chunk_loading;
 use rspack_util::{
   SpanExt,
-  atom::Atom,
+  atom::{Atom, AtomHashMap, AtomHashSet, AtomIndexSet},
   fx_hash::{FxHashMap, FxHashSet, FxIndexMap, FxIndexSet},
 };
 use swc_core::common::{SyntaxContext, comments::SingleThreadedComments};
@@ -61,9 +61,9 @@ impl<V> GetMut<ModuleIdentifier, V> for IdentifierIndexMap<V> {
 static START_EXPORTS: LazyLock<Atom> = LazyLock::new(|| "*".into());
 #[derive(Default, Debug)]
 pub(crate) struct ExportsContext {
-  exports: FxHashMap<Atom, FxIndexSet<Atom>>,
-  exported_symbols: FxHashSet<Atom>,
-  re_exports: FxIndexMap<ReExportFrom, FxHashMap<Atom, FxHashSet<Atom>>>,
+  exports: AtomHashMap<AtomIndexSet>,
+  exported_symbols: AtomHashSet,
+  re_exports: FxIndexMap<ReExportFrom, AtomHashMap<AtomHashSet>>,
 }
 
 enum ExternalImportBinding {
@@ -171,7 +171,7 @@ impl EsmLibraryPlugin {
   #[cfg(test)]
   fn reserve_module_external_namespace_import_locals(
     init_fragments: &ChunkInitFragments,
-    used_names: &mut FxHashSet<Atom>,
+    used_names: &mut AtomHashSet,
     namespace_imports: Option<&mut FxHashMap<RawImportSource, Atom>>,
   ) {
     Self::reserve_module_external_namespace_import_locals_in_render_order(
@@ -193,7 +193,7 @@ impl EsmLibraryPlugin {
 
   fn reserve_module_external_namespace_import_locals_in_render_order<'a>(
     init_fragment_groups: impl IntoIterator<Item = &'a ChunkInitFragments>,
-    used_names: &mut FxHashSet<Atom>,
+    used_names: &mut AtomHashSet,
     namespace_imports: Option<&mut FxHashMap<RawImportSource, Atom>>,
   ) {
     let mut namespace_imports = namespace_imports;
@@ -215,14 +215,14 @@ impl EsmLibraryPlugin {
   #[cfg(test)]
   fn reserve_module_external_top_level_decls(
     init_fragments: &ChunkInitFragments,
-    used_names: &mut FxHashSet<Atom>,
+    used_names: &mut AtomHashSet,
   ) {
     Self::reserve_module_external_top_level_decls_in_render_order([init_fragments], used_names);
   }
 
   fn reserve_module_external_top_level_decls_in_render_order<'a>(
     init_fragment_groups: impl IntoIterator<Item = &'a ChunkInitFragments>,
-    used_names: &mut FxHashSet<Atom>,
+    used_names: &mut AtomHashSet,
   ) {
     for init_fragment in
       Self::collect_module_external_fragments_in_render_order(init_fragment_groups)
@@ -233,7 +233,7 @@ impl EsmLibraryPlugin {
 
   fn assign_external_candidate_name(
     readable_identifier: &str,
-    candidate_used_names: &mut FxHashSet<Atom>,
+    candidate_used_names: &mut AtomHashSet,
     escaped_identifiers: &FxHashMap<String, Vec<Atom>>,
   ) -> Atom {
     let name = find_new_name(
@@ -573,7 +573,7 @@ impl EsmLibraryPlugin {
         },
       );
     let mut escaped_names =
-      FxHashMap::with_capacity_and_hasher(escaped_name_entries.len(), Default::default());
+      AtomHashMap::with_capacity_and_hasher(escaped_name_entries.len(), Default::default());
     for (name, escaped_name) in escaped_name_entries {
       escaped_names.insert(name, escaped_name);
     }
@@ -945,14 +945,14 @@ var {} = {{}};
     concate_modules_map: &mut IdentifierIndexMap<ModuleInfo>,
     external_module_init_fragments: &IdentifierMap<ChunkInitFragments>,
     chunk_link: &mut ChunkLinkContext,
-    escaped_names: &FxHashMap<Atom, Atom>,
+    escaped_names: &AtomHashMap<Atom>,
     escaped_identifiers: &FxHashMap<String, Vec<Atom>>,
   ) {
     let context = &compilation.options.context;
 
     let module_graph = compilation.get_module_graph();
 
-    let mut all_used_names: FxHashSet<Atom> = RESERVED_NAMES
+    let mut all_used_names: AtomHashSet = RESERVED_NAMES
       .iter()
       .map(|s| Atom::new(*s))
       .chain(chunk_link.hoisted_modules.iter().flat_map(|m| {
@@ -1038,7 +1038,7 @@ var {} = {{}};
         get_cached_readable_identifier(id, module_graph, &compilation.module_static_cache, context);
 
       if let ModuleInfo::Concatenated(concate_info) = info {
-        let mut internal_names = FxHashMap::default();
+        let mut internal_names = AtomHashMap::default();
 
         // registered import map
         if let Some(import_map) = &concate_info.import_map {
@@ -1559,7 +1559,7 @@ var {} = {{}};
                 concate_info.global_ctxt = semantic.unresolved_scope_id().to_ctxt();
 
                 let top_level_scope_id = semantic.top_level_scope_id();
-                let mut all_used_names = FxHashSet::default();
+                let mut all_used_names = AtomHashSet::default();
                 all_used_names.reserve(ids.len());
                 concate_info.idents.reserve(ids.len());
                 concate_info.global_scope_ident.reserve(ids.len());
@@ -1652,7 +1652,7 @@ var {} = {{}};
     m: ModuleIdentifier,
     from: Option<ModuleIdentifier>,
     symbol: Option<Atom>,
-    all_used_names: &mut FxHashSet<Atom>,
+    all_used_names: &mut AtomHashSet,
     required: &'a mut IdentifierIndexMap<ExternalInterop>,
   ) -> &'a mut ExternalInterop {
     let require_info: &mut ExternalInterop = required.entry(m).or_insert(ExternalInterop {
@@ -1885,7 +1885,7 @@ var {} = {{}};
     required: &mut IdentifierIndexMap<ExternalInterop>,
     link: &mut FxHashMap<ChunkUkey, ChunkLinkContext>,
     needed_namespace_objects: &mut IdentifierIndexSet,
-    entry_imports: &mut IdentifierIndexMap<FxHashMap<Atom, Atom>>,
+    entry_imports: &mut IdentifierIndexMap<AtomHashMap<Atom>>,
     exports: &mut FxHashMap<ChunkUkey, ExportsContext>,
     escaped_identifiers: &FxHashMap<String, Vec<Atom>>,
     allow_rename: bool,
@@ -2147,7 +2147,7 @@ var {} = {{}};
         entry_module,
         None,
         None,
-        &mut FxHashSet::default(),
+        &mut AtomHashSet::default(),
         required,
       );
     }
@@ -2188,7 +2188,7 @@ var {} = {{}};
       .chunk_by_ukey
       .keys()
       .map(|chunk| (*chunk, Default::default()))
-      .collect::<FxHashMap<ChunkUkey, IdentifierIndexMap<FxHashMap<Atom, Atom>>>>();
+      .collect::<FxHashMap<ChunkUkey, IdentifierIndexMap<AtomHashMap<Atom>>>>();
 
     // const symbol = __webpack_require__(module);
     let mut required = FxHashMap::<ChunkUkey, IdentifierIndexMap<ExternalInterop>>::default();
@@ -2922,7 +2922,7 @@ var {} = {{}};
     asi_safe: Option<bool>,
     already_visited: &mut FxHashSet<ExportInfo>,
     required: &mut IdentifierIndexMap<ExternalInterop>,
-    all_used_names: &mut FxHashSet<Atom>,
+    all_used_names: &mut AtomHashSet,
   ) -> Option<Ref> {
     let module = mg
       .module_by_identifier(info_id)
@@ -3344,7 +3344,7 @@ fn normal_render(
 mod tests {
   use rspack_core::{ChunkInitFragments, ChunkUkey, InitFragmentKey, ModuleIdentifier};
   use rspack_util::{
-    atom::Atom,
+    atom::{Atom, AtomHashSet},
     fx_hash::{FxHashMap, FxHashSet},
   };
 
@@ -3409,7 +3409,7 @@ mod tests {
         None,
       )),
     ];
-    let mut chunk_used_names = FxHashSet::default();
+    let mut chunk_used_names = AtomHashSet::default();
     let mut namespace_imports = FxHashMap::default();
 
     EsmLibraryPlugin::reserve_module_external_namespace_import_locals(
@@ -3452,7 +3452,7 @@ mod tests {
         InitFragmentKey::ModuleExternal("../compiled/webpack-sources/index.js".into()),
         None,
       ))];
-    let mut chunk_used_names = FxHashSet::default();
+    let mut chunk_used_names = AtomHashSet::default();
     let mut namespace_imports = FxHashMap::default();
 
     EsmLibraryPlugin::reserve_module_external_namespace_import_locals(
@@ -3510,7 +3510,7 @@ mod tests {
         InitFragmentKey::ModuleExternal("../compiled/webpack-sources/index.js".into()),
         None,
       ))];
-    let mut chunk_used_names = FxHashSet::default();
+    let mut chunk_used_names = AtomHashSet::default();
     let mut namespace_imports = FxHashMap::default();
 
     EsmLibraryPlugin::reserve_module_external_namespace_import_locals_in_render_order(
@@ -3548,7 +3548,7 @@ mod tests {
       InitFragmentKey::ModuleExternal("../compiled/webpack-sources/index.js".into()),
       None,
     ))];
-    let mut chunk_used_names = FxHashSet::default();
+    let mut chunk_used_names = AtomHashSet::default();
     let mut namespace_imports = FxHashMap::default();
     let mut required = Default::default();
 
@@ -3591,7 +3591,7 @@ mod tests {
       InitFragmentKey::ModuleExternal("node-commonjs".into()),
       None,
     ))];
-    let mut chunk_used_names = FxHashSet::default();
+    let mut chunk_used_names = AtomHashSet::default();
 
     EsmLibraryPlugin::reserve_module_external_namespace_import_locals(
       &init_fragments,
@@ -3616,7 +3616,7 @@ mod tests {
       "__rspack_createRequire".into(),
       "__rspack_createRequire_require".into(),
     ]))];
-    let mut chunk_used_names = FxHashSet::default();
+    let mut chunk_used_names = AtomHashSet::default();
 
     EsmLibraryPlugin::reserve_module_external_top_level_decls(
       &init_fragments,
@@ -3655,7 +3655,7 @@ mod tests {
         "__rspack_createRequire_require_0".into(),
       ])),
     ];
-    let mut chunk_used_names = FxHashSet::default();
+    let mut chunk_used_names = AtomHashSet::default();
 
     EsmLibraryPlugin::reserve_module_external_top_level_decls(
       &init_fragments,
@@ -3681,7 +3681,7 @@ mod tests {
       )
       .with_top_level_decl_symbols(vec!["provided_identifier".into()]),
     )];
-    let mut chunk_used_names = FxHashSet::default();
+    let mut chunk_used_names = AtomHashSet::default();
 
     EsmLibraryPlugin::reserve_module_external_top_level_decls(
       &init_fragments,
@@ -3694,8 +3694,8 @@ mod tests {
   #[test]
   fn external_candidate_name_does_not_claim_chunk_top_level_name() {
     let module = ModuleIdentifier::from("test_module");
-    let mut candidate_used_names = FxHashSet::default();
-    let mut chunk_used_names = FxHashSet::default();
+    let mut candidate_used_names = AtomHashSet::default();
+    let mut chunk_used_names = AtomHashSet::default();
     let mut required = Default::default();
     let escaped_identifiers =
       FxHashMap::from_iter([("./lib.js".to_string(), vec![Atom::from("lib")])]);

@@ -1,5 +1,5 @@
 use bitflags::bitflags;
-use rustc_hash::FxHashMap;
+use rspack_util::atom::AtomHashMap;
 use slotmap::{KeyData, SlotMap, new_key_type};
 use swc_core::atoms::Atom;
 
@@ -300,7 +300,7 @@ impl VariableInfo {
 #[derive(Debug)]
 pub struct ScopeInfo {
   parent: Option<ScopeInfoId>,
-  map: FxHashMap<Atom, VariableInfoId>,
+  map: AtomHashMap<VariableInfoId>,
   pub is_strict: bool,
 }
 

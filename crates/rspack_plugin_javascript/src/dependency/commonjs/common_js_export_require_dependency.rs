@@ -13,8 +13,7 @@ use rspack_core::{
   create_exports_object_referenced, create_no_exports_referenced, property_access,
   to_normal_comment,
 };
-use rustc_hash::FxHashSet;
-use swc_core::atoms::Atom;
+use rspack_util::atom::{Atom, AtomHashSet};
 
 use super::ExportsBase;
 use crate::dependency::commonjs::OBJECT_PROTOTYPE_METHODS;
@@ -71,7 +70,7 @@ impl CommonJsExportRequireDependency {
     exports_info_artifact: &ExportsInfoArtifact,
     runtime: Option<&RuntimeSpec>,
     imported_module: &ModuleIdentifier,
-  ) -> Option<FxHashSet<Atom>> {
+  ) -> Option<AtomHashSet> {
     let ids = self.get_ids(mg);
     let mut imported_exports_info =
       Some(exports_info_artifact.get_exports_info_data(imported_module));
@@ -127,7 +126,7 @@ impl CommonJsExportRequireDependency {
       ExportsType::Namespace
     );
 
-    let mut exports = FxHashSet::default();
+    let mut exports = AtomHashSet::default();
 
     if no_extra_imports {
       let Some(exports_info) = &exports_info else {

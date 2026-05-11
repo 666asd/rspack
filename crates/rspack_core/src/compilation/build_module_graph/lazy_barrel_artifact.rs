@@ -3,8 +3,8 @@ use rspack_cacheable::{
   with::{AsMap, AsPreset, AsVec},
 };
 use rspack_collections::IdentifierMap;
-use rspack_util::atom::Atom;
-use rustc_hash::{FxHashMap, FxHashSet};
+use rspack_util::atom::{Atom, AtomHashMap, AtomHashSet};
+use rustc_hash::FxHashSet;
 
 use crate::{BoxDependency, DependencyId, ModuleIdentifier};
 
@@ -18,16 +18,16 @@ pub enum ForwardId {
 #[derive(Debug)]
 pub enum ForwardedIdSet {
   All,
-  IdSet(FxHashSet<Atom>),
+  IdSet(AtomHashSet),
 }
 
 impl ForwardedIdSet {
   pub fn empty() -> Self {
-    Self::IdSet(FxHashSet::default())
+    Self::IdSet(AtomHashSet::default())
   }
 
   pub fn from_dependencies(dependencies: &[BoxDependency]) -> Self {
-    let mut set = FxHashSet::default();
+    let mut set = AtomHashSet::default();
     for dep in dependencies {
       match dep.forward_id() {
         ForwardId::All => return Self::All,
@@ -87,11 +87,11 @@ pub enum LazyUntil {
 #[derive(Debug, Default)]
 pub struct LazyDependencies {
   #[cacheable(with=AsMap<AsPreset, AsPreset>)]
-  forward_id_to_request: FxHashMap<Atom, Atom>,
+  forward_id_to_request: AtomHashMap<Atom>,
   #[cacheable(with=AsMap<AsPreset>)]
-  request_to_dependencies: FxHashMap<Atom, FxHashSet<DependencyId>>,
+  request_to_dependencies: AtomHashMap<FxHashSet<DependencyId>>,
   #[cacheable(with=AsVec<AsPreset>)]
-  terminal_forward_ids: FxHashSet<Atom>,
+  terminal_forward_ids: AtomHashSet,
   fallback_dependencies: FxHashSet<DependencyId>,
 }
 

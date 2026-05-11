@@ -3,8 +3,7 @@ use std::sync::LazyLock;
 use rspack_core::{
   DeferredPureCheck, Dependency, DependencyRange, ModuleDependency, SideEffectsBailoutItemWithSpan,
 };
-use rspack_util::SpanExt;
-use rustc_hash::FxHashSet;
+use rspack_util::{SpanExt, atom::AtomHashSet};
 use swc_core::{
   atoms::Atom,
   common::{
@@ -48,7 +47,7 @@ impl SideEffectsParserPlugin {
 }
 
 struct PureAnnotation<'a> {
-  side_effects_free: FxHashSet<Atom>,
+  side_effects_free: AtomHashSet,
   parser: &'a JavascriptParser<'a>,
 }
 
@@ -159,14 +158,14 @@ impl<'a> Visit for PureAnnotation<'a> {
   }
 }
 
-fn collect_pure_function_acceptable_names(program: &Program) -> FxHashSet<Atom> {
+fn collect_pure_function_acceptable_names(program: &Program) -> AtomHashSet {
   // Names a user can list in `pureFunctions` and have actually take effect:
   //   - any top-level binding (function/class/var decl or import) — so calls
   //     to local helpers and imported identifiers can be marked pure;
   //   - export aliases of local bindings (`export { foo as bar }`) and the
   //     `default` keyword for default-exported functions/arrows — preserves
   //     the original "configure on the source module" workflow.
-  let mut names = FxHashSet::default();
+  let mut names = AtomHashSet::default();
   let mut insert = |name: &Atom| {
     names.insert(name.clone());
   };
@@ -244,7 +243,7 @@ fn collect_pure_function_acceptable_names(program: &Program) -> FxHashSet<Atom> 
 fn collect_defined_configured_side_effects_free(
   program: &Program,
   configured_side_effects_free: &[String],
-) -> FxHashSet<Atom> {
+) -> AtomHashSet {
   let acceptable = collect_pure_function_acceptable_names(program);
 
   configured_side_effects_free
@@ -323,7 +322,7 @@ fn visit_module_decl_defined_binding_names(decl: &ModuleDecl, f: &mut impl FnMut
   }
 }
 
-fn collect_duplicate_top_level_names(program: &Program) -> FxHashSet<Atom> {
+fn collect_duplicate_top_level_names(program: &Program) -> AtomHashSet {
   let mut counts = rustc_hash::FxHashMap::<Atom, usize>::default();
   let mut count_name = |name: &Atom| {
     *counts.entry(name.clone()).or_default() += 1;
@@ -371,7 +370,7 @@ fn try_mark_auto_side_effects_free_var_decl(
   export_name: Option<&Atom>,
   unresolved_ctxt: SyntaxContext,
   comments: Option<&dyn Comments>,
-  duplicate_names: &FxHashSet<Atom>,
+  duplicate_names: &AtomHashSet,
 ) {
   if !matches!(var_decl.kind, VarDeclKind::Const) {
     return;
@@ -425,7 +424,7 @@ fn try_mark_auto_side_effects_free_stmt(
   stmt: &Stmt,
   unresolved_ctxt: SyntaxContext,
   comments: Option<&dyn Comments>,
-  duplicate_names: &FxHashSet<Atom>,
+  duplicate_names: &AtomHashSet,
 ) {
   match stmt {
     Stmt::Decl(Decl::Fn(fn_decl)) => {
@@ -468,7 +467,7 @@ fn try_mark_auto_side_effects_free_module_decl(
   decl: &ModuleDecl,
   unresolved_ctxt: SyntaxContext,
   comments: Option<&dyn Comments>,
-  duplicate_names: &FxHashSet<Atom>,
+  duplicate_names: &AtomHashSet,
 ) {
   match decl {
     ModuleDecl::ExportDefaultExpr(default_expr) => {
@@ -568,7 +567,7 @@ fn mark_auto_side_effects_free_program(
   program: &Program,
   unresolved_ctxt: SyntaxContext,
   comments: Option<&dyn Comments>,
-  duplicate_names: &FxHashSet<Atom>,
+  duplicate_names: &AtomHashSet,
 ) {
   match program {
     Program::Module(module) => {
@@ -628,7 +627,7 @@ impl JavascriptParserPlugin for SideEffectsParserPlugin {
       //    unlock later candidates regardless of declaration order.
       // use a raw swc visitor so that we can find all pure functions before the parser visit the ast
       let mut pure_annotation = PureAnnotation {
-        side_effects_free: FxHashSet::default(),
+        side_effects_free: AtomHashSet::default(),
         parser,
       };
       ast.visit_with(&mut pure_annotation);
@@ -653,7 +652,7 @@ impl JavascriptParserPlugin for SideEffectsParserPlugin {
           .build_info
           .side_effects_free
           .as_ref()
-          .map_or(0, FxHashSet::len);
+          .map_or(0, AtomHashSet::len);
         mark_auto_side_effects_free_program(
           parser,
           self.analyze_side_effects_free,
@@ -666,7 +665,7 @@ impl JavascriptParserPlugin for SideEffectsParserPlugin {
           .build_info
           .side_effects_free
           .as_ref()
-          .map_or(0, FxHashSet::len);
+          .map_or(0, AtomHashSet::len);
         if next_len == prev_len {
           break;
         }

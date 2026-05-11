@@ -35,13 +35,13 @@ use rspack_cacheable::{
   cacheable,
   with::{AsPreset, AsVec},
 };
+use rspack_util::atom::{Atom, AtomHashSet};
 pub use runtime_requirements_dependency::{
   RuntimeRequirementsDependency, RuntimeRequirementsDependencyTemplate,
 };
-use rustc_hash::{FxHashMap, FxHashSet};
+use rustc_hash::FxHashMap;
 use serde::Serialize;
 pub use static_exports_dependency::{StaticExportsDependency, StaticExportsSpec};
-use swc_core::ecma::atoms::Atom;
 
 use crate::{
   ConnectionState, EvaluatedInlinableValue, ExportsInfoArtifact, ExportsType,
@@ -114,8 +114,8 @@ pub struct ExportsSpec {
   pub terminal_binding: Option<bool>,
   pub from: Option<ModuleGraphConnection>,
   pub dependencies: Option<Vec<ModuleIdentifier>>,
-  pub hide_export: Option<FxHashSet<Atom>>,
-  pub exclude_exports: Option<FxHashSet<Atom>>,
+  pub hide_export: Option<AtomHashSet>,
+  pub exclude_exports: Option<AtomHashSet>,
 }
 
 impl ExportsSpec {

@@ -5,7 +5,7 @@ use rspack_cacheable::with::{AsPreset, AsVec};
 use rspack_collections::IdentifierSet;
 use rspack_core::CompilerId;
 use rspack_util::{
-  atom::Atom,
+  atom::{Atom, AtomIndexSet},
   fx_hash::{FxDashMap, FxIndexSet},
 };
 use rustc_hash::FxHashMap;
@@ -24,7 +24,7 @@ pub type RootCssImports = FxIndexSet<String>;
 pub struct ClientModuleImport {
   pub request: String,
   #[cacheable(with=AsVec<AsPreset>)]
-  pub ids: FxIndexSet<Atom>,
+  pub ids: AtomIndexSet,
 }
 
 #[derive(Debug, Default)]

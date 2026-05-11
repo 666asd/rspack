@@ -10,8 +10,8 @@ use get_exports_type::*;
 use get_mode::*;
 use get_side_effects_connection_state::*;
 use module_graph_hash::*;
-use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
-use swc_core::atoms::Atom;
+use rspack_util::atom::{Atom, AtomHashSet};
+use rustc_hash::FxHashMap as HashMap;
 
 use crate::{
   ConcatenationEntry, ConnectionState, DependencyId, ExportInfo, ExportsType, ModuleIdentifier,
@@ -388,7 +388,7 @@ pub struct ExportModeUnused {
 
 #[derive(Debug, Clone)]
 pub struct ExportModeEmptyStar {
-  pub hidden: Option<HashSet<Atom>>,
+  pub hidden: Option<AtomHashSet>,
 }
 
 #[derive(Debug, Clone)]
@@ -427,14 +427,14 @@ pub struct ExportModeNormalReexport {
 
 #[derive(Debug, Clone)]
 pub struct ExportModeDynamicReexport {
-  pub ignored: HashSet<Atom>,
-  pub hidden: Option<HashSet<Atom>>,
+  pub ignored: AtomHashSet,
+  pub hidden: Option<AtomHashSet>,
 }
 
 #[derive(Debug, Default)]
 pub struct StarReexportsInfo {
-  pub exports: Option<HashSet<Atom>>,
-  pub checked: Option<HashSet<Atom>>,
-  pub ignored_exports: HashSet<Atom>,
-  pub hidden: Option<HashSet<Atom>>,
+  pub exports: Option<AtomHashSet>,
+  pub checked: Option<AtomHashSet>,
+  pub ignored_exports: AtomHashSet,
+  pub hidden: Option<AtomHashSet>,
 }

@@ -1,5 +1,4 @@
 use rspack_util::atom::Atom;
-use rustc_hash::FxHashSet;
 
 use super::{
   JavascriptParserPlugin,
@@ -34,7 +33,7 @@ impl JavascriptParserPlugin for JavascriptMetaInfoPlugin {
 
   fn finish(&self, parser: &mut JavascriptParser) -> Option<bool> {
     if parser.build_info.top_level_declarations.is_none() {
-      parser.build_info.top_level_declarations = Some(FxHashSet::default());
+      parser.build_info.top_level_declarations = Some(Default::default());
     }
     let variables: Vec<_> = parser
       .get_all_variables_from_current_scope()

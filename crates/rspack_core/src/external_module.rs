@@ -6,7 +6,7 @@ use rspack_error::{Result, impl_empty_diagnosable_trait};
 use rspack_hash::{RspackHash, RspackHashDigest};
 use rspack_macros::impl_source_map_config;
 use rspack_util::{ext::DynHash, json_stringify_str, source_map::SourceMapKind};
-use rustc_hash::{FxHashMap as HashMap, FxHashSet};
+use rustc_hash::FxHashMap as HashMap;
 use serde::Serialize;
 
 use crate::{
@@ -460,7 +460,7 @@ impl ExternalModule {
       user_request,
       factory_meta: None,
       build_info: BuildInfo {
-        top_level_declarations: Some(FxHashSet::default()),
+        top_level_declarations: Some(Default::default()),
         strict: true,
         ..Default::default()
       },

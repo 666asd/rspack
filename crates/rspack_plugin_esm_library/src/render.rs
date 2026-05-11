@@ -17,8 +17,8 @@ use rspack_plugin_javascript::{
 };
 use rspack_util::{
   SpanExt,
-  atom::Atom,
-  fx_hash::{FxHashMap, FxHashSet, FxIndexMap, FxIndexSet},
+  atom::{Atom, AtomHashMap},
+  fx_hash::{FxHashSet, FxIndexMap, FxIndexSet},
 };
 
 use crate::{
@@ -243,7 +243,7 @@ impl EsmLibraryPlugin {
     let mut render_source = ConcatSource::default();
     let mut export_specifiers: FxIndexSet<Cow<str>> = Default::default();
     let mut export_default = None;
-    let mut imported_chunks = FxIndexMap::<ChunkUkey, FxHashMap<Atom, Atom>>::default();
+    let mut imported_chunks = FxIndexMap::<ChunkUkey, AtomHashMap<Atom>>::default();
     let mut runtime_requirements =
       *ChunkGraph::get_chunk_runtime_requirements(compilation, chunk_ukey);
 

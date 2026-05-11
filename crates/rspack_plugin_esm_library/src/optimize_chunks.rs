@@ -9,7 +9,7 @@ use rspack_core::{
   incremental::Mutation, split_readable_identifier,
 };
 use rspack_util::{
-  atom::Atom,
+  atom::{Atom, AtomHashSet},
   fx_hash::{FxDashSet, FxHashMap, FxHashSet},
 };
 
@@ -644,7 +644,7 @@ pub(crate) fn analyze_dyn_import_targets(
     // Step 1: Collect export names per module per chunk (for non-strict, non-external,
     // concatenated modules) to detect export name conflicts between modules sharing a chunk.
     let exports_info_artifact = &compilation.exports_info_artifact;
-    let mut chunk_module_exports: FxHashMap<ChunkUkey, Vec<(_, FxHashSet<Atom>)>> =
+    let mut chunk_module_exports: FxHashMap<ChunkUkey, Vec<(_, AtomHashSet)>> =
       FxHashMap::default();
     for module_id in &sorted_targets {
       if !concatenated_modules.contains(module_id) {
@@ -667,7 +667,7 @@ pub(crate) fn analyze_dyn_import_targets(
         continue;
       }
       let exports_info = exports_info_artifact.get_exports_info_data(module_id);
-      let export_names: FxHashSet<Atom> = exports_info
+      let export_names: AtomHashSet = exports_info
         .exports()
         .iter()
         .filter(|(_, ei)| {
@@ -707,7 +707,7 @@ pub(crate) fn analyze_dyn_import_targets(
 
     // Step 3: Only assign namespace names when needed (namespace used as a whole or has conflicts)
     // Track used names per chunk to avoid collisions between multiple dyn targets
-    let mut chunk_used_names: FxHashMap<ChunkUkey, FxHashSet<Atom>> = FxHashMap::default();
+    let mut chunk_used_names: FxHashMap<ChunkUkey, AtomHashSet> = FxHashMap::default();
 
     for module_id in &sorted_targets {
       if !concatenated_modules.contains(module_id) {
