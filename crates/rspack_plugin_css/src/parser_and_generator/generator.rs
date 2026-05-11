@@ -55,8 +55,13 @@ impl<'a, 'g> CssModuleGenerator<'a, 'g> {
     es_module: bool,
     exports_only: bool,
   ) -> Self {
-    let runtime_template = generate_context.runtime_template();
-    let module_argument = runtime_template.render_module_argument(ModuleArgument::Module);
+    let module_argument = if with_hmr {
+      generate_context
+        .runtime_template()
+        .render_module_argument(ModuleArgument::Module)
+    } else {
+      String::with_capacity(0)
+    };
 
     Self {
       source,
@@ -121,7 +126,6 @@ impl<'a, 'g> CssModuleGenerator<'a, 'g> {
 
   fn generate_js_exports(&mut self) {
     let module = self.module;
-    let with_hmr = self.with_hmr;
 
     let build_info = module.build_info();
     if self.generate_context.concatenation_scope.is_some() {
