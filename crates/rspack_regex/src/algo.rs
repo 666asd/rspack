@@ -66,10 +66,6 @@ impl Debug for HashRustRegex {
 
 impl HashRustRegex {
   pub(crate) fn new(expr: &str, flags: &str) -> Result<Self, Error> {
-    // Rust regex doesn't allow escaped slashes, but they are necessary in JS
-    // regexp literals.
-    let pattern = normalize_escaped_slashes(expr);
-    let mut builder = RegexBuilder::new(&pattern);
     let has_ignore_case = flags.contains('i');
     let has_unicode = flags.contains('u');
 
@@ -78,12 +74,18 @@ impl HashRustRegex {
     if has_ignore_case && has_unicode {
       return Err(error!("Unsupported regex flag combination `iu` for rust regex"));
     }
+    if has_ignore_case && !expr.is_ascii() {
+      return Err(error!(
+        "Unsupported non-ascii regex with `i` flag for rust regex"
+      ));
+    }
+
+    // Rust regex doesn't allow escaped slashes, but they are necessary in JS
+    // regexp literals.
+    let pattern = normalize_escaped_slashes(expr);
+    let mut builder = RegexBuilder::new(&pattern);
     if has_ignore_case {
-      if !expr.is_ascii() {
-        return Err(error!(
-          "Unsupported non-ascii regex with `i` flag for rust regex"
-        ));
-      }
+      // Force ASCII mode so `i` does not require `unicode-case`.
       builder.unicode(false);
     }
 
