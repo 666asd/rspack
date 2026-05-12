@@ -36,6 +36,11 @@ pub(crate) type DependenciesBlockIdentifierSet =
 
 type ConnectionIdList = Arc<Vec<DependencyId>>;
 type PreparedBlockConnectionMap = Vec<PreparedBlockConnection>;
+type PreparedConnectionGroupIndexMap = std::collections::HashMap<
+  (DependenciesBlockIdentifier, ModuleIdentifier),
+  usize,
+  BuildHasherDefault<FxHasher>,
+>;
 type BlockConnectionMap =
   DependenciesBlockIdentifierMap<Arc<Vec<(ModuleIdentifier, ConnectionState, ConnectionIdList)>>>;
 
@@ -52,37 +57,73 @@ struct PreparedBlockConnectionBuilder {
   dependency: DependencyId,
 }
 
+struct PreparedBlockConnectionGroup {
+  block: DependenciesBlockIdentifier,
+  module: ModuleIdentifier,
+  connections: Vec<DependencyId>,
+}
+
+fn finish_prepared_connection_groups(
+  groups: Vec<PreparedBlockConnectionGroup>,
+) -> PreparedBlockConnectionMap {
+  let mut prepared = PreparedBlockConnectionMap::with_capacity(groups.len());
+  prepared.extend(groups.into_iter().map(|group| PreparedBlockConnection {
+    block: group.block,
+    module: group.module,
+    connections: Arc::new(group.connections),
+  }));
+  prepared
+}
+
 fn finalize_prepared_connection_map(
   connections: impl IntoIterator<Item = PreparedBlockConnectionBuilder>,
   capacity: usize,
 ) -> PreparedBlockConnectionMap {
-  let mut groups = PreparedBlockConnectionMap::with_capacity(capacity);
-  let mut group_index_by_block = DependenciesBlockIdentifierMap::<IdentifierMap<usize>>::default();
-  for connection in connections {
-    let index_by_module = match group_index_by_block.entry(connection.block) {
-      hash_map::Entry::Occupied(entry) => entry.into_mut(),
-      hash_map::Entry::Vacant(entry) => entry.insert(IdentifierMap::default()),
-    };
+  if capacity <= 8 {
+    let mut groups = Vec::<PreparedBlockConnectionGroup>::with_capacity(capacity);
+    for connection in connections {
+      if let Some(group) = groups
+        .iter_mut()
+        .find(|group| group.block == connection.block && group.module == connection.module)
+      {
+        group.connections.push(connection.dependency);
+      } else {
+        let mut connections = Vec::with_capacity(2);
+        connections.push(connection.dependency);
+        groups.push(PreparedBlockConnectionGroup {
+          block: connection.block,
+          module: connection.module,
+          connections,
+        });
+      }
+    }
 
-    match index_by_module.entry(connection.module) {
+    return finish_prepared_connection_groups(groups);
+  }
+
+  let mut groups = Vec::<PreparedBlockConnectionGroup>::with_capacity(capacity);
+  let mut group_index_by_connection =
+    PreparedConnectionGroupIndexMap::with_capacity_and_hasher(capacity, Default::default());
+  for connection in connections {
+    match group_index_by_connection.entry((connection.block, connection.module)) {
       hash_map::Entry::Occupied(entry) => {
-        Arc::get_mut(&mut groups[*entry.get()].connections)
-          .expect("prepared connections should not be shared during finalize")
-          .push(connection.dependency);
+        groups[*entry.get()].connections.push(connection.dependency);
       }
       hash_map::Entry::Vacant(entry) => {
         let index = groups.len();
         entry.insert(index);
-        groups.push(PreparedBlockConnection {
+        let mut connections = Vec::with_capacity(2);
+        connections.push(connection.dependency);
+        groups.push(PreparedBlockConnectionGroup {
           block: connection.block,
           module: connection.module,
-          connections: Arc::new(vec![connection.dependency]),
+          connections,
         });
       }
     }
   }
 
-  groups
+  finish_prepared_connection_groups(groups)
 }
 
 #[derive(Debug, Clone, Default)]
@@ -2355,8 +2396,8 @@ Or do you want to use the entrypoints '{name}' and '{runtime}' independently on 
           .unwrap_or_default();
         let dependency_count = all_dependencies.len();
 
-        let mut ordered_deps = Vec::new();
-        let mut unordered_deps = Vec::with_capacity(dependency_count);
+        let mut ordered_deps = Vec::with_capacity(dependency_count);
+        let mut unordered_deps = Vec::new();
         for dep_id in all_dependencies {
           let dep = mg.dependency_by_id(dep_id);
           let module_dep = dep.as_module_dependency();
