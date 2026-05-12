@@ -72,11 +72,13 @@ impl HashRustRegex {
     // Without the regex crate's `unicode-case` feature, case-insensitive
     // matching is only reliable for ASCII patterns in non-unicode mode.
     if has_ignore_case && has_unicode {
-      return Err(error!("Unsupported regex flag combination `iu` for rust regex"));
+      return Err(error!(
+        "Case-insensitive unicode regex requires regress backend (`iu` unsupported for rust regex)"
+      ));
     }
     if has_ignore_case && !expr.is_ascii() {
       return Err(error!(
-        "Unsupported non-ascii regex with `i` flag for rust regex"
+        "Non-ascii case-insensitive regex requires regress backend (`i` on rust regex is ASCII-only)"
       ));
     }
 
