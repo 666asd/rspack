@@ -39,8 +39,7 @@ use crate::{
   ParserAndGenerator, ParserOptions, Resolve, RspackLoaderRunnerPlugin, RunnerContext,
   RuntimeGlobals, RuntimeSpec, SideEffectsStateArtifact, SourceType, contextify,
   diagnostics::ModuleBuildError,
-  get_context, module_analyzed_side_effect_free, module_declared_side_effect_free,
-  module_update_hash,
+  get_context, module_analyzed_side_effect_free, module_update_hash,
   utils::{SourceSizeCache, SourceSizeCacheSerde},
 };
 
@@ -764,21 +763,22 @@ impl Module for NormalModule {
     module_chain: &mut IdentifierSet,
     connection_state_cache: &mut IdentifierMap<ConnectionState>,
   ) -> ConnectionState {
-    module_graph_cache.cached_get_side_effects_connection_state(self.id(), || {
-      if let Some(state) = connection_state_cache.get(&self.id) {
-        return *state;
-      }
+    let module_id = self.id;
+    if let Some(state) = connection_state_cache.get(&module_id) {
+      return *state;
+    }
 
-      if let Some(side_effect_free) = module_declared_side_effect_free(self) {
+    module_graph_cache.cached_get_side_effects_connection_state(module_id, || {
+      if let Some(side_effect_free) = self.factory_meta.as_ref().and_then(|m| m.side_effect_free) {
         return ConnectionState::Active(!side_effect_free);
       }
 
       if module_analyzed_side_effect_free(self, side_effects_state_artifact) == Some(true) {
         // use module chain instead of is_evaluating_side_effects to mut module graph
-        if module_chain.contains(&self.identifier()) {
+        if module_chain.contains(&module_id) {
           return ConnectionState::CircularConnection;
         }
-        module_chain.insert(self.identifier());
+        module_chain.insert(module_id);
         let mut current = ConnectionState::Active(false);
         for dependency_id in self.get_dependencies().iter() {
           let dependency = module_graph.dependency_by_id(dependency_id);
@@ -791,15 +791,15 @@ impl Module for NormalModule {
           );
           if matches!(state, ConnectionState::Active(true)) {
             // TODO add optimization bailout
-            module_chain.remove(&self.identifier());
-            connection_state_cache.insert(self.id, ConnectionState::Active(true));
+            module_chain.remove(&module_id);
+            connection_state_cache.insert(module_id, ConnectionState::Active(true));
             return ConnectionState::Active(true);
           } else if !matches!(state, ConnectionState::CircularConnection) {
             current = current + state;
           }
         }
-        module_chain.remove(&self.identifier());
-        connection_state_cache.insert(self.id, current);
+        module_chain.remove(&module_id);
+        connection_state_cache.insert(module_id, current);
         return current;
       }
       ConnectionState::Active(true)
