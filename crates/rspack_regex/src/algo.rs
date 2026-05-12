@@ -70,6 +70,23 @@ impl HashRustRegex {
     // regexp literals.
     let pattern = normalize_escaped_slashes(expr);
     let mut builder = RegexBuilder::new(&pattern);
+    let has_ignore_case = flags.contains('i');
+    let has_unicode = flags.contains('u');
+
+    // Without the regex crate's `unicode-case` feature, case-insensitive
+    // matching is only reliable for ASCII patterns in non-unicode mode.
+    if has_ignore_case && has_unicode {
+      return Err(error!("Unsupported regex flag combination `iu` for rust regex"));
+    }
+    if has_ignore_case {
+      if !expr.is_ascii() {
+        return Err(error!(
+          "Unsupported non-ascii regex with `i` flag for rust regex"
+        ));
+      }
+      builder.unicode(false);
+    }
+
     for flag in flags.chars() {
       match flag {
         // Indices for substring matches are not relevant for test().
@@ -381,10 +398,10 @@ mod test_algo {
 
   #[test]
   fn rust_regex_path_supports_safe_js_flags() {
-    let algo = Algo::new("^bar.baz$", "gimsu").unwrap();
+    let algo = Algo::new("^bar.baz$", "dgmsu").unwrap();
     assert!(algo.is_rust_regex());
-    assert!(algo.test("foo\nBAR\nBAZ\nqux"));
-    assert!(!algo.test("foo\nBAR\nBAZ!"));
+    assert!(algo.test("foo\nbar\nbaz\nqux"));
+    assert!(!algo.test("foo\nbar\nbaz!"));
   }
 
   #[test]
@@ -441,9 +458,15 @@ mod test_algo {
   }
 
   #[test]
-  fn non_ascii_ignore_case_should_use_rust_regex() {
+  fn non_ascii_ignore_case_should_fallback_to_regress() {
     let algo = Algo::new("é", "i").unwrap();
-    assert!(algo.is_rust_regex());
+    assert!(algo.is_regress());
+  }
+
+  #[test]
+  fn ignore_case_with_unicode_flag_should_fallback_to_regress() {
+    let algo = Algo::new("^foo$", "iu").unwrap();
+    assert!(algo.is_regress());
   }
 
   #[test]
