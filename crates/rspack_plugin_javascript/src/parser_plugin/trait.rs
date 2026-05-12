@@ -148,6 +148,10 @@ impl JavascriptParserPluginHooks {
     Self(0)
   }
 
+  pub const fn from_bits(bits: u64) -> Self {
+    Self(bits)
+  }
+
   pub const fn all() -> Self {
     Self(JavascriptParserPluginHook::ALL_MASK)
   }
