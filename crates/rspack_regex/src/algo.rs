@@ -1,4 +1,4 @@
-use std::{fmt::Debug, hash::Hash};
+use std::{borrow::Cow, fmt::Debug, hash::Hash};
 
 use regex::RegexBuilder;
 use regex_syntax::hir::{Hir, HirKind, Look, literal::ExtractKind};
@@ -66,9 +66,16 @@ impl Debug for HashRustRegex {
 
 impl HashRustRegex {
   pub(crate) fn new(expr: &str, flags: &str) -> Result<Self, Error> {
-    let mut builder = RegexBuilder::new(expr);
+    // Rust regex doesn't allow escaped slashes, but they are necessary in JS
+    // regexp literals.
+    let pattern = normalize_escaped_slashes(expr);
+    let mut builder = RegexBuilder::new(&pattern);
     for flag in flags.chars() {
       match flag {
+        // Indices for substring matches are not relevant for test().
+        'd' => {}
+        // Global is the default for Rust regex matching.
+        'g' => {}
         'i' => {
           builder.case_insensitive(true);
         }
@@ -81,8 +88,7 @@ impl HashRustRegex {
         'u' => {
           builder.unicode(true);
         }
-        // Keep JS regexp flags for metadata compatibility.
-        'g' | 'y' => {}
+        // Sticky changes where matching may start, so keep it on Regress.
         _ => {
           return Err(error!("Unsupported regex flag `{flag}` for rust regex"));
         }
@@ -120,7 +126,9 @@ impl Algo {
     if let Some(algo) = Self::try_compile_to_end_with_fast_path(expr, flags) {
       Ok(algo)
     } else {
-      HashRegressRegex::new(expr, flags).map(Algo::Regress)
+      HashRustRegex::new(expr, flags)
+        .map(Algo::RustRegex)
+        .or_else(|_| HashRegressRegex::new(expr, flags).map(Algo::Regress))
     }
   }
 
@@ -194,6 +202,45 @@ impl Algo {
       }
     }
   }
+}
+
+fn normalize_escaped_slashes(pattern: &str) -> Cow<'_, str> {
+  if !pattern.contains("\\/") {
+    return Cow::Borrowed(pattern);
+  }
+
+  let mut normalized = String::with_capacity(pattern.len());
+  let mut chars = pattern.chars().peekable();
+  let mut in_character_class = false;
+
+  while let Some(ch) = chars.next() {
+    match ch {
+      '\\' => {
+        if chars.peek() == Some(&'/') && !in_character_class {
+          chars.next();
+          normalized.push('/');
+        } else {
+          normalized.push(ch);
+          if let Some(next) = chars.next() {
+            normalized.push(next);
+          }
+        }
+      }
+      '[' if !in_character_class => {
+        in_character_class = true;
+        normalized.push(ch);
+      }
+      ']' if in_character_class => {
+        in_character_class = false;
+        normalized.push(ch);
+      }
+      _ => {
+        normalized.push(ch);
+      }
+    }
+  }
+
+  Cow::Owned(normalized)
 }
 
 fn is_ends_with_regex(hir: &Hir) -> bool {
@@ -299,9 +346,110 @@ mod test_algo {
   #[test]
   fn check_slow_path() {
     // this is a full match
-    assert!(Algo::new("^\\.(svg|png)$", "").unwrap().is_regress());
+    assert!(Algo::new("^\\.(svg|png)$", "").unwrap().is_rust_regex());
     // wildcard match
-    assert!(Algo::new("\\..(svg|png)$", "").unwrap().is_regress());
+    assert!(Algo::new("\\..(svg|png)$", "").unwrap().is_rust_regex());
+  }
+
+  #[test]
+  fn should_try_rust_regex_before_regress() {
+    let algo = Algo::new("^foo.*bar$", "").unwrap();
+    assert!(algo.is_rust_regex());
+    assert!(algo.test("foo/bar"));
+    assert!(!algo.test("foo/bar/baz"));
+  }
+
+  #[test]
+  fn turbopack_es_regex_matches_simple() {
+    let algo = Algo::new("a", "").unwrap();
+    assert!(algo.is_rust_regex());
+    assert!(algo.test("a"));
+  }
+
+  #[test]
+  fn turbopack_es_regex_matches_negative_lookahead() {
+    let algo = Algo::new("a(?!b)", "").unwrap();
+    assert!(algo.is_regress());
+    assert!(!algo.test("ab"));
+    assert!(algo.test("ac"));
+  }
+
+  #[test]
+  fn turbopack_invalid_regex() {
+    assert!(Algo::new("*", "").is_err());
+  }
+
+  #[test]
+  fn rust_regex_path_supports_safe_js_flags() {
+    let algo = Algo::new("^bar.baz$", "gimsu").unwrap();
+    assert!(algo.is_rust_regex());
+    assert!(algo.test("foo\nBAR\nBAZ\nqux"));
+    assert!(!algo.test("foo\nBAR\nBAZ!"));
+  }
+
+  #[test]
+  fn sticky_flag_should_fallback_to_regress() {
+    let algo = Algo::new("\\.js$", "y").unwrap();
+    assert!(algo.is_regress());
+  }
+
+  #[test]
+  fn should_fallback_to_regress_for_js_only_regex_syntax() {
+    let algo = Algo::new("(?<=foo)bar", "").unwrap();
+    assert!(algo.is_regress());
+    assert!(algo.test("foobar"));
+    assert!(!algo.test("bar"));
+  }
+
+  #[test]
+  fn anchored_sticky_flag_should_fallback_to_regress() {
+    let algo = Algo::new("^foo", "y").unwrap();
+    assert!(algo.is_regress());
+  }
+
+  #[test]
+  fn unicode_sets_flag_should_fallback_to_regress() {
+    let algo = Algo::new("[a--b]", "v").unwrap();
+    assert!(algo.is_regress());
+  }
+
+  #[test]
+  fn unicode_flag_should_use_rust_regex() {
+    let algo = Algo::new("^foo$", "u").unwrap();
+    assert!(algo.is_rust_regex());
+  }
+
+  #[test]
+  fn indices_flag_should_use_rust_regex() {
+    let algo = Algo::new("^foo$", "d").unwrap();
+    assert!(algo.is_rust_regex());
+  }
+
+  #[test]
+  fn escaped_slash_should_use_rust_regex() {
+    let algo = Algo::new("foo\\/bar", "").unwrap();
+    assert!(algo.is_rust_regex());
+    assert!(algo.test("foo/bar"));
+  }
+
+  #[test]
+  fn escaped_slash_in_character_class_should_keep_backslash_alternative() {
+    let algo = Algo::new("[\\\\/]", "").unwrap();
+    assert!(algo.is_rust_regex());
+    assert!(algo.test("/"));
+    assert!(algo.test("\\"));
+  }
+
+  #[test]
+  fn non_ascii_ignore_case_should_use_rust_regex() {
+    let algo = Algo::new("é", "i").unwrap();
+    assert!(algo.is_rust_regex());
+  }
+
+  #[test]
+  fn ignore_case_flag_should_use_rust_regex_outside_fast_path() {
+    let algo = Algo::new("^foo$", "i").unwrap();
+    assert!(algo.is_rust_regex());
   }
 
   #[test]
@@ -324,7 +472,7 @@ mod test_algo {
   fn sticky_flag_should_not_use_end_with_fast_path() {
     // In JS, `/\.js$/y.test("foo.js")` is false because the sticky flag forces
     // the match to start at lastIndex (0 by default), so the suffix-only check
-    // is not semantically correct. We therefore must not use the EndWith fast path.
+    // is not semantically correct. We therefore fall back to Regress.
     let algo = Algo::new("\\.js$", "y").unwrap();
     let regress = HashRegressRegex::new("\\.js$", "y").unwrap();
 
