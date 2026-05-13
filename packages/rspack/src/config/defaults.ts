@@ -228,6 +228,7 @@ const applyExperimentsDefaults = (experiments: ExperimentsNormalized) => {
 
   // IGNORE(experiments.pureFunctions): Rspack specific configuration for pure function annotations and hints
   D(experiments, 'pureFunctions', false);
+  D(experiments, 'parallelFlagDependencyExports', true);
 };
 
 const applyIncrementalDefaults = (options: RspackOptionsNormalized) => {

@@ -588,6 +588,7 @@ export declare enum BuiltinPluginName {
   EvalDevToolModulePlugin = 'EvalDevToolModulePlugin',
   SideEffectsFlagPlugin = 'SideEffectsFlagPlugin',
   FlagDependencyExportsPlugin = 'FlagDependencyExportsPlugin',
+  ParallelFlagDependencyExportsPlugin = 'ParallelFlagDependencyExportsPlugin',
   FlagDependencyUsagePlugin = 'FlagDependencyUsagePlugin',
   InlineExportsPlugin = 'InlineExportsPlugin',
   MangleExportsPlugin = 'MangleExportsPlugin',
@@ -2239,6 +2240,7 @@ export interface RawExperiments {
   css?: boolean
   deferImport: boolean
   pureFunctions: boolean
+  parallelFlagDependencyExports: boolean
 }
 
 export interface RawExposeOptions {

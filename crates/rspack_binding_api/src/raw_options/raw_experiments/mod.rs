@@ -15,6 +15,7 @@ pub struct RawExperiments {
   pub css: Option<bool>,
   pub defer_import: bool,
   pub pure_functions: bool,
+  pub parallel_flag_dependency_exports: bool,
 }
 
 impl From<RawExperiments> for Experiments {
@@ -23,6 +24,7 @@ impl From<RawExperiments> for Experiments {
       css: value.css.unwrap_or(false),
       defer_import: value.defer_import,
       pure_functions: value.pure_functions,
+      parallel_flag_dependency_exports: value.parallel_flag_dependency_exports,
     }
   }
 }

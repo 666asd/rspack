@@ -73,8 +73,8 @@ use rspack_plugin_ignore::IgnorePlugin;
 use rspack_plugin_javascript::{
   FlagDependencyExportsPlugin, FlagDependencyUsagePlugin, InferAsyncModulesPlugin,
   InlineExportsPlugin, JsPlugin, MangleExportsPlugin, ModuleConcatenationPlugin,
-  SideEffectsFlagPlugin, api_plugin::APIPlugin, define_plugin::DefinePlugin,
-  provide_plugin::ProvidePlugin, url_plugin::URLPlugin,
+  ParallelFlagDependencyExportsPlugin, SideEffectsFlagPlugin, api_plugin::APIPlugin,
+  define_plugin::DefinePlugin, provide_plugin::ProvidePlugin, url_plugin::URLPlugin,
 };
 use rspack_plugin_json::JsonPlugin;
 use rspack_plugin_library::enable_library_plugin;
@@ -212,6 +212,7 @@ pub enum BuiltinPluginName {
   EvalDevToolModulePlugin,
   SideEffectsFlagPlugin,
   FlagDependencyExportsPlugin,
+  ParallelFlagDependencyExportsPlugin,
   FlagDependencyUsagePlugin,
   InlineExportsPlugin,
   MangleExportsPlugin,
@@ -670,6 +671,9 @@ impl<'a> BuiltinPlugin<'a> {
       }
       BuiltinPluginName::FlagDependencyExportsPlugin => {
         plugins.push(FlagDependencyExportsPlugin::default().boxed())
+      }
+      BuiltinPluginName::ParallelFlagDependencyExportsPlugin => {
+        plugins.push(ParallelFlagDependencyExportsPlugin::default().boxed())
       }
       BuiltinPluginName::FlagDependencyUsagePlugin => plugins.push(
         FlagDependencyUsagePlugin::new(

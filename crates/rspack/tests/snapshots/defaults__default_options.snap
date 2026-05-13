@@ -1,6 +1,5 @@
 ---
 source: crates/rspack/tests/defaults.rs
-assertion_line: 22
 expression: options
 ---
 CompilerOptions {
@@ -1706,6 +1705,7 @@ CompilerOptions {
         css: false,
         defer_import: false,
         pure_functions: false,
+        parallel_flag_dependency_exports: true,
     },
     incremental: IncrementalOptions {
         silent: true,

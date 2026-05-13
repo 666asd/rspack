@@ -17,6 +17,7 @@ pub mod infer_async_modules_plugin;
 mod inline_exports_plugin;
 mod mangle_exports_plugin;
 pub mod module_concatenation_plugin;
+mod parallel_flag_dependency_exports_plugin;
 mod side_effects_flag_plugin;
 pub mod url_plugin;
 
@@ -26,6 +27,7 @@ pub use flag_dependency_usage_plugin::*;
 pub use inline_exports_plugin::*;
 pub use mangle_exports_plugin::*;
 pub use module_concatenation_plugin::*;
+pub use parallel_flag_dependency_exports_plugin::*;
 use rspack_collections::{Identifier, IdentifierDashMap, IdentifierLinkedMap, IdentifierMap};
 use rspack_core::{
   ChunkGraph, ChunkGroupUkey, ChunkInitFragments, ChunkRenderContext, ChunkUkey,

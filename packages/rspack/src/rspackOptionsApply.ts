@@ -58,6 +58,7 @@ import {
   NodeTargetPlugin,
   NoEmitOnErrorsPlugin,
   OccurrenceChunkIdsPlugin,
+  ParallelFlagDependencyExportsPlugin,
   RealContentHashPlugin,
   RemoveEmptyChunksPlugin,
   RuntimeChunkPlugin,
@@ -265,7 +266,11 @@ export class RspackOptionsApply {
       );
     }
     if (options.optimization.providedExports) {
-      new FlagDependencyExportsPlugin().apply(compiler);
+      if (options.experiments.parallelFlagDependencyExports) {
+        new ParallelFlagDependencyExportsPlugin().apply(compiler);
+      } else {
+        new FlagDependencyExportsPlugin().apply(compiler);
+      }
     }
     if (options.optimization.usedExports) {
       new FlagDependencyUsagePlugin(

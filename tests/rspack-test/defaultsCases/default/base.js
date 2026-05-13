@@ -24,6 +24,7 @@ module.exports = {
 			    buildHttp: undefined,
 			    deferImport: false,
 			    futureDefaults: false,
+			    parallelFlagDependencyExports: true,
 			    pureFunctions: false,
 			    useInputFileSystem: false,
 			  },

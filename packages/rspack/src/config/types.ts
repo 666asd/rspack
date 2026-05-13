@@ -2937,6 +2937,11 @@ export type Experiments = {
    * @default false
    */
   pureFunctions?: boolean;
+  /**
+   * Use the parallel graph-based dependency exports analysis.
+   * @default true
+   */
+  parallelFlagDependencyExports?: boolean;
 };
 //#endregion
 

@@ -6,4 +6,5 @@ pub struct Experiments {
   pub css: bool,
   pub defer_import: bool,
   pub pure_functions: bool,
+  pub parallel_flag_dependency_exports: bool,
 }

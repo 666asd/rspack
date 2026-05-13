@@ -3560,9 +3560,15 @@ impl OptimizationOptionsBuilder {
     }
     let provided_exports = d!(self.provided_exports, true);
     if provided_exports {
-      builder_context
-        .plugins
-        .push(BuiltinPluginOptions::FlagDependencyExportsPlugin);
+      if experiments.parallel_flag_dependency_exports {
+        builder_context
+          .plugins
+          .push(BuiltinPluginOptions::ParallelFlagDependencyExportsPlugin);
+      } else {
+        builder_context
+          .plugins
+          .push(BuiltinPluginOptions::FlagDependencyExportsPlugin);
+      }
     }
     let used_exports = f!(self.used_exports.take(), || {
       if production {
@@ -3667,6 +3673,8 @@ pub struct ExperimentsBuilder {
   async_web_assembly: Option<bool>,
   // TODO: lazy compilation
   pure_functions: Option<bool>,
+  /// Whether to use the parallel graph-based dependency exports analysis.
+  parallel_flag_dependency_exports: Option<bool>,
 }
 
 impl From<Experiments> for ExperimentsBuilder {
@@ -3676,6 +3684,7 @@ impl From<Experiments> for ExperimentsBuilder {
       css: Some(value.css),
       async_web_assembly: None,
       pure_functions: Some(value.pure_functions),
+      parallel_flag_dependency_exports: Some(value.parallel_flag_dependency_exports),
     }
   }
 }
@@ -3687,6 +3696,7 @@ impl From<&mut ExperimentsBuilder> for ExperimentsBuilder {
       css: value.css.take(),
       async_web_assembly: value.async_web_assembly.take(),
       pure_functions: value.pure_functions.take(),
+      parallel_flag_dependency_exports: value.parallel_flag_dependency_exports.take(),
     }
   }
 }
@@ -3710,6 +3720,15 @@ impl ExperimentsBuilder {
     self
   }
 
+  /// Set whether to use the parallel graph-based dependency exports analysis.
+  pub fn parallel_flag_dependency_exports(
+    &mut self,
+    parallel_flag_dependency_exports: bool,
+  ) -> &mut Self {
+    self.parallel_flag_dependency_exports = Some(parallel_flag_dependency_exports);
+    self
+  }
+
   /// Build [`Experiments`] from options.
   ///
   /// [`Experiments`]: rspack_core::options::Experiments
@@ -3728,6 +3747,7 @@ impl ExperimentsBuilder {
       css: d!(self.css, false),
       defer_import: false,
       pure_functions: d!(self.pure_functions, false),
+      parallel_flag_dependency_exports: d!(self.parallel_flag_dependency_exports, true),
     })
   }
 }

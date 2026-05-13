@@ -22,7 +22,7 @@ BuilderContext {
         SideEffectsFlagPlugin(
             false,
         ),
-        FlagDependencyExportsPlugin,
+        ParallelFlagDependencyExportsPlugin,
         EntryPlugin(
             (
                 "./src",

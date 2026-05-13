@@ -58,6 +58,7 @@ pub(super) enum BuiltinPluginOptions {
   MergeDuplicateChunksPlugin,
   SideEffectsFlagPlugin(bool),
   FlagDependencyExportsPlugin,
+  ParallelFlagDependencyExportsPlugin,
   FlagDependencyUsagePlugin(bool),
   ModuleConcatenationPlugin,
   MangleExportsPlugin(bool),
@@ -262,6 +263,10 @@ impl BuilderContext {
       }
       BuiltinPluginOptions::FlagDependencyExportsPlugin => {
         plugins.push(rspack_plugin_javascript::FlagDependencyExportsPlugin::default().boxed());
+      }
+      BuiltinPluginOptions::ParallelFlagDependencyExportsPlugin => {
+        plugins
+          .push(rspack_plugin_javascript::ParallelFlagDependencyExportsPlugin::default().boxed());
       }
       BuiltinPluginOptions::FlagDependencyUsagePlugin(value) => {
         plugins.push(rspack_plugin_javascript::FlagDependencyUsagePlugin::new(value).boxed())
