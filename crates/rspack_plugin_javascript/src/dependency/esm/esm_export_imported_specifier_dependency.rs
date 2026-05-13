@@ -1285,22 +1285,19 @@ impl Dependency for ESMExportImportedSpecifierDependency {
     }
   }
 
-  fn get_exports_with_reexport_info(
+  fn get_reexport_info(
     &self,
     mg: &ModuleGraph,
-    module_graph_cache: &ModuleGraphCacheArtifact,
-    exports_info_artifact: &ExportsInfoArtifact,
-  ) -> Option<(ExportsSpec, ExportsSpecReexportInfo)> {
-    let exports_spec = self.get_exports(mg, module_graph_cache, exports_info_artifact)?;
-    let reexport_info = ExportsSpecReexportInfo::new(
-      exports_spec.has_nested_exports(),
-      exports_spec
-        .dependencies
-        .as_ref()
-        .is_some_and(|dependencies| !dependencies.is_empty()),
-      exports_spec.dependencies.clone(),
-    );
-    Some((exports_spec, reexport_info))
+    _module_graph_cache: &ModuleGraphCacheArtifact,
+    _exports_info_artifact: &ExportsInfoArtifact,
+  ) -> Option<ExportsSpecReexportInfo> {
+    let imported_module = *mg.module_identifier_by_dependency_id(self.id())?;
+    let has_nested_exports = self.name.is_some() && self.get_ids(mg).is_empty();
+    Some(ExportsSpecReexportInfo::new(
+      has_nested_exports,
+      true,
+      Some(vec![imported_module]),
+    ))
   }
 
   fn get_module_evaluation_side_effects_state(

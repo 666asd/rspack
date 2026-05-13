@@ -4,9 +4,9 @@ use rspack_core::{
   AsContextDependency, AsModuleDependency, Dependency, DependencyCategory,
   DependencyCodeGeneration, DependencyId, DependencyLocation, DependencyRange, DependencyTemplate,
   DependencyTemplateType, DependencyType, ESMExportInitFragment, EvaluatedInlinableValue,
-  ExportNameOrSpec, ExportSpec, ExportsInfoArtifact, ExportsOfExportsSpec, ExportsSpec,
-  ExportsSpecReexportInfo, LazyUntil, ModuleGraph, ModuleGraphCacheArtifact,
-  SideEffectsStateArtifact, TSEnumValue, TemplateContext, TemplateReplaceSource, UsedName,
+  ExportNameOrSpec, ExportSpec, ExportsInfoArtifact, ExportsOfExportsSpec, ExportsSpec, LazyUntil,
+  ModuleGraph, ModuleGraphCacheArtifact, SideEffectsStateArtifact, TSEnumValue, TemplateContext,
+  TemplateReplaceSource, UsedName,
 };
 use swc_core::ecma::atoms::Atom;
 
@@ -99,22 +99,6 @@ impl Dependency for ESMExportSpecifierDependency {
       hide_export: None,
       exclude_exports: None,
     })
-  }
-
-  fn get_exports_with_reexport_info(
-    &self,
-    mg: &ModuleGraph,
-    mg_cache: &ModuleGraphCacheArtifact,
-    exports_info_artifact: &ExportsInfoArtifact,
-  ) -> Option<(ExportsSpec, ExportsSpecReexportInfo)> {
-    self
-      .get_exports(mg, mg_cache, exports_info_artifact)
-      .map(|exports_spec| {
-        (
-          exports_spec,
-          ExportsSpecReexportInfo::new(self.enum_value.is_some(), false, None),
-        )
-      })
   }
 
   fn get_module_evaluation_side_effects_state(
