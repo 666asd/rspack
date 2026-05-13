@@ -30,16 +30,22 @@ use super::flag_dependency_exports_plugin::FLAG_DEPENDENCY_EXPORTS_STAGE;
 // 4. Cycles cannot produce leaves. They fall back to fixed-point iteration, which
 //    matches the old plugin's "repeat while changed" behavior for cyclic reexports.
 //
-// The important performance property is that non-nested internal reexport modules
-// are skipped in phase 2 and only processed during the graph walk, avoiding the
-// double work that hurts single-threaded codspeed runs.
-type ModuleExportsSpecs = Vec<(DependencyId, ExportsSpec)>;
+// The important performance property is that non-nested internal reexport specs
+// can opt out of phase 2 and only run during the graph walk. Other specs from
+// the same module, such as local exports, are still applied immediately.
+type ModuleExportsSpecs = Vec<CollectedExportsSpec>;
 type RefreshedModuleExportsSpecs<'a> = Vec<RefreshedExportsSpec<'a>>;
 
 struct CollectedModuleExports {
   specs: ModuleExportsSpecs,
   meta: ModuleExportsMeta,
   dependencies: Option<IdentifierSet>,
+}
+
+struct CollectedExportsSpec {
+  dep_id: DependencyId,
+  exports_spec: ExportsSpec,
+  apply_initial: bool,
 }
 
 enum RefreshedExportsSpec<'a> {
@@ -237,13 +243,13 @@ impl<'a> ParallelFlagDependencyExportsState<'a> {
           .exports_info_artifact
           .get_exports_info_data(&module_id)
           .clone();
-        for (dep_id, exports_spec) in exports_specs.iter() {
+        for spec in exports_specs.iter().filter(|spec| spec.apply_initial) {
           process_exports_spec_without_nested(
             self.mg,
             self.exports_info_artifact,
             &module_id,
-            *dep_id,
-            exports_spec,
+            spec.dep_id,
+            &spec.exports_spec,
             &mut exports_info,
           );
         }
@@ -258,7 +264,7 @@ impl<'a> ParallelFlagDependencyExportsState<'a> {
     }
 
     for (module_id, exports_specs, _) in nested_modules {
-      self.process_exports_specs(&module_id, exports_specs);
+      self.process_initial_exports_specs_for_module(&module_id, exports_specs);
     }
   }
 
@@ -304,27 +310,28 @@ impl<'a> ParallelFlagDependencyExportsState<'a> {
     }
   }
 
-  fn process_exports_specs(
+  fn process_initial_exports_specs_for_module(
     &mut self,
     module_id: &ModuleIdentifier,
     exports_specs: &ModuleExportsSpecs,
   ) -> bool {
     if exports_specs
       .iter()
-      .all(|(_, exports_spec)| !exports_spec.has_nested_exports())
+      .filter(|spec| spec.apply_initial)
+      .all(|spec| !spec.exports_spec.has_nested_exports())
     {
       let mut changed = false;
       let mut exports_info = self
         .exports_info_artifact
         .get_exports_info_data(module_id)
         .clone();
-      for (dep_id, exports_spec) in exports_specs {
+      for spec in exports_specs.iter().filter(|spec| spec.apply_initial) {
         let is_changed = process_exports_spec_without_nested(
           self.mg,
           self.exports_info_artifact,
           module_id,
-          *dep_id,
-          exports_spec,
+          spec.dep_id,
+          &spec.exports_spec,
           &mut exports_info,
         );
         changed |= is_changed;
@@ -336,13 +343,13 @@ impl<'a> ParallelFlagDependencyExportsState<'a> {
     }
 
     let mut changed = false;
-    for (dep_id, exports_spec) in exports_specs {
+    for spec in exports_specs.iter().filter(|spec| spec.apply_initial) {
       let is_changed = process_exports_spec(
         self.mg,
         self.exports_info_artifact,
         module_id,
-        *dep_id,
-        exports_spec,
+        spec.dep_id,
+        &spec.exports_spec,
       );
       changed |= is_changed;
     }
@@ -465,7 +472,11 @@ fn build_reexport_dependency_graph(
 
   for (module_id, collected_exports) in module_exports_specs {
     let meta = collected_exports.meta;
-    if meta.has_nested_exports || !meta.needs_backtracking {
+    if collected_exports
+      .specs
+      .iter()
+      .any(|spec| spec.apply_initial)
+    {
       initial_modules.push((*module_id, meta.has_nested_exports));
     }
     if meta.has_nested_exports || meta.needs_backtracking {
@@ -523,10 +534,12 @@ fn refresh_exports_specs_from_initial<'a>(
   exports_specs: &'a ModuleExportsSpecs,
 ) -> RefreshedModuleExportsSpecs<'a> {
   let mut refreshed_exports_specs = Vec::with_capacity(exports_specs.len());
-  for (dep_id, exports_spec) in exports_specs {
+  for spec in exports_specs {
+    let dep_id = spec.dep_id;
+    let exports_spec = &spec.exports_spec;
     if exports_spec_needs_recollect(exports_spec) {
       let Some(exports_spec) =
-        mg.dependency_by_id(dep_id)
+        mg.dependency_by_id(&dep_id)
           .get_exports(mg, mg_cache, exports_info_artifact)
       else {
         continue;
@@ -535,8 +548,8 @@ fn refresh_exports_specs_from_initial<'a>(
         mg,
         exports_info_artifact,
         &mut refreshed_exports_specs,
-        *dep_id,
-        RefreshedExportsSpec::Owned(*dep_id, exports_spec),
+        dep_id,
+        RefreshedExportsSpec::Owned(dep_id, exports_spec),
       );
       continue;
     }
@@ -544,8 +557,8 @@ fn refresh_exports_specs_from_initial<'a>(
       mg,
       exports_info_artifact,
       &mut refreshed_exports_specs,
-      *dep_id,
-      RefreshedExportsSpec::Borrowed(*dep_id, exports_spec),
+      dep_id,
+      RefreshedExportsSpec::Borrowed(dep_id, exports_spec),
     );
   }
 
@@ -761,6 +774,7 @@ fn collect_module_exports(
     else {
       continue;
     };
+    let apply_initial = !reexport_info.can_skip_initial_exports();
     if reexport_info.has_nested_exports || reexport_info.needs_backtracking {
       meta.has_nested_exports |= reexport_info.has_nested_exports;
       meta.needs_backtracking |= reexport_info.needs_backtracking;
@@ -770,7 +784,11 @@ fn collect_module_exports(
           .extend(reexport_dependencies);
       }
     }
-    res.push((id, exports_spec));
+    res.push(CollectedExportsSpec {
+      dep_id: id,
+      exports_spec,
+      apply_initial,
+    });
   }
   (!res.is_empty()).then_some(CollectedModuleExports {
     specs: res,

@@ -113,6 +113,15 @@ pub struct ExportsSpecReexportInfo {
 }
 
 impl ExportsSpecReexportInfo {
+  pub fn can_skip_initial_exports(&self) -> bool {
+    self.needs_backtracking
+      && !self.has_nested_exports
+      && self
+        .dependencies
+        .as_ref()
+        .is_some_and(|dependencies| !dependencies.is_empty())
+  }
+
   pub fn new(
     has_nested_exports: bool,
     needs_backtracking: bool,
