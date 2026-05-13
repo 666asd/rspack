@@ -889,6 +889,7 @@ pub type RuleSetConditionFnMatcher =
 
 pub enum RuleSetCondition {
   String(String),
+  EndsWith(String),
   Regexp(RspackRegex),
   Logical(Box<RuleSetLogicalConditions>),
   Array {
@@ -902,6 +903,7 @@ impl fmt::Debug for RuleSetCondition {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     match self {
       Self::String(i) => i.fmt(f),
+      Self::EndsWith(i) => f.debug_tuple("EndsWith").field(i).finish(),
       Self::Regexp(i) => i.fmt(f),
       Self::Logical(i) => i.fmt(f),
       Self::Array { items, .. } => items.fmt(f),
@@ -952,7 +954,7 @@ impl RuleSetCondition {
 
   fn can_sync(&self) -> bool {
     match self {
-      Self::String(_) | Self::Regexp(_) => true,
+      Self::String(_) | Self::EndsWith(_) | Self::Regexp(_) => true,
       Self::Logical(logical) => logical.can_sync,
       Self::Array { can_sync, .. } => *can_sync,
       Self::Func(_) => false,
@@ -965,6 +967,12 @@ impl RuleSetCondition {
         data
           .as_str()
           .map(|data| data.starts_with(s))
+          .unwrap_or_default(),
+      )),
+      Self::EndsWith(s) => Some(Ok(
+        data
+          .as_str()
+          .map(|data| data.ends_with(s))
           .unwrap_or_default(),
       )),
       Self::Regexp(r) => Some(Ok(
@@ -1004,7 +1012,7 @@ impl RuleSetCondition {
   fn try_match_async<'a>(&'a self, data: DataRef<'a>) -> BoxFuture<'a, Result<bool>> {
     Box::pin(async move {
       match self {
-        Self::String(_) | Self::Regexp(_) => self
+        Self::String(_) | Self::EndsWith(_) | Self::Regexp(_) => self
           .try_match_sync(data)
           .expect("non-function condition should match synchronously"),
         Self::Logical(g) => g.try_match_async(data).await,
@@ -1017,6 +1025,7 @@ impl RuleSetCondition {
   fn match_when_empty_sync(&self) -> Option<Result<bool>> {
     match self {
       RuleSetCondition::String(s) => Some(Ok(s.is_empty())),
+      RuleSetCondition::EndsWith(s) => Some(Ok(s.is_empty())),
       RuleSetCondition::Regexp(rspack_regex) => Some(Ok(rspack_regex.test(""))),
       RuleSetCondition::Logical(logical) => logical.match_when_empty_sync(),
       RuleSetCondition::Array { items, .. } => {
@@ -1048,6 +1057,7 @@ impl RuleSetCondition {
     Box::pin(async move {
       let res = match self {
         RuleSetCondition::String(_)
+        | RuleSetCondition::EndsWith(_)
         | RuleSetCondition::Regexp(_)
         | RuleSetCondition::Array { .. } => self
           .match_when_empty_sync()

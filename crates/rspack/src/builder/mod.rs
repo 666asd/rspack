@@ -1837,10 +1837,7 @@ impl ModuleOptionsBuilder {
 }
 
 fn extension_rule(extension: &str) -> RuleSetCondition {
-  RuleSetCondition::Regexp(
-    RspackRegex::new(&format!("{}$", regex::escape(extension)))
-      .expect("should initialize default extension regex"),
-  )
+  RuleSetCondition::EndsWith(extension.to_owned())
 }
 
 fn default_rules(async_web_assembly: bool, css: bool) -> Vec<ModuleRule> {

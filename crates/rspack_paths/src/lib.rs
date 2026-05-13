@@ -151,34 +151,41 @@ fn is_canonical_unix_path(bytes: &[u8]) -> bool {
     return true;
   }
 
-  if bytes.ends_with(b"/") {
-    return false;
+  let rooted = bytes[0] == b'/';
+  let mut index = usize::from(rooted);
+  let mut is_first_component = true;
+
+  if index == bytes.len() {
+    return true;
   }
 
-  let mut index = 0;
-  let rooted = bytes[0] == b'/';
-  if rooted {
-    index = 1;
-    if bytes.get(index) == Some(&b'/') || bytes.get(index) == Some(&b'.') {
-      return false;
-    }
-  } else if bytes.starts_with(b"./") {
-    index = 2;
-    if index == bytes.len() || bytes.get(index) == Some(&b'/') || bytes.get(index) == Some(&b'.') {
-      return false;
-    }
-  } else if bytes[0] == b'/' {
+  if bytes[index] == b'/' {
     return false;
   }
 
   while index < bytes.len() {
-    if bytes[index] == b'/' {
-      let next = index + 1;
-      if next == bytes.len() || bytes[next] == b'/' || bytes[next] == b'.' {
+    let start = index;
+    while index < bytes.len() && bytes[index] != b'/' {
+      index += 1;
+    }
+
+    if start == index {
+      return false;
+    }
+
+    let component = &bytes[start..index];
+    if component == b"." && (rooted || !is_first_component) {
+      return false;
+    }
+
+    is_first_component = false;
+
+    if index < bytes.len() {
+      index += 1;
+      if index == bytes.len() || bytes[index] == b'/' {
         return false;
       }
     }
-    index += 1;
   }
 
   true
@@ -297,5 +304,14 @@ mod tests {
     assert_ne!(Path::new("./a"), Path::new("a"));
     assert_ne!(ArcPath::from("./a"), ArcPath::from("a"));
     assert_ne!(ArcPath::from(""), ArcPath::from("."));
+  }
+
+  #[cfg(unix)]
+  #[test]
+  fn arc_path_hash_treats_dot_prefixed_names_as_canonical() {
+    assert!(is_canonical_unix_path(b"a/.hidden/file.js"));
+    assert!(is_canonical_unix_path(b"/a/.pnpm/pkg"));
+    assert!(is_canonical_unix_path(b"./.pnpm/pkg"));
+    assert!(!is_canonical_unix_path(b"a/./file.js"));
   }
 }

@@ -107,6 +107,10 @@ pub enum Algo {
   /// But Regress has poor performance. To improve performance of regex matching,
   /// we would try to use some fast algo to do matching, when we detect some special pattern.
   /// See details at https://github.com/web-infra-dev/rspack/pull/3113
+  EndWithOne {
+    pat: String,
+    ignore_case: bool,
+  },
   EndWith {
     pats: Vec<String>,
     ignore_case: bool,
@@ -173,7 +177,14 @@ impl Algo {
         }
       }
 
-      Some(Algo::EndWith { pats, ignore_case })
+      if pats.len() == 1 {
+        Some(Algo::EndWithOne {
+          pat: pats.pop().expect("should have one suffix"),
+          ignore_case,
+        })
+      } else {
+        Some(Algo::EndWith { pats, ignore_case })
+      }
     } else {
       None
     }
@@ -183,6 +194,13 @@ impl Algo {
     match self {
       Algo::RustRegex(regex) => regex.regex.is_match(str),
       Algo::Regress(regex) => regex.find(str).is_some(),
+      Algo::EndWithOne { pat, ignore_case } => {
+        if *ignore_case {
+          ends_with_ascii_case_insensitive(str, pat)
+        } else {
+          str.ends_with(pat)
+        }
+      }
       Algo::EndWith { pats, ignore_case } => {
         if *ignore_case {
           pats
@@ -233,13 +251,14 @@ mod test_algo {
   impl Algo {
     fn end_with_pats(&self) -> std::collections::HashSet<&str> {
       match self {
+        Algo::EndWithOne { pat, .. } => std::collections::HashSet::from([pat.as_str()]),
         Algo::EndWith { pats, .. } => pats.iter().map(|s| s.as_str()).collect(),
         Algo::Regress(_) | Algo::RustRegex(_) => panic!("expect EndWith"),
       }
     }
 
     fn is_end_with(&self) -> bool {
-      matches!(self, Self::EndWith { .. })
+      matches!(self, Self::EndWithOne { .. } | Self::EndWith { .. })
     }
 
     fn is_regress(&self) -> bool {
