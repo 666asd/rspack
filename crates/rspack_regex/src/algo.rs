@@ -78,9 +78,7 @@ impl HashRustRegex {
         's' => {
           builder.dot_matches_new_line(true);
         }
-        'u' => {
-          builder.unicode(true);
-        }
+        'u' => {}
         // Keep JS regexp flags for metadata compatibility.
         'g' | 'y' => {}
         _ => {

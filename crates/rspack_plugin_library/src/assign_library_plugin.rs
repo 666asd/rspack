@@ -2,6 +2,7 @@ use std::{hash::Hash, sync::LazyLock};
 
 use futures::future::join_all;
 use regex::Regex;
+use regress::Regex as RegressRegex;
 use rspack_core::{
   AsyncModulesArtifact, BoxModule, CanInlineUse, Chunk, ChunkUkey,
   CodeGenerationDataTopLevelDeclarations, Compilation,
@@ -588,12 +589,29 @@ static KEYWORD_REGEXP: LazyLock<Regex> = LazyLock::new(|| {
   Regex::new(r"^(await|break|case|catch|class|const|continue|debugger|default|delete|do|else|enum|export|extends|false|finally|for|function|if|implements|import|in|instanceof|interface|let|new|null|package|private|protected|public|return|super|switch|static|this|throw|try|true|typeof|var|void|while|with|yield)$").expect("should init regex")
 });
 
-static IDENTIFIER_REGEXP: LazyLock<Regex> = LazyLock::new(|| {
-  Regex::new(r"^[\p{L}\p{Nl}$_][\p{L}\p{Nl}$\p{Mn}\p{Mc}\p{Nd}\p{Pc}]*$")
-    .expect("should init regex")
+static IDENTIFIER_REGEXP: LazyLock<RegressRegex> = LazyLock::new(|| {
+  RegressRegex::with_flags(
+    r"^[\p{L}\p{Nl}$_][\p{L}\p{Nl}$\p{Mn}\p{Mc}\p{Nd}\p{Pc}]*$",
+    "u",
+  )
+  .expect("should init regex")
 });
 
 #[inline]
 fn is_name_valid(v: &str) -> bool {
-  !KEYWORD_REGEXP.is_match(v) && IDENTIFIER_REGEXP.is_match(v)
+  !KEYWORD_REGEXP.is_match(v) && IDENTIFIER_REGEXP.find(v).is_some()
+}
+
+#[cfg(test)]
+mod tests {
+  use super::is_name_valid;
+
+  #[test]
+  fn accepts_unicode_identifier_names() {
+    assert!(is_name_valid("变量"));
+    assert!(is_name_valid("$foo_1"));
+    assert!(is_name_valid("_foo"));
+    assert!(!is_name_valid("123-hello world"));
+    assert!(!is_name_valid("class"));
+  }
 }

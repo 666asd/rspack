@@ -80,7 +80,7 @@ proc-macro2         = { version = "1.0.106", default-features = false }
 prost               = { version = "0.13", default-features = false }
 quote               = { version = "1.0.45", default-features = false }
 rayon               = { version = "1.12.0", default-features = false }
-regex               = { version = "1.12.3", default-features = false, features = ["perf"] }
+regex               = { package = "regex-lite", version = "0.1.9", default-features = false, features = ["std", "string"] }
 regex-syntax        = { version = "0.8.10", default-features = false, features = ["std"] }
 regress             = { version = "0.10.5", default-features = false, features = ["pattern"] }
 rspack_resolver     = { features = ["package_json_raw_json_api", "yarn_pnp"], version = "=0.8.0", default-features = false }
@@ -331,6 +331,9 @@ opt-level = "s"
 opt-level = "s"
 
 [profile.release.package.regex]
+opt-level = "s"
+
+[profile.release.package.regex-lite]
 opt-level = "s"
 
 [profile.release.package.rspack_error]
