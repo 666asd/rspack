@@ -298,7 +298,6 @@ mod tests {
   }
 }
 
-const HYPHEN: char = '-';
 const EXCLAMATION: char = '!';
 const DOT: char = '.';
 const SLASH: char = '/';
@@ -367,7 +366,7 @@ impl NormalModuleFactory {
     let mut missing_dependencies = Default::default();
 
     let plugin_driver = &self.plugin_driver;
-    let loader_resolver = self.get_loader_resolver();
+    let mut loader_resolver = None;
 
     let mut match_resource_data = None;
     let mut match_module_type = None;
@@ -381,8 +380,10 @@ impl NormalModuleFactory {
     let mut unresolved_resource = data.request.as_str();
     if scheme.is_none() {
       let mut request_without_match_resource = data.request.as_str();
+      let mut has_match_resource = false;
       request_without_match_resource = {
         if let Ok((resource, full_matched)) = match_resource(request_without_match_resource) {
+          has_match_resource = true;
           let match_resource = {
             let mut chars = resource.chars();
             let first_char = chars.next();
@@ -435,61 +436,60 @@ impl NormalModuleFactory {
         }
       };
 
-      scheme = get_scheme(request_without_match_resource);
+      if has_match_resource {
+        scheme = get_scheme(request_without_match_resource);
+      }
       if scheme.is_none() && context_scheme.is_none() {
-        let mut request = request_without_match_resource.chars();
-        let first_char = request.next();
-        let second_char = request.next();
+        let request_bytes = request_without_match_resource.as_bytes();
+        let first_byte = request_bytes.first().copied();
+        let second_byte = request_bytes.get(1).copied();
 
-        if first_char.is_none() {
+        if first_byte.is_none() {
           return Err(EmptyDependency::new(dependency.range()).into());
         }
 
         // See: https://webpack.js.org/concepts/loaders/#inline
-        no_pre_auto_loaders =
-          matches!(first_char, Some(HYPHEN)) && matches!(second_char, Some(EXCLAMATION));
-        no_auto_loaders = no_pre_auto_loaders || matches!(first_char, Some(EXCLAMATION));
-        no_pre_post_auto_loaders =
-          matches!(first_char, Some(EXCLAMATION)) && matches!(second_char, Some(EXCLAMATION));
+        no_pre_auto_loaders = first_byte == Some(b'-') && second_byte == Some(b'!');
+        no_auto_loaders = no_pre_auto_loaders || first_byte == Some(b'!');
+        no_pre_post_auto_loaders = first_byte == Some(b'!') && second_byte == Some(b'!');
 
-        let mut raw_elements = {
-          let s = match request_without_match_resource.char_indices().nth({
-            if no_pre_auto_loaders || no_pre_post_auto_loaders {
-              2
-            } else if no_auto_loaders {
-              1
-            } else {
-              0
-            }
-          }) {
-            Some((pos, _)) => &request_without_match_resource[pos..],
-            None => request_without_match_resource,
-          };
-          split_element(s)
+        let request = if no_pre_auto_loaders || no_pre_post_auto_loaders {
+          &request_without_match_resource[2..]
+        } else if no_auto_loaders {
+          &request_without_match_resource[1..]
+        } else {
+          request_without_match_resource
         };
 
-        unresolved_resource = raw_elements
-          .pop()
-          .ok_or_else(|| error!("Invalid request: {request_without_match_resource}"))?;
+        if request.contains(EXCLAMATION) {
+          let mut raw_elements = split_element(request);
 
-        inline_loaders.extend(raw_elements.into_iter().map(|r| {
-          let resource = parse_resource(r);
-          let ident = resource.as_ref().and_then(|r| {
-            r.query
-              .as_ref()
-              .and_then(|q| q.starts_with("??").then(|| &q[2..]))
-          });
-          ModuleRuleUseLoader {
-            loader: r.to_owned(),
-            options: ident.and_then(|ident| {
-              data
-                .options
-                .__references
-                .get(ident)
-                .map(|object| object.to_string())
-            }),
-          }
-        }));
+          unresolved_resource = raw_elements
+            .pop()
+            .ok_or_else(|| error!("Invalid request: {request_without_match_resource}"))?;
+
+          inline_loaders.extend(raw_elements.into_iter().map(|r| {
+            let resource = parse_resource(r);
+            let ident = resource.as_ref().and_then(|r| {
+              r.query
+                .as_ref()
+                .and_then(|q| q.starts_with("??").then(|| &q[2..]))
+            });
+            ModuleRuleUseLoader {
+              loader: r.to_owned(),
+              options: ident.and_then(|ident| {
+                data
+                  .options
+                  .__references
+                  .get(ident)
+                  .map(|object| object.to_string())
+              }),
+            }
+          }));
+        } else {
+          unresolved_resource = request;
+        }
+
         scheme = get_scheme(unresolved_resource);
       } else {
         unresolved_resource = request_without_match_resource;
@@ -618,8 +618,10 @@ module.exports = "data:,";
 
     let mut resolved_inline_loaders = vec![];
     for l in inline_loaders {
-      resolved_inline_loaders
-        .push(resolve_each(plugin_driver, &data.context, &loader_resolver, &l).await?)
+      let resolver = loader_resolver
+        .get_or_insert_with(|| self.get_loader_resolver())
+        .clone();
+      resolved_inline_loaders.push(resolve_each(plugin_driver, &data.context, &resolver, &l).await?)
     }
 
     let user_request = {
@@ -685,14 +687,19 @@ module.exports = "data:,";
       );
 
       for l in post_loaders {
-        all_loaders
-          .push(resolve_each(plugin_driver, &self.options.context, &loader_resolver, &l).await?)
+        let resolver = loader_resolver
+          .get_or_insert_with(|| self.get_loader_resolver())
+          .clone();
+        all_loaders.push(resolve_each(plugin_driver, &self.options.context, &resolver, &l).await?)
       }
 
       let mut resolved_normal_loaders = vec![];
       for l in normal_loaders {
+        let resolver = loader_resolver
+          .get_or_insert_with(|| self.get_loader_resolver())
+          .clone();
         resolved_normal_loaders
-          .push(resolve_each(plugin_driver, &self.options.context, &loader_resolver, &l).await?)
+          .push(resolve_each(plugin_driver, &self.options.context, &resolver, &l).await?)
       }
 
       if match_resource_data.is_some() {
@@ -704,8 +711,10 @@ module.exports = "data:,";
       }
 
       for l in pre_loaders {
-        all_loaders
-          .push(resolve_each(plugin_driver, &self.options.context, &loader_resolver, &l).await?)
+        let resolver = loader_resolver
+          .get_or_insert_with(|| self.get_loader_resolver())
+          .clone();
+        all_loaders.push(resolve_each(plugin_driver, &self.options.context, &resolver, &l).await?)
       }
 
       all_loaders

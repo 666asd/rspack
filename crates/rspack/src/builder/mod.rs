@@ -1824,17 +1824,11 @@ impl ModuleOptionsBuilder {
 
     let default_rules = default_rules(async_web_assembly, css);
 
+    let mut rules = default_rules;
+    rules.append(&mut self.rules);
+
     Ok(ModuleOptions {
-      rules: vec![
-        ModuleRule {
-          rules: Some(default_rules),
-          ..Default::default()
-        },
-        ModuleRule {
-          rules: Some(std::mem::take(&mut self.rules)),
-          ..Default::default()
-        },
-      ],
+      rules,
       parser: self.parser.take(),
       generator: self.generator.take(),
       no_parse: self.no_parse.take(),
