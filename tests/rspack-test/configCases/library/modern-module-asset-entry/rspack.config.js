@@ -43,14 +43,13 @@ module.exports = {
             const js = list.find((item) => item.endsWith('js'));
             const jsContent = assets[js].source().toString();
 
-            const preseveImport =
-              /import\simg_namespaceObject\sfrom ['"]\.\/static\/img\/img\.png['"]/.test(
-                jsContent,
-              );
-            assert(preseveImport);
-            const hasExports = /export\sdefault\simg_namespaceObject/.test(
-              jsContent,
+            const preseveImport = jsContent.match(
+              /import\s+([A-Za-z_$][\w$]*)\s+from ['"]\.\/static\/img\/img\.png['"]/,
             );
+            assert(preseveImport);
+            const hasExports = new RegExp(
+              `export\\s+default\\s+${preseveImport[1]}\\b`,
+            ).test(jsContent);
             assert(hasExports);
           });
         });

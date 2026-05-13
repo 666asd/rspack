@@ -836,7 +836,7 @@ impl JavascriptParserPlugin for RstestParserPlugin {
   fn identifier(
     &self,
     parser: &mut rspack_plugin_javascript::visitors::JavascriptParser,
-    _ident: &Ident,
+    ident: &Ident,
     for_name: &str,
   ) -> Option<bool> {
     if self.options.module_path_name {
@@ -844,12 +844,14 @@ impl JavascriptParserPlugin for RstestParserPlugin {
         DIR_NAME => {
           parser.add_presentational_dependency(Box::new(ModulePathNameDependency::new(
             NameType::DirName,
+            ident.span.into(),
           )));
           return Some(true);
         }
         FILE_NAME => {
           parser.add_presentational_dependency(Box::new(ModulePathNameDependency::new(
             NameType::FileName,
+            ident.span.into(),
           )));
           return Some(true);
         }

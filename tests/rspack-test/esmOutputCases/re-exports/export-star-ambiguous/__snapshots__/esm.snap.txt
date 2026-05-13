@@ -1,6 +1,6 @@
 ```mjs title=main.mjs
 // ./b.js
-const shared = 'from-b';
+const b_shared = 'from-b';
 const onlyB = 'only-b';
 
 // ./index.js

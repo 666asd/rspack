@@ -1,13 +1,13 @@
 ```mjs title=main.mjs
 import { __webpack_require__ } from "./runtime.mjs";
-import * as __rspack_external_fs from "fs";
+import * as _rspack_external_fs from "fs";
 
 import { createRequire as __rspack_createRequire } from "node:module";
 const __rspack_createRequire_require = __rspack_createRequire(import.meta.url);
 // fs-promises
 
 
-var external_fs_promises_default = /*#__PURE__*/__webpack_require__.n(__rspack_external_fs.promises);// ./index.js
+var external_fs_promises_default = /*#__PURE__*/__webpack_require__.n(_rspack_external_fs.promises);// ./index.js
 
 
 it('should support array-type module external with property access', async () => {

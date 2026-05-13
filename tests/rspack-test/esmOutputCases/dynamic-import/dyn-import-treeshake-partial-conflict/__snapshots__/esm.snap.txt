@@ -17,13 +17,13 @@ export {};
 
 ```mjs title=shared.mjs
 // ./a.js
-const value = 1;
-const foo = 'a-foo';
+const a_value = 1;
+const a_foo = 'a-foo';
 
 // ./b.js
 const b_value = 2;
-const bar = 'b-bar';
+const b_bar = 'b-bar';
 
-export { bar, foo, value };
+export { a_foo as foo, a_value as value, b_bar as bar };
 
 ```

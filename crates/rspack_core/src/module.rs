@@ -32,13 +32,13 @@ use crate::{
   AsyncDependenciesBlock, BindingCell, BoxDependency, BoxDependencyTemplate, BoxModuleDependency,
   ChunkGraph, ChunkUkey, CodeGenerationResult, CollectedTypeScriptInfo, Compilation,
   CompilationAsset, CompilationId, CompilerId, CompilerOptions, ConcatenationScope,
-  ConnectionState, Context, ContextModule, DependenciesBlock, DependencyId, ExportProvided,
-  ExportsInfoArtifact, ExternalModule, GetTargetResult, ModuleCodeTemplate, ModuleGraph,
-  ModuleGraphCacheArtifact, ModuleLayer, ModuleType, NormalModule, OptimizationBailoutItem,
-  RawModule, Resolve, ResolverFactory, RuntimeSpec, SelfModule, SharedPluginDriver,
-  SideEffectsStateArtifact, SourceType, concatenated_module::ConcatenatedModule,
-  dependencies_block::dependencies_block_update_hash, get_target,
-  value_cache_versions::ValueCacheVersions,
+  ConnectionState, Context, ContextModule, DependenciesBlock, DependencyId, DependencyRange,
+  ExportProvided, ExportsInfoArtifact, ExternalModule, GetTargetResult, ModuleCodeTemplate,
+  ModuleGraph, ModuleGraphCacheArtifact, ModuleLayer, ModuleType, NormalModule,
+  OptimizationBailoutItem, RawModule, Resolve, ResolverFactory, RuntimeSpec, SelfModule,
+  SharedPluginDriver, SideEffectsStateArtifact, SourceType,
+  concatenated_module::ConcatenatedModule, dependencies_block::dependencies_block_update_hash,
+  get_target, value_cache_versions::ValueCacheVersions,
 };
 
 pub struct BuildContext {
@@ -137,6 +137,26 @@ pub struct IsolatedDts {
 
 #[cacheable]
 #[derive(Debug, Clone)]
+pub struct ConcatenatedModuleIdentReference {
+  pub range: DependencyRange,
+  pub shorthand: bool,
+}
+
+#[cacheable]
+#[derive(Debug, Default, Clone)]
+pub struct ConcatenatedModuleScopeInfo {
+  #[cacheable(with=AsMap<AsPreset, AsVec>)]
+  pub top_level_references: HashMap<Atom, Vec<ConcatenatedModuleIdentReference>>,
+  #[cacheable(with=AsMap<AsPreset, AsVec>)]
+  pub import_references: HashMap<Atom, Vec<ConcatenatedModuleIdentReference>>,
+  #[cacheable(with=AsVec<AsPreset>)]
+  pub top_level_order: Vec<Atom>,
+  #[cacheable(with=AsVec<AsPreset>)]
+  pub all_used_names: HashSet<Atom>,
+}
+
+#[cacheable]
+#[derive(Debug, Clone)]
 pub struct BuildInfo {
   /// Whether the result is cacheable, i.e shared between builds.
   pub cacheable: bool,
@@ -163,6 +183,7 @@ pub struct BuildInfo {
   pub side_effects_free: Option<HashSet<Atom>>,
   #[cacheable(with=AsOption<AsVec<AsPreset>>)]
   pub top_level_declarations: Option<HashSet<Atom>>,
+  pub concatenated_module_scope_info: Option<ConcatenatedModuleScopeInfo>,
   pub module_concatenation_bailout: Option<String>,
   pub assets: BindingCell<HashMap<String, CompilationAsset>>,
   pub module: bool,
@@ -200,6 +221,7 @@ impl Default for BuildInfo {
       css_local_names: None,
       side_effects_free: None,
       top_level_declarations: None,
+      concatenated_module_scope_info: None,
       module_concatenation_bailout: None,
       assets: Default::default(),
       module: false,

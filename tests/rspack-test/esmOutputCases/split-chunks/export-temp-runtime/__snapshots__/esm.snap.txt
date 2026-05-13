@@ -1,11 +1,11 @@
 ```mjs title=main.mjs
-import { value } from "./module-module_js.mjs";
+import { value as module_value } from "./module-module_js.mjs";
 
 // ./index.js
 
 
 it('should have correct export from module', async () => {
-	expect(value()).toBe(42)
+	expect(module_value()).toBe(42)
 })
 
 export {};

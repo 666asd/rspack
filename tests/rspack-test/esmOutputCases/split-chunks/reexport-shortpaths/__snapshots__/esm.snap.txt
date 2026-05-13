@@ -51,9 +51,9 @@ import "./dep1_js.mjs";
 // ./other.js
 
 
-/* export default */ const other = ("other");
+/* export default */ const other_0 = ("other");
 
-export default other;
+export default other_0;
 
 ```
 
@@ -63,8 +63,8 @@ import "./dep2_js.mjs";
 // ./third.js
 
 
-/* export default */ const third = ("third");
+/* export default */ const third_0 = ("third");
 
-export default third;
+export default third_0;
 
 ```

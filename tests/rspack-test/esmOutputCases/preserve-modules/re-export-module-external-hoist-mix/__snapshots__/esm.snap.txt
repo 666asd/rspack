@@ -1,7 +1,8 @@
 ```mjs title=fs-fs.mjs
+import { readFile, readFileSync } from "fs";
 import { __webpack_require__ } from "./runtime.mjs";
 
-import * as __rspack_external_fs from "fs";
+import * as _rspack_external_fs from "fs";
 __webpack_require__.add({
 "fs?2159"
 /*!*********************!*\
@@ -9,31 +10,32 @@ __webpack_require__.add({
   \*********************/
 (module) {
 
-module.exports = __rspack_external_fs;
+module.exports = _rspack_external_fs;
 
 
 },
 });
 // fs?82ef
 
-export { readFile as readFileHoisted, readFileSync as readFileSyncHoisted } from "fs";
+export {};
 
 ```
 
 ```mjs title=hoisted.mjs
+import { readFile, readFileSync } from "fs";
+import "./fs-fs.mjs";
 
 // ./src/hoisted.js
 
 
-export { readFileHoisted, readFileSyncHoisted } from "./fs-fs.mjs";
+export { readFile as readFileHoisted, readFileSync as readFileSyncHoisted };
 
 ```
 
 ```mjs title=index.mjs
 import { __webpack_require__ } from "./runtime.mjs";
 import "./wrapped.mjs";
-import "./hoisted.mjs";
-import { readFileSyncHoisted as readFileSync, readFileHoisted as readFile } from "./fs-fs.mjs";
+import { readFileSyncHoisted as hoisted_readFileSync, readFileHoisted as hoisted_readFile } from "./hoisted.mjs";
 
 // ./src/index.js
 const wrapped_0 = __webpack_require__("./src/wrapped.js");
@@ -43,8 +45,8 @@ const wrapped_0 = __webpack_require__("./src/wrapped.js");
 it('should preserve module externals reexports for hoisted and wrapped modules', async () => {
 	const fs = await import(/* webpackIgnore: true */ 'fs')
 
-	expect(readFileSync).toBe(fs.readFileSync)
-	expect(readFile).toBe(fs.readFile)
+	expect(hoisted_readFileSync).toBe(fs.readFileSync)
+	expect(hoisted_readFile).toBe(fs.readFile)
 	expect(wrapped_0.Z).toBe(fs.readFileSync)
 	expect(wrapped_0.E).toBe(fs.readFile)
 

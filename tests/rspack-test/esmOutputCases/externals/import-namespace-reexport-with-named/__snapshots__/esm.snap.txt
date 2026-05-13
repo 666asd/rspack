@@ -1,6 +1,7 @@
 ```mjs title=main.mjs
-import { sep } from "path";
-import * as __rspack_external_fs from "fs";
+import { sep as external_path_sep } from "path";
+import * as _rspack_external_fs from "fs";
+import * as fsNs from "fs";
 
 // path
 
@@ -17,10 +18,10 @@ import * as __rspack_external_fs from "fs";
 it("should combine a named external re-export with an imported external namespace re-export", async () => {
   const mod = await import(/* webpackIgnore: true */ "./main.mjs");
 
-  expect(mod.sep).toBe(sep);
+  expect(mod.sep).toBe(external_path_sep);
   expect(typeof mod.fsNs.readFile).toBe("function");
 });
 
-export { __rspack_external_fs as fsNs, sep };
+export { external_path_sep as sep, fsNs };
 
 ```

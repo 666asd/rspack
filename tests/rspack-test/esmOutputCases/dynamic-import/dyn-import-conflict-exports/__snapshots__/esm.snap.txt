@@ -3,36 +3,38 @@ import { __webpack_require__ } from "./runtime.mjs";
 // NAMESPACE OBJECT: ./a.js
 var a_namespaceObject = {};
 __webpack_require__.r(a_namespaceObject);
-__webpack_require__.d(a_namespaceObject, { 
-  value: () => (value) });
+__webpack_require__.d(a_namespaceObject, {
+  value: () => (a_value)
+});
 
 
 // NAMESPACE OBJECT: ./b.js
 var b_namespaceObject = {};
 __webpack_require__.r(b_namespaceObject);
-__webpack_require__.d(b_namespaceObject, { 
-  value: () => (b_value) });
+__webpack_require__.d(b_namespaceObject, {
+  value: () => (b_value)
+});
 
 
 // ./a.js
-const value = 1
+const a_value = 1
 
 // ./b.js
 const b_value = 2
 
-export { a_namespaceObject, b_namespaceObject, b_value, value };
+export { a_namespaceObject, a_value, b_namespaceObject, b_value };
 
 ```
 
 ```mjs title=main.mjs
-import { value, b_value } from "./ab-chunk.mjs";
+import { a_value, b_value } from "./ab-chunk.mjs";
 
 // ./index.js
 
 
 
 it('should handle conflicting exports from multi-module chunk', async () => {
-	expect(value).toBe(1)
+	expect(a_value).toBe(1)
 	expect(b_value).toBe(2)
 
 	const modA = await import("./ab-chunk.mjs").then(m => m.a_namespaceObject)

@@ -1,4 +1,7 @@
 ```mjs title=ab-chunk.mjs
+import { readFile } from "fs";
+import { join } from "path";
+
 // fs
 
 // ./a.js
@@ -16,9 +19,7 @@ const helper = () => 1
 
 
 var a_value = (/* inlined export .value */42);
-export { a_value as value, helper };
-export { readFile } from "fs";
-export { join } from "path";
+export { a_value as value, helper, join, readFile };
 
 ```
 

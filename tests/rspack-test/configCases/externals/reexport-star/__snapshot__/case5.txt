@@ -1,12 +1,13 @@
-import * as __rspack_external_external1_alias_bc4b12e4 from "external1-alias";
+import * as _rspack_external_external1_alias_bc4b12e4 from "external1-alias";
+import { foo as _rspack_external_import_external1_alias_foo } from "external1-alias";
 
 
 
 
-const bar = __rspack_external_external1_alias_bc4b12e4.foo + 1
+const case5_bar = _rspack_external_import_external1_alias_foo + 1
 
 
 
 
-export { bar };
+export { case5_bar as bar };
 export * from "external1-alias";

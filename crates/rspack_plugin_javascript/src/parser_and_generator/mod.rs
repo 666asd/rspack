@@ -7,23 +7,29 @@ use regex::Regex;
 use rspack_cacheable::{cacheable, cacheable_dyn, with::Skip};
 use rspack_core::{
   AsyncDependenciesBlockIdentifier, BuildMetaExportsType, COLLECTED_TYPESCRIPT_INFO_PARSE_META_KEY,
-  ChunkGraph, CollectedTypeScriptInfo, Compilation, DependenciesBlock, DependencyId,
-  GenerateContext, Module, ModuleArgument, ModuleCodeTemplate, ModuleGraph, ModuleType,
-  ParseContext, ParseResult, ParserAndGenerator, RuntimeGlobals, RuntimeVariable,
-  SideEffectsBailoutItem, SourceType, TemplateContext, TemplateReplaceSource,
+  ChunkGraph, CollectedTypeScriptInfo, Compilation, ConcatenatedModuleIdentReference,
+  ConcatenatedModuleScopeInfo, DependenciesBlock, DependencyId, GenerateContext, IdentCollector,
+  Module, ModuleArgument, ModuleCodeTemplate, ModuleGraph, ModuleType, ParseContext, ParseResult,
+  ParserAndGenerator, RuntimeGlobals, RuntimeVariable, SideEffectsBailoutItem, SourceType,
+  TemplateContext, TemplateReplaceSource,
   diagnostics::map_box_diagnostics_to_module_parse_diagnostics,
   remove_bom, render_init_fragments,
   rspack_sources::{BoxSource, ReplaceSource, Source, SourceExt},
 };
 use rspack_error::{Diagnostic, IntoTWithDiagnosticArray, Result, TWithDiagnosticArray};
 use rspack_javascript_compiler::JavaScriptCompiler;
+use rustc_hash::FxHashSet as HashSet;
 use swc_core::{
   base::config::IsModule,
-  common::{BytePos, comments::SingleThreadedComments, input::SourceFileInput},
+  common::{BytePos, SyntaxContext, comments::SingleThreadedComments, input::SourceFileInput},
   ecma::{
-    ast,
+    ast::{
+      self, Decl, ExportDecl, ExportSpecifier, ImportSpecifier, ModuleDecl, ModuleExportName,
+      ModuleItem, Pat, Program, Stmt,
+    },
     parser::{EsSyntax, Syntax, lexer::Lexer},
     transforms::base::fixer::paren_remover,
+    visit::{Visit, VisitWith, noop_visit_type},
   },
 };
 
@@ -56,6 +62,219 @@ pub struct ParserRuntimeRequirementsData {
 static LEGACY_REQUIRE_REGEX: LazyLock<Regex> = LazyLock::new(|| {
   Regex::new("__webpack_require__\\s*(!?\\.)").expect("should init `REQUIRE_FUNCTION_REGEX`")
 });
+
+fn collect_concatenated_module_scope_info(
+  program: &ast::Program,
+  global_ctxt: SyntaxContext,
+  _module_ctxt: SyntaxContext,
+) -> ConcatenatedModuleScopeInfo {
+  type ScopedName = (swc_core::atoms::Atom, SyntaxContext);
+
+  #[derive(Default)]
+  struct TopLevelBindingCollector {
+    bindings: HashSet<ScopedName>,
+    import_locals: HashSet<swc_core::atoms::Atom>,
+    ignored_specifier_ranges: HashSet<(u32, u32)>,
+  }
+
+  impl TopLevelBindingCollector {
+    fn collect_program(&mut self, program: &Program) {
+      match program {
+        Program::Module(module) => {
+          for item in &module.body {
+            self.collect_module_item(item);
+          }
+        }
+        Program::Script(script) => {
+          for stmt in &script.body {
+            self.collect_stmt(stmt);
+          }
+        }
+      }
+    }
+
+    fn collect_module_item(&mut self, item: &ModuleItem) {
+      match item {
+        ModuleItem::ModuleDecl(decl) => self.collect_module_decl(decl),
+        ModuleItem::Stmt(stmt) => self.collect_stmt(stmt),
+      }
+    }
+
+    fn collect_module_decl(&mut self, decl: &ModuleDecl) {
+      match decl {
+        ModuleDecl::Import(import) => {
+          for specifier in &import.specifiers {
+            self.collect_import_specifier(specifier);
+          }
+        }
+        ModuleDecl::ExportDecl(ExportDecl { decl, .. }) => self.collect_decl(decl),
+        ModuleDecl::ExportNamed(export) => {
+          for specifier in &export.specifiers {
+            self.collect_export_specifier(specifier);
+          }
+        }
+        _ => {}
+      }
+    }
+
+    fn collect_stmt(&mut self, stmt: &Stmt) {
+      match stmt {
+        Stmt::Decl(decl) => self.collect_decl(decl),
+        Stmt::Labeled(labeled) => self.collect_stmt(&labeled.body),
+        _ => {}
+      }
+    }
+
+    fn collect_decl(&mut self, decl: &Decl) {
+      match decl {
+        Decl::Class(class) => self.collect_ident(&class.ident),
+        Decl::Fn(function) => self.collect_ident(&function.ident),
+        Decl::Var(var) => {
+          for declarator in &var.decls {
+            self.collect_pat(&declarator.name);
+          }
+        }
+        _ => {}
+      }
+    }
+
+    fn collect_pat(&mut self, pat: &Pat) {
+      match pat {
+        Pat::Ident(ident) => self.collect_ident(&ident.id),
+        Pat::Array(array) => {
+          for elem in array.elems.iter().flatten() {
+            self.collect_pat(elem);
+          }
+        }
+        Pat::Object(object) => {
+          for prop in &object.props {
+            match prop {
+              ast::ObjectPatProp::KeyValue(prop) => self.collect_pat(&prop.value),
+              ast::ObjectPatProp::Assign(prop) => self.collect_ident(&prop.key),
+              ast::ObjectPatProp::Rest(prop) => self.collect_pat(&prop.arg),
+            }
+          }
+        }
+        Pat::Rest(rest) => self.collect_pat(&rest.arg),
+        Pat::Assign(assign) => self.collect_pat(&assign.left),
+        Pat::Expr(_) | Pat::Invalid(_) => {}
+      }
+    }
+
+    fn collect_import_specifier(&mut self, specifier: &ImportSpecifier) {
+      let local = match specifier {
+        ImportSpecifier::Named(named) => &named.local,
+        ImportSpecifier::Default(default) => &default.local,
+        ImportSpecifier::Namespace(namespace) => &namespace.local,
+      };
+      let name = (local.sym.clone(), local.ctxt);
+      self.bindings.insert(name.clone());
+      self.import_locals.insert(name.0);
+      self
+        .ignored_specifier_ranges
+        .insert((local.span.lo.0, local.span.hi.0));
+    }
+
+    fn collect_export_specifier(&mut self, specifier: &ExportSpecifier) {
+      match specifier {
+        ExportSpecifier::Named(named) => {
+          self.collect_module_export_name(&named.orig);
+          if let Some(exported) = &named.exported {
+            self.collect_module_export_name(exported);
+          }
+        }
+        ExportSpecifier::Default(default) => {
+          self
+            .ignored_specifier_ranges
+            .insert((default.exported.span.lo.0, default.exported.span.hi.0));
+        }
+        ExportSpecifier::Namespace(namespace) => {
+          self.collect_module_export_name(&namespace.name);
+        }
+      }
+    }
+
+    fn collect_module_export_name(&mut self, name: &ModuleExportName) {
+      if let ModuleExportName::Ident(ident) = name {
+        self
+          .ignored_specifier_ranges
+          .insert((ident.span.lo.0, ident.span.hi.0));
+      }
+    }
+
+    fn collect_ident(&mut self, ident: &ast::Ident) {
+      self.bindings.insert((ident.sym.clone(), ident.ctxt));
+    }
+  }
+
+  impl Visit for TopLevelBindingCollector {
+    noop_visit_type!();
+
+    fn visit_import_specifier(&mut self, specifier: &ImportSpecifier) {
+      match specifier {
+        ImportSpecifier::Named(named) => {
+          self.collect_import_specifier(&ImportSpecifier::Named(named.clone()));
+        }
+        ImportSpecifier::Default(default) => {
+          self.collect_import_specifier(&ImportSpecifier::Default(default.clone()));
+        }
+        ImportSpecifier::Namespace(namespace) => {
+          self.collect_import_specifier(&ImportSpecifier::Namespace(namespace.clone()));
+        }
+      }
+    }
+  }
+
+  let mut top_level_binding_collector = TopLevelBindingCollector::default();
+  top_level_binding_collector.collect_program(program);
+  let top_level_bindings = top_level_binding_collector.bindings;
+  let import_locals = top_level_binding_collector.import_locals;
+  let ignored_specifier_ranges = top_level_binding_collector.ignored_specifier_ranges;
+
+  let mut collector = IdentCollector::default();
+  program.visit_with(&mut collector);
+
+  let mut info = ConcatenatedModuleScopeInfo::default();
+
+  for ident in collector.ids {
+    let scoped_name = (ident.id.sym.clone(), ident.id.ctxt);
+    if ignored_specifier_ranges.contains(&(ident.id.span.lo.0, ident.id.span.hi.0)) {
+      continue;
+    }
+    let is_top_level = top_level_bindings.contains(&scoped_name);
+    if ident.id.ctxt == global_ctxt || !is_top_level || ident.is_class_expr_with_ident {
+      info.all_used_names.insert(ident.id.sym.clone());
+    }
+
+    if is_top_level && !ident.is_class_expr_with_ident {
+      let name = ident.id.sym.clone();
+      if import_locals.contains(&name) {
+        info
+          .import_references
+          .entry(name)
+          .or_default()
+          .push(ConcatenatedModuleIdentReference {
+            range: ident.id.span.into(),
+            shorthand: ident.shorthand,
+          });
+        continue;
+      }
+      if !info.top_level_references.contains_key(&name) {
+        info.top_level_order.push(name.clone());
+      }
+      info
+        .top_level_references
+        .entry(name)
+        .or_default()
+        .push(ConcatenatedModuleIdentReference {
+          range: ident.id.span.into(),
+          shorthand: ident.shorthand,
+        });
+    }
+  }
+
+  info
+}
 
 impl ParserRuntimeRequirementsData {
   pub fn new(runtime_template: &ModuleCodeTemplate) -> Self {
@@ -267,8 +486,13 @@ impl ParserAndGenerator for JavaScriptParserAndGenerator {
     };
 
     let mut semicolons = Default::default();
+    let mut concatenated_module_global_ctxt = SyntaxContext::empty();
+    let mut concatenated_module_ctxt = SyntaxContext::empty();
     ast.transform(|program, context| {
       program.visit_mut_with(&mut paren_remover(Some(&comments)));
+      concatenated_module_global_ctxt =
+        concatenated_module_global_ctxt.apply_mark(context.unresolved_mark);
+      concatenated_module_ctxt = concatenated_module_ctxt.apply_mark(context.top_level_mark);
       program.visit_mut_with(&mut resolver(
         context.unresolved_mark,
         context.top_level_mark,
@@ -278,6 +502,13 @@ impl ParserAndGenerator for JavaScriptParserAndGenerator {
         &mut semicolons,
         // safety: it's safe to assert tokens is some since we pass with_tokens = true
         tokens.as_deref().expect("should get tokens from parser"),
+      ));
+    });
+    ast.visit(|program, _| {
+      build_info.concatenated_module_scope_info = Some(collect_concatenated_module_scope_info(
+        program.get_inner_program(),
+        concatenated_module_global_ctxt,
+        concatenated_module_ctxt,
       ));
     });
 
@@ -394,6 +625,9 @@ impl ParserAndGenerator for JavaScriptParserAndGenerator {
         .get_blocks()
         .iter()
         .for_each(|block_id| self.source_block(compilation, block_id, &mut source, &mut context));
+      if let Some(scope) = context.concatenation_scope.as_deref() {
+        scope.apply_top_level_renames(module, &mut source);
+      }
       generate_context.concatenation_scope = context.concatenation_scope.take();
       render_init_fragments(source.boxed(), init_fragments, generate_context)
     } else {

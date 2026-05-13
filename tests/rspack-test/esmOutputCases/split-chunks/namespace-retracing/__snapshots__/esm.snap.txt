@@ -33,7 +33,7 @@ export default index;
 ```
 
 ```mjs title=other-chunk.mjs
-import { broken } from "./broken-chunk.mjs";
+import { broken as broken_broken } from "./broken-chunk.mjs";
 
 // ./other.js
 
@@ -43,7 +43,7 @@ class Other {}
 Other.doSomething = () => "other";
 
 function callBrokenFromOther() {
-  return broken();
+  return broken_broken();
 }
 
 export { Other, callBrokenFromOther };

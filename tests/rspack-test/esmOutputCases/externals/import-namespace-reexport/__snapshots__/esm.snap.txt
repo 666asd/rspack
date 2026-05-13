@@ -1,5 +1,6 @@
 ```mjs title=main.mjs
-import * as __rspack_external_fs from "fs";
+import * as _rspack_external_fs from "fs";
+import * as ext from "fs";
 
 // fs
 
@@ -15,6 +16,6 @@ it("should re-export an imported external namespace", async () => {
   expect(typeof mod.ext.readFileSync).toBe("function");
 });
 
-export { __rspack_external_fs as ext };
+export { ext };
 
 ```

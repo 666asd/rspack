@@ -1,5 +1,6 @@
 ```mjs title=hoisted.mjs
-import { once, EventEmitter } from "./node_events-node_events.mjs";
+import { EventEmitter, once } from "node:events";
+import "./node_events-node_events.mjs";
 
 // ./src/hoisted.js
 
@@ -14,7 +15,7 @@ export { EventEmitterHoisted, onceHoisted };
 ```mjs title=index.mjs
 import { __webpack_require__ } from "./runtime.mjs";
 import "./wrapped.mjs";
-import { EventEmitterHoisted, onceHoisted } from "./hoisted.mjs";
+import { EventEmitterHoisted as hoisted_EventEmitterHoisted, onceHoisted as hoisted_onceHoisted } from "./hoisted.mjs";
 
 // ./src/index.js
 const wrapped_0 = __webpack_require__("./src/wrapped.js");
@@ -24,8 +25,8 @@ const wrapped_0 = __webpack_require__("./src/wrapped.js");
 it('should keep module external exports correct for hoisted named imports and wrapped remapping', async () => {
   const events = await import(/* webpackIgnore: true */ 'node:events');
 
-  expect(EventEmitterHoisted).toBe(events.EventEmitter);
-  expect(onceHoisted).toBe(events.once);
+  expect(hoisted_EventEmitterHoisted).toBe(events.EventEmitter);
+  expect(hoisted_onceHoisted).toBe(events.once);
 
   expect(wrapped_0.a).toBe(events.EventEmitter);
   expect(wrapped_0.b).toBe(events.once);
@@ -45,9 +46,10 @@ export {};
 ```
 
 ```mjs title=node_events-node_events.mjs
+import { EventEmitter, once } from "node:events";
 import { __webpack_require__ } from "./runtime.mjs";
 
-import * as __rspack_external_node_events_0a6aefe7 from "node:events";
+import * as _rspack_external_node_events_0a6aefe7 from "node:events";
 __webpack_require__.add({
 "node:events?df85"
 /*!******************************!*\
@@ -60,13 +62,13 @@ __webpack_require__.d(x, y);
 return x;
 };
 var __rspack_wrap_module_external_namespace_node_events_0a6aefe7 = (x) => (() => (x));
-module.exports = __rspack_create_module_external_namespace_node_events_0a6aefe7({["a"]: () => (__rspack_external_node_events_0a6aefe7.EventEmitter), ["b"]: () => (__rspack_external_node_events_0a6aefe7.once)});
+module.exports = __rspack_create_module_external_namespace_node_events_0a6aefe7({["a"]: () => (_rspack_external_node_events_0a6aefe7.EventEmitter), ["b"]: () => (_rspack_external_node_events_0a6aefe7.once)});
 
 },
 });
 // node:events?41dc
 
-export { EventEmitter, once } from "node:events";
+export {};
 
 ```
 

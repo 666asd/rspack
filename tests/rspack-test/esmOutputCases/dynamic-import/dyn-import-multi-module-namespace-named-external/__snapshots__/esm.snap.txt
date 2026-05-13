@@ -49,22 +49,25 @@ export { __webpack_require__ };
 
 ```mjs title=shared.mjs
 import { __webpack_require__ } from "./runtime.mjs";
-import * as __rspack_external_path from "path";
-import { resolve } from "path";
+import * as _rspack_external_path from "path";
+import * as resolve from "path";
+import { resolve as external_path_resolve } from "path";
 
 // NAMESPACE OBJECT: ./a.js
 var a_namespaceObject = {};
 __webpack_require__.r(a_namespaceObject);
-__webpack_require__.d(a_namespaceObject, { 
-  resolve: () => (__rspack_external_path) });
+__webpack_require__.d(a_namespaceObject, {
+  resolve: () => (resolve)
+});
 
 
 // NAMESPACE OBJECT: ./b.js
 var b_namespaceObject = {};
 __webpack_require__.r(b_namespaceObject);
-__webpack_require__.d(b_namespaceObject, { 
+__webpack_require__.d(b_namespaceObject, {
   marker: () => (marker),
-  resolve: () => (resolve) });
+  resolve: () => (external_path_resolve)
+});
 
 
 // path?2d49

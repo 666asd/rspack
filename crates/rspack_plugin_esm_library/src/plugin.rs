@@ -4,6 +4,7 @@ use std::{
 };
 
 use atomic_refcell::AtomicRefCell;
+use rayon::prelude::*;
 use regex::Regex;
 use rspack_collections::{
   Identifiable, Identifier, IdentifierIndexMap, IdentifierMap, IdentifierSet,
@@ -15,13 +16,16 @@ use rspack_core::{
   CompilationConcatenationScope, CompilationFinishModules, CompilationOptimizeChunkModules,
   CompilationOptimizeChunks, CompilationOptimizeDependencies, CompilationParams,
   CompilationProcessAssets, CompilationRuntimeRequirementInTree, CompilerCompilation,
-  ConcatenatedModuleInfo, ConcatenationScope, DependencyType, ExportsInfoArtifact,
-  ExternalModuleInfo, GetTargetResult, Logger, ModuleFactoryCreateData, ModuleGraph,
-  ModuleIdentifier, ModuleInfo, ModuleType, NormalModuleFactoryAfterFactorize,
+  ConcatenatedModuleInfo, ConcatenationScope, DEFAULT_EXPORT_ATOM, DependencyType,
+  ExportsInfoArtifact, ExternalModuleInfo, GetTargetResult, Logger, ModuleFactoryCreateData,
+  ModuleGraph, ModuleIdentifier, ModuleInfo, ModuleType, NormalModuleFactoryAfterFactorize,
   NormalModuleFactoryParser, ParserAndGenerator, ParserOptions, Plugin, REQUIRE_SCOPE_GLOBALS,
   RuntimeCodeTemplate, RuntimeGlobals, RuntimeModule, SideEffectsOptimizeArtifact,
-  SideEffectsStateArtifact, get_target, is_esm_dep_like,
+  SideEffectsStateArtifact, get_cached_readable_identifier, get_cached_readable_identifier_parts,
+  get_target, is_esm_dep_like, module_symbol_prefix_from_readable_identifier, prefixed_symbol,
+  reserved_names::RESERVED_NAMES_ATOM_SET,
   rspack_sources::{ReplaceSource, Source},
+  symbol_prefix_with_separator,
 };
 use rspack_error::{Diagnostic, Result};
 use rspack_hook::{plugin, plugin_hook};
@@ -33,6 +37,7 @@ use rspack_plugin_split_chunks::CacheGroup;
 use rspack_util::{
   atom::Atom,
   fx_hash::{FxHashMap, FxHashSet},
+  itoa,
 };
 use sugar_path::SugarPath;
 use tokio::sync::RwLock;
@@ -51,6 +56,30 @@ use crate::{
 
 pub static RSPACK_ESM_RUNTIME_CHUNK: &str = "RSPACK_ESM_RUNTIME";
 
+fn ensure_unique_local_symbol(
+  symbol: Atom,
+  local_used_names: &mut FxHashSet<Atom>,
+  used_names: &FxHashSet<Atom>,
+) -> Atom {
+  if !used_names.contains(&symbol) && local_used_names.insert(symbol.clone()) {
+    return symbol;
+  }
+
+  let mut i = 0;
+  let mut i_buffer = itoa::Buffer::new();
+  loop {
+    let mut candidate = String::with_capacity(symbol.len() + 8);
+    candidate.push_str(symbol.as_str());
+    candidate.push('_');
+    candidate.push_str(i_buffer.format(i));
+    let candidate = Atom::from(candidate);
+    if !used_names.contains(&candidate) && local_used_names.insert(candidate.clone()) {
+      return candidate;
+    }
+    i += 1;
+  }
+}
+
 #[plugin]
 #[derive(Debug, Default)]
 pub struct EsmLibraryPlugin {
@@ -63,6 +92,7 @@ pub struct EsmLibraryPlugin {
   // and read-only access the map, so it receives the map as an Arc
   pub(crate) concatenated_modules_map_for_codegen:
     AtomicRefCell<Arc<IdentifierIndexMap<ModuleInfo>>>,
+  pub(crate) top_level_renames_for_codegen: AtomicRefCell<IdentifierMap<FxHashMap<Atom, Atom>>>,
   pub(crate) concatenated_modules_map: RwLock<IdentifierIndexMap<ModuleInfo>>,
   pub(crate) links: AtomicRefCell<FxHashMap<ChunkUkey, ChunkLinkContext>>,
   pub(crate) chunk_ids_to_ukey: AtomicRefCell<FxHashMap<String, ChunkUkey>>,
@@ -87,7 +117,117 @@ impl EsmLibraryPlugin {
       Default::default(),
       Default::default(),
       Default::default(),
+      Default::default(),
     )
+  }
+
+  fn update_top_level_renames_for_codegen(
+    &self,
+    compilation: &Compilation,
+    module_graph: &ModuleGraph,
+    modules_map: &IdentifierIndexMap<ModuleInfo>,
+  ) {
+    let mut all_used_names = RESERVED_NAMES_ATOM_SET.clone();
+    all_used_names.extend([
+      Atom::from("__rspack_createRequire"),
+      Atom::from("__rspack_createRequire_require"),
+      Atom::from("__rspack_fileURLToPath"),
+      Atom::from("__rspack_dirname"),
+      Atom::from("__filename"),
+      Atom::from("__dirname"),
+    ]);
+    let mut concatenated_module_ids = Vec::new();
+    for id in modules_map.keys() {
+      let Some(ModuleInfo::Concatenated(_)) = modules_map.get(id) else {
+        continue;
+      };
+      concatenated_module_ids.push(*id);
+      if let Some(scope_info) = module_graph
+        .module_by_identifier(id)
+        .and_then(|module| module.build_info().concatenated_module_scope_info.as_ref())
+      {
+        all_used_names.extend(scope_info.all_used_names.iter().cloned());
+      }
+    }
+
+    let mut module_symbol_prefixes = IdentifierMap::default();
+    let mut used_symbol_prefixes = FxHashSet::default();
+    for id in &concatenated_module_ids {
+      let Some(ModuleInfo::Concatenated(info)) = modules_map.get(id) else {
+        continue;
+      };
+      let readable_identifier = get_cached_readable_identifier(
+        id,
+        module_graph,
+        &compilation.module_static_cache,
+        &compilation.options.context,
+      );
+      let prefix = module_symbol_prefix_from_readable_identifier(&readable_identifier);
+      let symbol_prefix = if used_symbol_prefixes.insert(prefix.clone()) {
+        prefix
+      } else {
+        let mut i = info.index;
+        let mut i_buffer = itoa::Buffer::new();
+        loop {
+          let mut candidate = String::with_capacity(prefix.len() + 8);
+          candidate.push_str(prefix.as_str());
+          candidate.push('_');
+          candidate.push_str(i_buffer.format(i));
+          let candidate = Atom::from(candidate);
+          if used_symbol_prefixes.insert(candidate.clone()) {
+            break candidate;
+          }
+          i += 1;
+        }
+      };
+      module_symbol_prefixes.insert(*id, symbol_prefix);
+    }
+
+    let top_level_rename_candidates = concatenated_module_ids
+      .par_iter()
+      .filter_map(|id| {
+        let module = module_graph.module_by_identifier(id)?;
+        let scope_info = module
+          .build_info()
+          .concatenated_module_scope_info
+          .as_ref()?;
+        let names = scope_info
+          .top_level_order
+          .iter()
+          .chain(std::iter::once(&*DEFAULT_EXPORT_ATOM))
+          .cloned()
+          .collect::<Vec<_>>();
+        Some((*id, names))
+      })
+      .collect::<Vec<_>>();
+
+    let mut used_names = all_used_names;
+    let mut generated_names = FxHashSet::default();
+    let mut top_level_renames = IdentifierMap::default();
+    for (id, names) in top_level_rename_candidates {
+      let mut finalized_renames = FxHashMap::default();
+      let symbol_prefix = module_symbol_prefixes
+        .get(&id)
+        .expect("should have module symbol prefix");
+      let mut prefix_with_separator = None;
+      for name in names {
+        if used_names.contains(&name) {
+          let symbol_prefix_with_separator = prefix_with_separator
+            .get_or_insert_with(|| symbol_prefix_with_separator(symbol_prefix));
+          let candidate = prefixed_symbol(symbol_prefix, symbol_prefix_with_separator, &name);
+          let new_name = ensure_unique_local_symbol(candidate, &mut generated_names, &used_names);
+          used_names.insert(new_name.clone());
+          finalized_renames.insert(name, new_name);
+        } else {
+          used_names.insert(name.clone());
+        }
+      }
+      if !finalized_renames.is_empty() {
+        top_level_renames.insert(id, finalized_renames);
+      }
+    }
+
+    *self.top_level_renames_for_codegen.borrow_mut() = top_level_renames;
   }
 
   async fn mark_modules(
@@ -242,6 +382,8 @@ impl EsmLibraryPlugin {
         }
       }
     }
+
+    self.update_top_level_renames_for_codegen(compilation, module_graph, &modules_map);
 
     // only used for scope
     // we mutably modify data in `self.concatenated_modules_map`
@@ -417,6 +559,8 @@ async fn finish_modules(
     }
   }
 
+  self.update_top_level_renames_for_codegen(compilation, module_graph, &modules_map);
+
   // only used for scope
   // we mutably modify data in `self.concatenated_modules_map`
   let mut map = self.concatenated_modules_map_for_codegen.borrow_mut();
@@ -447,7 +591,7 @@ async fn finish_modules(
 #[plugin_hook(CompilationConcatenationScope for EsmLibraryPlugin)]
 async fn concatenation_scope(
   &self,
-  _compilation: &Compilation,
+  compilation: &Compilation,
   module: ModuleIdentifier,
 ) -> Result<Option<ConcatenationScope>> {
   let modules_map = self.concatenated_modules_map_for_codegen.borrow();
@@ -458,10 +602,25 @@ async fn concatenation_scope(
   let ModuleInfo::Concatenated(current_module) = current_module else {
     return Ok(None);
   };
+  let top_level_renames = self
+    .top_level_renames_for_codegen
+    .borrow()
+    .get(&module)
+    .cloned()
+    .unwrap_or_default();
+  let module_graph = compilation.get_module_graph();
+  let readable_identifier_parts = get_cached_readable_identifier_parts(
+    &module,
+    module_graph,
+    &compilation.module_static_cache,
+    &compilation.options.context,
+  );
   let scope = ConcatenationScope::new(
     current_module.module,
     modules_map.clone(),
     current_module.as_ref().clone(),
+    top_level_renames,
+    readable_identifier_parts,
   );
   Ok(Some(scope))
 }

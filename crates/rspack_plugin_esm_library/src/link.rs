@@ -9,29 +9,31 @@ use rspack_collections::{IdentifierIndexMap, IdentifierIndexSet, IdentifierMap};
 use rspack_core::{
   BuildMetaDefaultObject, BuildMetaExportsType, ChunkGraph, ChunkInitFragments, ChunkRenderContext,
   ChunkUkey, CodeGenerationPublicPathAutoReplace, Compilation, ConcatenatedModuleIdent,
-  ConditionalInitFragment, DependencyType, ExportInfo, ExportMode, ExportProvided,
-  ExportsInfoArtifact, ExportsType, FindTargetResult, ImportSpec, InitFragmentKey, ModuleGraph,
-  ModuleGraphCacheArtifact, ModuleIdentifier, ModuleInfo, NAMESPACE_OBJECT_EXPORT, PathData,
-  RuntimeGlobals, SideEffectsStateArtifact, SourceType, URLStaticMode, UsageState, UsedName,
-  UsedNameItem, collect_ident, escape_name_atom_ref, find_new_name, find_target,
-  get_cached_readable_identifier, get_js_chunk_filename_template, get_module_directives,
-  get_module_hashbang, property_access, property_name, reserved_names::RESERVED_NAMES_ATOM_SET,
-  rspack_sources::ReplaceSource, split_readable_identifier, to_normal_comment,
+  ConcatenatedModuleInfo, ConditionalInitFragment, DependencyType, ExportInfo, ExportMode,
+  ExportProvided, ExportsInfoArtifact, ExportsType, FindTargetResult, ImportSpec, InitFragmentKey,
+  ModuleGraph, ModuleGraphCacheArtifact, ModuleIdentifier, ModuleInfo, NAMESPACE_OBJECT_EXPORT,
+  PathData, RuntimeGlobals, SideEffectsStateArtifact, SourceType, URLStaticMode, UsageState,
+  UsedName, UsedNameItem, escape_name_atom_ref, find_new_name, find_target,
+  get_cached_readable_identifier, get_cached_readable_identifier_with_parts,
+  get_js_chunk_filename_template, get_module_directives, get_module_hashbang, property_access,
+  property_name,
+  reserved_names::RESERVED_NAMES_ATOM_SET,
+  rspack_sources::{RawStringSource, ReplaceSource, Source, SourceExt},
+  split_readable_identifier, to_normal_comment,
 };
-use rspack_error::{Diagnostic, Error, Result};
+use rspack_error::{Diagnostic, Result};
 use rspack_plugin_javascript::{
   JsPlugin, RenderSource, dependency::ESMExportImportedSpecifierDependency,
 };
 use rspack_plugin_runtime::should_export_webpack_require_for_module_chunk_loading;
 use rspack_util::{
-  SpanExt,
   atom::Atom,
   fx_hash::{FxHashMap, FxHashSet, FxIndexMap, FxIndexSet},
 };
-use swc_core::common::{SyntaxContext, comments::SingleThreadedComments};
-use swc_experimental_ecma_ast::{Ast, EsVersion, StringAllocator};
-use swc_experimental_ecma_parser::{EsSyntax, Parser, StringSource, Syntax};
-use swc_experimental_ecma_semantic::resolver::resolver;
+use swc_core::{
+  common::{BytePos, Span, SyntaxContext},
+  ecma::ast::Ident,
+};
 
 use crate::{
   EsmLibraryPlugin,
@@ -59,6 +61,7 @@ impl<V> GetMut<ModuleIdentifier, V> for IdentifierIndexMap<V> {
 }
 
 static START_EXPORTS: LazyLock<Atom> = LazyLock::new(|| "*".into());
+const EXTERNAL_IMPORT_PLACEHOLDER_PREFIX: &str = "__rspack_external_import_";
 #[derive(Default, Debug)]
 pub(crate) struct ExportsContext {
   exports: FxHashMap<Atom, FxIndexSet<Atom>>,
@@ -73,6 +76,187 @@ enum ExternalImportBinding {
 }
 
 impl EsmLibraryPlugin {
+  fn is_identifier_continue(c: u8) -> bool {
+    c.is_ascii_alphanumeric() || c == b'_' || c == b'$'
+  }
+
+  fn is_identifier_start(c: u8) -> bool {
+    c.is_ascii_alphabetic() || c == b'_' || c == b'$'
+  }
+
+  fn collect_identifier_names(source: &str) -> FxHashSet<Atom> {
+    let bytes = source.as_bytes();
+    let mut names = FxHashSet::default();
+    let mut pos = 0;
+
+    while pos < bytes.len() {
+      match bytes[pos] {
+        b'\'' | b'"' => {
+          let quote = bytes[pos];
+          pos += 1;
+          while pos < bytes.len() {
+            match bytes[pos] {
+              b'\\' => pos += 2,
+              c if c == quote => {
+                pos += 1;
+                break;
+              }
+              _ => pos += 1,
+            }
+          }
+        }
+        b'`' => {
+          pos += 1;
+          while pos < bytes.len() {
+            match bytes[pos] {
+              b'\\' => pos += 2,
+              b'`' => {
+                pos += 1;
+                break;
+              }
+              _ => pos += 1,
+            }
+          }
+        }
+        b'/' if bytes.get(pos + 1) == Some(&b'/') => {
+          pos += 2;
+          while pos < bytes.len() && bytes[pos] != b'\n' {
+            pos += 1;
+          }
+        }
+        b'/' if bytes.get(pos + 1) == Some(&b'*') => {
+          pos += 2;
+          while pos + 1 < bytes.len() {
+            if bytes[pos] == b'*' && bytes[pos + 1] == b'/' {
+              pos += 2;
+              break;
+            }
+            pos += 1;
+          }
+        }
+        c if Self::is_identifier_start(c) => {
+          let start = pos;
+          pos += 1;
+          while pos < bytes.len() && Self::is_identifier_continue(bytes[pos]) {
+            pos += 1;
+          }
+          names.insert(Atom::from(&source[start..pos]));
+        }
+        _ => pos += 1,
+      }
+    }
+
+    names
+  }
+
+  fn replace_generated_identifier_references(
+    source_code: &str,
+    atom: &Atom,
+    internal_name: &Atom,
+  ) -> Option<String> {
+    let bytes = source_code.as_bytes();
+    let atom = atom.as_str();
+    let mut pos = 0;
+    let mut replacements = vec![];
+
+    while pos < bytes.len() {
+      match bytes[pos] {
+        b'\'' | b'"' => {
+          let quote = bytes[pos];
+          pos += 1;
+          while pos < bytes.len() {
+            match bytes[pos] {
+              b'\\' => pos += 2,
+              c if c == quote => {
+                pos += 1;
+                break;
+              }
+              _ => pos += 1,
+            }
+          }
+        }
+        b'`' => {
+          pos += 1;
+          while pos < bytes.len() {
+            match bytes[pos] {
+              b'\\' => pos += 2,
+              b'`' => {
+                pos += 1;
+                break;
+              }
+              _ => pos += 1,
+            }
+          }
+        }
+        b'/' if bytes.get(pos + 1) == Some(&b'/') => {
+          pos += 2;
+          while pos < bytes.len() && bytes[pos] != b'\n' {
+            pos += 1;
+          }
+        }
+        b'/' if bytes.get(pos + 1) == Some(&b'*') => {
+          pos += 2;
+          while pos + 1 < bytes.len() {
+            if bytes[pos] == b'*' && bytes[pos + 1] == b'/' {
+              pos += 2;
+              break;
+            }
+            pos += 1;
+          }
+        }
+        c if Self::is_identifier_start(c) => {
+          let low = pos;
+          pos += 1;
+          while pos < bytes.len() && Self::is_identifier_continue(bytes[pos]) {
+            pos += 1;
+          }
+          if &source_code[low..pos] == atom
+            && low.checked_sub(1).and_then(|pos| bytes.get(pos)) != Some(&b'.')
+          {
+            replacements.push((low as u32, pos as u32));
+          }
+        }
+        _ => pos += 1,
+      }
+    }
+
+    if replacements.is_empty() {
+      return None;
+    }
+
+    let mut source = ReplaceSource::new(RawStringSource::from(source_code.to_string()).boxed());
+    for (low, high) in replacements {
+      source.replace(low, high, internal_name.to_string(), None);
+    }
+
+    Some(source.source().into_string_lossy().to_string())
+  }
+
+  fn replace_global_import_references(
+    info: &mut ConcatenatedModuleInfo,
+    atom: &Atom,
+    internal_name: &Atom,
+  ) {
+    if atom == internal_name {
+      return;
+    }
+
+    let source_code = info
+      .source
+      .as_ref()
+      .expect("should have source")
+      .source()
+      .into_string_lossy()
+      .to_string();
+    if let Some(source_code) =
+      Self::replace_generated_identifier_references(&source_code, atom, internal_name)
+    {
+      info.source = Some(ReplaceSource::new(
+        RawStringSource::from(source_code).boxed(),
+      ));
+    }
+  }
+
   fn module_external_fragment_content(
     init_fragment: Box<dyn rspack_core::InitFragment<ChunkRenderContext>>,
   ) -> Option<String> {
@@ -375,6 +559,7 @@ impl EsmLibraryPlugin {
           .namespace
           .as_ref()
           .is_some_and(|namespace| namespace == local_name)
+          || imported_atoms.namespace_aliases.contains(local_name)
           || info.namespace_object_name.as_ref() == Some(local_name)
         {
           return Some((raw_import_source, ExternalImportBinding::Namespace));
@@ -395,6 +580,17 @@ impl EsmLibraryPlugin {
             } else {
               ExternalImportBinding::Named(imported_name.clone())
             },
+          ));
+        }
+        for (imported_name, local_name) in &imported_atoms.specifier_aliases {
+          let internal_name = info.get_internal_name(local_name).unwrap_or(local_name);
+          if internal_name != local_name {
+            continue;
+          }
+
+          return Some((
+            raw_import_source,
+            ExternalImportBinding::Named(imported_name.clone()),
           ));
         }
       }
@@ -498,6 +694,28 @@ impl EsmLibraryPlugin {
         .exports_require_via_runtime_module = true;
     }
 
+    let import_sources = concate_modules_map
+      .par_values()
+      .fold(FxHashSet::default, |mut import_sources, info| {
+        if let ModuleInfo::Concatenated(info) = info
+          && let Some(import_map) = &info.import_map
+        {
+          import_sources.extend(import_map.keys().map(|(source, _)| source.clone()));
+        }
+        import_sources
+      })
+      .reduce(FxHashSet::default, |mut a, b| {
+        a.extend(b);
+        a
+      });
+    let mut import_source_parts =
+      FxHashMap::with_capacity_and_hasher(import_sources.len(), Default::default());
+    for source in import_sources {
+      import_source_parts
+        .entry(source)
+        .or_insert_with_key(|source| split_readable_identifier(source.as_str()));
+    }
+
     let (escaped_name_entries, escaped_identifier_entries) = concate_modules_map
       .par_values()
       .map(|info| {
@@ -509,7 +727,9 @@ impl EsmLibraryPlugin {
               map
                 .values()
                 .map(|imported| {
-                  imported.specifiers.len() + usize::from(imported.namespace.is_some())
+                  imported.specifiers.len()
+                    + usize::from(imported.namespace.is_some())
+                    + imported.namespace_aliases.len()
                 })
                 .sum::<usize>()
             });
@@ -523,13 +743,13 @@ impl EsmLibraryPlugin {
         let mut escaped_names =
           FxHashMap::with_capacity_and_hasher(name_capacity, Default::default());
         let mut escaped_identifiers = Vec::with_capacity(identifier_capacity);
-        let readable_identifier = get_cached_readable_identifier(
-          &info.id(),
-          module_graph,
-          &compilation.module_static_cache,
-          &compilation.options.context,
-        );
-        let splitted_readable_identifier = split_readable_identifier(&readable_identifier);
+        let (readable_identifier, splitted_readable_identifier) =
+          get_cached_readable_identifier_with_parts(
+            &info.id(),
+            module_graph,
+            &compilation.module_static_cache,
+            &compilation.options.context,
+          );
         escaped_identifiers.push((readable_identifier, splitted_readable_identifier));
 
         match info {
@@ -539,17 +759,31 @@ impl EsmLibraryPlugin {
                 .entry(id.0.clone())
                 .or_insert_with(|| escape_name_atom_ref(&id.0));
             }
-
             if let Some(import_map) = &info.import_map {
               for ((source, _), imported_atoms) in import_map.iter() {
-                escaped_identifiers
-                  .push((source.clone(), split_readable_identifier(source.as_str())));
+                escaped_identifiers.push((
+                  source.clone(),
+                  import_source_parts
+                    .get(source)
+                    .expect("should have import source parts")
+                    .clone(),
+                ));
                 for atom in &imported_atoms.specifiers {
                   escaped_names
                     .entry(atom.clone())
                     .or_insert_with(|| escape_name_atom_ref(atom));
                 }
+                for atom in imported_atoms.specifier_aliases.values() {
+                  escaped_names
+                    .entry(atom.clone())
+                    .or_insert_with(|| escape_name_atom_ref(atom));
+                }
                 if let Some(ns_import) = &imported_atoms.namespace {
+                  escaped_names
+                    .entry(ns_import.clone())
+                    .or_insert_with(|| escape_name_atom_ref(ns_import));
+                }
+                for ns_import in &imported_atoms.namespace_aliases {
                   escaped_names
                     .entry(ns_import.clone())
                     .or_insert_with(|| escape_name_atom_ref(ns_import));
@@ -643,12 +877,23 @@ impl EsmLibraryPlugin {
           // so it's safe to use module_info.namespace_object_name, which is
           // already de-conflicted
           let namespace_name = module_info.namespace_object_name.clone();
+          let namespace_export_symbol = module_info.namespace_export_symbol.clone();
+          let namespace_export_entries = module_info
+            .export_map
+            .iter()
+            .flat_map(|map| map.iter())
+            .chain(module_info.raw_export_map.iter().flat_map(|map| map.iter()))
+            .map(|(export_name, symbol)| (export_name.clone(), symbol.clone()))
+            .collect::<Vec<_>>();
+          let namespace_internal_names = module_info.internal_names.clone();
+          let is_external_module = box_module.as_external_module().is_some();
 
-          if module_info.namespace_export_symbol.is_some() {
+          if is_external_module && namespace_export_symbol.is_some() {
             continue;
           }
 
           let mut ns_obj = Vec::new();
+          let mut ns_obj_exports = FxHashSet::default();
           for export_info in compilation
             .exports_info_artifact
             .get_exports_info_data(module_info_id)
@@ -659,7 +904,9 @@ impl EsmLibraryPlugin {
               continue;
             }
 
-            if matches!(export_info.get_used(None), UsageState::Unused) {
+            if namespace_export_symbol.is_none()
+              && matches!(export_info.get_used(None), UsageState::Unused)
+            {
               // skip useless
               continue;
             }
@@ -742,9 +989,25 @@ impl EsmLibraryPlugin {
                     };
 
                     if let Some(existing_local) = existing_local {
+                      if matches!(import_binding, ExternalImportBinding::Namespace)
+                        && existing_local != &symbol_binding.symbol
+                        && let Some(ModuleInfo::Concatenated(target_info)) =
+                          concate_modules_map.get_mut(&symbol_binding.module)
+                      {
+                        Self::replace_global_import_references(
+                          target_info,
+                          &symbol_binding.symbol,
+                          existing_local,
+                        );
+                      }
                       symbol_binding.symbol = existing_local.clone();
                     } else {
-                      let local_name = if chunk_link.used_names.contains(&symbol_binding.symbol) {
+                      let local_name = if matches!(import_binding, ExternalImportBinding::Namespace)
+                      {
+                        let local_name = symbol_binding.symbol.clone();
+                        chunk_link.used_names.insert(local_name.clone());
+                        local_name
+                      } else if chunk_link.used_names.contains(&symbol_binding.symbol) {
                         let new_name = find_new_name(
                           symbol_binding.symbol.as_str(),
                           &chunk_link.used_names,
@@ -780,7 +1043,23 @@ impl EsmLibraryPlugin {
                 property_name(&used_name).expect("should have property_name"),
                 runtime_template.returning_function(&binding.render(), "")
               ));
+              ns_obj_exports.insert(used_name);
             }
+          }
+          for (export_name, symbol) in namespace_export_entries {
+            if !ns_obj_exports.insert(export_name.clone()) {
+              continue;
+            }
+            let symbol = Atom::from(symbol.as_str());
+            let internal_name = namespace_internal_names
+              .get(&symbol)
+              .cloned()
+              .unwrap_or(symbol);
+            ns_obj.push(format!(
+              "\n  {}: {}",
+              property_name(&export_name).expect("should have property_name"),
+              runtime_template.returning_function(&internal_name, "")
+            ));
           }
           let name = namespace_name.expect("should have name_space_name");
           let star_re_export_binding = Self::resolve_single_star_re_export_target(
@@ -844,7 +1123,7 @@ Object.keys({}).forEach(function(key) {{
           };
           let define_getters = if !ns_obj.is_empty() {
             format!(
-              "{}({}, {{ {} }});\n",
+              "{}({}, {{{}\n}});\n",
               runtime_template.render_runtime_globals(&RuntimeGlobals::DEFINE_PROPERTY_GETTERS),
               name,
               ns_obj.join(",")
@@ -953,19 +1232,32 @@ var {} = {{}};
     let module_graph = compilation.get_module_graph();
 
     let mut all_used_names: FxHashSet<Atom> = RESERVED_NAMES_ATOM_SET.clone();
-    all_used_names.extend(chunk_link.hoisted_modules.iter().flat_map(|m| {
-      let info = &concate_modules_map[m];
-      info
-        .as_concatenated()
-        .global_scope_ident
+    all_used_names.extend(
+      chunk_link
+        .hoisted_modules
         .iter()
-        .map(|ident| ident.id.sym.clone())
-    }));
+        .chain(chunk_link.decl_modules.iter())
+        .filter_map(|m| match &concate_modules_map[m] {
+          ModuleInfo::Concatenated(info) => Some(info),
+          ModuleInfo::External(_) => None,
+        })
+        .flat_map(|info| {
+          info
+            .global_scope_ident
+            .iter()
+            .map(|ident| ident.id.sym.clone())
+        }),
+    );
 
-    // merge all all_used_names from hoisted modules
-    for id in &chunk_link.hoisted_modules {
-      let concate_info = concate_modules_map[id].as_concatenated();
-      all_used_names.extend(concate_info.all_used_names.iter().cloned());
+    // merge all all_used_names from scope-hoisted modules
+    for id in chunk_link
+      .hoisted_modules
+      .iter()
+      .chain(chunk_link.decl_modules.iter())
+    {
+      if let ModuleInfo::Concatenated(concate_info) = &concate_modules_map[id] {
+        all_used_names.extend(concate_info.all_used_names.iter().cloned());
+      }
     }
 
     // Pre-reserve namespace object names from dyn_import_ns_map so other
@@ -1035,50 +1327,93 @@ var {} = {{}};
         get_cached_readable_identifier(id, module_graph, &compilation.module_static_cache, context);
 
       if let ModuleInfo::Concatenated(concate_info) = info {
-        let mut internal_names = FxHashMap::default();
+        let mut internal_names = concate_info.internal_names.clone();
 
         // registered import map
-        if let Some(import_map) = &concate_info.import_map {
-          for ((source, attr), imported_atoms) in import_map.iter() {
+        if let Some(import_map) = concate_info.import_map.take() {
+          for ((source, attr), imported_atoms) in import_map {
             let raw_import_source = RawImportSource::Source((source.clone(), attr.clone()));
             let existing_namespace_import = chunk_link
               .module_external_namespace_imports
               .get(&raw_import_source)
               .cloned();
             let mut total_imported_atoms = None;
+            let mut ensure_import_stmt = false;
 
             if imported_atoms.namespace.is_none()
+              && imported_atoms.namespace_aliases.is_empty()
               && imported_atoms.specifiers.is_empty()
+              && imported_atoms.specifier_aliases.is_empty()
               && existing_namespace_import.is_none()
             {
-              total_imported_atoms = Some(
-                chunk_link
-                  .raw_import_stmts
-                  .entry(raw_import_source.clone())
-                  .or_default(),
-              );
+              ensure_import_stmt = true;
             }
 
-            if let Some(ns_import) = &imported_atoms.namespace {
+            for ns_import in imported_atoms
+              .namespace
+              .into_iter()
+              .chain(imported_atoms.namespace_aliases)
+            {
               if let Some(existing_local) = existing_namespace_import.as_ref() {
-                if existing_local != ns_import {
-                  internal_names.insert(ns_import.clone(), existing_local.clone());
-                }
-              } else {
-                total_imported_atoms = Some(
-                  chunk_link
+                if existing_local != &ns_import {
+                  internal_names.insert(ns_import.clone(), ns_import.clone());
+                  let import_spec = chunk_link
                     .raw_import_stmts
                     .entry(raw_import_source.clone())
-                    .or_default(),
-                );
-                total_imported_atoms
-                  .as_mut()
-                  .expect("should have import spec")
-                  .ns_import = Some(ns_import.clone());
+                    .or_default();
+                  if import_spec.ns_import.as_ref() != Some(&ns_import)
+                    && !import_spec.ns_imports.contains(&ns_import)
+                  {
+                    import_spec.ns_imports.push(ns_import);
+                  }
+                }
+              } else {
+                let ns_local = if all_used_names.contains(&ns_import)
+                  && !concate_info.all_used_names.contains(&ns_import)
+                {
+                  let new_name = find_new_name(
+                    escaped_names
+                      .get(&ns_import)
+                      .expect("should have escaped name")
+                      .as_ref(),
+                    &all_used_names,
+                    &escaped_identifiers[&readable_identifier],
+                  );
+                  all_used_names.insert(new_name.clone());
+                  internal_names.insert(ns_import.clone(), new_name.clone());
+                  Self::replace_global_import_references(concate_info, &ns_import, &new_name);
+                  new_name
+                } else {
+                  all_used_names.insert(ns_import.clone());
+                  ns_import
+                };
+                let import_spec = chunk_link
+                  .raw_import_stmts
+                  .entry(raw_import_source.clone())
+                  .or_default();
+                if import_spec.ns_import.is_none() {
+                  import_spec.ns_import = Some(ns_local);
+                } else if import_spec.ns_import.as_ref() != Some(&ns_local)
+                  && !import_spec.ns_imports.contains(&ns_local)
+                {
+                  import_spec.ns_imports.push(ns_local);
+                }
               }
             }
 
-            for atom in &imported_atoms.specifiers {
+            if ensure_import_stmt {
+              chunk_link
+                .raw_import_stmts
+                .entry(raw_import_source.clone())
+                .or_default();
+            }
+
+            for (imported_atom, atom) in imported_atoms
+              .specifiers
+              .into_iter()
+              .map(|atom| (atom.clone(), atom))
+              .chain(imported_atoms.specifier_aliases)
+            {
               if total_imported_atoms.is_none() {
                 total_imported_atoms = Some(
                   chunk_link
@@ -1091,32 +1426,40 @@ var {} = {{}};
                 .as_mut()
                 .expect("should have import spec");
               // already import this symbol
-              if let Some(internal_atom) = total_imported_atoms.atoms.get(atom).or_else(|| {
-                if atom == "default"
-                  && let Some(default_symbol) = &total_imported_atoms.default_import
-                {
-                  Some(default_symbol)
-                } else {
-                  None
-                }
-              }) {
+              if let Some(internal_atom) =
+                total_imported_atoms.atoms.get(&imported_atom).or_else(|| {
+                  if imported_atom == "default"
+                    && let Some(default_symbol) = &total_imported_atoms.default_import
+                  {
+                    Some(default_symbol)
+                  } else {
+                    None
+                  }
+                })
+              {
                 internal_names.insert(atom.clone(), internal_atom.clone());
                 // if the imported symbol is exported, we rename the export as well
                 if let Some(raw_export_map) = concate_info.raw_export_map.as_mut()
-                  && raw_export_map.contains_key(atom)
+                  && raw_export_map.contains_key(&atom)
                 {
                   raw_export_map.insert(atom.clone(), internal_atom.to_string());
+                }
+                if atom != "default" {
+                  Self::replace_global_import_references(concate_info, &atom, internal_atom);
                 }
                 continue;
               }
 
-              let new_name = if all_used_names.contains(atom) {
+              let new_name = if (atom == "default"
+                || (all_used_names.contains(&atom) && !concate_info.all_used_names.contains(&atom)))
+                && !atom.starts_with(EXTERNAL_IMPORT_PLACEHOLDER_PREFIX)
+              {
                 let new_name = if atom == "default" {
-                  find_new_name("", &all_used_names, &escaped_identifiers[source])
+                  find_new_name("", &all_used_names, &escaped_identifiers[&source])
                 } else {
                   find_new_name(
                     escaped_names
-                      .get(atom)
+                      .get(&atom)
                       .expect("should have escaped name")
                       .as_ref(),
                     &all_used_names,
@@ -1126,7 +1469,7 @@ var {} = {{}};
                 all_used_names.insert(new_name.clone());
                 // if the imported symbol is exported, we rename the export as well
                 if let Some(raw_export_map) = concate_info.raw_export_map.as_mut()
-                  && raw_export_map.contains_key(atom)
+                  && raw_export_map.contains_key(&atom)
                 {
                   raw_export_map.insert(atom.clone(), new_name.to_string());
                 }
@@ -1137,13 +1480,16 @@ var {} = {{}};
               };
 
               internal_names.insert(atom.clone(), new_name.clone());
+              if atom != "default" {
+                Self::replace_global_import_references(concate_info, &atom, &new_name);
+              }
 
-              if atom == "default" {
+              if imported_atom == "default" {
                 total_imported_atoms.default_import = Some(new_name.clone());
               } else {
                 total_imported_atoms
                   .atoms
-                  .insert(atom.clone(), new_name.clone());
+                  .insert(imported_atom.clone(), new_name.clone());
               }
             }
           }
@@ -1152,6 +1498,9 @@ var {} = {{}};
         for (atom, ctxt) in concate_info.binding_to_ref.keys() {
           // only need to handle top level scope
           if ctxt != &concate_info.module_ctxt {
+            continue;
+          }
+          if internal_names.contains_key(atom) {
             continue;
           }
 
@@ -1172,6 +1521,18 @@ var {} = {{}};
             internal_names.insert(atom.clone(), atom.clone());
           }
         }
+        let alias_updates = internal_names
+          .iter()
+          .filter_map(|(key, value)| {
+            internal_names
+              .get(value)
+              .filter(|resolved| *resolved != value)
+              .map(|resolved| (key.clone(), resolved.clone()))
+          })
+          .collect::<Vec<_>>();
+        for (key, resolved) in alias_updates {
+          internal_names.insert(key, resolved);
+        }
 
         concate_info.internal_names = internal_names;
 
@@ -1179,6 +1540,9 @@ var {} = {{}};
         if let Some(ref namespace_export_symbol) = concate_info.namespace_export_symbol
           && namespace_export_symbol.starts_with(NAMESPACE_OBJECT_EXPORT)
           && namespace_export_symbol.len() > NAMESPACE_OBJECT_EXPORT.len()
+          && !concate_info
+            .internal_names
+            .contains_key(namespace_export_symbol)
         {
           let name: Atom =
             Atom::from(namespace_export_symbol[NAMESPACE_OBJECT_EXPORT.len()..].to_string());
@@ -1197,6 +1561,8 @@ var {} = {{}};
           };
           if let Some(pre_assigned) = pre_assigned {
             pre_assigned
+          } else if let Some(namespace_object_name) = &concate_info.namespace_object_name {
+            namespace_object_name.clone()
           } else if let Some(ref namespace_export_symbol) = concate_info.namespace_export_symbol {
             concate_info
               .get_internal_name(namespace_export_symbol)
@@ -1498,103 +1864,55 @@ var {} = {{}};
                     runtime_template,
                   )
                   .await?;
-                *concate_info = codegen_res
+                let codegen_scope = codegen_res
                   .concatenation_scope
                   .as_ref()
-                  .expect("should have concatenation scope")
-                  .current_module
-                  .clone();
-
-                let m = module_graph
-                  .module_by_identifier(&id)
-                  .expect("should have module");
-                let jsx = m
-                  .as_ref()
-                  .as_normal_module()
-                  .and_then(|normal_module| normal_module.get_parser_options())
-                  .and_then(|options| {
-                    options
-                      .get_javascript()
-                      .and_then(|js_options| js_options.jsx)
-                  })
-                  .unwrap_or(false);
-                let source_str = render_source
-                  .source
-                  .source()
-                  .into_string_lossy()
-                  .into_owned();
-                let comments = SingleThreadedComments::default();
-                let mut ast = Ast::new(source_str.len(), StringAllocator::default());
-                let lexer = swc_experimental_ecma_parser::Lexer::new(
-                  Syntax::Es(EsSyntax {
-                    jsx,
-                    ..Default::default()
-                  }),
-                  EsVersion::EsNext,
-                  StringSource::new(&source_str),
-                  Some(&comments),
-                  ast.string_allocator(),
-                );
-                let mut parser = Parser::new_from(&mut ast, lexer);
-                let module = match parser.parse_module() {
-                  Ok(module) => module,
-                  Err(err) => {
-                    return Err(Error::from_string(
-                      Some(source_str.clone()),
-                      err.span().real_lo() as usize,
-                      err.span().real_hi() as usize,
-                      "JavaScript parse error:\n".to_string(),
-                      err.kind().msg().to_string(),
-                    ));
-                  }
-                };
-                let ast = &ast;
-                let semantic = resolver(module, ast);
-                let ids = collect_ident(ast, module);
-
-                concate_info.module_ctxt = semantic.top_level_scope_id().to_ctxt();
-                concate_info.global_ctxt = semantic.unresolved_scope_id().to_ctxt();
-
-                let top_level_scope_id = semantic.top_level_scope_id();
-                let mut all_used_names = FxHashSet::default();
-                all_used_names.reserve(ids.len());
-                concate_info.idents.reserve(ids.len());
-                concate_info.global_scope_ident.reserve(ids.len());
-                let mut binding_to_ref: FxIndexMap<
-                  (Atom, SyntaxContext),
-                  Vec<ConcatenatedModuleIdent>,
-                > = Default::default();
-                binding_to_ref.reserve(ids.len());
-
-                for ident in ids {
-                  let scope = semantic.node_scope(ident.id);
-                  let is_global = scope.to_ctxt() == concate_info.global_ctxt;
-                  let legacy = if is_global {
-                    let leg = ident.to_legacy(ast, &semantic);
-                    concate_info.global_scope_ident.push(leg.clone());
-                    all_used_names.insert(leg.id.sym.clone());
-                    Some(leg)
-                  } else {
-                    None
-                  };
-                  if ident.is_class_expr_with_ident {
-                    all_used_names.insert(ast.get_atom(ident.id.sym(ast)));
-                    continue;
-                  }
-                  if scope != top_level_scope_id {
-                    all_used_names.insert(ast.get_atom(ident.id.sym(ast)));
-                  }
-                  let legacy = legacy.unwrap_or_else(|| ident.to_legacy(ast, &semantic));
-                  concate_info.idents.push(legacy.clone());
-                  binding_to_ref
-                    .entry((legacy.id.sym.clone(), legacy.id.ctxt))
-                    .or_default()
-                    .push(legacy);
+                  .expect("should have concatenation scope");
+                *concate_info = codegen_scope.current_module.clone();
+                for (name, new_name) in &codegen_scope.top_level_renames {
+                  concate_info
+                    .internal_names
+                    .insert(name.clone(), new_name.clone());
+                }
+                if let Some(scope_info) = &module_graph
+                  .module_by_identifier(&m)
+                  .expect("should have module")
+                  .build_info()
+                  .concatenated_module_scope_info
+                {
+                  concate_info.all_used_names = scope_info.all_used_names.clone();
+                  concate_info.global_scope_ident.extend(
+                    scope_info
+                      .import_references
+                      .iter()
+                      .flat_map(|(name, references)| {
+                        references.iter().map(|reference| ConcatenatedModuleIdent {
+                          id: Ident::new(
+                            name.clone(),
+                            Span::new(
+                              BytePos(reference.range.start + 1),
+                              BytePos(reference.range.end + 1),
+                            ),
+                            SyntaxContext::empty(),
+                          ),
+                          is_class_expr_with_ident: false,
+                          shorthand: reference.shorthand,
+                        })
+                      }),
+                  );
                 }
 
-                concate_info.all_used_names = all_used_names;
-                concate_info.binding_to_ref = binding_to_ref;
-                concate_info.has_ast = true;
+                let source_code = render_source.source.source().into_string_lossy();
+                concate_info.global_scope_ident.extend(
+                  rspack_core::ConcatenatedModule::collect_module_reference_idents(
+                    source_code.as_ref(),
+                  ),
+                );
+                concate_info
+                  .all_used_names
+                  .extend(Self::collect_identifier_names(source_code.as_ref()));
+                drop(source_code);
+
                 concate_info.source = Some(ReplaceSource::new(render_source.source.clone()));
                 concate_info.internal_source = Some(render_source.source.clone());
                 concate_info.runtime_requirements = codegen_res.runtime_requirements;
@@ -2509,6 +2827,7 @@ var {} = {{}};
               atoms: std::iter::once((require_symbol.clone(), require_symbol.clone())).collect(),
               default_import: None,
               ns_import: None,
+              ns_imports: vec![],
             },
           );
           break;
@@ -2851,7 +3170,9 @@ var {} = {{}};
         // check if all atoms are not used, and only used for export
         if locals.iter().all(|(local, _)| {
           // not accessed but exported
-          !all_chunk_used_symbols.contains(local) && all_chunk_exported_symbols.contains_key(local)
+          !chunk_link.used_names.contains(local)
+            && !all_chunk_used_symbols.contains(local)
+            && all_chunk_exported_symbols.contains_key(local)
         }) {
           // remove the import statement
           removed_import_stmts.push((key.clone(), locals));
@@ -3004,6 +3325,25 @@ var {} = {{}};
             return Some(es_module_binding());
           }
 
+          if export_name.first().map(|item| item.as_str()) == Some("default")
+            && let ModuleInfo::Concatenated(info) = info
+            && let Some(raw_export) = info
+              .raw_export_map
+              .as_ref()
+              .and_then(|map| map.get(&Atom::from("default")))
+          {
+            let raw_export_symbol: Atom = raw_export.clone().into();
+            let name = info
+              .get_internal_name(&raw_export_symbol)
+              .unwrap_or(&raw_export_symbol);
+            return Some(Ref::Symbol(SymbolRef::new(
+              info.module,
+              name.clone(),
+              export_name[1..].to_vec(),
+              Arc::new(move |binding| normal_render(binding, as_call, call_context, asi_safe)),
+            )));
+          }
+
           let first_export_id = export_name.remove(0);
           if first_export_id != "default" {
             return Some(Ref::Inline(
@@ -3153,7 +3493,7 @@ var {} = {{}};
                 let direct_export = Atom::new(direct_export.clone());
                 let symbol = info
                   .get_internal_name(&direct_export)
-                  .unwrap_or_else(|| panic!("should set internal name for {direct_export}"));
+                  .unwrap_or(&direct_export);
 
                 return Some(Ref::Symbol(SymbolRef::new(
                   info.module,

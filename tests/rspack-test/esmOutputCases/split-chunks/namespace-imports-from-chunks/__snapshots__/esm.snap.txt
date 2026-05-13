@@ -16,9 +16,9 @@ import { p } from "./shared.mjs";
 // ./other.js
 
 
-/* export default */ const other = (p);
+/* export default */ const other_0 = (p);
 
-export default other;
+export default other_0;
 
 ```
 

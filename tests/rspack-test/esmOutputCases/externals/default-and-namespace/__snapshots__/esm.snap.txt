@@ -1,5 +1,6 @@
 ```mjs title=main.mjs
-import * as __rspack_external_fs from "fs";
+import fsDefault, * as _rspack_external_fs from "fs";
+import * as fsNs from "fs";
 
 // fs
 
@@ -7,18 +8,18 @@ import * as __rspack_external_fs from "fs";
 
 
 
-/* export default */ const index = (__rspack_external_fs["default"]);
+/* export default */ const index = (fsDefault);
 
 
 it("should distinguish external default and namespace imports", async () => {
   const mod = await import(/* webpackIgnore: true */ "./main.mjs");
 
-  expect(mod.default).toBe(__rspack_external_fs["default"]);
-  expect(mod.default).toBe(__rspack_external_fs["default"]);
+  expect(mod.default).toBe(fsDefault);
+  expect(mod.default).toBe(fsNs["default"]);
   expect(typeof mod.fsNs.readFile).toBe("function");
 });
 
-export { __rspack_external_fs as fsNs };
+export { fsNs };
 export default index;
 
 ```

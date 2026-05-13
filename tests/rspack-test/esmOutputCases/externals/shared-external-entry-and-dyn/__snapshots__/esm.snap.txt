@@ -1,16 +1,18 @@
 ```mjs title=async.mjs
+import { readFile } from "fs";
+
 // fs?3cf4
 
 // ./async.js
 
 const asyncValue = 'async'
 
-export { readFile } from "fs";
+export { readFile };
 
 ```
 
 ```mjs title=main.mjs
-import { readFile } from "fs";
+import { readFile as external_fs_readFile } from "fs";
 
 // fs?771d
 
@@ -22,10 +24,10 @@ import { readFile } from "fs";
 it('should handle external used in both entry and dynamic import', async () => {
 	const mod = await import("./async.mjs")
 	expect(mod.readFile).toBeDefined()
-	expect(readFile).toBeDefined()
-	expect(mod.readFile).toBe(readFile)
+	expect(external_fs_readFile).toBeDefined()
+	expect(mod.readFile).toBe(external_fs_readFile)
 })
 
-export { readFile };
+export { external_fs_readFile as readFile };
 
 ```

@@ -11,12 +11,14 @@ export {};
 ```
 
 ```mjs title=wrapper.mjs
+import fs, { readFile } from "fs";
+
 // fs
 
 // ./wrapper.js
 
 
 
-export { default as fsDefault, readFile } from "fs";
+export { fs as fsDefault, readFile };
 
 ```

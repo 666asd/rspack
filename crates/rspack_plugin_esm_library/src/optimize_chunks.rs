@@ -5,8 +5,8 @@ use rayon::prelude::*;
 use rspack_collections::{IdentifierMap, IdentifierSet};
 use rspack_core::{
   ChunkGroupUkey, ChunkUkey, Compilation, DependenciesBlock, DependencyType, ExportProvided,
-  ModuleIdentifier, UsageState, find_new_name, get_cached_readable_identifier,
-  incremental::Mutation, split_readable_identifier,
+  ModuleIdentifier, UsageState, find_new_name, get_cached_readable_identifier_parts,
+  incremental::Mutation,
 };
 use rspack_util::{
   atom::Atom,
@@ -735,13 +735,12 @@ pub(crate) fn analyze_dyn_import_targets(
         continue;
       }
       // Compute namespace_object_name using the same logic as deconflict_symbols
-      let readable_identifier = get_cached_readable_identifier(
+      let escaped_idents = get_cached_readable_identifier_parts(
         module_id,
         module_graph,
         &compilation.module_static_cache,
         &compilation.options.context,
       );
-      let escaped_idents = split_readable_identifier(&readable_identifier);
       let used_names = chunk_used_names.entry(chunk_ukey).or_default();
       let ns_name = find_new_name("namespaceObject", used_names, &escaped_idents);
       used_names.insert(ns_name.clone());

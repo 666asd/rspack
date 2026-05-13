@@ -1,11 +1,12 @@
 ```mjs title=main.mjs
-import * as __rspack_external_fs from "fs";
-import * as __rspack_external_path from "path";
+import * as _rspack_external_fs from "fs";
+import * as _rspack_external_path from "path";
+import * as lib2_path from "path";
 
 // fs
 
 // ./lib3.js
-const v = 42
+const lib3_v = 42
 
 
 // path
@@ -20,7 +21,7 @@ const lib2_v = 42
 // ./lib.js
 
 
-const lib_v = 42
+const v = 42
 
 
 
@@ -38,7 +39,7 @@ it('should re-export esm correctly', async () => {
 	expect(typeof readFile).toBe('function')
 })
 
-export { __rspack_external_path as path, lib2_v as lib2, lib_v as lib, v as lib3 };
+export { lib2_path as path, lib2_v as lib2, lib3_v as lib3, v as lib };
 export * from "fs";
 
 ```

@@ -17,14 +17,14 @@ export {};
 
 ```mjs title=shared.mjs
 // ./a.js
-const foo = 1;
-const fooFn = () => 1;
+const a_foo = 1;
+const a_fooFn = () => 1;
 
 // ./b.js
-const bar = 2;
-const barFn = () => 2;
+const b_bar = 2;
+const b_barFn = () => 2;
 const useless = () => 'useless';
 
-export { bar, barFn, foo, fooFn };
+export { a_foo as foo, a_fooFn as fooFn, b_bar as bar, b_barFn as barFn };
 
 ```

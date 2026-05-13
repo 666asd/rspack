@@ -4,9 +4,9 @@ import "./shared.mjs";
 // ./entry2.js
 
 
-const entry2 = "entry2"
+const entry2_entry2 = "entry2"
 
-export { entry2 };
+export { entry2_entry2 as entry2 };
 
 ```
 
@@ -16,9 +16,9 @@ import "./shared.mjs";
 // ./entry3.js
 
 
-const entry3 = "entry3"
+const entry3_entry3 = "entry3"
 
-export { entry3 };
+export { entry3_entry3 as entry3 };
 
 ```
 

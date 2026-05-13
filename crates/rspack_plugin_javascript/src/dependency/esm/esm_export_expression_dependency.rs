@@ -169,20 +169,24 @@ impl DependencyTemplate for ESMExportExpressionDependencyTemplate {
 
     if let Some(declaration) = &dep.declaration {
       let name = match declaration {
-        DeclarationId::Id(id) => id,
+        DeclarationId::Id(id) => id.clone(),
         DeclarationId::Func(func) => {
+          let name = concatenation_scope.as_mut().map_or_else(
+            || DEFAULT_EXPORT.to_string(),
+            |scope| scope.register_template_export(DEFAULT_EXPORT).to_string(),
+          );
           source.replace(
             func.range.start,
             func.range.end,
-            format!("{}{}{}", func.prefix, DEFAULT_EXPORT, func.suffix),
+            format!("{}{}{}", func.prefix, name, func.suffix),
             None,
           );
-          DEFAULT_EXPORT
+          name
         }
       };
 
       if let Some(scope) = concatenation_scope {
-        scope.register_export(JS_DEFAULT_KEYWORD.clone(), name.to_string());
+        scope.register_export(JS_DEFAULT_KEYWORD.clone(), name);
       } else if let Some(used) = compilation
         .exports_info_artifact
         .get_exports_info_data(&module_identifier)
@@ -219,9 +223,10 @@ impl DependencyTemplate for ESMExportExpressionDependencyTemplate {
       // 'var' is a little bit incorrect as TDZ is not correct, but we can't use 'const'
       let supports_const = compilation.options.output.environment.supports_const();
       let content = if let Some(scope) = concatenation_scope {
-        scope.register_export(JS_DEFAULT_KEYWORD.clone(), DEFAULT_EXPORT.to_string());
+        let name = scope.register_template_export(DEFAULT_EXPORT);
+        scope.register_export(JS_DEFAULT_KEYWORD.clone(), name.to_string());
         format!(
-          "/* export default */ {} {DEFAULT_EXPORT} = ",
+          "/* export default */ {} {name} = ",
           if supports_const { "const" } else { "var" }
         )
       } else if let Some(used) = compilation

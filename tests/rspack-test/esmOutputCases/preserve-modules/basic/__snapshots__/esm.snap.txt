@@ -4,14 +4,14 @@ import "../other1_index_js-other2_index_js.mjs";
 // ./src/demo/index.js
 const demo = () => 'demo'
 ;
-/* export default */ const src_demo = (demo);
+/* export default */ const demo_0 = (demo);
 
-export default src_demo;
+export default demo_0;
 
 ```
 
 ```mjs title=index.mjs
-import { default as src_demo } from "./demo/index.mjs";
+import { default as demo_0 } from "./demo/index.mjs";
 import "./other1_index_js-other2_index_js.mjs";
 
 // ./src/index.js
@@ -19,7 +19,7 @@ import "./other1_index_js-other2_index_js.mjs";
 
 
 it('should preserve modules', () => {
-  expect(src_demo()).toBe('demo')
+  expect(demo_0()).toBe('demo')
 })
 
 export {};

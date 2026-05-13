@@ -23,7 +23,8 @@ use rspack_core::{
   StarReexportsInfo, TemplateContext, TemplateReplaceSource, UsageState, UsedName,
   collect_referenced_export_items, create_exports_object_referenced, create_no_exports_referenced,
   filter_runtime, get_exports_type, get_runtime_key, get_terminal_binding, property_access,
-  property_name, render_make_deferred_namespace_mode_from_exports_type, to_normal_comment,
+  property_name, render_make_deferred_namespace_mode_from_exports_type, to_identifier_with_escaped,
+  to_normal_comment,
 };
 use rspack_error::{Diagnostic, Error, Severity};
 use rspack_util::json_stringify;
@@ -1606,12 +1607,117 @@ impl DependencyTemplate for ESMExportImportedSpecifierDependencyTemplate {
     );
 
     if let Some(scope) = concatenation_scope {
-      if let ExportMode::ReexportUndefined(mode) = mode {
-        scope.register_raw_export(
-          mode.name,
-          String::from("/* reexport non-default export from non-ESM */ undefined"),
-        );
-      };
+      let is_esm_library_scope = scope.concat_module_id == scope.current_module.module;
+      if !is_esm_library_scope {
+        return;
+      }
+
+      let module_import_attributes = dep.attributes.as_ref().map(|attributes| {
+        format!(
+          " with {}",
+          serde_json::to_string(attributes).expect("json stringify failed")
+        )
+      });
+      let module_import_source = module_graph
+        .module_identifier_by_dependency_id(&dep.id)
+        .and_then(|id| module_graph.module_by_identifier(id))
+        .and_then(|module| module.as_external_module())
+        .and_then(|external| {
+          let source = external.get_request().primary();
+          if !external.get_request().has_rest()
+            && (external.get_external_type().as_str().starts_with("module")
+              || external.resolve_external_type() == "module")
+          {
+            Some(source.to_string())
+          } else {
+            None
+          }
+        });
+
+      match mode {
+        ExportMode::ReexportDynamicDefault(mode) => {
+          if let Some(source) = &module_import_source {
+            scope.register_import(
+              source.clone(),
+              module_import_attributes,
+              Some("default".into()),
+            );
+            scope.register_raw_export(mode.name, "default".to_string());
+          }
+        }
+        ExportMode::ReexportNamedDefault(mode) => {
+          if let Some(source) = &module_import_source {
+            scope.register_import(
+              source.clone(),
+              module_import_attributes,
+              Some("default".into()),
+            );
+            scope.register_raw_export(mode.name, "default".to_string());
+          }
+        }
+        ExportMode::ReexportNamespaceObject(mode) => {
+          if let Some(source) = &module_import_source {
+            scope.register_namespace_import(
+              source.clone(),
+              module_import_attributes,
+              mode.name.clone(),
+            );
+            scope.register_raw_export(mode.name.clone(), mode.name.to_string());
+          }
+        }
+        ExportMode::ReexportFakeNamespaceObject(mode) => {
+          if let Some(source) = &module_import_source {
+            scope.register_namespace_import(
+              source.clone(),
+              module_import_attributes,
+              mode.name.clone(),
+            );
+            scope.register_raw_export(mode.name.clone(), mode.name.to_string());
+          }
+        }
+        ExportMode::ReexportUndefined(mode) => {
+          scope.register_raw_export(
+            mode.name,
+            String::from("/* reexport non-default export from non-ESM */ undefined"),
+          );
+        }
+        ExportMode::NormalReexport(mode) => {
+          for item in mode.items {
+            if item.hidden {
+              continue;
+            }
+            if let Some(symbol) = item.ids.first()
+              && let Some(source) = &module_import_source
+            {
+              let symbol = if dep.request == source.as_str() {
+                scope.register_import(
+                  source.clone(),
+                  module_import_attributes.clone(),
+                  Some(symbol.clone()),
+                );
+                symbol.clone()
+              } else {
+                let import_symbol = Atom::from(to_identifier_with_escaped(format!(
+                  "__rspack_external_import_{source}_{symbol}"
+                )));
+                scope
+                  .current_module
+                  .internal_names
+                  .insert(symbol.clone(), import_symbol.clone());
+                scope.register_import_alias(
+                  source.clone(),
+                  module_import_attributes.clone(),
+                  symbol.clone(),
+                  import_symbol.clone(),
+                );
+                import_symbol
+              };
+              scope.register_raw_export(item.name, symbol.to_string());
+            }
+          }
+        }
+        _ => {}
+      }
 
       return;
     }

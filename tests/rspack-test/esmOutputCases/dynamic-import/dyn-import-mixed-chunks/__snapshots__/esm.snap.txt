@@ -58,25 +58,27 @@ import { __webpack_require__ } from "./runtime.mjs";
 // NAMESPACE OBJECT: ./m1.js
 var m1_namespaceObject = {};
 __webpack_require__.r(m1_namespaceObject);
-__webpack_require__.d(m1_namespaceObject, { 
-  "default": () => (m1),
-  value: () => (value) });
+__webpack_require__.d(m1_namespaceObject, {
+  "default": () => (m1_0),
+  value: () => (value)
+});
 
 
 // NAMESPACE OBJECT: ./m2.js
 var m2_namespaceObject = {};
 __webpack_require__.r(m2_namespaceObject);
-__webpack_require__.d(m2_namespaceObject, { 
-  "default": () => (m2),
-  value: () => (m2_value) });
+__webpack_require__.d(m2_namespaceObject, {
+  "default": () => (m2_0),
+  value: () => (m2_value)
+});
 
 
 // ./m1.js
-/* export default */ const m1 = ('hello');
+/* export default */ const m1_0 = ('hello');
 const value = 1;
 
 // ./m2.js
-/* export default */ const m2 = ('world');
+/* export default */ const m2_0 = ('world');
 const m2_value = 2;
 
 export { m1_namespaceObject, m2_namespaceObject };
@@ -85,10 +87,10 @@ export { m1_namespaceObject, m2_namespaceObject };
 
 ```mjs title=solo.mjs
 // ./solo.js
-/* export default */ const solo = ('solo');
-const value = 100;
+/* export default */ const solo_0 = ('solo');
+const solo_value = 100;
 
-export { value };
-export default solo;
+export { solo_value as value };
+export default solo_0;
 
 ```

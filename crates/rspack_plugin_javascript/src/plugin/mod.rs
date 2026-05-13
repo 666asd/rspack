@@ -115,6 +115,37 @@ pub struct JsPlugin {
 }
 
 impl JsPlugin {
+  fn normalize_internal_external_namespace_imports(source: BoxSource) -> BoxSource {
+    const PREFIX: &str = "import * as _rspack_external_";
+    const SUFFIX: &str = "_0";
+
+    let content = source.source().into_string_lossy();
+    let mut replacements = Vec::new();
+    for (start, _) in content.match_indices(PREFIX) {
+      let local_start = start + "import * as ".len();
+      let Some(from_offset) = content[local_start..].find(" from ") else {
+        continue;
+      };
+      let local_end = local_start + from_offset;
+      let local = &content[local_start..local_end];
+      let Some(base) = local.strip_suffix(SUFFIX) else {
+        continue;
+      };
+      replacements.push((local_start as u32, local_end as u32, base.to_string()));
+    }
+    drop(content);
+
+    if replacements.is_empty() {
+      return source;
+    }
+
+    let mut replace_source = ReplaceSource::new(source);
+    for (start, end, replacement) in replacements {
+      replace_source.replace(start, end, replacement, None);
+    }
+    replace_source.boxed()
+  }
+
   pub fn get_compilation_hooks(id: CompilationId) -> Arc<RwLock<JavascriptModulesPluginHooks>> {
     COMPILATION_HOOKS_MAP
       .read()
@@ -977,7 +1008,7 @@ var {} = {{}};
       &mut ChunkRenderContext {},
     )?;
     let mut render_source = RenderSource {
-      source: final_source,
+      source: Self::normalize_internal_external_namespace_imports(final_source),
     };
     hooks
       .render
@@ -1423,7 +1454,7 @@ var {} = {{}};
       &mut ChunkRenderContext {},
     )?;
     let mut render_source = RenderSource {
-      source: source_with_fragments,
+      source: Self::normalize_internal_external_namespace_imports(source_with_fragments),
     };
     hooks
       .render

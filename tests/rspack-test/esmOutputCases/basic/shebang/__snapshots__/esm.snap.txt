@@ -12,7 +12,7 @@ import {dirname as __rspack_dirname} from "node:path";
 import { createRequire as __rspack_createRequire } from "node:module";
 const __rspack_createRequire_require = __rspack_createRequire(import.meta.url);
 // ./index.js
-var index_dirname = __rspack_dirname(__rspack_fileURLToPath(import.meta.url));
+var __dirname = __rspack_dirname(__rspack_fileURLToPath(import.meta.url));
 //
 
 
@@ -20,7 +20,7 @@ it('should have shebang in entry chunk', () => {
   const fs = __rspack_createRequire_require('fs')
   const path = __rspack_createRequire_require('path')
 
-  const code = fs.readFileSync(path.join(index_dirname, 'main.mjs'), 'utf-8')
+  const code = fs.readFileSync(path.join(__dirname, 'main.mjs'), 'utf-8')
 
   expect(code.startsWith('#!')).toBeTruthy()
 })

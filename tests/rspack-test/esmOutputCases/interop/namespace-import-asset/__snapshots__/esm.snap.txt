@@ -5,8 +5,8 @@ export default 42
 ```mjs title=main.mjs
 import { __webpack_require__ } from "./runtime.mjs";
 // ./foo.mjs
-import foo_namespaceObject from "./407a5f26e1107499.mjs";
-var foo_namespaceObject2 = /*#__PURE__*/__webpack_require__.t(foo_namespaceObject);
+import foo___rspack_ns_object from "./407a5f26e1107499.mjs";
+var foo_namespaceObject2 = /*#__PURE__*/__webpack_require__.t(foo___rspack_ns_object);
 // ./index.js
 
 

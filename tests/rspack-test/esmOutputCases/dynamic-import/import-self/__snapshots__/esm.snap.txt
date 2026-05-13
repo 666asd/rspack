@@ -17,8 +17,8 @@ export {};
 
 ```mjs title=value.mjs
 // ./value.js
-const conflict = 24
+const value_conflict = 24
 
-export { conflict };
+export { value_conflict as conflict };
 
 ```

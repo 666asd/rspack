@@ -4,9 +4,9 @@ import { demo as other_demo } from "./other.mjs";
 // ./src/demo/index.js
 
 
-const demo = () => 'demo'
+const demo_demo = () => 'demo'
 other_demo;
-export { demo, demo as local };
+export { demo_demo as demo, demo_demo as local };
 
 ```
 

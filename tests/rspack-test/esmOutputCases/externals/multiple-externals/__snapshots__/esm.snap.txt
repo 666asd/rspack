@@ -1,5 +1,6 @@
 ```mjs title=async.mjs
-import * as __rspack_external_fs from "fs";
+import * as _rspack_external_fs from "fs";
+import * as ns from "fs";
 
 // fs?3cf4
 
@@ -7,15 +8,15 @@ import * as __rspack_external_fs from "fs";
 
 
 // access namespace
-console.log.bind(__rspack_external_fs)
+console.log.bind(ns)
 
 
-export { __rspack_external_fs as ns };
+export { ns };
 
 ```
 
 ```mjs title=main.mjs
-import fs, { readFile } from "fs";
+import fs, { readFile as external_fs_readFile } from "fs";
 
 // fs?771d
 
@@ -40,7 +41,7 @@ it('should render external correctly', async () => {
   const {ns} = await import("./async.mjs")
 
   expect(fs).toBe(other).toBe(fs).toBe(ns.default)
-  expect(readFile).toBe(readFile).toBe(readFile).toBe(ns.readFile)
+  expect(external_fs_readFile).toBe(external_fs_readFile).toBe(external_fs_readFile).toBe(ns.readFile)
 })
 export {};
 

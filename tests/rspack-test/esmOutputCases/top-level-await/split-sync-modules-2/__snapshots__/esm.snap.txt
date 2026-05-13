@@ -16,7 +16,7 @@ export { value };
 ```
 
 ```mjs title=main.mjs
-import { value } from "./lib_js.mjs";
+import { value as lib_value } from "./lib_js.mjs";
 
 // ./index2.js
 
@@ -24,8 +24,8 @@ import { value } from "./lib_js.mjs";
 const {value: valueAsync} = await import("./async.mjs");
 
 it('should have correct value', () => {
-  expect(value).toBe(valueAsync);
-  expect(value()).toBe(42);
+  expect(lib_value).toBe(valueAsync);
+  expect(lib_value()).toBe(42);
 })
 // ./index.js
 

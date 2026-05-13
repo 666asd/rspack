@@ -12,6 +12,8 @@ export {};
 ```
 
 ```mjs title=wrapper.mjs
+import { readFile } from "fs";
+
 // fs
 
 // ./wrapper.js
@@ -19,7 +21,6 @@ export {};
 const localValue = 42
 const localFn = () => 'hello'
 
-export { localFn, localValue };
-export { readFile } from "fs";
+export { localFn, localValue, readFile };
 
 ```

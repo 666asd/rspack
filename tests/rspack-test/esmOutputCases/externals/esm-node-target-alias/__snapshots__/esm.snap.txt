@@ -1,6 +1,6 @@
 ```mjs title=main.mjs
-import { resolve } from "node:path";
-import { parse } from "node:url";
+import { resolve as external_node_path_resolve } from "node:path";
+import { parse as external_node_url_parse } from "node:url";
 import { __webpack_require__ } from "./runtime.mjs";
 
 import { createRequire as __rspack_createRequire } from "node:module";
@@ -56,11 +56,11 @@ it("should use aliased external request with correct external type", async () =>
 	const nodeUrl = await import(/* webpackIgnore: true */ "node:url");
 
 	// ESM import of "module" external — keeps module type, uses aliased request
-	expect(resolve).toBe(nodePath.resolve);
+	expect(external_node_path_resolve).toBe(nodePath.resolve);
 	expect(main.resolve).toBe(nodePath.resolve);
 
 	// ESM import of "module-import" external — keeps module-import type
-	expect(parse).toBe(nodeUrl.parse);
+	expect(external_node_url_parse).toBe(nodeUrl.parse);
 	expect(main.parse).toBe(nodeUrl.parse);
 
 	// CJS require of "module" external — downgraded to node-commonjs
@@ -74,7 +74,7 @@ it("should use aliased external request with correct external type", async () =>
 
 
 
-export { g as cjsParse, n as cjsResolve, parse, resolve };
+export { external_node_path_resolve as resolve, external_node_url_parse as parse, g as cjsParse, n as cjsResolve };
 
 ```
 

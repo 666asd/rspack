@@ -292,7 +292,7 @@ pub fn css_modules_exports_to_concatenate_module_string<'a>(
     return Ok(());
   };
   let module_graph = compilation.get_module_graph();
-  let mut used_identifiers = HashSet::default();
+  let mut used_identifiers: HashSet<String> = HashSet::default();
   let exports_info = compilation
     .exports_info_artifact
     .get_exports_info_data(&module.identifier());
@@ -364,18 +364,19 @@ pub fn css_modules_exports_to_concatenate_module_string<'a>(
       identifier = Cow::Owned(format!("_{identifier}"));
     }
     let mut i = 0;
-    while used_identifiers.contains(&identifier) {
+    while used_identifiers.contains(identifier.as_ref()) {
       let mut i_buffer = itoa::Buffer::new();
       let i_str = i_buffer.format(i);
       identifier = Cow::Owned(format!("{identifier}{i_str}"));
       i += 1;
     }
+    let identifier = scope.register_template_export(identifier.as_ref());
     // TODO: conditional support `const or var` after we finished runtimeTemplate utils
     concate_source.add(RawStringSource::from(format!(
       "var {identifier} = {content};\n"
     )));
-    used_identifiers.insert(identifier.clone());
-    scope.register_export(key.into(), identifier.into_owned());
+    used_identifiers.insert(identifier.to_string());
+    scope.register_export(key.into(), identifier.to_string());
   }
   Ok(())
 }

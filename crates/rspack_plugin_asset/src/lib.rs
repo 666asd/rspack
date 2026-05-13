@@ -636,11 +636,13 @@ impl ParserAndGenerator for AssetParserAndGenerator {
         if import_mode.is_preserve() && parsed_asset_config.is_resource() {
           let is_module = compilation.options.output.module;
           if let Some(ref mut scope) = generate_context.concatenation_scope {
-            scope.register_namespace_export(NAMESPACE_OBJECT_EXPORT);
+            let namespace_export = scope.register_template_export(NAMESPACE_OBJECT_EXPORT);
+            scope.current_module.namespace_object_name = Some(namespace_export.clone());
+            scope.register_raw_export("default".into(), namespace_export.to_string());
             if is_module {
               return Ok(
                 RawStringSource::from(format!(
-                  r#"import {NAMESPACE_OBJECT_EXPORT} from {exported_content};"#
+                  r#"import {namespace_export} from {exported_content};"#
                 ))
                 .boxed(),
               );
@@ -649,7 +651,7 @@ impl ParserAndGenerator for AssetParserAndGenerator {
               let declaration_kind = if supports_const { "const" } else { "var" };
               return Ok(
                 RawStringSource::from(format!(
-                  r#"{declaration_kind} {NAMESPACE_OBJECT_EXPORT} = require({exported_content});"#
+                  r#"{declaration_kind} {namespace_export} = require({exported_content});"#
                 ))
                 .boxed(),
               );
@@ -668,12 +670,14 @@ impl ParserAndGenerator for AssetParserAndGenerator {
         };
 
         if let Some(ref mut scope) = generate_context.concatenation_scope {
-          scope.register_namespace_export(NAMESPACE_OBJECT_EXPORT);
+          let namespace_export = scope.register_template_export(NAMESPACE_OBJECT_EXPORT);
+          scope.current_module.namespace_object_name = Some(namespace_export.clone());
+          scope.register_raw_export("default".into(), namespace_export.to_string());
           let supports_const = compilation.options.output.environment.supports_const();
           let declaration_kind = if supports_const { "const" } else { "var" };
           Ok(
             RawStringSource::from(format!(
-              r#"{declaration_kind} {NAMESPACE_OBJECT_EXPORT} = {exported_content};"#
+              r#"{declaration_kind} {namespace_export} = {exported_content};"#
             ))
             .boxed(),
           )

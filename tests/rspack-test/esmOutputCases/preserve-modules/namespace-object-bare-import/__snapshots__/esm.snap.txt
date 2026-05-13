@@ -14,8 +14,9 @@ import { types_namespaceObject } from "./types.mjs";
 // NAMESPACE OBJECT: ./src/rules/duplicate-package/index.js
 var duplicate_package_namespaceObject = {};
 __webpack_require__.r(duplicate_package_namespaceObject);
-__webpack_require__.d(duplicate_package_namespaceObject, { 
-  value: () => (value) });
+__webpack_require__.d(duplicate_package_namespaceObject, {
+  value: () => (value)
+});
 
 
 // ./src/rules/duplicate-package/index.js
@@ -34,16 +35,18 @@ import { __webpack_require__ } from "../../runtime.mjs";
 // NAMESPACE OBJECT: ./src/rules/duplicate-package/types.js
 var types_namespaceObject = {};
 __webpack_require__.r(types_namespaceObject);
-__webpack_require__.d(types_namespaceObject, { 
-  J: () => (CheckVersionMap) });
+__webpack_require__.d(types_namespaceObject, {
+  J: () => (types_CheckVersionMap),
+  CheckVersionMap: () => (types_CheckVersionMap)
+});
 
 
 // ./src/rules/duplicate-package/types.js
-const CheckVersionMap = {
+const types_CheckVersionMap = {
 	major: 1
 };
 
-export { CheckVersionMap, types_namespaceObject };
+export { types_CheckVersionMap as CheckVersionMap, types_namespaceObject };
 
 ```
 

@@ -2,13 +2,13 @@
 // ./index.js
 
 
-const local = 'index'
-const index_local = ''
+const index_local = 'index'
+const index_index_local = ''
 
 it('should have deconflicted symbol', async () => {
 	expect((/* inlined export .value */42)).toBe(42)
-	expect(local).toBe('index')
-	expect(index_local).toBe('')
+	expect(index_local).toBe('index')
+	expect(index_index_local).toBe('')
 	const {value: v} = await import("./other.mjs")
 	expect(v).toBe((/* inlined export .value */42))
 })
@@ -21,10 +21,10 @@ export {};
 // ./other.js
 
 
-const local = 'other'
+const other_local = 'other'
 
-const value = (/* inlined export .value */42)
+const other_value = (/* inlined export .value */42)
 
-export { value };
+export { other_value as value };
 
 ```

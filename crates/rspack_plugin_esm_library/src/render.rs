@@ -1,12 +1,13 @@
 use std::{borrow::Cow, sync::Arc};
 
+use cow_utils::CowUtils;
 use rspack_collections::IdentifierIndexSet;
 use rspack_core::{
   AssetInfo, Chunk, ChunkGraph, ChunkGroup, ChunkRenderContext, ChunkUkey,
-  CodeGenerationDataFilename, Compilation, ConcatenatedModuleInfo, DependencyId, InitFragment,
-  ModuleIdentifier, PathData, PathInfo, RuntimeCodeTemplate, RuntimeGlobals, RuntimeVariable,
-  SourceType, export_name, get_js_chunk_filename_template, get_undo_path, render_imports,
-  render_init_fragments,
+  CodeGenerationDataFilename, Compilation, ConcatenatedModuleInfo, ConcatenationScope,
+  DependencyId, InitFragment, InitFragmentExt, ModuleIdentifier, NormalInitFragment, PathData,
+  PathInfo, RuntimeCodeTemplate, RuntimeGlobals, RuntimeVariable, SourceType, export_name,
+  get_js_chunk_filename_template, get_undo_path, render_imports, render_init_fragments,
   rspack_sources::{ConcatSource, RawStringSource, ReplaceSource, Source, SourceExt},
 };
 use rspack_error::Result;
@@ -88,6 +89,58 @@ fn normalize_raw_import_source(source: &str) -> Cow<'_, str> {
 }
 
 impl EsmLibraryPlugin {
+  fn parse_rendered_module_external_namespace_import(
+    content: &str,
+  ) -> Option<(RawImportSource, Atom)> {
+    let content = content.trim_start();
+    let content = content.strip_prefix("import * as ")?;
+    let (local_name, source_clause) = content.split_once(" from ")?;
+    let source_clause = source_clause
+      .lines()
+      .next()
+      .map(str::trim)
+      .map(|line| line.trim_end_matches(';'))?;
+    let (source_literal, attr) =
+      if let Some((source_literal, attr)) = source_clause.split_once(" with ") {
+        (source_literal, Some(format!(" with {attr}")))
+      } else {
+        (source_clause, None)
+      };
+    let source = serde_json::from_str::<String>(source_literal).ok()?;
+    Some((RawImportSource::Source((source, attr)), local_name.into()))
+  }
+
+  fn normalize_internal_external_namespace_imports(source: Arc<dyn Source>) -> Arc<dyn Source> {
+    const PREFIX: &str = "import * as _rspack_external_";
+    const SUFFIX: &str = "_0";
+
+    let content = source.source().into_string_lossy();
+    let mut replacements = Vec::new();
+    for (start, _) in content.match_indices(PREFIX) {
+      let local_start = start + "import * as ".len();
+      let Some(from_offset) = content[local_start..].find(" from ") else {
+        continue;
+      };
+      let local_end = local_start + from_offset;
+      let local = &content[local_start..local_end];
+      let Some(base) = local.strip_suffix(SUFFIX) else {
+        continue;
+      };
+      replacements.push((local_start as u32, local_end as u32, base.to_string()));
+    }
+    drop(content);
+
+    if replacements.is_empty() {
+      return source;
+    }
+
+    let mut replace_source = ReplaceSource::new(source);
+    for (start, end, replacement) in replacements {
+      replace_source.replace(start, end, replacement, None);
+    }
+    replace_source.boxed()
+  }
+
   fn get_entrypoint(chunk_ukey: ChunkUkey, compilation: &Compilation) -> Option<&ChunkGroup> {
     let chunk = compilation
       .build_chunk_graph_artifact
@@ -525,10 +578,18 @@ var {} = {{}};
         ),
       };
 
+      let mut import_spec = import_spec.clone();
+      if let Some(ns_import) = &import_spec.ns_import
+        && let Some(base_name) = ns_import.strip_suffix("_0")
+        && base_name.starts_with("_rspack_external_")
+      {
+        import_spec.ns_import = Some(base_name.into());
+      }
+
       import_source.add(RawStringSource::from(render_imports(
         &source,
         attr,
-        import_spec,
+        &import_spec,
       )));
     }
 
@@ -606,6 +667,56 @@ var {} = {{}};
     if !imported_chunks.is_empty() || !chunk_link.raw_import_stmts.is_empty() {
       import_source.add(RawStringSource::from_static("\n"));
     }
+
+    let raw_namespace_imports = chunk_link
+      .raw_import_stmts
+      .iter()
+      .filter_map(|(source, spec)| spec.ns_import.as_ref().map(|_| source.clone()))
+      .collect::<FxHashSet<_>>();
+    chunk_init_fragments = chunk_init_fragments
+      .into_iter()
+      .filter_map(|fragment| {
+        if !matches!(
+          fragment.key(),
+          rspack_core::InitFragmentKey::ModuleExternal(_)
+            | rspack_core::InitFragmentKey::ExternalModule(_)
+        ) {
+          return Some(fragment);
+        }
+
+        let Ok(contents) = fragment.clone().contents(&mut ChunkRenderContext {}) else {
+          return Some(fragment);
+        };
+        let Some((source, local_name)) =
+          Self::parse_rendered_module_external_namespace_import(&contents.start)
+        else {
+          return Some(fragment);
+        };
+        if raw_namespace_imports.contains(&source) {
+          return None;
+        }
+
+        if let Some(base_name) = local_name.strip_suffix("_0")
+          && base_name.starts_with("_rspack_external_")
+        {
+          return Some(
+            NormalInitFragment::new(
+              contents
+                .start
+                .cow_replacen(local_name.as_str(), base_name, 1)
+                .into_owned(),
+              fragment.stage(),
+              fragment.position(),
+              fragment.key().clone(),
+              contents.end,
+            )
+            .boxed(),
+          );
+        }
+
+        Some(fragment)
+      })
+      .collect();
 
     // render init fragments
     let mut final_source = ConcatSource::default();
@@ -824,7 +935,7 @@ var {} = {{}};
     };
 
     Ok(Some(RenderSource {
-      source: final_source,
+      source: Self::normalize_internal_external_namespace_imports(final_source),
     }))
   }
 
@@ -946,19 +1057,41 @@ var {} = {{}};
       }
     }
 
-    for ident in &info.idents {
-      if ident.id.ctxt != info.module_ctxt {
+    let source_code = source.source().into_string_lossy().to_string();
+    let source_bytes = source_code.as_bytes();
+    let mut generated_ref_replacements = vec![];
+    for ident in rspack_core::ConcatenatedModule::collect_module_reference_idents(&source_code) {
+      if ConcatenationScope::match_module_reference(ident.id.sym.as_str()).is_none() {
         continue;
       }
 
-      if let Some(internal_name) = info.get_internal_name(&ident.id.sym) {
-        let name = if ident.shorthand {
-          format!("{}: {}", &ident.id.sym, &internal_name)
-        } else {
-          internal_name.to_string()
+      if let Some(binding_ref) = chunk_link.refs.get(ident.id.sym.as_str()) {
+        let final_name = match binding_ref {
+          Ref::Symbol(symbol_ref) => Cow::Owned(symbol_ref.render()),
+          Ref::Inline(inline) => Cow::Borrowed(inline),
         };
-        source.replace(ident.id.span.real_lo(), ident.id.span.real_hi(), name, None);
+        let low = ident.id.span.real_lo();
+        let mut high = ident.id.span.real_hi();
+        if source_bytes
+          .get(high as usize..high as usize + 2)
+          .is_some_and(|suffix| suffix == b"._")
+        {
+          high += 2;
+        }
+        generated_ref_replacements.push((low, high, final_name.into_owned()));
       }
+    }
+    drop(source_code);
+    if !generated_ref_replacements.is_empty() {
+      let mut next_source = ReplaceSource::new(
+        RawStringSource::from(source.source().into_string_lossy().to_string()).boxed(),
+      );
+      for (low, high, final_name) in generated_ref_replacements {
+        next_source.replace(low, high, final_name, None);
+      }
+      source = ReplaceSource::new(
+        RawStringSource::from(next_source.source().into_string_lossy().to_string()).boxed(),
+      );
     }
 
     Ok(source)

@@ -12,7 +12,9 @@ export {};
 ```
 
 ```mjs title=wrapper.mjs
-import * as __rspack_external_fs from "fs";
+import fs, * as _rspack_external_fs from "fs";
+import * as ns from "fs";
+import { readFile } from "fs";
 
 // fs
 
@@ -22,9 +24,7 @@ import * as __rspack_external_fs from "fs";
 ;
 
 
-var default_0 = __rspack_external_fs["default"];
-var readFile = __rspack_external_fs.readFile;
-export { __rspack_external_fs as ns, readFile };
-export default default_0;
+export { ns, readFile };
+export default fs;
 
 ```

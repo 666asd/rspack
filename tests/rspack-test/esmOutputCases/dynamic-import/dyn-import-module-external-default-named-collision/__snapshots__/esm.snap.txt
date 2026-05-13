@@ -16,7 +16,7 @@ export {};
 ```
 
 ```mjs title=shared.mjs
-import fs, { readFile } from "fs";
+import fs, { readFile as external_fs_readFile } from "fs";
 
 // fs?2aa6
 
@@ -32,6 +32,6 @@ const defaultImport = fs
 
 const marker = 'ok'
 
-export { defaultImport, marker, readFile as namedReadFile };
+export { defaultImport, external_fs_readFile as namedReadFile, marker };
 
 ```

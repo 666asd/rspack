@@ -1,9 +1,9 @@
 ```mjs title=lib-lib_js.mjs
 // ./lib.js
-const foo = () => 42
+const lib_foo = () => 42
 
 
-export { foo as "b.c" };
+export { lib_foo as "b.c" };
 
 ```
 

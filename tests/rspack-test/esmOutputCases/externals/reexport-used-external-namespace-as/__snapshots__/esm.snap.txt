@@ -1,6 +1,10 @@
 ```mjs title=main.mjs
-import * as __rspack_external_fs from "fs";
-import * as __rspack_external_path from "path";
+import * as _rspack_external_fs from "fs";
+import * as external1 from "fs";
+import * as imported1 from "fs";
+import * as _rspack_external_path from "path";
+import * as external2 from "path";
+import { resolve as imported2 } from "path";
 
 // fs
 
@@ -18,10 +22,10 @@ import * as __rspack_external_path from "path";
 it("should re-export used external namespaces without duplicating semantics", async () => {
   const mod = await import(/* webpackIgnore: true */ "./main.mjs");
 
-  expect(mod.external1.readFile).toBe(__rspack_external_fs.readFile);
-  expect(mod.external2.resolve).toBe(__rspack_external_path.resolve);
+  expect(mod.external1.readFile).toBe(imported1.readFile);
+  expect(mod.external2.resolve).toBe(imported2);
 });
 
-export { __rspack_external_fs as external1, __rspack_external_path as external2 };
+export { external1, external2 };
 
 ```

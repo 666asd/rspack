@@ -12,7 +12,7 @@ use rspack_core::{
   ModuleGraphCacheArtifact, ModuleGraphConnection, ModuleReferenceOptions, ReferencedExport,
   ResourceIdentifier, RuntimeSpec, SideEffectsStateArtifact, TemplateContext,
   TemplateReplaceSource, UsedByExports, UsedByExportsCondition, UsedName,
-  create_exports_object_referenced, property_access, to_normal_comment,
+  create_exports_object_referenced, property_access, to_identifier_with_escaped, to_normal_comment,
 };
 use rspack_error::Diagnostic;
 use rspack_util::json_stringify_str;
@@ -400,6 +400,90 @@ impl ESMImportSpecifierDependencyTemplate {
       && let Some(con) = connection
       && scope.is_module_in_scope(con.module_identifier())
     {
+      if let Some(external) = compilation
+        .get_module_graph()
+        .module_by_identifier(con.module_identifier())
+        .and_then(|module| module.as_external_module())
+        && scope.concat_module_id == scope.current_module.module
+        && (external.get_external_type().as_str().starts_with("module")
+          || external.resolve_external_type() == "module")
+        && !external.get_request().has_rest()
+      {
+        let attributes = dep.attributes.as_ref().map(|attributes| {
+          format!(
+            " with {}",
+            serde_json::to_string(attributes).expect("json stringify failed")
+          )
+        });
+        if ids.is_empty() {
+          let import_symbol = dep.name.clone();
+          let registered = scope
+            .register_namespace_import(
+              external.get_request().primary().to_string(),
+              attributes,
+              import_symbol.clone(),
+            )
+            .clone();
+          let local = if registered == import_symbol {
+            registered
+          } else {
+            import_symbol.clone()
+          };
+          scope
+            .current_module
+            .internal_names
+            .insert(import_symbol, local.clone());
+          return local.to_string();
+        }
+        let Some(symbol) = ids.first() else {
+          unreachable!("handled empty ids above")
+        };
+        if dep.request == external.get_request().primary() && dep.ns_access {
+          let import_symbol = dep.name.clone();
+          let registered = scope
+            .register_namespace_import(
+              external.get_request().primary().to_string(),
+              attributes,
+              import_symbol.clone(),
+            )
+            .clone();
+          let local = if registered == import_symbol {
+            registered
+          } else {
+            import_symbol.clone()
+          };
+          scope
+            .current_module
+            .internal_names
+            .insert(import_symbol, local.clone());
+          return format!("{local}{}", property_access(ids, 0));
+        }
+        if dep.request == external.get_request().primary() {
+          scope.register_import_alias(
+            external.get_request().primary().to_string(),
+            attributes,
+            symbol.clone(),
+            dep.name.clone(),
+          );
+          return dep.name.to_string();
+        }
+        let import_symbol = Atom::from(to_identifier_with_escaped(format!(
+          "__rspack_external_import_{}_{}",
+          external.get_request().primary(),
+          symbol
+        )));
+        scope
+          .current_module
+          .internal_names
+          .insert(symbol.clone(), import_symbol.clone());
+        scope.register_import_alias(
+          external.get_request().primary().to_string(),
+          attributes,
+          symbol.clone(),
+          import_symbol.clone(),
+        );
+        return import_symbol.to_string();
+      }
       if ids.is_empty() {
         scope.create_module_reference(
           con.module_identifier(),

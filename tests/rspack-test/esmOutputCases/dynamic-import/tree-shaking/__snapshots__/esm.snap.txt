@@ -1,8 +1,8 @@
 ```mjs title=lib.mjs
 // ./lib.js
-const value = () => 42
+const lib_value = () => 42
 const useless = () => 42
-export { value };
+export { lib_value as value };
 
 ```
 

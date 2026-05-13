@@ -3,13 +3,17 @@ import { __webpack_require__ } from "./runtime.mjs";
 // NAMESPACE OBJECT: ./bar.js
 var bar_namespaceObject = {};
 __webpack_require__.r(bar_namespaceObject);
+__webpack_require__.d(bar_namespaceObject, {
+  x: () => (x)
+});
 
 
 // NAMESPACE OBJECT: ./foo.js
 var foo_namespaceObject = {};
 __webpack_require__.r(foo_namespaceObject);
-__webpack_require__.d(foo_namespaceObject, { 
-  foo: () => (bar_namespaceObject.foo) });
+__webpack_require__.d(foo_namespaceObject, {
+  foo: () => (bar_namespaceObject.foo)
+});
 
 
 // ./bar.js

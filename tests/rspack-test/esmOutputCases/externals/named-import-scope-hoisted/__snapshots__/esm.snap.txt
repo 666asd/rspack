@@ -1,5 +1,5 @@
 ```mjs title=main.mjs
-import { readFile } from "fs";
+import { readFile as external_fs_readFile } from "fs";
 
 // virtual-fs
 
@@ -11,9 +11,9 @@ import { readFile } from "fs";
 it('should scope-hoist remapped named imports from external modules', async () => {
   const fs = await import(/* webpackIgnore: true */ 'fs')
 
-  expect(readFile).toBe(fs.readFile)
+  expect(external_fs_readFile).toBe(fs.readFile)
 })
 
-export { readFile };
+export { external_fs_readFile as readFile };
 
 ```

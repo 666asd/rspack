@@ -1,12 +1,12 @@
 ```mjs title=b-b_js-shared_js.mjs
 // ./b.js
-const v = () => 1
+const b_v = () => 1
 
 // shared should be split into splitted chunk as well
 
 // ./shared.js
-const shared = () => 42
-export { shared, v };
+const shared_shared = () => 42
+export { b_v as v, shared_shared as shared };
 
 ```
 

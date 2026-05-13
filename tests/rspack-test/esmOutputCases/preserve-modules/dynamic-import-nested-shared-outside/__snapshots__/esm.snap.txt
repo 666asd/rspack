@@ -1,28 +1,28 @@
 ```mjs title=feature/index.mjs
-import { util } from "../shared/util.mjs";
+import { util as util_util } from "../shared/util.mjs";
 
 // ./src/feature/index.js
 
 
-const feature = () => `feature:${util}`
+const feature_feature = () => `feature:${util_util}`
 
 
-/* export default */ const src_feature = (feature);
+/* export default */ const feature_0 = (feature_feature);
 
 var feature_answer = (/* inlined export .answer */42);
 export { feature_answer as answer };
-export default src_feature;
+export default feature_0;
 
 ```
 
 ```mjs title=index.mjs
-import { label } from "./label.mjs";
+import { label as label_label } from "./label.mjs";
 
 // ./src/index.js
 
 
 it('should preserve nested dynamic import modules and shared outside chunks', async () => {
-	expect(label).toBe('entry:outside')
+	expect(label_label).toBe('entry:outside')
 
 	const feature = await import("./feature/index.mjs")
 
@@ -35,12 +35,12 @@ export {};
 ```
 
 ```mjs title=label.mjs
-import { outside } from "./outside_dep_js.mjs";
+import { outside as dep_outside } from "./outside_dep_js.mjs";
 
 // ./src/label.js
 
 
-const label = `entry:${outside}`
+const label = `entry:${dep_outside}`
 
 export { label };
 
@@ -57,12 +57,12 @@ export { outside };
 ```
 
 ```mjs title=shared/util.mjs
-import { outside } from "../outside_dep_js.mjs";
+import { outside as dep_outside } from "../outside_dep_js.mjs";
 
 // ./src/shared/util.js
 
 
-const util = `util:${outside}`
+const util = `util:${dep_outside}`
 const answer = 42
 
 

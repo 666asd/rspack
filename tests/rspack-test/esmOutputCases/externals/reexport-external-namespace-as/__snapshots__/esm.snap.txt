@@ -1,5 +1,7 @@
 ```mjs title=main.mjs
-import * as __rspack_external_fs from "fs";
+import * as _rspack_external_fs from "fs";
+import * as external from "fs";
+import * as indirect from "fs";
 
 // fs
 
@@ -17,6 +19,6 @@ it("should re-export the same external namespace through direct and indirect for
   expect(mod.external.readFile).toBe(mod.indirect.readFile);
 });
 
-export { __rspack_external_fs as external, __rspack_external_fs as indirect };
+export { external, indirect };
 
 ```

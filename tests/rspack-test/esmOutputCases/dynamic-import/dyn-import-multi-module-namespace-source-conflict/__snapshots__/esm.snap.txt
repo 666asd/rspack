@@ -15,8 +15,10 @@ export {};
 ```
 
 ```mjs title=shared.mjs
-import * as __rspack_external_fs from "fs";
-import * as __rspack_external_path from "path";
+import * as _rspack_external_fs from "fs";
+import * as fsNs from "fs";
+import * as _rspack_external_path from "path";
+import * as pathNs from "path";
 
 // fs
 
@@ -32,6 +34,6 @@ import * as __rspack_external_path from "path";
 
 
 
-export { __rspack_external_fs as fsNs, __rspack_external_path as pathNs };
+export { fsNs, pathNs };
 
 ```

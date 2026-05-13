@@ -1,4 +1,6 @@
-import * as __rspack_external_external1_alias_bc4b12e4 from "external1-alias";
+import * as _rspack_external_external1_alias_bc4b12e4 from "external1-alias";
+import * as n1 from "external1-alias";
+import { a as _rspack_external_import_external1_alias_a, b as _rspack_external_import_external1_alias_b } from "external1-alias";
 
 
 
@@ -7,7 +9,5 @@ import * as __rspack_external_external1_alias_bc4b12e4 from "external1-alias";
 
 
 
-var a = __rspack_external_external1_alias_bc4b12e4.a;
-var b = __rspack_external_external1_alias_bc4b12e4.b;
-export { __rspack_external_external1_alias_bc4b12e4 as n1, a, b };
+export { _rspack_external_import_external1_alias_a as a, _rspack_external_import_external1_alias_b as b, n1 };
 export * from "external1-alias";

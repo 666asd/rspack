@@ -2,15 +2,18 @@ use std::sync::{Arc, LazyLock};
 
 use anymap::CloneAny;
 use rspack_collections::IdentifierIndexMap;
+use rspack_sources::ReplaceSource;
 use rspack_util::{
   fx_hash::{FxIndexMap, FxIndexSet},
   itoa,
 };
+use rustc_hash::FxHashMap as HashMap;
 use swc_core::atoms::Atom;
 
 use crate::{
-  ExportMode, ModuleIdentifier,
+  ExportMode, Module, ModuleIdentifier,
   concatenated_module::{ConcatenatedModuleInfo, ModuleInfo},
+  to_identifier_with_escaped,
 };
 
 pub static DEFAULT_EXPORT_ATOM: LazyLock<Atom> = LazyLock::new(|| "__rspack_default_export".into());
@@ -38,6 +41,8 @@ pub struct ConcatenationScope {
   pub refs: IdentifierIndexMap<FxIndexMap<String, ModuleReferenceOptions>>,
   pub dyn_refs: IdentifierIndexMap<FxIndexSet<(String, Atom)>>,
   pub re_exports: IdentifierIndexMap<Vec<ExportMode>>,
+  pub top_level_renames: HashMap<Atom, Atom>,
+  readable_identifier_parts: Vec<Atom>,
 }
 
 #[allow(unused)]
@@ -46,6 +51,8 @@ impl ConcatenationScope {
     concat_module_id: ModuleIdentifier,
     modules_map: Arc<IdentifierIndexMap<ModuleInfo>>,
     current_module: ConcatenatedModuleInfo,
+    top_level_renames: HashMap<Atom, Atom>,
+    readable_identifier_parts: Vec<Atom>,
   ) -> Self {
     ConcatenationScope {
       concat_module_id,
@@ -55,6 +62,46 @@ impl ConcatenationScope {
       refs: IdentifierIndexMap::default(),
       dyn_refs: Default::default(),
       re_exports: Default::default(),
+      top_level_renames,
+      readable_identifier_parts,
+    }
+  }
+
+  pub fn apply_top_level_renames(&self, module: &dyn Module, source: &mut ReplaceSource) {
+    if self.top_level_renames.is_empty() {
+      return;
+    }
+
+    let Some(scope_info) = &module.build_info().concatenated_module_scope_info else {
+      return;
+    };
+
+    for (name, refs) in &scope_info.top_level_references {
+      let Some(new_name) = self.top_level_renames.get(name) else {
+        continue;
+      };
+      if new_name == name {
+        continue;
+      }
+
+      for reference in refs {
+        if source.replacements().iter().any(|replacement| {
+          replacement.start() < reference.range.end && replacement.end() > reference.range.start
+        }) {
+          continue;
+        }
+
+        if reference.shorthand && name != "__webpack_require__" {
+          source.insert(reference.range.end, format!(": {new_name}"), None);
+        } else {
+          source.replace(
+            reference.range.start,
+            reference.range.end,
+            new_name.to_string(),
+            None,
+          );
+        }
+      }
     }
   }
 
@@ -86,7 +133,11 @@ impl ConcatenationScope {
       .entry((import_source, attributes))
       .or_default();
 
-    if entry.namespace.is_none() {
+    if let Some(namespace) = &entry.namespace {
+      if namespace != &import_symbol {
+        entry.namespace_aliases.insert(import_symbol);
+      }
+    } else {
       entry.namespace = Some(import_symbol)
     }
 
@@ -114,8 +165,90 @@ impl ConcatenationScope {
     entry.specifiers.insert(import_symbol);
   }
 
-  pub fn register_namespace_export(&mut self, symbol: &str) {
-    self.current_module.namespace_export_symbol = Some(symbol.into());
+  pub fn register_import_alias(
+    &mut self,
+    import_source: String,
+    attributes: Option<String>,
+    imported_symbol: Atom,
+    import_symbol: Atom,
+  ) {
+    let raw_import_map = self.current_module.import_map.get_or_insert_default();
+    let entry = raw_import_map
+      .entry((import_source, attributes))
+      .or_default();
+
+    entry
+      .specifier_aliases
+      .insert(imported_symbol, import_symbol);
+  }
+
+  pub fn register_namespace_export(&mut self, symbol: &str) -> Atom {
+    let symbol = Atom::from(symbol);
+    let internal_name = if let Some(name) = self.current_module.internal_names.get(&symbol) {
+      name.clone()
+    } else if let Some(name) = self.top_level_renames.get(&symbol) {
+      self
+        .current_module
+        .internal_names
+        .insert(symbol.clone(), name.clone());
+      name.clone()
+    } else if symbol == NAMESPACE_OBJECT_EXPORT {
+      let name = if let Some(readable_part) = self.readable_identifier_parts.first() {
+        Atom::from(to_identifier_with_escaped(format!(
+          "{readable_part}_namespaceObject"
+        )))
+      } else {
+        Atom::from("namespaceObject")
+      };
+      self
+        .current_module
+        .internal_names
+        .insert(symbol.clone(), name.clone());
+      name
+    } else if symbol.starts_with(NAMESPACE_OBJECT_EXPORT)
+      && symbol.len() > NAMESPACE_OBJECT_EXPORT.len()
+    {
+      let name = Atom::from(&symbol[NAMESPACE_OBJECT_EXPORT.len()..]);
+      self
+        .current_module
+        .internal_names
+        .insert(symbol.clone(), name.clone());
+      name
+    } else {
+      self
+        .current_module
+        .internal_names
+        .insert(symbol.clone(), symbol.clone());
+      symbol.clone()
+    };
+    self.current_module.namespace_export_symbol = Some(symbol);
+    internal_name
+  }
+
+  pub fn register_template_export(&mut self, symbol: &str) -> Atom {
+    let symbol = Atom::from(symbol);
+    if let Some(name) = self.current_module.internal_names.get(&symbol) {
+      name.clone()
+    } else if let Some(name) = self.top_level_renames.get(&symbol) {
+      self
+        .current_module
+        .internal_names
+        .insert(symbol, name.clone());
+      name.clone()
+    } else {
+      let name = if let Some(readable_part) = self.readable_identifier_parts.first() {
+        Atom::from(to_identifier_with_escaped(format!(
+          "{readable_part}_{symbol}"
+        )))
+      } else {
+        Atom::from(to_identifier_with_escaped(symbol.to_string()))
+      };
+      self
+        .current_module
+        .internal_names
+        .insert(symbol, name.clone());
+      name
+    }
   }
 
   pub fn create_module_reference(
@@ -251,7 +384,13 @@ mod tests {
     );
 
     (
-      ConcatenationScope::new(concat_module_id, Arc::new(modules_map), current_module),
+      ConcatenationScope::new(
+        concat_module_id,
+        Arc::new(modules_map),
+        current_module,
+        Default::default(),
+        vec![Atom::from("current_module")],
+      ),
       referenced_module_id,
     )
   }

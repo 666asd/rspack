@@ -19,7 +19,7 @@ module.exports = {
 	afterExecute(options) {
 		const source = readOutput(options);
 
-		expect(source).toMatch(/import\s*\{\s*resolve\s*\}\s*from\s*["']path["']/);
+		expect(source).toMatch(/import\s*\{\s*resolve(?:\s+as\s+\w+)?\s*\}\s*from\s*["']path["']/);
 		expect(source).toMatch(/import\s*\(\s*["']os["']\s*\)/);
 		expect(source).toMatch(/from\s*["']fs["']/);
 		expect(source).not.toContain("createRequire");

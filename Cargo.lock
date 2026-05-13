@@ -2925,12 +2925,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "oxc_index"
-version = "4.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "eb3e6120999627ec9703025eab7c9f410ebb7e95557632a8902ca48210416c2b"
-
-[[package]]
 name = "par-core"
 version = "2.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3959,9 +3953,6 @@ dependencies = [
  "serde_json",
  "sugar_path",
  "swc_core",
- "swc_experimental_ecma_ast",
- "swc_experimental_ecma_parser",
- "swc_experimental_ecma_semantic",
  "tokio",
  "tracing",
  "urlencoding",
@@ -4508,9 +4499,6 @@ dependencies = [
  "serde_json",
  "sugar_path",
  "swc_core",
- "swc_experimental_ecma_ast",
- "swc_experimental_ecma_parser",
- "swc_experimental_ecma_semantic",
  "tokio",
  "tracing",
 ]
@@ -6721,70 +6709,6 @@ dependencies = [
  "once_cell",
  "serde",
  "swc_common",
-]
-
-[[package]]
-name = "swc_experimental_ast_macros"
-version = "0.6.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b84de9820debe553b4316c3b12860d6da49a0f4170af49d49496425b9be87d94"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.117",
-]
-
-[[package]]
-name = "swc_experimental_ecma_ast"
-version = "0.6.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "aaba9543d2570c45e2fdb803001fcbbf177292f682fd1c3d4ac81c70c8f4770b"
-dependencies = [
- "hashbrown 0.16.1",
- "num-bigint",
- "oxc_index",
- "swc_core",
- "swc_experimental_ast_macros",
- "unicode-id-start",
-]
-
-[[package]]
-name = "swc_experimental_ecma_parser"
-version = "0.6.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b33d9e15aee36a3a957f61eaebe2817fa98e908f3e78a045e2b3128b864d79a7"
-dependencies = [
- "bitflags 2.11.1",
- "either",
- "num-bigint",
- "rustc-hash",
- "seq-macro",
- "smartstring",
- "swc_core",
- "swc_experimental_ecma_ast",
- "tracing",
-]
-
-[[package]]
-name = "swc_experimental_ecma_semantic"
-version = "0.6.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a596361abb8bcc30438ba86d6e1d083b501c33c18e69f9e7fbb481837fac96c4"
-dependencies = [
- "oxc_index",
- "rustc-hash",
- "swc_core",
- "swc_experimental_ecma_ast",
- "swc_experimental_ecma_visit",
-]
-
-[[package]]
-name = "swc_experimental_ecma_visit"
-version = "0.6.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f22acd7eef49b9c76febccdad78870c5ef333e8e0660f0377640a799dc62ca4a"
-dependencies = [
- "swc_experimental_ecma_ast",
 ]
 
 [[package]]

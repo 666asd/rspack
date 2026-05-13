@@ -1,5 +1,5 @@
 use swc_core::ecma::{
-  ast::{ClassExpr, Ident, ObjectPatProp, Prop},
+  ast::{ClassExpr, Ident, MemberExpr, MemberProp, ObjectPatProp, Prop},
   visit::{Visit, VisitWith, noop_visit_type},
 };
 
@@ -60,6 +60,13 @@ impl Visit for IdentCollector {
       _ => {
         node.visit_children_with(self);
       }
+    }
+  }
+
+  fn visit_member_expr(&mut self, node: &MemberExpr) {
+    node.obj.visit_with(self);
+    if let MemberProp::Computed(prop) = &node.prop {
+      prop.visit_with(self);
     }
   }
 

@@ -1,7 +1,7 @@
 ```mjs title=.hidden.mjs
 // ./.hidden/index.js
-const value = () => 42
-export { value };
+const _hidden_value = () => 42
+export { _hidden_value as value };
 
 ```
 

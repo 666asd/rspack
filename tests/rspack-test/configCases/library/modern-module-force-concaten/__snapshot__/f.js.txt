@@ -15,12 +15,12 @@ module.exports = path.sep
 
 },
 });
-const bar = __webpack_require__("227");
-var bar_default = /*#__PURE__*/__webpack_require__.n(bar);
+const bar_0 = __webpack_require__("227");
+var bar_0_default = /*#__PURE__*/__webpack_require__.n(bar_0);
 
 
 
-const value = (/* inlined export .foo */"foo") + (bar_default())
+const value = (/* inlined export .foo */"foo") + (bar_0_default())
 
 
 

@@ -10,11 +10,13 @@ export {};
 ```
 
 ```mjs title=wrapper.mjs
+import { readFile } from "fs";
+
 // fs
 
 // ./wrapper.js
 
 
-export { readFile } from "fs";
+export { readFile };
 
 ```

@@ -4,6 +4,7 @@ use std::sync::{
 };
 
 use readable_identifier::*;
+use rspack_util::atom::Atom;
 use rustc_hash::FxHashMap as HashMap;
 
 pub type ModuleStaticCache = Arc<ModuleStaticCacheInner>;
@@ -14,6 +15,7 @@ pub struct ModuleStaticCacheInner {
   /// this is a fast-path check to avoid hash check
   cache_enabled: AtomicBool,
   readable_identifier_cache: ReadableIdentifierCache,
+  readable_identifier_parts_cache: ReadableIdentifierPartsCache,
 }
 
 impl ModuleStaticCacheInner {
@@ -21,11 +23,13 @@ impl ModuleStaticCacheInner {
     // Only cache the readable identifier of compilation context
     self.cache_enabled.store(true, Ordering::Release);
     self.readable_identifier_cache.clear();
+    self.readable_identifier_parts_cache.clear();
   }
 
   pub fn disable_cache(&self) {
     self.cache_enabled.store(false, Ordering::Release);
     self.readable_identifier_cache.clear();
+    self.readable_identifier_parts_cache.clear();
   }
   pub fn cached_readable_identifier<F: FnOnce() -> String>(
     &self,
@@ -45,6 +49,25 @@ impl ModuleStaticCacheInner {
       }
     }
   }
+
+  pub fn cached_readable_identifier_parts<F: FnOnce() -> Vec<Atom>>(
+    &self,
+    key: ReadableIdentifierCacheKey,
+    f: F,
+  ) -> Vec<Atom> {
+    if !self.cache_enabled.load(Ordering::Acquire) {
+      return f();
+    }
+
+    match self.readable_identifier_parts_cache.get(&key) {
+      Some(value) => value,
+      None => {
+        let value = f();
+        self.readable_identifier_parts_cache.set(key, value.clone());
+        value
+      }
+    }
+  }
 }
 
 pub(super) mod readable_identifier {
@@ -59,6 +82,11 @@ pub(super) mod readable_identifier {
     cache: RwLock<HashMap<ReadableIdentifierCacheKey, String>>,
   }
 
+  #[derive(Debug, Default)]
+  pub struct ReadableIdentifierPartsCache {
+    cache: RwLock<HashMap<ReadableIdentifierCacheKey, Vec<Atom>>>,
+  }
+
   impl ReadableIdentifierCache {
     pub fn clear(&self) {
       self.cache.write().expect("should get lock").clear();
@@ -70,6 +98,25 @@ pub(super) mod readable_identifier {
     }
 
     pub fn set(&self, key: ReadableIdentifierCacheKey, value: String) {
+      self
+        .cache
+        .write()
+        .expect("should get lock")
+        .insert(key, value);
+    }
+  }
+
+  impl ReadableIdentifierPartsCache {
+    pub fn clear(&self) {
+      self.cache.write().expect("should get lock").clear();
+    }
+
+    pub fn get(&self, key: &ReadableIdentifierCacheKey) -> Option<Vec<Atom>> {
+      let inner = self.cache.read().expect("should get lock");
+      inner.get(key).cloned()
+    }
+
+    pub fn set(&self, key: ReadableIdentifierCacheKey, value: Vec<Atom>) {
       self
         .cache
         .write()
