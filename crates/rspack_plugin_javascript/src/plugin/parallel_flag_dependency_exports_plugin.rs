@@ -6,8 +6,8 @@ use rspack_core::{
   AsyncModulesArtifact, BuildMetaExportsType, Compilation, CompilationFinishModules, DependencyId,
   EvaluatedInlinableValue, ExportInfo, ExportInfoData, ExportNameOrSpec, ExportProvided,
   ExportSpec, ExportsInfo, ExportsInfoArtifact, ExportsInfoData, ExportsOfExportsSpec, ExportsSpec,
-  ExportsSpecReexportInfo, GetTargetResult, Logger, ModuleGraph, ModuleGraphCacheArtifact,
-  ModuleGraphConnection, ModuleIdentifier, Nullable, Plugin, SideEffectsStateArtifact, get_target,
+  GetTargetResult, Logger, ModuleGraph, ModuleGraphCacheArtifact, ModuleGraphConnection,
+  ModuleIdentifier, Nullable, Plugin, SideEffectsStateArtifact, get_target,
   incremental::{self, IncrementalPasses},
 };
 use rspack_error::Result;
@@ -516,6 +516,134 @@ fn build_reexport_dependency_graph(
   )
 }
 
+fn collect_reexport_dependencies_and_meta(
+  mg: &ModuleGraph,
+  exports_spec: &ExportsSpec,
+  dependencies: &mut Option<IdentifierSet>,
+  meta: &mut ModuleExportsMeta,
+) {
+  let mut has_dependency = false;
+  if let Some(from) = exports_spec.from.as_ref() {
+    insert_reexport_dependency(dependencies, *from.module_identifier());
+    meta.needs_backtracking = true;
+    has_dependency = true;
+  }
+
+  let has_named_exports = matches!(exports_spec.exports, ExportsOfExportsSpec::Names(_));
+  match &exports_spec.exports {
+    ExportsOfExportsSpec::NoExports => {}
+    ExportsOfExportsSpec::UnknownExports => {
+      if exports_spec
+        .dependencies
+        .as_ref()
+        .is_some_and(|dependencies| {
+          dependencies
+            .iter()
+            .any(|dependency| !is_external_module(mg, dependency))
+        })
+      {
+        meta.needs_backtracking = true;
+      }
+    }
+    ExportsOfExportsSpec::Names(exports) => {
+      if exports_spec
+        .dependencies
+        .as_ref()
+        .is_some_and(|dependencies| !dependencies.is_empty())
+      {
+        meta.needs_backtracking = true;
+      }
+      has_dependency |= collect_reexport_dependencies_and_meta_from_exports(
+        mg,
+        exports,
+        exports_spec.from.as_ref(),
+        dependencies,
+        meta,
+      );
+    }
+  }
+
+  if !has_dependency
+    && has_named_exports
+    && let Some(reexport_dependencies) = &exports_spec.dependencies
+  {
+    dependencies
+      .get_or_insert_with(Default::default)
+      .extend(reexport_dependencies.iter().copied());
+    has_dependency = !reexport_dependencies.is_empty();
+  }
+
+  if !has_dependency
+    && matches!(exports_spec.exports, ExportsOfExportsSpec::UnknownExports)
+    && let Some(reexport_dependencies) = &exports_spec.dependencies
+  {
+    dependencies.get_or_insert_with(Default::default).extend(
+      reexport_dependencies
+        .iter()
+        .copied()
+        .filter(|dependency| !is_external_module(mg, dependency)),
+    );
+  }
+}
+
+fn collect_reexport_dependencies_and_meta_from_exports(
+  mg: &ModuleGraph,
+  exports: &[ExportNameOrSpec],
+  inherited_from: Option<&ModuleGraphConnection>,
+  dependencies: &mut Option<IdentifierSet>,
+  meta: &mut ModuleExportsMeta,
+) -> bool {
+  let mut has_dependency = false;
+  for export in exports {
+    let ExportNameOrSpec::ExportSpec(spec) = export else {
+      continue;
+    };
+    let from = spec.from.as_ref().or(inherited_from);
+    if let Some(from) = from {
+      insert_reexport_dependency(dependencies, *from.module_identifier());
+      if !is_external_module(mg, from.module_identifier()) {
+        meta.needs_backtracking = true;
+      }
+      has_dependency = true;
+    }
+    if let Some(nested_exports) = spec.exports.as_ref() {
+      meta.has_nested_exports = true;
+      has_dependency |= collect_reexport_dependencies_and_meta_from_exports(
+        mg,
+        nested_exports,
+        from,
+        dependencies,
+        meta,
+      );
+    }
+  }
+  has_dependency
+}
+
+fn insert_reexport_dependency(
+  dependencies: &mut Option<IdentifierSet>,
+  module_id: ModuleIdentifier,
+) {
+  dependencies
+    .get_or_insert_with(Default::default)
+    .insert(module_id);
+}
+
+fn exports_spec_needs_graph_analysis(exports_spec: &ExportsSpec) -> bool {
+  exports_spec.from.is_some()
+    || exports_spec
+      .dependencies
+      .as_ref()
+      .is_some_and(|dependencies| !dependencies.is_empty())
+    || match &exports_spec.exports {
+      ExportsOfExportsSpec::Names(exports) => exports.iter().any(|export| match export {
+        ExportNameOrSpec::String(_) => false,
+        ExportNameOrSpec::ExportSpec(spec) => spec.from.is_some() || spec.exports.is_some(),
+      }),
+      ExportsOfExportsSpec::UnknownExports | ExportsOfExportsSpec::NoExports => false,
+    }
+}
+
 fn refresh_exports_specs_from_initial<'a>(
   mg: &ModuleGraph,
   mg_cache: &ModuleGraphCacheArtifact,
@@ -634,7 +762,6 @@ fn known_exports_spec_for_internal_unknown_reexport(
         .collect(),
     ),
     dependencies: Some(vec![*from_module]),
-    reexport_info: ExportsSpecReexportInfo::new(false, true),
     priority,
     ..Default::default()
   }
@@ -655,10 +782,6 @@ fn unknown_exports_spec_with_extra_excludes(
     dependencies: exports_spec.dependencies.clone(),
     hide_export: exports_spec.hide_export.clone(),
     exclude_exports: Some(exclude_exports),
-    reexport_info: ExportsSpecReexportInfo::new(
-      exports_spec.reexport_info.has_nested_exports,
-      exports_spec.reexport_info.needs_backtracking,
-    ),
   }
 }
 
@@ -758,7 +881,7 @@ fn collect_module_exports(
   let all_dependencies = mgm.all_dependencies();
   let mut res = Vec::with_capacity(all_dependencies.len());
   let mut meta = ModuleExportsMeta::default();
-  let mut dependencies: Option<IdentifierSet> = None;
+  let mut dependencies = None;
   for id in all_dependencies.iter().copied() {
     let Some(exports_spec) =
       mg.dependency_by_id(&id)
@@ -766,16 +889,8 @@ fn collect_module_exports(
     else {
       continue;
     };
-    if exports_spec.reexport_info.has_nested_exports
-      || exports_spec.reexport_info.needs_backtracking
-    {
-      meta.has_nested_exports |= exports_spec.reexport_info.has_nested_exports;
-      meta.needs_backtracking |= exports_spec.reexport_info.needs_backtracking;
-      if let Some(reexport_dependencies) = &exports_spec.dependencies {
-        dependencies
-          .get_or_insert_with(Default::default)
-          .extend(reexport_dependencies.iter().copied());
-      }
+    if exports_spec_needs_graph_analysis(&exports_spec) {
+      collect_reexport_dependencies_and_meta(mg, &exports_spec, &mut dependencies, &mut meta);
     }
     res.push((id, exports_spec));
   }

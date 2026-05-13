@@ -6,10 +6,10 @@ use rspack_cacheable::{
 use rspack_core::{
   AsContextDependency, Dependency, DependencyCategory, DependencyCodeGeneration, DependencyId,
   DependencyRange, DependencyTemplate, DependencyTemplateType, DependencyType, ExportNameOrSpec,
-  ExportProvided, ExportSpec, ExportsInfoArtifact, ExportsOfExportsSpec, ExportsSpec,
-  ExportsSpecReexportInfo, ExportsType, ExtendedReferencedExport, FactorizeInfo, ModuleDependency,
-  ModuleGraph, ModuleGraphCacheArtifact, ModuleIdentifier, Nullable, ReferencedExport, RuntimeSpec,
-  TemplateContext, TemplateReplaceSource, UsageState, UsedName, collect_referenced_export_items,
+  ExportProvided, ExportSpec, ExportsInfoArtifact, ExportsOfExportsSpec, ExportsSpec, ExportsType,
+  ExtendedReferencedExport, FactorizeInfo, ModuleDependency, ModuleGraph, ModuleGraphCacheArtifact,
+  ModuleIdentifier, Nullable, ReferencedExport, RuntimeSpec, TemplateContext,
+  TemplateReplaceSource, UsageState, UsedName, collect_referenced_export_items,
   create_exports_object_referenced, create_no_exports_referenced, property_access,
   to_normal_comment,
 };
@@ -236,7 +236,6 @@ impl Dependency for CommonJsExportRequireDependency {
           ..Default::default()
         })]),
         dependencies: Some(vec![*from.module_identifier()]),
-        reexport_info: ExportsSpecReexportInfo::new(false, true),
         ..Default::default()
       })
     } else if self.names.is_empty() {
@@ -267,11 +266,9 @@ impl Dependency for CommonJsExportRequireDependency {
               .collect_vec(),
           ),
           dependencies: Some(vec![*from.module_identifier()]),
-          reexport_info: ExportsSpecReexportInfo::new(false, true),
           ..Default::default()
         })
       } else {
-        let from_module = *from.module_identifier();
         Some(ExportsSpec {
           exports: ExportsOfExportsSpec::UnknownExports,
           from: if ids.is_empty() {
@@ -281,14 +278,7 @@ impl Dependency for CommonJsExportRequireDependency {
           },
           // `module.exports = require("./m")` can't be mangled
           can_mangle: Some(!self.is_all_exported_by_module_exports()),
-          dependencies: Some(vec![from_module]),
-          reexport_info: ExportsSpecReexportInfo::new(
-            false,
-            ids.is_empty()
-              || mg
-                .module_by_identifier(&from_module)
-                .is_none_or(|module| module.as_external_module().is_none()),
-          ),
+          dependencies: Some(vec![*from.module_identifier()]),
           ..Default::default()
         })
       }

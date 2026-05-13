@@ -5,9 +5,9 @@ use rspack_core::{
   AsContextDependency, AsModuleDependency, DEFAULT_EXPORT, Dependency, DependencyCodeGeneration,
   DependencyId, DependencyLocation, DependencyRange, DependencyTemplate, DependencyTemplateType,
   DependencyType, ESMExportInitFragment, ExportNameOrSpec, ExportsInfoArtifact,
-  ExportsOfExportsSpec, ExportsSpec, ExportsSpecReexportInfo, ForwardId, ModuleGraph,
-  ModuleGraphCacheArtifact, SideEffectsStateArtifact, TemplateContext, TemplateReplaceSource,
-  UsedName, property_access, rspack_sources::ReplacementEnforce,
+  ExportsOfExportsSpec, ExportsSpec, ForwardId, ModuleGraph, ModuleGraphCacheArtifact,
+  SideEffectsStateArtifact, TemplateContext, TemplateReplaceSource, UsedName, property_access,
+  rspack_sources::ReplacementEnforce,
 };
 use swc_core::atoms::Atom;
 
@@ -99,7 +99,6 @@ impl Dependency for ESMExportExpressionDependency {
       dependencies: None,
       hide_export: None,
       exclude_exports: None,
-      reexport_info: ExportsSpecReexportInfo::default(),
     })
   }
 
