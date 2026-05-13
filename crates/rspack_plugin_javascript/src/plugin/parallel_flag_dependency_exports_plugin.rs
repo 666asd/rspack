@@ -39,13 +39,14 @@ type RefreshedModuleExportsSpecs<'a> = Vec<RefreshedExportsSpec<'a>>;
 struct CollectedModuleExports {
   specs: ModuleExportsSpecs,
   meta: ModuleExportsMeta,
-  dependencies: Option<IdentifierSet>,
+  dependencies: Option<Vec<ModuleIdentifier>>,
 }
 
 struct CollectedExportsSpec {
   dep_id: DependencyId,
   exports_spec: ExportsSpec,
   apply_initial: bool,
+  refresh_on_backtrack: bool,
 }
 
 enum RefreshedExportsSpec<'a> {
@@ -90,7 +91,7 @@ impl<'a> ParallelFlagDependencyExportsState<'a> {
   pub fn apply(&mut self, modules: IdentifierSet) {
     self.initialize_exports_info(&modules);
 
-    let module_exports_specs = self.collect_exports_specs(&modules);
+    let mut module_exports_specs = self.collect_exports_specs(&modules);
     let (dependency_graph, initial_modules) =
       build_reexport_dependency_graph(&module_exports_specs);
     self.process_initial_exports_specs(initial_modules.iter().filter_map(
@@ -99,30 +100,21 @@ impl<'a> ParallelFlagDependencyExportsState<'a> {
         Some((*module_id, &collected_exports.specs, *has_nested_exports))
       },
     ));
+    module_exports_specs
+      .retain(|module_id, _| dependency_graph.dependency_count.contains_key(module_id));
 
     let mut remaining_dependency_count = dependency_graph.dependency_count.clone();
     let mut queue = dependency_graph.leaf_modules.clone();
-    let mut processed_modules = IdentifierSet::with_capacity_and_hasher(
-      dependency_graph.graph_modules.len(),
-      Default::default(),
-    );
 
     while !queue.is_empty() {
       let ready_modules = std::mem::take(&mut queue);
       let mut batch = Vec::with_capacity(ready_modules.len());
       for module_id in ready_modules {
-        if processed_modules.insert(module_id) {
-          batch.push(module_id);
-        }
+        batch.push(module_id);
       }
 
-      let modules_to_refresh = batch
-        .iter()
-        .copied()
-        .filter(|module_id| dependency_graph.graph_modules.contains(module_id))
-        .collect::<Vec<_>>();
       let refreshed_exports_specs = self.collect_refreshed_modules_exports_specs(
-        &modules_to_refresh,
+        &batch,
         &module_exports_specs,
         &dependency_graph,
       );
@@ -148,10 +140,14 @@ impl<'a> ParallelFlagDependencyExportsState<'a> {
     }
 
     let cyclic_modules = dependency_graph
-      .graph_modules
+      .dependency_count
       .iter()
-      .filter(|module_id| !processed_modules.contains(module_id))
-      .copied()
+      .filter(|(module_id, _)| {
+        remaining_dependency_count
+          .get(module_id)
+          .is_some_and(|count| *count > 0)
+      })
+      .map(|(module_id, _)| *module_id)
       .collect::<Vec<_>>();
     if !cyclic_modules.is_empty() {
       let mut changed = true;
@@ -450,7 +446,6 @@ impl<'a> ParallelFlagDependencyExportsState<'a> {
 }
 
 struct ReexportDependencyGraph {
-  graph_modules: IdentifierSet,
   reverse_dependencies: IdentifierMap<IdentifierSet>,
   dependency_count: IdentifierMap<usize>,
   module_meta: IdentifierMap<ModuleExportsMeta>,
@@ -496,18 +491,33 @@ fn build_reexport_dependency_graph(
     let dependency_count = module_exports_specs
       .get(module_id)
       .and_then(|collected_exports| collected_exports.dependencies.as_ref())
-      .map_or(0, |dependencies| {
-        dependencies
-          .iter()
-          .copied()
-          .filter(|dependency| graph_modules.contains(dependency) && dependency != module_id)
-          .inspect(|dependency| {
-            reverse_dependencies
-              .entry(*dependency)
-              .or_default()
-              .insert(*module_id);
-          })
-          .count()
+      .map_or(0, |dependencies| match dependencies.as_slice() {
+        [dependency] if graph_modules.contains(dependency) && dependency != module_id => {
+          reverse_dependencies
+            .entry(*dependency)
+            .or_default()
+            .insert(*module_id);
+          1
+        }
+        [_] => 0,
+        dependencies => {
+          let mut seen = IdentifierSet::default();
+          let mut count = 0;
+          for dependency in dependencies
+            .iter()
+            .copied()
+            .filter(|dependency| graph_modules.contains(dependency) && dependency != module_id)
+          {
+            if seen.insert(dependency) {
+              count += 1;
+              reverse_dependencies
+                .entry(dependency)
+                .or_default()
+                .insert(*module_id);
+            }
+          }
+          count
+        }
       });
     remaining_dependency_count.insert(*module_id, dependency_count);
     if dependency_count == 0 {
@@ -517,7 +527,6 @@ fn build_reexport_dependency_graph(
 
   (
     ReexportDependencyGraph {
-      graph_modules,
       reverse_dependencies,
       dependency_count: remaining_dependency_count,
       module_meta,
@@ -534,7 +543,10 @@ fn refresh_exports_specs_from_initial<'a>(
   exports_specs: &'a ModuleExportsSpecs,
 ) -> RefreshedModuleExportsSpecs<'a> {
   let mut refreshed_exports_specs = Vec::with_capacity(exports_specs.len());
-  for spec in exports_specs {
+  for spec in exports_specs
+    .iter()
+    .filter(|spec| spec.refresh_on_backtrack)
+  {
     let dep_id = spec.dep_id;
     let exports_spec = &spec.exports_spec;
     if exports_spec_needs_recollect(exports_spec) {
@@ -766,7 +778,7 @@ fn collect_module_exports(
   let all_dependencies = mgm.all_dependencies();
   let mut res = Vec::with_capacity(all_dependencies.len());
   let mut meta = ModuleExportsMeta::default();
-  let mut dependencies: Option<IdentifierSet> = None;
+  let mut dependencies: Option<Vec<ModuleIdentifier>> = None;
   for id in all_dependencies.iter().copied() {
     let Some((exports_spec, reexport_info)) = mg
       .dependency_by_id(&id)
@@ -788,6 +800,7 @@ fn collect_module_exports(
       dep_id: id,
       exports_spec,
       apply_initial,
+      refresh_on_backtrack: reexport_info.needs_backtracking,
     });
   }
   (!res.is_empty()).then_some(CollectedModuleExports {
