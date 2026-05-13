@@ -134,6 +134,7 @@ pub enum Algo {
   /// But Regress has poor performance. To improve performance of regex matching,
   /// we would try to use some fast algo to do matching, when we detect some special pattern.
   /// See details at https://github.com/web-infra-dev/rspack/pull/3113
+  MatchAll,
   EndWith {
     pats: Vec<String>,
     ignore_case: bool,
@@ -144,7 +145,9 @@ pub enum Algo {
 
 impl Algo {
   pub(crate) fn new(expr: &str, flags: &str) -> Result<Algo, Error> {
-    if let Some(algo) = Self::try_compile_to_end_with_fast_path(expr, flags) {
+    if let Some(algo) = Self::try_compile_to_match_all_fast_path(expr, flags) {
+      Ok(algo)
+    } else if let Some(algo) = Self::try_compile_to_end_with_fast_path(expr, flags) {
       Ok(algo)
     } else {
       HashRustRegex::new(expr, flags)
@@ -155,6 +158,18 @@ impl Algo {
 
   pub(crate) fn new_rust_regex(expr: &str, flags: &str) -> Result<Algo, Error> {
     HashRustRegex::new(expr, flags).map(Algo::RustRegex)
+  }
+
+  fn try_compile_to_match_all_fast_path(expr: &str, flags: &str) -> Option<Algo> {
+    if expr != ".*"
+      || !flags
+        .chars()
+        .all(|flag| matches!(flag, 'd' | 'g' | 'i' | 'm' | 's' | 'u' | 'v' | 'y'))
+    {
+      return None;
+    }
+
+    Some(Algo::MatchAll)
   }
 
   fn try_compile_to_end_with_fast_path(expr: &str, flags: &str) -> Option<Algo> {
@@ -210,6 +225,7 @@ impl Algo {
 
   pub(crate) fn test(&self, str: &str) -> bool {
     match self {
+      Algo::MatchAll => true,
       Algo::RustRegex(regex) => regex.regex.is_match(str),
       Algo::Regress(regex) => regex.find(str).is_some(),
       Algo::EndWith { pats, ignore_case } => {
@@ -302,8 +318,12 @@ mod test_algo {
     fn end_with_pats(&self) -> std::collections::HashSet<&str> {
       match self {
         Algo::EndWith { pats, .. } => pats.iter().map(|s| s.as_str()).collect(),
-        Algo::Regress(_) | Algo::RustRegex(_) => panic!("expect EndWith"),
+        Algo::MatchAll | Algo::Regress(_) | Algo::RustRegex(_) => panic!("expect EndWith"),
       }
+    }
+
+    fn is_match_all(&self) -> bool {
+      matches!(self, Self::MatchAll)
     }
 
     fn is_end_with(&self) -> bool {
@@ -316,6 +336,24 @@ mod test_algo {
 
     fn is_rust_regex(&self) -> bool {
       matches!(self, Self::RustRegex(..))
+    }
+  }
+
+  #[test]
+  fn should_use_match_all_fast_path_for_dot_star() {
+    let algo = Algo::new(".*", "").unwrap();
+    assert!(algo.is_match_all());
+    assert!(algo.test(""));
+    assert!(algo.test("foo"));
+    assert!(algo.test("\n"));
+  }
+
+  #[test]
+  fn dot_star_fast_path_supports_js_flags() {
+    for flags in ["d", "g", "i", "m", "s", "u", "v", "y", "dgimsuy"] {
+      let algo = Algo::new(".*", flags).unwrap();
+      assert!(algo.is_match_all());
+      assert!(algo.test("foo\nbar"));
     }
   }
 
