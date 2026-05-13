@@ -15,15 +15,16 @@ use rspack_core::{
   ExportModeNormalReexport, ExportModeReexportDynamicDefault, ExportModeReexportNamedDefault,
   ExportModeReexportNamespaceObject, ExportModeReexportUndefined, ExportModeUnused,
   ExportNameOrSpec, ExportPresenceMode, ExportProvided, ExportSpec, ExportsInfoArtifact,
-  ExportsInfoData, ExportsOfExportsSpec, ExportsSpec, ExportsType, ExtendedReferencedExport,
-  FactorizeInfo, ForwardId, ImportAttributes, ImportPhase, InitFragmentExt, InitFragmentKey,
-  InitFragmentStage, JavascriptParserOptions, LazyUntil, ModuleDependency, ModuleGraph,
-  ModuleGraphCacheArtifact, ModuleIdentifier, NormalInitFragment, NormalReexportItem,
-  ResourceIdentifier, RuntimeCondition, RuntimeGlobals, RuntimeSpec, SideEffectsStateArtifact,
-  StarReexportsInfo, TemplateContext, TemplateReplaceSource, UsageState, UsedName,
-  collect_referenced_export_items, create_exports_object_referenced, create_no_exports_referenced,
-  filter_runtime, get_exports_type, get_runtime_key, get_terminal_binding, property_access,
-  property_name, render_make_deferred_namespace_mode_from_exports_type, to_normal_comment,
+  ExportsInfoData, ExportsOfExportsSpec, ExportsSpec, ExportsSpecReexportInfo, ExportsType,
+  ExtendedReferencedExport, FactorizeInfo, ForwardId, ImportAttributes, ImportPhase,
+  InitFragmentExt, InitFragmentKey, InitFragmentStage, JavascriptParserOptions, LazyUntil,
+  ModuleDependency, ModuleGraph, ModuleGraphCacheArtifact, ModuleIdentifier, NormalInitFragment,
+  NormalReexportItem, ResourceIdentifier, RuntimeCondition, RuntimeGlobals, RuntimeSpec,
+  SideEffectsStateArtifact, StarReexportsInfo, TemplateContext, TemplateReplaceSource, UsageState,
+  UsedName, collect_referenced_export_items, create_exports_object_referenced,
+  create_no_exports_referenced, filter_runtime, get_exports_type, get_runtime_key,
+  get_terminal_binding, property_access, property_name,
+  render_make_deferred_namespace_mode_from_exports_type, to_normal_comment,
 };
 use rspack_error::{Diagnostic, Error, Severity};
 use rspack_util::json_stringify;
@@ -1166,6 +1167,7 @@ impl Dependency for ESMExportImportedSpecifierDependency {
             .module_identifier_by_dependency_id(self.id())
             .expect("should have module"),
         ]),
+        reexport_info: ExportsSpecReexportInfo::new(false, true),
         ..Default::default()
       }),
       ExportMode::ReexportDynamicDefault(mode) => {
@@ -1179,6 +1181,7 @@ impl Dependency for ESMExportImportedSpecifierDependency {
           })]),
           priority: Some(1),
           dependencies: Some(vec![*from.expect("should have module").module_identifier()]),
+          reexport_info: ExportsSpecReexportInfo::new(false, true),
           ..Default::default()
         })
       }
@@ -1193,6 +1196,7 @@ impl Dependency for ESMExportImportedSpecifierDependency {
           })]),
           priority: Some(1),
           dependencies: Some(vec![*from.expect("should have module").module_identifier()]),
+          reexport_info: ExportsSpecReexportInfo::new(false, true),
           ..Default::default()
         })
       }
@@ -1207,6 +1211,7 @@ impl Dependency for ESMExportImportedSpecifierDependency {
           })]),
           priority: Some(1),
           dependencies: Some(vec![*from.expect("should have module").module_identifier()]),
+          reexport_info: ExportsSpecReexportInfo::new(false, true),
           ..Default::default()
         })
       }
@@ -1228,6 +1233,7 @@ impl Dependency for ESMExportImportedSpecifierDependency {
           })]),
           priority: Some(1),
           dependencies: Some(vec![*from.expect("should have module").module_identifier()]),
+          reexport_info: ExportsSpecReexportInfo::new(true, true),
           ..Default::default()
         })
       }
@@ -1238,6 +1244,7 @@ impl Dependency for ESMExportImportedSpecifierDependency {
             .module_identifier_by_dependency_id(self.id())
             .expect("should have module id"),
         ]),
+        reexport_info: ExportsSpecReexportInfo::new(false, true),
         ..Default::default()
       }),
       ExportMode::NormalReexport(mode) => {
@@ -1260,6 +1267,7 @@ impl Dependency for ESMExportImportedSpecifierDependency {
               .collect::<Vec<_>>(),
           ),
           dependencies: Some(vec![*from.expect("should have module").module_identifier()]),
+          reexport_info: ExportsSpecReexportInfo::new(false, true),
           ..Default::default()
         })
       }
@@ -1278,6 +1286,7 @@ impl Dependency for ESMExportImportedSpecifierDependency {
             Some(exclude_exports)
           },
           dependencies: Some(vec![*from.expect("should have module").module_identifier()]),
+          reexport_info: ExportsSpecReexportInfo::new(false, true),
           ..Default::default()
         })
       }

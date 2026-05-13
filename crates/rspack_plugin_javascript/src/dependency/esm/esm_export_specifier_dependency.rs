@@ -4,9 +4,9 @@ use rspack_core::{
   AsContextDependency, AsModuleDependency, Dependency, DependencyCategory,
   DependencyCodeGeneration, DependencyId, DependencyLocation, DependencyRange, DependencyTemplate,
   DependencyTemplateType, DependencyType, ESMExportInitFragment, EvaluatedInlinableValue,
-  ExportNameOrSpec, ExportSpec, ExportsInfoArtifact, ExportsOfExportsSpec, ExportsSpec, LazyUntil,
-  ModuleGraph, ModuleGraphCacheArtifact, SideEffectsStateArtifact, TSEnumValue, TemplateContext,
-  TemplateReplaceSource, UsedName,
+  ExportNameOrSpec, ExportSpec, ExportsInfoArtifact, ExportsOfExportsSpec, ExportsSpec,
+  ExportsSpecReexportInfo, LazyUntil, ModuleGraph, ModuleGraphCacheArtifact,
+  SideEffectsStateArtifact, TSEnumValue, TemplateContext, TemplateReplaceSource, UsedName,
 };
 use swc_core::ecma::atoms::Atom;
 
@@ -98,6 +98,7 @@ impl Dependency for ESMExportSpecifierDependency {
       dependencies: None,
       hide_export: None,
       exclude_exports: None,
+      reexport_info: ExportsSpecReexportInfo::new(self.enum_value.is_some(), false),
     })
   }
 

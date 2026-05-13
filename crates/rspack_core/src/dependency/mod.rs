@@ -106,6 +106,21 @@ pub enum ExportsOfExportsSpec {
 }
 
 #[derive(Debug, Default)]
+pub struct ExportsSpecReexportInfo {
+  pub has_nested_exports: bool,
+  pub needs_backtracking: bool,
+}
+
+impl ExportsSpecReexportInfo {
+  pub fn new(has_nested_exports: bool, needs_backtracking: bool) -> Self {
+    Self {
+      has_nested_exports,
+      needs_backtracking,
+    }
+  }
+}
+
+#[derive(Debug, Default)]
 #[allow(unused)]
 pub struct ExportsSpec {
   pub exports: ExportsOfExportsSpec,
@@ -116,6 +131,7 @@ pub struct ExportsSpec {
   pub dependencies: Option<Vec<ModuleIdentifier>>,
   pub hide_export: Option<FxHashSet<Atom>>,
   pub exclude_exports: Option<FxHashSet<Atom>>,
+  pub reexport_info: ExportsSpecReexportInfo,
 }
 
 impl ExportsSpec {
