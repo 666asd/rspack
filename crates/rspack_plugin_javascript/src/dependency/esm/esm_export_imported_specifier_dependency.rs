@@ -15,15 +15,16 @@ use rspack_core::{
   ExportModeNormalReexport, ExportModeReexportDynamicDefault, ExportModeReexportNamedDefault,
   ExportModeReexportNamespaceObject, ExportModeReexportUndefined, ExportModeUnused,
   ExportNameOrSpec, ExportPresenceMode, ExportProvided, ExportSpec, ExportsInfoArtifact,
-  ExportsInfoData, ExportsOfExportsSpec, ExportsSpec, ExportsType, ExtendedReferencedExport,
-  FactorizeInfo, ForwardId, ImportAttributes, ImportPhase, InitFragmentExt, InitFragmentKey,
-  InitFragmentStage, JavascriptParserOptions, LazyUntil, ModuleDependency, ModuleGraph,
-  ModuleGraphCacheArtifact, ModuleIdentifier, NormalInitFragment, NormalReexportItem,
-  ResourceIdentifier, RuntimeCondition, RuntimeGlobals, RuntimeSpec, SideEffectsStateArtifact,
-  StarReexportsInfo, TemplateContext, TemplateReplaceSource, UsageState, UsedName,
-  collect_referenced_export_items, create_exports_object_referenced, create_no_exports_referenced,
-  filter_runtime, get_exports_type, get_runtime_key, get_terminal_binding, property_access,
-  property_name, render_make_deferred_namespace_mode_from_exports_type, to_normal_comment,
+  ExportsInfoData, ExportsOfExportsSpec, ExportsSpec, ExportsSpecReexportInfo, ExportsType,
+  ExtendedReferencedExport, FactorizeInfo, ForwardId, ImportAttributes, ImportPhase,
+  InitFragmentExt, InitFragmentKey, InitFragmentStage, JavascriptParserOptions, LazyUntil,
+  ModuleDependency, ModuleGraph, ModuleGraphCacheArtifact, ModuleIdentifier, NormalInitFragment,
+  NormalReexportItem, ResourceIdentifier, RuntimeCondition, RuntimeGlobals, RuntimeSpec,
+  SideEffectsStateArtifact, StarReexportsInfo, TemplateContext, TemplateReplaceSource, UsageState,
+  UsedName, collect_referenced_export_items, create_exports_object_referenced,
+  create_no_exports_referenced, filter_runtime, get_exports_type, get_runtime_key,
+  get_terminal_binding, property_access, property_name,
+  render_make_deferred_namespace_mode_from_exports_type, to_normal_comment,
 };
 use rspack_error::{Diagnostic, Error, Severity};
 use rspack_util::json_stringify;
@@ -1282,6 +1283,24 @@ impl Dependency for ESMExportImportedSpecifierDependency {
         })
       }
     }
+  }
+
+  fn get_exports_with_reexport_info(
+    &self,
+    mg: &ModuleGraph,
+    module_graph_cache: &ModuleGraphCacheArtifact,
+    exports_info_artifact: &ExportsInfoArtifact,
+  ) -> Option<(ExportsSpec, ExportsSpecReexportInfo)> {
+    let exports_spec = self.get_exports(mg, module_graph_cache, exports_info_artifact)?;
+    let reexport_info = ExportsSpecReexportInfo::new(
+      exports_spec.has_nested_exports(),
+      exports_spec
+        .dependencies
+        .as_ref()
+        .is_some_and(|dependencies| !dependencies.is_empty()),
+      exports_spec.dependencies.clone(),
+    );
+    Some((exports_spec, reexport_info))
   }
 
   fn get_module_evaluation_side_effects_state(

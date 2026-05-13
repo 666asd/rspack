@@ -6,10 +6,10 @@ use rspack_cacheable::{
 use rspack_core::{
   AsContextDependency, Dependency, DependencyCategory, DependencyCodeGeneration, DependencyId,
   DependencyRange, DependencyTemplate, DependencyTemplateType, DependencyType, ExportNameOrSpec,
-  ExportProvided, ExportSpec, ExportsInfoArtifact, ExportsOfExportsSpec, ExportsSpec, ExportsType,
-  ExtendedReferencedExport, FactorizeInfo, ModuleDependency, ModuleGraph, ModuleGraphCacheArtifact,
-  ModuleIdentifier, Nullable, ReferencedExport, RuntimeSpec, TemplateContext,
-  TemplateReplaceSource, UsageState, UsedName, collect_referenced_export_items,
+  ExportProvided, ExportSpec, ExportsInfoArtifact, ExportsOfExportsSpec, ExportsSpec,
+  ExportsSpecReexportInfo, ExportsType, ExtendedReferencedExport, FactorizeInfo, ModuleDependency,
+  ModuleGraph, ModuleGraphCacheArtifact, ModuleIdentifier, Nullable, ReferencedExport, RuntimeSpec,
+  TemplateContext, TemplateReplaceSource, UsageState, UsedName, collect_referenced_export_items,
   create_exports_object_referenced, create_no_exports_referenced, property_access,
   to_normal_comment,
 };
@@ -296,6 +296,34 @@ impl Dependency for CommonJsExportRequireDependency {
         ..Default::default()
       })
     }
+  }
+
+  fn get_exports_with_reexport_info(
+    &self,
+    mg: &ModuleGraph,
+    mg_cache: &ModuleGraphCacheArtifact,
+    exports_info_artifact: &ExportsInfoArtifact,
+  ) -> Option<(ExportsSpec, ExportsSpecReexportInfo)> {
+    let ids = self.get_ids(mg);
+    let exports_spec = self.get_exports(mg, mg_cache, exports_info_artifact)?;
+    let reexport_info = if self.names.len() == 1 || self.names.is_empty() {
+      let from = mg.connection_by_dependency_id(&self.id)?;
+      let from_module = *from.module_identifier();
+      let needs_backtracking = if self.names.len() == 1 {
+        true
+      } else if matches!(exports_spec.exports, ExportsOfExportsSpec::UnknownExports) {
+        ids.is_empty()
+          || mg
+            .module_by_identifier(&from_module)
+            .is_none_or(|module| module.as_external_module().is_none())
+      } else {
+        true
+      };
+      ExportsSpecReexportInfo::new(false, needs_backtracking, Some(vec![from_module]))
+    } else {
+      ExportsSpecReexportInfo::default()
+    };
+    Some((exports_spec, reexport_info))
   }
 
   fn get_referenced_exports(

@@ -3,7 +3,7 @@ use rspack_cacheable::{cacheable, cacheable_dyn, with::AsPreset};
 use rspack_core::{
   AsContextDependency, AsModuleDependency, Compilation, Dependency, DependencyCodeGeneration,
   DependencyId, ExportNameOrSpec, ExportSpec, ExportsInfoArtifact, ExportsOfExportsSpec,
-  ExportsSpec, ModuleGraph, ModuleGraphCacheArtifact, RuntimeSpec,
+  ExportsSpec, ExportsSpecReexportInfo, ModuleGraph, ModuleGraphCacheArtifact, RuntimeSpec,
 };
 use rspack_util::{ext::DynHash, itoa};
 
@@ -43,6 +43,18 @@ impl Dependency for JsonExportsDependency {
         .map_or(ExportsOfExportsSpec::NoExports, ExportsOfExportsSpec::Names),
       ..Default::default()
     })
+  }
+
+  fn get_exports_with_reexport_info(
+    &self,
+    mg: &ModuleGraph,
+    mg_cache: &ModuleGraphCacheArtifact,
+    exports_info_artifact: &ExportsInfoArtifact,
+  ) -> Option<(ExportsSpec, ExportsSpecReexportInfo)> {
+    let exports_spec = self.get_exports(mg, mg_cache, exports_info_artifact)?;
+    let reexport_info =
+      ExportsSpecReexportInfo::new(exports_spec.has_nested_exports(), false, None);
+    Some((exports_spec, reexport_info))
   }
 
   fn could_affect_referencing_module(&self) -> rspack_core::AffectType {

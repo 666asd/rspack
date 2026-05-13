@@ -9,7 +9,7 @@ use rspack_util::ext::AsAny;
 
 use super::{
   DependencyCategory, DependencyId, DependencyRange, DependencyType, ExportsSpec,
-  dependency_template::AsDependencyCodeGeneration, module_dependency::*,
+  ExportsSpecReexportInfo, dependency_template::AsDependencyCodeGeneration, module_dependency::*,
 };
 use crate::{
   AsContextDependency, ConnectionState, Context, ExportsInfoArtifact, ExtendedReferencedExport,
@@ -70,6 +70,17 @@ pub trait Dependency:
     _exports_info_artifact: &ExportsInfoArtifact,
   ) -> Option<ExportsSpec> {
     None
+  }
+
+  fn get_exports_with_reexport_info(
+    &self,
+    mg: &ModuleGraph,
+    module_graph_cache: &ModuleGraphCacheArtifact,
+    exports_info_artifact: &ExportsInfoArtifact,
+  ) -> Option<(ExportsSpec, ExportsSpecReexportInfo)> {
+    self
+      .get_exports(mg, module_graph_cache, exports_info_artifact)
+      .map(|exports_spec| (exports_spec, ExportsSpecReexportInfo::default()))
   }
 
   fn get_module_evaluation_side_effects_state(
