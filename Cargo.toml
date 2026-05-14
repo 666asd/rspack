@@ -84,7 +84,7 @@ regex               = { version = "1.12.3", default-features = false, features =
 regex-syntax        = { version = "0.8.10", default-features = false, features = ["std"] }
 regress             = { version = "0.10.5", default-features = false, features = ["pattern"] }
 rspack_resolver     = { features = ["package_json_raw_json_api", "yarn_pnp"], version = "=0.8.0", default-features = false }
-rspack_sources      = { version = "=0.4.22", default-features = false, features = ["rspack_cacheable"] }
+rspack_sources      = { git = "https://github.com/rstackjs/rspack-sources", rev = "fcaa1d1d86b85eb0e62ef49bb4abe17f4ecce722", default-features = false, features = ["rspack_cacheable"] }
 rustc-hash          = { version = "2.1.2", default-features = false }
 ryu-js              = { version = "1.0.2", default-features = false }
 scopeguard          = { version = "1.2.0", default-features = false }
@@ -126,7 +126,7 @@ napi-derive = { version = "3.5.5", default-features = false }
 
 # Serialize and Deserialize
 inventory = { version = "0.3.17", default-features = false }
-rkyv      = { version = "=0.8.8", default-features = false, features = ["std", "bytecheck"] }
+rkyv      = { version = "=0.8.16", default-features = false, features = ["std", "bytecheck"] }
 
 # Must be pinned with the same swc versions
 pnp                 = { version = "0.12.8", default-features = false }
