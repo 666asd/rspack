@@ -56,6 +56,7 @@ fn create_default_exported_namespace_dependency(
     settings.phase,
     settings.attributes,
     parser.to_dependency_location(DependencyRange::from(statement_span)),
+    false,
   );
   if parser
     .factory_meta
