@@ -39,7 +39,7 @@ type RefreshedModuleExportsSpecs = Vec<CollectedExportsSpec>;
 
 struct CollectedModuleExports {
   specs: CollectedModuleExportsSpecs,
-  meta: ModuleExportsMeta,
+  needs_backtracking: bool,
   dependencies: Option<Vec<ModuleIdentifier>>,
 }
 
@@ -163,17 +163,31 @@ impl<'a> ParallelFlagDependencyExportsState<'a> {
   fn process_module_exports_specs_batch(&mut self, module_exports_specs: ModuleExportsSpecsBatch) {
     match module_exports_specs {
       ModuleExportsSpecsBatch::Initial(module_exports_specs) => {
-        for (module_id, collected_exports) in module_exports_specs {
-          let Some(exports_specs) = collected_exports.specs.initial() else {
-            continue;
-          };
-          let patch = self.compute_exports_info_patch(*module_id, exports_specs);
+        let mut patches = Vec::new();
+        module_exports_specs
+          .par_iter()
+          .map(|(module_id, collected_exports)| {
+            collected_exports
+              .specs
+              .initial()
+              .map(|exports_specs| self.compute_exports_info_patch(*module_id, exports_specs))
+          })
+          .collect_into_vec(&mut patches);
+
+        for patch in patches.into_iter().flatten() {
           commit_detached_exports_info_patch(self.exports_info_artifact, patch);
         }
       }
       ModuleExportsSpecsBatch::Refreshed(module_exports_specs) => {
-        for (module_id, exports_specs) in module_exports_specs {
-          let patch = self.compute_exports_info_patch(module_id, &exports_specs);
+        let mut patches = Vec::new();
+        module_exports_specs
+          .par_iter()
+          .map(|(module_id, exports_specs)| {
+            self.compute_exports_info_patch(*module_id, exports_specs)
+          })
+          .collect_into_vec(&mut patches);
+
+        for patch in patches {
           commit_detached_exports_info_patch(self.exports_info_artifact, patch);
         }
       }
@@ -366,21 +380,13 @@ impl ReexportDependencyGraph {
   }
 }
 
-#[derive(Clone, Copy, Default)]
-struct ModuleExportsMeta {
-  needs_backtracking: bool,
-}
-
 fn build_reexport_dependency_graph(
   module_exports_specs: &[(ModuleIdentifier, CollectedModuleExports)],
 ) -> ReexportDependencyGraph {
   let backtracking_modules = module_exports_specs
     .iter()
     .filter_map(|(module_id, collected_exports)| {
-      collected_exports
-        .meta
-        .needs_backtracking
-        .then_some(*module_id)
+      collected_exports.needs_backtracking.then_some(*module_id)
     })
     .collect::<IdentifierSet>();
   let mut reverse_dependencies = IdentifierMap::<IdentifierSet>::default();
@@ -629,33 +635,33 @@ fn collect_module_exports(
 ) -> Option<CollectedModuleExports> {
   let mgm = mg.module_graph_module_by_identifier(module_id)?;
   let all_dependencies = mgm.all_dependencies();
-  let mut meta = ModuleExportsMeta::default();
+  let mut needs_backtracking = false;
   let mut dependencies: Option<Vec<ModuleIdentifier>> = None;
 
-  for id in all_dependencies.iter().copied() {
-    let dependency = mg.dependency_by_id(&id);
+  for id in all_dependencies {
+    let dependency = mg.dependency_by_id(id);
     let Some(reexport_info) = dependency.get_reexport_info(mg, mg_cache, exports_info_artifact)
     else {
       continue;
     };
     if let ExportsSpecReexportInfo::Reexport(reexport_dependency) = reexport_info {
-      meta.needs_backtracking = true;
+      needs_backtracking = true;
       push_unique_reexport_dependency(&mut dependencies, reexport_dependency);
     }
   }
 
-  if meta.needs_backtracking {
+  if needs_backtracking {
     return Some(CollectedModuleExports {
       specs: CollectedModuleExportsSpecs::Reexport,
-      meta,
+      needs_backtracking,
       dependencies,
     });
   }
 
   let mut specs: Option<Vec<CollectedExportsSpec>> = None;
-  for id in all_dependencies.iter().copied() {
+  for id in all_dependencies {
     let Some(exports_spec) =
-      mg.dependency_by_id(&id)
+      mg.dependency_by_id(id)
         .get_exports(mg, mg_cache, exports_info_artifact)
     else {
       continue;
@@ -663,7 +669,7 @@ fn collect_module_exports(
     if let Some(reexport_dependencies) = &exports_spec.dependencies
       && !reexport_dependencies.is_empty()
     {
-      meta.needs_backtracking = true;
+      needs_backtracking = true;
       for dependency in reexport_dependencies.iter().copied() {
         push_unique_reexport_dependency(&mut dependencies, dependency);
       }
@@ -671,13 +677,13 @@ fn collect_module_exports(
     specs
       .get_or_insert_with(|| Vec::with_capacity(all_dependencies.len()))
       .push(CollectedExportsSpec {
-        dep_id: id,
+        dep_id: *id,
         exports_spec,
       });
   }
   specs.map(|specs| CollectedModuleExports {
     specs: CollectedModuleExportsSpecs::Initial(specs),
-    meta,
+    needs_backtracking,
     dependencies,
   })
 }
@@ -823,12 +829,9 @@ impl DetachedExportsInfoPatch {
         unreachable!("root-only exports info patch cannot cache nested exports info")
       }
       Self::Nested { nested, .. } => {
-        if !nested.contains_key(&exports_info) {
-          nested.insert(
-            exports_info,
-            artifact.get_exports_info_by_id(&exports_info).clone(),
-          );
-        }
+        nested
+          .entry(exports_info)
+          .or_insert_with(|| artifact.get_exports_info_by_id(&exports_info).clone());
       }
     }
   }
