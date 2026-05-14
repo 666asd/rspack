@@ -93,19 +93,21 @@ impl<'a> ParallelFlagDependencyExportsState<'a> {
 
     let module_exports_specs = self.collect_exports_specs(&modules);
     let dependency_graph = build_reexport_dependency_graph(&module_exports_specs);
-    self.process_initial_exports_specs(module_exports_specs.iter().filter_map(
-      |(module_id, collected_exports)| {
-        collected_exports
-          .specs
-          .iter()
-          .any(|spec| spec.apply_initial)
-          .then_some((
-            *module_id,
-            &collected_exports.specs,
-            collected_exports.meta.has_nested_exports,
-          ))
-      },
-    ));
+    let mut changed_modules =
+      self.process_initial_exports_specs(module_exports_specs.iter().filter_map(
+        |(module_id, collected_exports)| {
+          collected_exports
+            .specs
+            .iter()
+            .any(|spec| spec.apply_initial)
+            .then_some((
+              *module_id,
+              &collected_exports.specs,
+              collected_exports.meta.has_nested_exports,
+            ))
+        },
+      ));
+    let mut changed_downstream_modules = IdentifierSet::default();
     if dependency_graph.dependency_count.is_empty() {
       return;
     }
@@ -123,21 +125,37 @@ impl<'a> ParallelFlagDependencyExportsState<'a> {
       for module_id in ready_modules {
         batch.push(module_id);
       }
+      let modules_to_refresh = batch
+        .iter()
+        .copied()
+        .filter(|module_id| {
+          changed_downstream_modules.contains(module_id)
+            || module_exports_specs
+              .get(module_id)
+              .is_some_and(module_needs_refreshed_exports)
+        })
+        .collect::<Vec<_>>();
 
       let refreshed_exports_specs = self.collect_refreshed_modules_exports_specs(
-        &batch,
+        &modules_to_refresh,
         &module_exports_specs,
         &dependency_graph,
       );
-      self.process_refreshed_module_exports_specs_batch(
-        refreshed_exports_specs
-          .iter()
-          .map(|(module_id, specs, meta)| (*module_id, specs, meta.has_nested_exports)),
+      changed_modules.extend(
+        self.process_refreshed_module_exports_specs_batch(
+          refreshed_exports_specs
+            .iter()
+            .map(|(module_id, specs, meta)| (*module_id, specs, meta.has_nested_exports)),
+        ),
       );
 
       for module_id in batch {
+        let module_changed = changed_modules.contains(&module_id);
         if let Some(dependents) = dependency_graph.reverse_dependencies.get(&module_id) {
           for dependent in dependents {
+            if module_changed {
+              changed_downstream_modules.insert(*dependent);
+            }
             let Some(count) = remaining_dependency_count.get_mut(dependent) else {
               continue;
             };
@@ -174,8 +192,8 @@ impl<'a> ParallelFlagDependencyExportsState<'a> {
   fn process_initial_exports_specs<'b>(
     &mut self,
     modules: impl IntoIterator<Item = (ModuleIdentifier, &'b ModuleExportsSpecs, bool)>,
-  ) {
-    self.process_module_exports_specs_batch(modules);
+  ) -> IdentifierSet {
+    self.process_module_exports_specs_batch(modules)
   }
 
   fn process_refreshed_module_exports_specs(
@@ -241,7 +259,7 @@ impl<'a> ParallelFlagDependencyExportsState<'a> {
   fn process_module_exports_specs_batch<'b>(
     &mut self,
     module_exports_specs: impl IntoIterator<Item = (ModuleIdentifier, &'b ModuleExportsSpecs, bool)>,
-  ) {
+  ) -> IdentifierSet {
     let (non_nested_modules, nested_modules): (Vec<_>, Vec<_>) = module_exports_specs
       .into_iter()
       .partition(|(_, _, has_nested_exports)| !has_nested_exports);
@@ -253,11 +271,12 @@ impl<'a> ParallelFlagDependencyExportsState<'a> {
           .exports_info_artifact
           .get_exports_info_data(&module_id)
           .clone();
+        let mut changed = false;
         for spec in exports_specs.iter().filter(|spec| spec.apply_initial) {
           let Some(exports_spec) = &spec.exports_spec else {
             continue;
           };
-          process_exports_spec_without_nested(
+          changed |= process_exports_spec_without_nested(
             self.mg,
             self.exports_info_artifact,
             &module_id,
@@ -266,19 +285,26 @@ impl<'a> ParallelFlagDependencyExportsState<'a> {
             &mut exports_info,
           );
         }
-        exports_info
+        (module_id, changed, exports_info)
       })
       .collect::<Vec<_>>();
 
-    for exports_info in updated_exports_info {
+    let mut changed_modules = IdentifierSet::default();
+    for (module_id, changed, exports_info) in updated_exports_info {
+      if changed {
+        changed_modules.insert(module_id);
+      }
       self
         .exports_info_artifact
         .set_exports_info_by_id(exports_info.id(), exports_info);
     }
 
     for (module_id, exports_specs, _) in nested_modules {
-      self.process_initial_exports_specs_for_module(&module_id, exports_specs);
+      if self.process_initial_exports_specs_for_module(&module_id, exports_specs) {
+        changed_modules.insert(module_id);
+      }
     }
+    changed_modules
   }
 
   fn process_refreshed_module_exports_specs_batch<'b>(
@@ -286,7 +312,7 @@ impl<'a> ParallelFlagDependencyExportsState<'a> {
     module_exports_specs: impl IntoIterator<
       Item = (ModuleIdentifier, &'b RefreshedModuleExportsSpecs<'b>, bool),
     >,
-  ) {
+  ) -> IdentifierSet {
     let (non_nested_modules, nested_modules): (Vec<_>, Vec<_>) = module_exports_specs
       .into_iter()
       .partition(|(_, _, has_nested_exports)| !has_nested_exports);
@@ -298,8 +324,9 @@ impl<'a> ParallelFlagDependencyExportsState<'a> {
           .exports_info_artifact
           .get_exports_info_data(&module_id)
           .clone();
+        let mut changed = false;
         for exports_spec in exports_specs {
-          process_exports_spec_without_nested(
+          changed |= process_exports_spec_without_nested(
             self.mg,
             self.exports_info_artifact,
             &module_id,
@@ -308,19 +335,26 @@ impl<'a> ParallelFlagDependencyExportsState<'a> {
             &mut exports_info,
           );
         }
-        exports_info
+        (module_id, changed, exports_info)
       })
       .collect::<Vec<_>>();
 
-    for exports_info in updated_exports_info {
+    let mut changed_modules = IdentifierSet::default();
+    for (module_id, changed, exports_info) in updated_exports_info {
+      if changed {
+        changed_modules.insert(module_id);
+      }
       self
         .exports_info_artifact
         .set_exports_info_by_id(exports_info.id(), exports_info);
     }
 
     for (module_id, exports_specs, _) in nested_modules {
-      self.process_refreshed_exports_specs(&module_id, exports_specs);
+      if self.process_refreshed_exports_specs(&module_id, exports_specs) {
+        changed_modules.insert(module_id);
+      }
     }
+    changed_modules
   }
 
   fn process_initial_exports_specs_for_module(
@@ -545,6 +579,14 @@ fn build_reexport_dependency_graph(
     module_meta,
     leaf_modules,
   }
+}
+
+fn module_needs_refreshed_exports(collected_exports: &CollectedModuleExports) -> bool {
+  collected_exports.meta.has_nested_exports
+    || collected_exports
+      .specs
+      .iter()
+      .any(|spec| !spec.apply_initial || spec.exports_spec.is_none())
 }
 
 fn refresh_exports_specs_from_initial<'a>(
