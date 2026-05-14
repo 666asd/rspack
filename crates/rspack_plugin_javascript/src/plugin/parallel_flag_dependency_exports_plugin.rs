@@ -33,20 +33,32 @@ use super::flag_dependency_exports_plugin::FLAG_DEPENDENCY_EXPORTS_STAGE;
 // The important performance property is that non-nested internal reexport specs
 // can opt out of phase 2 and only run during the graph walk. Other specs from
 // the same module, such as local exports, are still applied immediately.
-type ModuleExportsSpecs = Vec<CollectedExportsSpec>;
+type InitialModuleExportsSpecs = Vec<CollectedExportsSpec>;
 type RefreshedModuleExportsSpecs<'a> = Vec<RefreshedExportsSpec<'a>>;
 
 struct CollectedModuleExports {
-  specs: ModuleExportsSpecs,
+  specs: CollectedModuleExportsSpecs,
   meta: ModuleExportsMeta,
   dependencies: Option<Vec<ModuleIdentifier>>,
 }
 
+enum CollectedModuleExportsSpecs {
+  Initial(InitialModuleExportsSpecs),
+  Reexport,
+}
+
+impl CollectedModuleExportsSpecs {
+  fn initial(&self) -> Option<&InitialModuleExportsSpecs> {
+    match self {
+      Self::Initial(specs) => Some(specs),
+      Self::Reexport => None,
+    }
+  }
+}
+
 struct CollectedExportsSpec {
   dep_id: DependencyId,
-  exports_spec: Option<ExportsSpec>,
-  apply_initial: bool,
-  refresh_on_backtrack: bool,
+  exports_spec: ExportsSpec,
 }
 
 enum RefreshedExportsSpec<'a> {
@@ -98,13 +110,8 @@ impl<'a> ParallelFlagDependencyExportsState<'a> {
         |(module_id, collected_exports)| {
           collected_exports
             .specs
-            .iter()
-            .any(|spec| spec.apply_initial)
-            .then_some((
-              *module_id,
-              &collected_exports.specs,
-              collected_exports.meta.has_nested_exports,
-            ))
+            .initial()
+            .map(|specs| (*module_id, specs, collected_exports.meta.has_nested_exports))
         },
       ));
     let mut changed_downstream_modules = IdentifierSet::default();
@@ -191,7 +198,7 @@ impl<'a> ParallelFlagDependencyExportsState<'a> {
 
   fn process_initial_exports_specs<'b>(
     &mut self,
-    modules: impl IntoIterator<Item = (ModuleIdentifier, &'b ModuleExportsSpecs, bool)>,
+    modules: impl IntoIterator<Item = (ModuleIdentifier, &'b InitialModuleExportsSpecs, bool)>,
   ) -> IdentifierSet {
     self.process_module_exports_specs_batch(modules)
   }
@@ -208,7 +215,8 @@ impl<'a> ParallelFlagDependencyExportsState<'a> {
       self.mg,
       self.mg_cache,
       self.exports_info_artifact,
-      &collected_exports.specs,
+      module_id,
+      collected_exports,
     );
     refreshed_exports_specs.sort_by_key(|exports_spec| {
       refreshed_exports_spec_order(self.mg, exports_spec.exports_spec())
@@ -234,7 +242,8 @@ impl<'a> ParallelFlagDependencyExportsState<'a> {
           self.mg,
           self.mg_cache,
           self.exports_info_artifact,
-          &collected_exports.specs,
+          module_id,
+          collected_exports,
         );
         refreshed_exports_specs.sort_by_key(|exports_spec| {
           refreshed_exports_spec_order(self.mg, exports_spec.exports_spec())
@@ -258,7 +267,9 @@ impl<'a> ParallelFlagDependencyExportsState<'a> {
   // through the artifact and therefore stay on the sequential path.
   fn process_module_exports_specs_batch<'b>(
     &mut self,
-    module_exports_specs: impl IntoIterator<Item = (ModuleIdentifier, &'b ModuleExportsSpecs, bool)>,
+    module_exports_specs: impl IntoIterator<
+      Item = (ModuleIdentifier, &'b InitialModuleExportsSpecs, bool),
+    >,
   ) -> IdentifierSet {
     let (non_nested_modules, nested_modules): (Vec<_>, Vec<_>) = module_exports_specs
       .into_iter()
@@ -272,16 +283,13 @@ impl<'a> ParallelFlagDependencyExportsState<'a> {
           .get_exports_info_data(&module_id)
           .clone();
         let mut changed = false;
-        for spec in exports_specs.iter().filter(|spec| spec.apply_initial) {
-          let Some(exports_spec) = &spec.exports_spec else {
-            continue;
-          };
+        for spec in exports_specs {
           changed |= process_exports_spec_without_nested(
             self.mg,
             self.exports_info_artifact,
             &module_id,
             spec.dep_id,
-            exports_spec,
+            &spec.exports_spec,
             &mut exports_info,
           );
         }
@@ -360,12 +368,11 @@ impl<'a> ParallelFlagDependencyExportsState<'a> {
   fn process_initial_exports_specs_for_module(
     &mut self,
     module_id: &ModuleIdentifier,
-    exports_specs: &ModuleExportsSpecs,
+    exports_specs: &InitialModuleExportsSpecs,
   ) -> bool {
     if exports_specs
       .iter()
-      .filter(|spec| spec.apply_initial)
-      .filter_map(|spec| spec.exports_spec.as_ref())
+      .map(|spec| &spec.exports_spec)
       .all(|exports_spec| !exports_spec.has_nested_exports())
     {
       let mut changed = false;
@@ -373,16 +380,13 @@ impl<'a> ParallelFlagDependencyExportsState<'a> {
         .exports_info_artifact
         .get_exports_info_data(module_id)
         .clone();
-      for spec in exports_specs.iter().filter(|spec| spec.apply_initial) {
-        let Some(exports_spec) = &spec.exports_spec else {
-          continue;
-        };
+      for spec in exports_specs {
         let is_changed = process_exports_spec_without_nested(
           self.mg,
           self.exports_info_artifact,
           module_id,
           spec.dep_id,
-          exports_spec,
+          &spec.exports_spec,
           &mut exports_info,
         );
         changed |= is_changed;
@@ -394,16 +398,13 @@ impl<'a> ParallelFlagDependencyExportsState<'a> {
     }
 
     let mut changed = false;
-    for spec in exports_specs.iter().filter(|spec| spec.apply_initial) {
-      let Some(exports_spec) = &spec.exports_spec else {
-        continue;
-      };
+    for spec in exports_specs {
       let is_changed = process_exports_spec(
         self.mg,
         self.exports_info_artifact,
         module_id,
         spec.dep_id,
-        exports_spec,
+        &spec.exports_spec,
       );
       changed |= is_changed;
     }
@@ -583,66 +584,75 @@ fn build_reexport_dependency_graph(
 
 fn module_needs_refreshed_exports(collected_exports: &CollectedModuleExports) -> bool {
   collected_exports.meta.has_nested_exports
-    || collected_exports
-      .specs
-      .iter()
-      .any(|spec| !spec.apply_initial || spec.exports_spec.is_none())
+    || matches!(
+      collected_exports.specs,
+      CollectedModuleExportsSpecs::Reexport
+    )
 }
 
 fn refresh_exports_specs_from_initial<'a>(
   mg: &ModuleGraph,
   mg_cache: &ModuleGraphCacheArtifact,
   exports_info_artifact: &ExportsInfoArtifact,
-  exports_specs: &'a ModuleExportsSpecs,
+  module_id: &ModuleIdentifier,
+  collected_exports: &'a CollectedModuleExports,
 ) -> RefreshedModuleExportsSpecs<'a> {
-  let mut refreshed_exports_specs = Vec::with_capacity(exports_specs.len());
-  for spec in exports_specs
-    .iter()
-    .filter(|spec| spec.refresh_on_backtrack)
-  {
-    let dep_id = spec.dep_id;
-    let Some(exports_spec) = &spec.exports_spec else {
-      let Some(exports_spec) =
-        mg.dependency_by_id(&dep_id)
-          .get_exports(mg, mg_cache, exports_info_artifact)
-      else {
-        continue;
-      };
-      push_refreshed_exports_spec(
-        mg,
-        exports_info_artifact,
-        &mut refreshed_exports_specs,
-        dep_id,
-        RefreshedExportsSpec::Owned(dep_id, exports_spec),
-      );
-      continue;
-    };
-    if exports_spec_needs_recollect(exports_spec) {
-      let Some(exports_spec) =
-        mg.dependency_by_id(&dep_id)
-          .get_exports(mg, mg_cache, exports_info_artifact)
-      else {
-        continue;
-      };
-      push_refreshed_exports_spec(
-        mg,
-        exports_info_artifact,
-        &mut refreshed_exports_specs,
-        dep_id,
-        RefreshedExportsSpec::Owned(dep_id, exports_spec),
-      );
-      continue;
+  match &collected_exports.specs {
+    CollectedModuleExportsSpecs::Initial(exports_specs) => {
+      let mut refreshed_exports_specs = Vec::with_capacity(exports_specs.len());
+      for spec in exports_specs {
+        let dep_id = spec.dep_id;
+        let exports_spec = &spec.exports_spec;
+        if exports_spec_needs_recollect(exports_spec) {
+          let Some(exports_spec) =
+            mg.dependency_by_id(&dep_id)
+              .get_exports(mg, mg_cache, exports_info_artifact)
+          else {
+            continue;
+          };
+          push_refreshed_exports_spec(
+            mg,
+            exports_info_artifact,
+            &mut refreshed_exports_specs,
+            dep_id,
+            RefreshedExportsSpec::Owned(dep_id, exports_spec),
+          );
+          continue;
+        }
+        push_refreshed_exports_spec(
+          mg,
+          exports_info_artifact,
+          &mut refreshed_exports_specs,
+          dep_id,
+          RefreshedExportsSpec::Borrowed(dep_id, exports_spec),
+        );
+      }
+      refreshed_exports_specs
     }
-    push_refreshed_exports_spec(
-      mg,
-      exports_info_artifact,
-      &mut refreshed_exports_specs,
-      dep_id,
-      RefreshedExportsSpec::Borrowed(dep_id, exports_spec),
-    );
+    CollectedModuleExportsSpecs::Reexport => {
+      let Some(mgm) = mg.module_graph_module_by_identifier(module_id) else {
+        return Vec::new();
+      };
+      let all_dependencies = mgm.all_dependencies();
+      let mut refreshed_exports_specs = Vec::with_capacity(all_dependencies.len());
+      for dep_id in all_dependencies {
+        let Some(exports_spec) =
+          mg.dependency_by_id(dep_id)
+            .get_exports(mg, mg_cache, exports_info_artifact)
+        else {
+          continue;
+        };
+        push_refreshed_exports_spec(
+          mg,
+          exports_info_artifact,
+          &mut refreshed_exports_specs,
+          *dep_id,
+          RefreshedExportsSpec::Owned(*dep_id, exports_spec),
+        );
+      }
+      refreshed_exports_specs
+    }
   }
-
-  refreshed_exports_specs
 }
 
 fn push_refreshed_exports_spec<'a>(
@@ -844,7 +854,6 @@ fn collect_module_exports(
 ) -> Option<CollectedModuleExports> {
   let mgm = mg.module_graph_module_by_identifier(module_id)?;
   let all_dependencies = mgm.all_dependencies();
-  let mut res = Vec::with_capacity(all_dependencies.len());
   let mut meta = ModuleExportsMeta::default();
   let mut dependencies: Option<Vec<ModuleIdentifier>> = None;
 
@@ -872,24 +881,14 @@ fn collect_module_exports(
   }
 
   if meta.needs_backtracking {
-    res.extend(
-      all_dependencies
-        .iter()
-        .copied()
-        .map(|dep_id| CollectedExportsSpec {
-          dep_id,
-          exports_spec: None,
-          apply_initial: false,
-          refresh_on_backtrack: true,
-        }),
-    );
     return Some(CollectedModuleExports {
-      specs: res,
+      specs: CollectedModuleExportsSpecs::Reexport,
       meta,
       dependencies,
     });
   }
 
+  let mut res = Vec::with_capacity(all_dependencies.len());
   for id in all_dependencies.iter().copied() {
     let dependency = mg.dependency_by_id(&id);
     let Some(exports_spec) = dependency.get_exports(mg, mg_cache, exports_info_artifact) else {
@@ -906,13 +905,11 @@ fn collect_module_exports(
     }
     res.push(CollectedExportsSpec {
       dep_id: id,
-      exports_spec: Some(exports_spec),
-      apply_initial: true,
-      refresh_on_backtrack: true,
+      exports_spec,
     });
   }
   (!res.is_empty()).then_some(CollectedModuleExports {
-    specs: res,
+    specs: CollectedModuleExportsSpecs::Initial(res),
     meta,
     dependencies,
   })
