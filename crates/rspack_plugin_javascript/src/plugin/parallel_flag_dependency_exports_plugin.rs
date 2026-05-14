@@ -197,7 +197,7 @@ impl<'a> ParallelFlagDependencyExportsState<'a> {
     &mut self,
     modules: impl IntoIterator<Item = (ModuleIdentifier, &'b InitialModuleExportsSpecs, bool)>,
   ) -> IdentifierSet {
-    self.process_module_exports_specs_batch(modules)
+    self.process_initial_module_exports_specs_batch(modules)
   }
 
   fn process_refreshed_module_exports_specs(
@@ -253,11 +253,9 @@ impl<'a> ParallelFlagDependencyExportsState<'a> {
       .collect()
   }
 
-  // Apply a batch of exports specs. Non-nested specs are pure updates to the
-  // module's own `ExportsInfoData`, so each module can be computed independently
-  // and committed afterward. Nested specs may touch child `ExportsInfo` records
-  // through the artifact and therefore stay on the sequential path.
-  fn process_module_exports_specs_batch<'b>(
+  // Initial exports are collected after resetting provide info for this pass, so
+  // every applied module should be treated as changed for reexport backtracking.
+  fn process_initial_module_exports_specs_batch<'b>(
     &mut self,
     module_exports_specs: impl IntoIterator<
       Item = (ModuleIdentifier, &'b InitialModuleExportsSpecs, bool),
@@ -274,9 +272,8 @@ impl<'a> ParallelFlagDependencyExportsState<'a> {
           .exports_info_artifact
           .get_exports_info_data(&module_id)
           .clone();
-        let mut changed = false;
         for spec in exports_specs {
-          changed |= process_exports_spec_without_nested(
+          process_exports_spec_without_nested(
             self.mg,
             self.exports_info_artifact,
             &module_id,
@@ -285,28 +282,28 @@ impl<'a> ParallelFlagDependencyExportsState<'a> {
             &mut exports_info,
           );
         }
-        (module_id, changed, exports_info)
+        (module_id, exports_info)
       })
       .collect::<Vec<_>>();
 
     let mut changed_modules = IdentifierSet::default();
-    for (module_id, changed, exports_info) in updated_exports_info {
-      if changed {
-        changed_modules.insert(module_id);
-      }
+    for (module_id, exports_info) in updated_exports_info {
+      changed_modules.insert(module_id);
       self
         .exports_info_artifact
         .set_exports_info_by_id(exports_info.id(), exports_info);
     }
 
     for (module_id, exports_specs, _) in nested_modules {
-      if self.process_initial_exports_specs_for_module(&module_id, exports_specs) {
-        changed_modules.insert(module_id);
-      }
+      self.process_initial_exports_specs_for_module(&module_id, exports_specs);
+      changed_modules.insert(module_id);
     }
     changed_modules
   }
 
+  // Refreshed specs run after downstream exports have settled. Here precise
+  // change detection still matters because it controls whether dependents need
+  // another refresh.
   fn process_refreshed_module_exports_specs_batch<'b>(
     &mut self,
     module_exports_specs: impl IntoIterator<
@@ -361,19 +358,18 @@ impl<'a> ParallelFlagDependencyExportsState<'a> {
     &mut self,
     module_id: &ModuleIdentifier,
     exports_specs: &InitialModuleExportsSpecs,
-  ) -> bool {
+  ) {
     if exports_specs
       .iter()
       .map(|spec| &spec.exports_spec)
       .all(|exports_spec| !exports_spec.has_nested_exports())
     {
-      let mut changed = false;
       let mut exports_info = self
         .exports_info_artifact
         .get_exports_info_data(module_id)
         .clone();
       for spec in exports_specs {
-        let is_changed = process_exports_spec_without_nested(
+        process_exports_spec_without_nested(
           self.mg,
           self.exports_info_artifact,
           module_id,
@@ -381,26 +377,22 @@ impl<'a> ParallelFlagDependencyExportsState<'a> {
           &spec.exports_spec,
           &mut exports_info,
         );
-        changed |= is_changed;
       }
       self
         .exports_info_artifact
         .set_exports_info_by_id(exports_info.id(), exports_info);
-      return changed;
+      return;
     }
 
-    let mut changed = false;
     for spec in exports_specs {
-      let is_changed = process_exports_spec(
+      process_exports_spec(
         self.mg,
         self.exports_info_artifact,
         module_id,
         spec.dep_id,
         &spec.exports_spec,
       );
-      changed |= is_changed;
     }
-    changed
   }
 
   fn process_refreshed_exports_specs(
