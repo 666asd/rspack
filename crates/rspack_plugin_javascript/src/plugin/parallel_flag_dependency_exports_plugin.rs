@@ -864,11 +864,7 @@ fn collect_module_exports(
     else {
       continue;
     };
-    let has_downstream_dependencies = reexport_info
-      .dependencies
-      .as_ref()
-      .is_some_and(|dependencies| !dependencies.is_empty());
-    if !has_downstream_dependencies || !reexport_info.can_skip_initial_exports() {
+    if !reexport_info.can_skip_initial_exports() {
       continue;
     }
     meta.has_nested_exports |= reexport_info.has_nested_exports;
