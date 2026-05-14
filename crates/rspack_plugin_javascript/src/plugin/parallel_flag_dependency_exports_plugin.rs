@@ -161,27 +161,22 @@ impl<'a> ParallelFlagDependencyExportsState<'a> {
   }
 
   fn process_module_exports_specs_batch(&mut self, module_exports_specs: ModuleExportsSpecsBatch) {
-    let updated_exports_info = match module_exports_specs {
-      ModuleExportsSpecsBatch::Initial(module_exports_specs) => module_exports_specs
-        .par_iter()
-        .filter_map(|(module_id, collected_exports)| {
-          collected_exports
-            .specs
-            .initial()
-            .map(|exports_specs| (*module_id, exports_specs.as_slice()))
-        })
-        .map(|(module_id, exports_specs)| self.compute_exports_info_patch(module_id, exports_specs))
-        .collect::<Vec<_>>(),
-      ModuleExportsSpecsBatch::Refreshed(module_exports_specs) => module_exports_specs
-        .into_par_iter()
-        .map(|(module_id, exports_specs)| {
-          self.compute_exports_info_patch(module_id, &exports_specs)
-        })
-        .collect::<Vec<_>>(),
-    };
-
-    for patch in updated_exports_info {
-      commit_detached_exports_info_patch(self.exports_info_artifact, patch);
+    match module_exports_specs {
+      ModuleExportsSpecsBatch::Initial(module_exports_specs) => {
+        for (module_id, collected_exports) in module_exports_specs {
+          let Some(exports_specs) = collected_exports.specs.initial() else {
+            continue;
+          };
+          let patch = self.compute_exports_info_patch(*module_id, exports_specs);
+          commit_detached_exports_info_patch(self.exports_info_artifact, patch);
+        }
+      }
+      ModuleExportsSpecsBatch::Refreshed(module_exports_specs) => {
+        for (module_id, exports_specs) in module_exports_specs {
+          let patch = self.compute_exports_info_patch(module_id, &exports_specs);
+          commit_detached_exports_info_patch(self.exports_info_artifact, patch);
+        }
+      }
     }
   }
 
@@ -190,11 +185,15 @@ impl<'a> ParallelFlagDependencyExportsState<'a> {
     module_id: ModuleIdentifier,
     exports_specs: &[CollectedExportsSpec],
   ) -> DetachedExportsInfoPatch {
+    let has_nested_exports = exports_specs
+      .iter()
+      .any(|spec| spec.exports_spec.has_nested_exports());
     let mut patch = DetachedExportsInfoPatch::new(
       self
         .exports_info_artifact
         .get_exports_info_data(&module_id)
         .clone(),
+      has_nested_exports,
     );
     for exports_spec in exports_specs {
       process_exports_spec_detached(
@@ -214,11 +213,15 @@ impl<'a> ParallelFlagDependencyExportsState<'a> {
     module_id: &ModuleIdentifier,
     exports_specs: &[CollectedExportsSpec],
   ) -> bool {
+    let has_nested_exports = exports_specs
+      .iter()
+      .any(|spec| spec.exports_spec.has_nested_exports());
     let mut patch = DetachedExportsInfoPatch::new(
       self
         .exports_info_artifact
         .get_exports_info_data(module_id)
         .clone(),
+      has_nested_exports,
     );
     let mut changed = false;
     for exports_spec in exports_specs {
@@ -596,18 +599,16 @@ fn collect_module_exports(
   let mut meta = ModuleExportsMeta::default();
   let mut dependencies: Option<Vec<ModuleIdentifier>> = None;
 
-  for id in all_dependencies {
-    let Some(reexport_info) =
-      mg.dependency_by_id(id)
-        .get_reexport_info(mg, mg_cache, exports_info_artifact)
+  for id in all_dependencies.iter().copied() {
+    let dependency = mg.dependency_by_id(&id);
+    let Some(reexport_info) = dependency.get_reexport_info(mg, mg_cache, exports_info_artifact)
     else {
       continue;
     };
-    let ExportsSpecReexportInfo::Reexport(reexport_dependency) = reexport_info else {
-      continue;
-    };
-    meta.needs_backtracking = true;
-    push_unique_reexport_dependency(&mut dependencies, reexport_dependency);
+    if let ExportsSpecReexportInfo::Reexport(reexport_dependency) = reexport_info {
+      meta.needs_backtracking = true;
+      push_unique_reexport_dependency(&mut dependencies, reexport_dependency);
+    }
   }
 
   if meta.needs_backtracking {
@@ -618,10 +619,12 @@ fn collect_module_exports(
     });
   }
 
-  let mut res = Vec::with_capacity(all_dependencies.len());
+  let mut specs: Option<Vec<CollectedExportsSpec>> = None;
   for id in all_dependencies.iter().copied() {
-    let dependency = mg.dependency_by_id(&id);
-    let Some(exports_spec) = dependency.get_exports(mg, mg_cache, exports_info_artifact) else {
+    let Some(exports_spec) =
+      mg.dependency_by_id(&id)
+        .get_exports(mg, mg_cache, exports_info_artifact)
+    else {
       continue;
     };
     if let Some(reexport_dependencies) = &exports_spec.dependencies
@@ -632,13 +635,15 @@ fn collect_module_exports(
         push_unique_reexport_dependency(&mut dependencies, dependency);
       }
     }
-    res.push(CollectedExportsSpec {
-      dep_id: id,
-      exports_spec,
-    });
+    specs
+      .get_or_insert_with(|| Vec::with_capacity(all_dependencies.len()))
+      .push(CollectedExportsSpec {
+        dep_id: id,
+        exports_spec,
+      });
   }
-  (!res.is_empty()).then_some(CollectedModuleExports {
-    specs: CollectedModuleExportsSpecs::Initial(res),
+  specs.map(|specs| CollectedModuleExports {
+    specs: CollectedModuleExportsSpecs::Initial(specs),
     meta,
     dependencies,
   })
@@ -720,16 +725,35 @@ impl<'a> ParsedExportSpec<'a> {
   }
 }
 
-struct DetachedExportsInfoPatch {
-  root: ExportsInfoData,
-  nested: FxHashMap<ExportsInfo, ExportsInfoData>,
+enum DetachedExportsInfoPatch {
+  Root(ExportsInfoData),
+  Nested {
+    root: ExportsInfoData,
+    nested: FxHashMap<ExportsInfo, ExportsInfoData>,
+  },
 }
 
 impl DetachedExportsInfoPatch {
-  fn new(root: ExportsInfoData) -> Self {
-    Self {
-      root,
-      nested: Default::default(),
+  fn new(root: ExportsInfoData, has_nested_exports: bool) -> Self {
+    if has_nested_exports {
+      Self::Nested {
+        root,
+        nested: Default::default(),
+      }
+    } else {
+      Self::Root(root)
+    }
+  }
+
+  fn root(&self) -> &ExportsInfoData {
+    match self {
+      Self::Root(root) | Self::Nested { root, .. } => root,
+    }
+  }
+
+  fn root_mut(&mut self) -> &mut ExportsInfoData {
+    match self {
+      Self::Root(root) | Self::Nested { root, .. } => root,
     }
   }
 
@@ -738,13 +762,15 @@ impl DetachedExportsInfoPatch {
     exports_info: ExportsInfo,
     artifact: &'a ExportsInfoArtifact,
   ) -> &'a ExportsInfoData {
-    if exports_info == self.root.id() {
-      &self.root
-    } else {
-      self
-        .nested
+    let root = self.root();
+    if exports_info == root.id() {
+      return root;
+    }
+    match self {
+      Self::Root(_) => artifact.get_exports_info_by_id(&exports_info),
+      Self::Nested { nested, .. } => nested
         .get(&exports_info)
-        .unwrap_or_else(|| artifact.get_exports_info_by_id(&exports_info))
+        .unwrap_or_else(|| artifact.get_exports_info_by_id(&exports_info)),
     }
   }
 
@@ -753,21 +779,35 @@ impl DetachedExportsInfoPatch {
     exports_info: ExportsInfo,
     artifact: &ExportsInfoArtifact,
   ) -> &mut ExportsInfoData {
-    if exports_info == self.root.id() {
-      return &mut self.root;
+    if exports_info == self.root().id() {
+      return self.root_mut();
     }
-    self
-      .nested
-      .entry(exports_info)
-      .or_insert_with(|| artifact.get_exports_info_by_id(&exports_info).clone())
+    match self {
+      Self::Root(_) => {
+        unreachable!("root-only exports info patch cannot mutate nested exports info")
+      }
+      Self::Nested { nested, .. } => nested
+        .entry(exports_info)
+        .or_insert_with(|| artifact.get_exports_info_by_id(&exports_info).clone()),
+    }
   }
 
   fn ensure_local_nested(&mut self, exports_info: ExportsInfo, artifact: &ExportsInfoArtifact) {
-    if exports_info != self.root.id() && !self.nested.contains_key(&exports_info) {
-      self.nested.insert(
-        exports_info,
-        artifact.get_exports_info_by_id(&exports_info).clone(),
-      );
+    if exports_info == self.root().id() {
+      return;
+    }
+    match self {
+      Self::Root(_) => {
+        unreachable!("root-only exports info patch cannot cache nested exports info")
+      }
+      Self::Nested { nested, .. } => {
+        if !nested.contains_key(&exports_info) {
+          nested.insert(
+            exports_info,
+            artifact.get_exports_info_by_id(&exports_info).clone(),
+          );
+        }
+      }
     }
   }
 
@@ -787,8 +827,15 @@ impl DetachedExportsInfoPatch {
     Some(exports_info)
   }
 
-  fn into_iter(self) -> impl Iterator<Item = (ExportsInfo, ExportsInfoData)> {
-    std::iter::once((self.root.id(), self.root)).chain(self.nested)
+  fn insert_nested(&mut self, exports_info: ExportsInfo, exports_info_data: ExportsInfoData) {
+    match self {
+      Self::Root(_) => {
+        unreachable!("root-only exports info patch cannot insert nested exports info")
+      }
+      Self::Nested { nested, .. } => {
+        nested.insert(exports_info, exports_info_data);
+      }
+    }
   }
 }
 
@@ -796,7 +843,15 @@ fn commit_detached_exports_info_patch(
   exports_info_artifact: &mut ExportsInfoArtifact,
   patch: DetachedExportsInfoPatch,
 ) {
-  exports_info_artifact.extend(patch.into_iter());
+  match patch {
+    DetachedExportsInfoPatch::Root(root) => {
+      exports_info_artifact.set_exports_info_by_id(root.id(), root);
+    }
+    DetachedExportsInfoPatch::Nested { root, nested } => {
+      exports_info_artifact.set_exports_info_by_id(root.id(), root);
+      exports_info_artifact.extend(nested);
+    }
+  }
 }
 
 fn process_exports_spec_detached(
@@ -980,7 +1035,7 @@ fn ensure_nested_exports_info(
   let mut new_exports_info = ExportsInfoData::default();
   let new_exports_info_id = new_exports_info.id();
   new_exports_info.set_has_provide_info();
-  patch.nested.insert(new_exports_info_id, new_exports_info);
+  patch.insert_nested(new_exports_info_id, new_exports_info);
 
   let export_info = patch
     .get_mut(parent_exports_info, exports_info)

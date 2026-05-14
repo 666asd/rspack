@@ -56,6 +56,7 @@ pub struct ESMExportImportedSpecifierDependency {
   range: DependencyRange,
   phase: ImportPhase,
   attributes: Option<ImportAttributes>,
+  direct_export_import: bool,
   resource_identifier: ResourceIdentifier,
   export_presence_mode: ExportPresenceMode,
   loc: Option<DependencyLocation>,
@@ -76,6 +77,7 @@ impl ESMExportImportedSpecifierDependency {
     phase: ImportPhase,
     attributes: Option<ImportAttributes>,
     loc: Option<DependencyLocation>,
+    direct_export_import: bool,
   ) -> Self {
     let resource_identifier =
       create_resource_identifier_for_esm_dependency(&request, attributes.as_ref());
@@ -91,6 +93,7 @@ impl ESMExportImportedSpecifierDependency {
       export_presence_mode,
       phase,
       attributes,
+      direct_export_import,
       loc,
       factorize_info: Default::default(),
       lazy_make: false,
@@ -1292,7 +1295,7 @@ impl Dependency for ESMExportImportedSpecifierDependency {
     _exports_info_artifact: &ExportsInfoArtifact,
   ) -> Option<ExportsSpecReexportInfo> {
     let imported_module = *mg.module_identifier_by_dependency_id(self.id())?;
-    if self.name.is_some() && self.get_ids(mg).is_empty() {
+    if self.name.is_some() && self.get_ids(mg).is_empty() && !self.direct_export_import {
       return None;
     }
     Some(ExportsSpecReexportInfo::Reexport(imported_module))

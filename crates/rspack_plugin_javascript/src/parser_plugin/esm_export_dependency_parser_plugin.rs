@@ -131,6 +131,7 @@ impl JavascriptParserPlugin for ESMExportDependencyParserPlugin {
         phase,
         attributes,
         loc,
+        false,
       );
       if parser
         .factory_meta
@@ -216,6 +217,7 @@ impl JavascriptParserPlugin for ESMExportDependencyParserPlugin {
       ImportPhase::Evaluation,
       statement.get_with_obj().map(get_attributes),
       parser.to_dependency_location(DependencyRange::from(statement.span())),
+      true,
     );
     if export_name.is_none() {
       parser.build_info.all_star_exports.push(dep.id);
