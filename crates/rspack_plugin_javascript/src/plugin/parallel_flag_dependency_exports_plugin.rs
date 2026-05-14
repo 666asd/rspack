@@ -6,8 +6,8 @@ use rspack_core::{
   AsyncModulesArtifact, BuildMetaExportsType, Compilation, CompilationFinishModules, DependencyId,
   EvaluatedInlinableValue, ExportInfo, ExportInfoData, ExportNameOrSpec, ExportProvided,
   ExportSpec, ExportsInfo, ExportsInfoArtifact, ExportsInfoData, ExportsOfExportsSpec, ExportsSpec,
-  GetTargetResult, Logger, ModuleGraph, ModuleGraphCacheArtifact, ModuleGraphConnection,
-  ModuleIdentifier, Nullable, Plugin, SideEffectsStateArtifact, get_target,
+  ExportsSpecReexportInfo, GetTargetResult, Logger, ModuleGraph, ModuleGraphCacheArtifact,
+  ModuleGraphConnection, ModuleIdentifier, Nullable, Plugin, SideEffectsStateArtifact, get_target,
   incremental::{self, IncrementalPasses},
 };
 use rspack_error::Result;
@@ -143,11 +143,8 @@ impl<'a> ParallelFlagDependencyExportsState<'a> {
         })
         .collect::<Vec<_>>();
 
-      let refreshed_exports_specs = self.collect_refreshed_modules_exports_specs(
-        &modules_to_refresh,
-        &module_exports_specs,
-        &dependency_graph,
-      );
+      let refreshed_exports_specs =
+        self.collect_refreshed_modules_exports_specs(&modules_to_refresh, &module_exports_specs);
       changed_modules.extend(
         self.process_refreshed_module_exports_specs_batch(
           refreshed_exports_specs
@@ -228,7 +225,6 @@ impl<'a> ParallelFlagDependencyExportsState<'a> {
     &self,
     module_ids: &[ModuleIdentifier],
     module_exports_specs: &'b IdentifierMap<CollectedModuleExports>,
-    dependency_graph: &ReexportDependencyGraph,
   ) -> Vec<(
     ModuleIdentifier,
     RefreshedModuleExportsSpecs<'b>,
@@ -248,11 +244,7 @@ impl<'a> ParallelFlagDependencyExportsState<'a> {
         refreshed_exports_specs.sort_by_key(|exports_spec| {
           refreshed_exports_spec_order(self.mg, exports_spec.exports_spec())
         });
-        let mut meta = dependency_graph
-          .module_meta
-          .get(module_id)
-          .copied()
-          .unwrap_or_default();
+        let mut meta = collected_exports.meta;
         meta.has_nested_exports |= refreshed_exports_specs
           .iter()
           .any(|exports_spec| exports_spec.exports_spec().has_nested_exports());
@@ -507,7 +499,6 @@ impl<'a> ParallelFlagDependencyExportsState<'a> {
 struct ReexportDependencyGraph {
   reverse_dependencies: IdentifierMap<IdentifierSet>,
   dependency_count: IdentifierMap<usize>,
-  module_meta: IdentifierMap<ModuleExportsMeta>,
   leaf_modules: VecDeque<ModuleIdentifier>,
 }
 
@@ -521,63 +512,51 @@ fn build_reexport_dependency_graph(
   module_exports_specs: &[(ModuleIdentifier, CollectedModuleExports)],
 ) -> ReexportDependencyGraph {
   let mut reverse_dependencies = IdentifierMap::<IdentifierSet>::default();
-  let mut module_meta = IdentifierMap::<ModuleExportsMeta>::default();
+  let backtracking_modules = module_exports_specs
+    .iter()
+    .filter_map(|(module_id, collected_exports)| {
+      collected_exports
+        .meta
+        .needs_backtracking
+        .then_some((*module_id, collected_exports))
+    })
+    .collect::<Vec<_>>();
+  let backtracking_module_set = backtracking_modules
+    .iter()
+    .map(|(module_id, _)| *module_id)
+    .collect::<IdentifierSet>();
 
-  for (module_id, collected_exports) in module_exports_specs {
-    let meta = collected_exports.meta;
-    if meta.needs_backtracking {
-      module_meta.insert(*module_id, meta);
-    }
-  }
-
-  let mut remaining_dependency_count =
-    IdentifierMap::<usize>::with_capacity_and_hasher(module_meta.len(), Default::default());
+  let mut remaining_dependency_count = IdentifierMap::<usize>::with_capacity_and_hasher(
+    backtracking_modules.len(),
+    Default::default(),
+  );
   let mut leaf_modules = VecDeque::new();
-  for (module_id, collected_exports) in module_exports_specs {
-    if !module_meta.contains_key(module_id) {
-      continue;
-    }
+  for (module_id, collected_exports) in backtracking_modules {
     let dependency_count = collected_exports
       .dependencies
       .as_ref()
-      .map_or(0, |dependencies| match dependencies.as_slice() {
-        [dependency] if module_meta.contains_key(dependency) && dependency != module_id => {
-          reverse_dependencies
-            .entry(*dependency)
-            .or_default()
-            .insert(*module_id);
-          1
-        }
-        [_] => 0,
-        dependencies => {
-          let mut seen = IdentifierSet::default();
-          let mut count = 0;
-          for dependency in dependencies
-            .iter()
-            .copied()
-            .filter(|dependency| module_meta.contains_key(dependency) && dependency != module_id)
-          {
-            if seen.insert(dependency) {
-              count += 1;
-              reverse_dependencies
-                .entry(dependency)
-                .or_default()
-                .insert(*module_id);
-            }
+      .map_or(0, |dependencies| {
+        let mut count = 0;
+        for dependency in dependencies.iter().copied() {
+          if backtracking_module_set.contains(&dependency) && dependency != module_id {
+            reverse_dependencies
+              .entry(dependency)
+              .or_default()
+              .insert(module_id);
+            count += 1;
           }
-          count
         }
+        count
       });
-    remaining_dependency_count.insert(*module_id, dependency_count);
+    remaining_dependency_count.insert(module_id, dependency_count);
     if dependency_count == 0 {
-      leaf_modules.push_back(*module_id);
+      leaf_modules.push_back(module_id);
     }
   }
 
   ReexportDependencyGraph {
     reverse_dependencies,
     dependency_count: remaining_dependency_count,
-    module_meta,
     leaf_modules,
   }
 }
@@ -864,16 +843,11 @@ fn collect_module_exports(
     else {
       continue;
     };
-    if !reexport_info.can_skip_initial_exports() {
+    let ExportsSpecReexportInfo::Reexport(reexport_dependency) = reexport_info else {
       continue;
-    }
-    meta.has_nested_exports |= reexport_info.has_nested_exports;
+    };
     meta.needs_backtracking = true;
-    if let Some(reexport_dependencies) = reexport_info.dependencies {
-      dependencies
-        .get_or_insert_with(Default::default)
-        .extend(reexport_dependencies);
-    }
+    push_unique_reexport_dependency(&mut dependencies, reexport_dependency);
   }
 
   if meta.needs_backtracking {
@@ -895,9 +869,9 @@ fn collect_module_exports(
       && !reexport_dependencies.is_empty()
     {
       meta.needs_backtracking = true;
-      dependencies
-        .get_or_insert_with(Default::default)
-        .extend(reexport_dependencies.iter().copied());
+      for dependency in reexport_dependencies.iter().copied() {
+        push_unique_reexport_dependency(&mut dependencies, dependency);
+      }
     }
     res.push(CollectedExportsSpec {
       dep_id: id,
@@ -909,6 +883,22 @@ fn collect_module_exports(
     meta,
     dependencies,
   })
+}
+
+fn push_unique_reexport_dependency(
+  dependencies: &mut Option<Vec<ModuleIdentifier>>,
+  dependency: ModuleIdentifier,
+) {
+  match dependencies {
+    Some(dependencies) => {
+      if !dependencies.contains(&dependency) {
+        dependencies.push(dependency);
+      }
+    }
+    None => {
+      *dependencies = Some(vec![dependency]);
+    }
+  }
 }
 
 #[derive(Debug, Clone)]

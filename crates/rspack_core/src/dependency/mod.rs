@@ -105,34 +105,10 @@ pub enum ExportsOfExportsSpec {
   Names(Vec<ExportNameOrSpec>),
 }
 
-#[derive(Debug, Default)]
-pub struct ExportsSpecReexportInfo {
-  pub has_nested_exports: bool,
-  pub needs_backtracking: bool,
-  pub dependencies: Option<Vec<ModuleIdentifier>>,
-}
-
-impl ExportsSpecReexportInfo {
-  pub fn can_skip_initial_exports(&self) -> bool {
-    self.needs_backtracking
-      && !self.has_nested_exports
-      && self
-        .dependencies
-        .as_ref()
-        .is_some_and(|dependencies| !dependencies.is_empty())
-  }
-
-  pub fn new(
-    has_nested_exports: bool,
-    needs_backtracking: bool,
-    dependencies: Option<Vec<ModuleIdentifier>>,
-  ) -> Self {
-    Self {
-      has_nested_exports,
-      needs_backtracking,
-      dependencies,
-    }
-  }
+#[derive(Debug)]
+pub enum ExportsSpecReexportInfo {
+  NestedExports,
+  Reexport(ModuleIdentifier),
 }
 
 #[derive(Debug, Default)]

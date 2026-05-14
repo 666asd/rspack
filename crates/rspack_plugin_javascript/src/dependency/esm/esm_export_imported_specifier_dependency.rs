@@ -1292,12 +1292,10 @@ impl Dependency for ESMExportImportedSpecifierDependency {
     _exports_info_artifact: &ExportsInfoArtifact,
   ) -> Option<ExportsSpecReexportInfo> {
     let imported_module = *mg.module_identifier_by_dependency_id(self.id())?;
-    let has_nested_exports = self.name.is_some() && self.get_ids(mg).is_empty();
-    Some(ExportsSpecReexportInfo::new(
-      has_nested_exports,
-      true,
-      Some(vec![imported_module]),
-    ))
+    if self.name.is_some() && self.get_ids(mg).is_empty() {
+      return None;
+    }
+    Some(ExportsSpecReexportInfo::Reexport(imported_module))
   }
 
   fn get_module_evaluation_side_effects_state(

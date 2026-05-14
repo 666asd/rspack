@@ -306,11 +306,7 @@ impl Dependency for CommonJsExportRequireDependency {
   ) -> Option<ExportsSpecReexportInfo> {
     if self.names.len() == 1 || self.names.is_empty() {
       let from = mg.connection_by_dependency_id(&self.id)?;
-      return Some(ExportsSpecReexportInfo::new(
-        false,
-        true,
-        Some(vec![*from.module_identifier()]),
-      ));
+      return Some(ExportsSpecReexportInfo::Reexport(*from.module_identifier()));
     }
     None
   }
