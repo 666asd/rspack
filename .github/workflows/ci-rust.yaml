@@ -1,5 +1,7 @@
 name: CI-Rust
 
+# NOTE: temporarily slimmed down to reproduce a flaky macOS watcher-test
+# failure (see PR description). Restore from main before merging.
 on:
   pull_request:
     types: [opened, synchronize]
@@ -18,24 +20,61 @@ on:
       - 'rust-toolchain.toml'
     tags-ignore:
       - '**'
+
 jobs:
-  rust_tests:
-    name: Run Rust Tests
-    uses: ./.github/workflows/reusable-rust-test.yml
+  rust_watcher_test_macos:
+    name: Run Rust Tests / Rust watcher test - "macos-latest"
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Install Rust Toolchain
+        uses: ./.github/actions/rustup
+        with:
+          save-if: true
+          key: test-os-macos-latest
+
+      - name: Change profile.test
+        shell: bash
+        run: |
+          echo '[profile.test]' >> Cargo.toml
+          echo 'debug = false' >> Cargo.toml
+
+      - name: Diagnostics before test
+        if: always()
+        shell: bash
+        run: |
+          echo "PATH=$PATH"
+          which cargo || true
+          which rustc || true
+          which rustup || true
+          ls -la "$HOME/.cargo/bin" || true
+          cargo --version || true
+          rustc --version || true
+          rustup show || true
+
+      - name: Run rspack test
+        id: watcher_test
+        run: |
+          cargo test -p rspack_watcher -- --nocapture
+
+      - name: Setup tmate session on failure
+        if: failure()
+        uses: mxschmitt/action-tmate@c0afd6f790e3a5564914980036ebf83216678101 # v3.23
+        with:
+          limit-access-to-actor: true
+        timeout-minutes: 30
 
   test_required_check:
-    # this job will be used for GitHub actions to determine required job success or not;
-    # When code changed, it will check if any of the test jobs failed.
-    # When *only* doc changed, it will run as success directly
     name: Rust Test Required Check
-    needs: [rust_tests]
+    needs: [rust_watcher_test_macos]
     if: ${{ always() && !cancelled() }}
     runs-on: ubuntu-latest
     steps:
       - name: Log
         run: echo ${{ needs.*.result }}
       - name: Test check
-        if: ${{ needs.rust_tests.result != 'success' }}
+        if: ${{ needs.rust_watcher_test_macos.result != 'success' }}
         run: echo "Tests Failed" && exit 1
       - name: No check to Run test
         run: echo "Success"
