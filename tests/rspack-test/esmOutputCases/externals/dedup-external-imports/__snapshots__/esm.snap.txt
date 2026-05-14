@@ -1,7 +1,7 @@
 ```mjs title=main.mjs
 import * as _rspack_external_fs from "fs";
-import * as lib2_ns from "fs";
-import { readFile as external_fs_readFile } from "fs";
+import * as ns from "fs";
+import { readFile } from "fs";
 
 // fs?f137
 
@@ -19,9 +19,9 @@ import { readFile as external_fs_readFile } from "fs";
 
 
 it('should not have duplicate import identifiers', async () => {
-	expect(external_fs_readFile).toBeDefined()
-	expect(lib2_ns).toBeDefined()
-	expect(lib2_ns.readFile).toBe(external_fs_readFile)
+	expect(readFile).toBeDefined()
+	expect(ns).toBeDefined()
+	expect(ns.readFile).toBe(readFile)
 })
 
 export {};

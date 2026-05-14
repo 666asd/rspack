@@ -1,6 +1,6 @@
 ```mjs title=main.mjs
 import * as _rspack_external_fs from "fs";
-import * as dep_fsNs from "fs";
+import * as fsNs from "fs";
 
 // fs
 
@@ -19,6 +19,6 @@ it("should re-export an imported external namespace through an intermediate modu
   expect(typeof mod.fsNs.readFileSync).toBe("function");
 });
 
-export { dep_fsNs as fsNs };
+export { fsNs };
 
 ```

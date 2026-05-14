@@ -459,13 +459,24 @@ impl ESMImportSpecifierDependencyTemplate {
           return format!("{local}{}", property_access(ids, 0));
         }
         if dep.request == external.get_request().primary() {
+          let import_symbol = if symbol == "default" && dep.name == "module" {
+            Atom::from(to_identifier_with_escaped(
+              external.get_request().primary().to_string(),
+            ))
+          } else {
+            dep.name.clone()
+          };
+          scope
+            .current_module
+            .internal_names
+            .insert(dep.name.clone(), import_symbol.clone());
           scope.register_import_alias(
             external.get_request().primary().to_string(),
             attributes,
             symbol.clone(),
-            dep.name.clone(),
+            import_symbol.clone(),
           );
-          return dep.name.to_string();
+          return import_symbol.to_string();
         }
         let import_symbol = Atom::from(to_identifier_with_escaped(format!(
           "__rspack_external_import_{}_{}",

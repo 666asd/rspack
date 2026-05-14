@@ -37,8 +37,8 @@ it("should deconflict concatenated namespace imports that match generated node-c
 
 // node:module
 const external_node_module_namespaceObject = __rspack_createRequire_require("node:module");
-var readFile_0 = external_fs_namespaceObject.readFile;
-var readFileSync_0 = external_fs_namespaceObject.readFileSync;
-export { external_path_namespaceObject as pathNs, joinFn, readFileSync_0 as readFileSync, readFile_0 as readFile };
+var readFile = external_fs_namespaceObject.readFile;
+var readFileSync = external_fs_namespaceObject.readFileSync;
+export { external_path_namespaceObject as pathNs, joinFn, readFile, readFileSync };
 
 ```

@@ -21,8 +21,8 @@ it("should combine node-commonjs export-star-as and named exports for the same s
 
 // node:module
 const external_node_module_namespaceObject = __rspack_createRequire_require("node:module");
-var readFile_0 = external_fs_namespaceObject.readFile;
-var readFileSync_0 = external_fs_namespaceObject.readFileSync;
-export { external_fs_namespaceObject as fsNs, readFileSync_0 as readFileSync, readFile_0 as readFile };
+var readFile = external_fs_namespaceObject.readFile;
+var readFileSync = external_fs_namespaceObject.readFileSync;
+export { external_fs_namespaceObject as fsNs, readFile, readFileSync };
 
 ```

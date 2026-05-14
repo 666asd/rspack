@@ -16,14 +16,15 @@ export {};
 ```
 
 ```mjs title=shared.mjs
-import fs, { readFile as external_fs_readFile } from "fs";
+import fs, { readFile as readFile_0 } from "fs";
 
+const readFile = fs;
 // fs?2aa6
 
 // ./a.js
 
 
-const defaultImport = fs
+const defaultImport = readFile
 
 // fs?f4d4
 
@@ -32,6 +33,6 @@ const defaultImport = fs
 
 const marker = 'ok'
 
-export { defaultImport, external_fs_readFile as namedReadFile, marker };
+export { defaultImport, marker, readFile_0 as namedReadFile };
 
 ```

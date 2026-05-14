@@ -1,5 +1,5 @@
 ```mjs title=main.mjs
-import { readFile as external_fs_readFile, writeFile as external_fs_writeFile } from "fs";
+import { readFile, writeFile } from "fs";
 
 import { createRequire as __rspack_createRequire } from "node:module";
 const __rspack_createRequire_require = __rspack_createRequire(import.meta.url);
@@ -24,6 +24,6 @@ it('should handle aliased external', async () => {
 
 
 
-export { external_fs_readFile as f, external_fs_writeFile as w };
+export { readFile as f, writeFile as w };
 
 ```

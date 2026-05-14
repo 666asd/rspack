@@ -56,7 +56,7 @@ export { __webpack_require__ };
 
 ```mjs title=shared.mjs
 import { __webpack_require__ } from "./runtime.mjs";
-import foo_runtime, { foo as external_foo_runtime_mjs_foo } from "./foo-runtime.mjs";
+import foo_runtime, { foo as foo_0 } from "./foo-runtime.mjs";
 
 // NAMESPACE OBJECT: ./a.js
 var a_namespaceObject = {};
@@ -71,11 +71,12 @@ __webpack_require__.d(a_namespaceObject, {
 var b_namespaceObject = {};
 __webpack_require__.r(b_namespaceObject);
 __webpack_require__.d(b_namespaceObject, {
-  namedFoo: () => (external_foo_runtime_mjs_foo),
+  namedFoo: () => (foo_0),
   shared: () => (b_shared)
 });
 
 
+const foo = foo_runtime;
 // ./foo-runtime.mjs?4fe1
 
 // ./a.js
@@ -84,7 +85,7 @@ __webpack_require__.d(b_namespaceObject, {
 const shared = 'a'
 
 
-/* export default */ const a_0 = (foo_runtime);
+/* export default */ const a_0 = (foo);
 
 // ./foo-runtime.mjs?ee16
 

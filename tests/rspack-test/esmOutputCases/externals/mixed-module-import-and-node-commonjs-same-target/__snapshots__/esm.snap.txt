@@ -1,6 +1,6 @@
 ```mjs title=main.mjs
 import * as _rspack_external_webpack_sources_lib_index_js_06790234 from "webpack-sources/lib/index.js";
-import * as namespace_sourcesNs from "webpack-sources/lib/index.js";
+import * as sourcesNs from "webpack-sources/lib/index.js";
 
 import { createRequire as __rspack_createRequire } from "node:module";
 const __rspack_createRequire_require = __rspack_createRequire(import.meta.url);
@@ -28,12 +28,12 @@ it("should not emit duplicate identifiers when the same external target is rende
 
   expect(mod.sourcesNs.RawSource).toBe(index_js_namespaceObject.RawSource);
   expect(mod.sourcesNs.SourceMapSource).toBe(index_js_namespaceObject.SourceMapSource);
-  expect(mod.sourcesNs.RawSource).toBe(namespace_sourcesNs.RawSource);
-  expect(mod.sourcesNs.SourceMapSource).toBe(namespace_sourcesNs.SourceMapSource);
+  expect(mod.sourcesNs.RawSource).toBe(sourcesNs.RawSource);
+  expect(mod.sourcesNs.SourceMapSource).toBe(sourcesNs.SourceMapSource);
 });
 
-var RawSource_0 = index_js_namespaceObject.RawSource;
-var SourceMapSource_0 = index_js_namespaceObject.SourceMapSource;
-export { RawSource_0 as RawSource, SourceMapSource_0 as SourceMapSource, namespace_sourcesNs as sourcesNs };
+var RawSource = index_js_namespaceObject.RawSource;
+var SourceMapSource = index_js_namespaceObject.SourceMapSource;
+export { RawSource, SourceMapSource, sourcesNs };
 
 ```

@@ -1,6 +1,6 @@
 ```mjs title=main.mjs
-import fs_0 from "fs";
-import { join as external_path_join, resolve as external_path_resolve } from "path";
+import fs from "fs";
+import { join, resolve } from "path";
 
 // fs
 
@@ -12,7 +12,7 @@ import { join as external_path_join, resolve as external_path_resolve } from "pa
 
 
 it('should compile', () => {
-	console.log.bind([fs_0, external_path_join, external_path_resolve])
+	console.log.bind([fs, join, resolve])
 })
 
 export {};

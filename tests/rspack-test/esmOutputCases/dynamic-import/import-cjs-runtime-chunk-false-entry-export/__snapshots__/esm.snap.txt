@@ -172,10 +172,10 @@ exports.base = 1;
 },
 });
 // ./index.js
-const shared_0 = __webpack_require__("./shared.js");
+const shared = __webpack_require__("./shared.js");
 
 
-const direct = shared_0.base;
+const direct = shared.base;
 
 it("should keep a single __webpack_require__ export on runtimeChunk false entry chunks", async () => {
 	const mod = await import("./dynamic.mjs").then(__webpack_require__.t.bind(__webpack_require__, /*! ./dynamic */ "./dynamic.js", 19));

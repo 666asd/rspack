@@ -9,9 +9,9 @@ export * from "fs";
 ```
 
 ```mjs title=main.mjs
-import { readFile as external_fs_readFile, readFileSync as external_fs_readFileSync } from "fs";
+import { readFile, readFileSync } from "fs";
 import * as _rspack_external_path from "path";
-import * as path_ns_pathNs from "path";
+import * as pathNs from "path";
 import * as __rspack_external_fs from "path";
 
 // fs?bba3
@@ -44,7 +44,7 @@ it("should deconflict concatenated namespace imports that match generated module
   expect(mod.joinFn).toBe(path.join);
 });
 
-export { external_fs_readFile as readFile, external_fs_readFileSync as readFileSync, joinFn, path_ns_pathNs as pathNs };
+export { joinFn, pathNs, readFile, readFileSync };
 
 ```
 

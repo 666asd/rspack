@@ -388,6 +388,10 @@ var {} = {{}};
 
     let mut already_required = IdentifierIndexSet::default();
 
+    for decl_before_module in chunk_link.decl_before_modules.iter() {
+      render_source.add(RawStringSource::from(format!("{decl_before_module}\n")));
+    }
+
     for m in &chunk_link.hoisted_modules {
       let info = concatenated_modules_map
         .get(m)
@@ -516,6 +520,10 @@ var {} = {{}};
         .atoms
         .values()
         .any(|local| local.as_str() == require_ident)
+        || import_spec
+          .named_imports
+          .iter()
+          .any(|(_, local)| local.as_str() == require_ident)
         || import_spec
           .default_import
           .as_ref()

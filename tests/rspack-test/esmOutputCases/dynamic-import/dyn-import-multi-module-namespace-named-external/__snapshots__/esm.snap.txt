@@ -51,7 +51,7 @@ export { __webpack_require__ };
 import { __webpack_require__ } from "./runtime.mjs";
 import * as _rspack_external_path from "path";
 import * as resolve from "path";
-import { resolve as external_path_resolve } from "path";
+import { resolve as resolve_0, resolve as resolve_1 } from "path";
 
 // NAMESPACE OBJECT: ./a.js
 var a_namespaceObject = {};
@@ -66,7 +66,7 @@ var b_namespaceObject = {};
 __webpack_require__.r(b_namespaceObject);
 __webpack_require__.d(b_namespaceObject, {
   marker: () => (marker),
-  resolve: () => (external_path_resolve)
+  resolve: () => (resolve_1)
 });
 
 

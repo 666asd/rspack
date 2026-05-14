@@ -6,25 +6,25 @@ export { v };
 ```
 
 ```mjs title=foo.mjs
-import { v as bar_v } from "./bar.mjs";
+import { v } from "./bar.mjs";
 
 // ./foo.js
 
 
-const value = () => bar_v()
+const value = () => v()
 
 export { value };
 
 ```
 
 ```mjs title=main.mjs
-import { value as foo_value } from "./foo.mjs";
+import { value } from "./foo.mjs";
 
 // ./index.js
 
 
 it('should have correct value', () => {
-  expect(foo_value()).toBe(42)
+  expect(value()).toBe(42)
 })
 export {};
 

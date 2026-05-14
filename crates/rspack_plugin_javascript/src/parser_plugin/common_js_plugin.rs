@@ -38,6 +38,12 @@ impl JavascriptParserPlugin for CommonJsPlugin {
     for_name: &str,
   ) -> Option<bool> {
     if for_name == expr_name::MODULE {
+      if parser
+        .get_free_info_from_variable(&expr_name::MODULE.into())
+        .is_none()
+      {
+        return None;
+      }
       parser.add_presentational_dependency(Box::new(ConstDependency::new(
         expr.span.into(),
         "'object'".into(),

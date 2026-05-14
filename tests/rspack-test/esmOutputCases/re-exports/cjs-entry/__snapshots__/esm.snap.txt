@@ -47,9 +47,9 @@ it('should have correct output for entry re-exports', async () => {
 });
 const index = __webpack_require__("./index.js");
 var bar = index.bar;
-var foo = index.foo;
+var foo_0 = index.foo;
 
-export { bar, foo };
+export { bar, foo_0 as foo };
 
 ```
 

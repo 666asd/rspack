@@ -12,12 +12,13 @@ __webpack_require__.d(file_namespaceObject, {
 });
 
 
+const fsDefault = fs;
 // fs?42cb
 
 // ./sharding.js
 
 
-const value = fs;
+const value = fsDefault;
 
 // fs?5257
 

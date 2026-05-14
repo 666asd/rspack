@@ -1,7 +1,7 @@
 import * as _rspack_external_App1_cd1629a5 from "./App1";
 import * as NamespaceImportApp1 from "./App1";
 import { App1A, App1C } from "./App1";
-import { App2 as external_App2_App2, app2Props as external_App2_app2Props } from "./App2";
+import { App2, app2Props } from "./App2";
 
 
 
@@ -38,9 +38,9 @@ function Root() {
       <C>
         {x ? <App1A>
             <NamespaceImportApp1.App1B>
-              <external_App2_App2 props={external_App2_app2Props}>
+              <App2 props={app2Props}>
                 <C props={NamespaceImportApp1.app1cProps}/>
-              </external_App2_App2>
+              </App2>
             </NamespaceImportApp1.App1B>
           </App1A> : <NamespaceImportApp1.App1B/>}
       </C>
@@ -64,9 +64,9 @@ function Root() {
             { /* JSXEmptyExpr in action */ }
           </section>,
         <section key="legacy-widget" data-index="1">
-            <external_App2_App2 data-dynamic="registry" data-item="two" {...app2Props}/>
+            <App2 data-dynamic="registry" data-item="two" {...app2Props}/>
             app2
-            <external_App2_App2/>
+            <App2/>
             <foo:bar value="namespaced-two"/>
             <svg:path d="M10,10 L20,20" xlink:href="#two"/>
             <App1A/>

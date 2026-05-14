@@ -73,7 +73,7 @@ fn collect_concatenated_module_scope_info(
   #[derive(Default)]
   struct TopLevelBindingCollector {
     bindings: HashSet<ScopedName>,
-    import_locals: HashSet<swc_core::atoms::Atom>,
+    import_locals: HashSet<ScopedName>,
     ignored_specifier_ranges: HashSet<(u32, u32)>,
   }
 
@@ -169,7 +169,7 @@ fn collect_concatenated_module_scope_info(
       };
       let name = (local.sym.clone(), local.ctxt);
       self.bindings.insert(name.clone());
-      self.import_locals.insert(name.0);
+      self.import_locals.insert(name);
       self
         .ignored_specifier_ranges
         .insert((local.span.lo.0, local.span.hi.0));
@@ -241,6 +241,17 @@ fn collect_concatenated_module_scope_info(
     if ignored_specifier_ranges.contains(&(ident.id.span.lo.0, ident.id.span.hi.0)) {
       continue;
     }
+    if import_locals.contains(&scoped_name) {
+      info
+        .import_references
+        .entry(ident.id.sym.clone())
+        .or_default()
+        .push(ConcatenatedModuleIdentReference {
+          range: ident.id.span.into(),
+          shorthand: ident.shorthand,
+        });
+      continue;
+    }
     let is_top_level = top_level_bindings.contains(&scoped_name);
     if ident.id.ctxt == global_ctxt || !is_top_level || ident.is_class_expr_with_ident {
       info.all_used_names.insert(ident.id.sym.clone());
@@ -248,17 +259,6 @@ fn collect_concatenated_module_scope_info(
 
     if is_top_level && !ident.is_class_expr_with_ident {
       let name = ident.id.sym.clone();
-      if import_locals.contains(&name) {
-        info
-          .import_references
-          .entry(name)
-          .or_default()
-          .push(ConcatenatedModuleIdentReference {
-            range: ident.id.span.into(),
-            shorthand: ident.shorthand,
-          });
-        continue;
-      }
       if !info.top_level_references.contains_key(&name) {
         info.top_level_order.push(name.clone());
       }

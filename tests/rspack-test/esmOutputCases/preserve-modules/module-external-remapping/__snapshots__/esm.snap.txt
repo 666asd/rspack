@@ -15,7 +15,7 @@ export { EventEmitterHoisted, onceHoisted };
 ```mjs title=index.mjs
 import { __webpack_require__ } from "./runtime.mjs";
 import "./wrapped.mjs";
-import { EventEmitterHoisted as hoisted_EventEmitterHoisted, onceHoisted as hoisted_onceHoisted } from "./hoisted.mjs";
+import { EventEmitterHoisted, onceHoisted } from "./hoisted.mjs";
 
 // ./src/index.js
 const wrapped_0 = __webpack_require__("./src/wrapped.js");
@@ -25,8 +25,8 @@ const wrapped_0 = __webpack_require__("./src/wrapped.js");
 it('should keep module external exports correct for hoisted named imports and wrapped remapping', async () => {
   const events = await import(/* webpackIgnore: true */ 'node:events');
 
-  expect(hoisted_EventEmitterHoisted).toBe(events.EventEmitter);
-  expect(hoisted_onceHoisted).toBe(events.once);
+  expect(EventEmitterHoisted).toBe(events.EventEmitter);
+  expect(onceHoisted).toBe(events.once);
 
   expect(wrapped_0.a).toBe(events.EventEmitter);
   expect(wrapped_0.b).toBe(events.once);

@@ -30,13 +30,14 @@ module.exports = {
         compilation.hooks.processAssets.tap('testcase', (assets) => {
           const source = assets['test.js'].source();
           expect(source).toMatchInlineSnapshot(`
-            import { HomeLayout as external_externals0_HomeLayout, a as external_externals0_a } from "externals0";
-            import { a as external_externals1_a } from "externals1";
+            import { HomeLayout, a, HomeLayout as aaa } from "externals0";
+            import { a, a as a_2 } from "externals1";
             import externals2 from "externals2";
             import * as _rspack_external_externals3 from "externals3";
             import * as namespace from "externals3";
             import "externals4";
 
+            const defaultValue = externals2;
 
 
 
@@ -46,7 +47,7 @@ module.exports = {
 
 
             (function Layout(props) {
-              const { HomeLayout = external_externals0_HomeLayout } = props;
+              const { HomeLayout = aaa } = props;
               call({ HomeLayout });
             })()
 
@@ -67,11 +68,11 @@ module.exports = {
 
 
 
-            external_externals1_a;
-            externals2;
+            a_2;
+            defaultValue;
             namespace;
 
-            export { external_externals0_a as a };
+            export { a };
           `);
         });
       };

@@ -16,15 +16,17 @@ export { ns };
 ```
 
 ```mjs title=main.mjs
-import fs, { readFile as external_fs_readFile } from "fs";
+import fs, { readFile } from "fs";
 
+const f1 = fs;
+const f1_0 = fs;
 // fs?771d
 
 // fs?5ccf
 
 // ./other.js
 
-/* export default */ const other = (fs);
+/* export default */ const other = (f1);
 
 
 // fs?22cf
@@ -40,8 +42,8 @@ import fs, { readFile as external_fs_readFile } from "fs";
 it('should render external correctly', async () => {
   const {ns} = await import("./async.mjs")
 
-  expect(fs).toBe(other).toBe(fs).toBe(ns.default)
-  expect(external_fs_readFile).toBe(external_fs_readFile).toBe(external_fs_readFile).toBe(ns.readFile)
+  expect(f1).toBe(other).toBe(fs).toBe(ns.default)
+  expect(readFile).toBe(readFile).toBe(readFile).toBe(ns.readFile)
 })
 export {};
 

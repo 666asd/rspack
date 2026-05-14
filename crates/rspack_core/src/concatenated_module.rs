@@ -684,6 +684,7 @@ impl ModuleInfo {
 #[derive(Default, Clone, Debug)]
 pub struct ImportSpec {
   pub atoms: BTreeMap<Atom, Atom>,
+  pub named_imports: Vec<(Atom, Atom)>,
   pub default_import: Option<Atom>,
   pub ns_import: Option<Atom>,
   pub ns_imports: Vec<Atom>,
@@ -853,6 +854,7 @@ impl DependenciesBlock for ConcatenatedModule {
 
 pub fn render_imports(source: &str, attr: Option<&str>, import_spec: &ImportSpec) -> String {
   let atoms = &import_spec.atoms;
+  let named_imports = &import_spec.named_imports;
   let default_import = import_spec.default_import.as_ref();
   let ns_import = import_spec.ns_import.as_ref();
 
@@ -880,7 +882,7 @@ pub fn render_imports(source: &str, attr: Option<&str>, import_spec: &ImportSpec
     import_ns_stmt.push_str(&format!("import * as {ns_import} from {source_str};\n"));
   }
 
-  let import_stmt = if atoms.is_empty() {
+  let import_stmt = if atoms.is_empty() && named_imports.is_empty() {
     if render_ns {
       // already rendered ns and default
       Default::default()
@@ -905,6 +907,11 @@ pub fn render_imports(source: &str, attr: Option<&str>, import_spec: &ImportSpec
       },
       atoms
         .iter()
+        .chain(
+          named_imports
+            .iter()
+            .map(|(atom, internal)| (atom, internal))
+        )
         .map(|(atom, internal)| {
           if atom == internal {
             atom.to_string()

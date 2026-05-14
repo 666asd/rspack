@@ -1,6 +1,6 @@
 ```mjs title=main.mjs
-import { resolve as external_path_resolve } from "path";
-import { readFileSync as external_fs_readFileSync } from "fs";
+import { resolve } from "path";
+import { readFileSync } from "fs";
 
 // path
 
@@ -16,7 +16,7 @@ it("should externalize node builtins with correct external types", async () => {
 	const nodeFs = await import(/* webpackIgnore: true */ "fs");
 
 	// esm import should use "module" external type
-	expect(external_path_resolve).toBe(nodePath.resolve);
+	expect(resolve).toBe(nodePath.resolve);
 	// esm re-export should use "module" external type
 	expect(main.readFileSync).toBe(nodeFs.readFileSync);
 
@@ -25,6 +25,6 @@ it("should externalize node builtins with correct external types", async () => {
 	expect(dynamicOs.platform).toBeDefined();
 });
 
-export { external_fs_readFileSync as readFileSync };
+export { readFileSync };
 
 ```

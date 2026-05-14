@@ -254,6 +254,7 @@ pub struct ChunkLinkContext {
   pub chunk: ChunkUkey,
 
   pub decl_before_exports: FxIndexSet<String>,
+  pub decl_before_modules: FxIndexSet<String>,
 
   /**
   specifier order doesn't matter, we can sort them based on name
@@ -347,6 +348,7 @@ impl ChunkLinkContext {
       hoisted_modules,
       decl_modules,
       decl_before_exports: Default::default(),
+      decl_before_modules: Default::default(),
       exports: Default::default(),
       re_exports: Default::default(),
       imports: Default::default(),
