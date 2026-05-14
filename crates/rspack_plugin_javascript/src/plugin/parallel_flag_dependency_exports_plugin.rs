@@ -188,13 +188,28 @@ impl<'a> ParallelFlagDependencyExportsState<'a> {
     let has_nested_exports = exports_specs
       .iter()
       .any(|spec| spec.exports_spec.has_nested_exports());
-    let mut patch = DetachedExportsInfoPatch::new(
-      self
-        .exports_info_artifact
-        .get_exports_info_data(&module_id)
-        .clone(),
-      has_nested_exports,
-    );
+    let mut root = self
+      .exports_info_artifact
+      .get_exports_info_data(&module_id)
+      .clone();
+    if !has_nested_exports {
+      for exports_spec in exports_specs {
+        process_exports_spec_root(
+          self.mg,
+          self.exports_info_artifact,
+          &module_id,
+          exports_spec.dep_id,
+          &exports_spec.exports_spec,
+          &mut root,
+        );
+      }
+      return DetachedExportsInfoPatch::Root(root);
+    }
+
+    let mut patch = DetachedExportsInfoPatch::Nested {
+      root,
+      nested: Default::default(),
+    };
     for exports_spec in exports_specs {
       process_exports_spec_detached(
         self.mg,
@@ -216,14 +231,32 @@ impl<'a> ParallelFlagDependencyExportsState<'a> {
     let has_nested_exports = exports_specs
       .iter()
       .any(|spec| spec.exports_spec.has_nested_exports());
-    let mut patch = DetachedExportsInfoPatch::new(
+    let mut root = self
+      .exports_info_artifact
+      .get_exports_info_data(module_id)
+      .clone();
+    let mut changed = false;
+    if !has_nested_exports {
+      for exports_spec in exports_specs {
+        changed |= process_exports_spec_root(
+          self.mg,
+          self.exports_info_artifact,
+          module_id,
+          exports_spec.dep_id,
+          &exports_spec.exports_spec,
+          &mut root,
+        );
+      }
       self
         .exports_info_artifact
-        .get_exports_info_data(module_id)
-        .clone(),
-      has_nested_exports,
-    );
-    let mut changed = false;
+        .set_exports_info_by_id(root.id(), root);
+      return changed;
+    }
+
+    let mut patch = DetachedExportsInfoPatch::Nested {
+      root,
+      nested: Default::default(),
+    };
     for exports_spec in exports_specs {
       changed |= process_exports_spec_detached(
         self.mg,
@@ -734,17 +767,6 @@ enum DetachedExportsInfoPatch {
 }
 
 impl DetachedExportsInfoPatch {
-  fn new(root: ExportsInfoData, has_nested_exports: bool) -> Self {
-    if has_nested_exports {
-      Self::Nested {
-        root,
-        nested: Default::default(),
-      }
-    } else {
-      Self::Root(root)
-    }
-  }
-
   fn root(&self) -> &ExportsInfoData {
     match self {
       Self::Root(root) | Self::Nested { root, .. } => root,
@@ -854,6 +876,60 @@ fn commit_detached_exports_info_patch(
   }
 }
 
+fn process_exports_spec_root(
+  mg: &ModuleGraph,
+  exports_info_artifact: &ExportsInfoArtifact,
+  module_id: &ModuleIdentifier,
+  dep_id: DependencyId,
+  export_desc: &ExportsSpec,
+  exports_info: &mut ExportsInfoData,
+) -> bool {
+  let mut changed = false;
+
+  let exports = &export_desc.exports;
+  let global_can_mangle = &export_desc.can_mangle;
+  let global_from = export_desc.from.as_ref();
+  let global_priority = &export_desc.priority;
+  let global_terminal_binding = export_desc.terminal_binding.unwrap_or(false);
+  if let Some(hide_export) = &export_desc.hide_export {
+    for name in hide_export.iter() {
+      exports_info
+        .ensure_owned_export_info(name)
+        .unset_target(&dep_id);
+    }
+  }
+  match exports {
+    ExportsOfExportsSpec::UnknownExports => {
+      changed |= exports_info.set_unknown_exports_provided(
+        global_can_mangle.unwrap_or_default(),
+        export_desc.exclude_exports.as_ref(),
+        global_from.map(|_| dep_id),
+        global_from.map(|_| dep_id),
+        *global_priority,
+      );
+    }
+    ExportsOfExportsSpec::NoExports => {}
+    ExportsOfExportsSpec::Names(ele) => {
+      changed |= merge_exports_root(
+        mg,
+        exports_info_artifact,
+        module_id,
+        exports_info,
+        ele,
+        DefaultExportInfo {
+          can_mangle: *global_can_mangle,
+          terminal_binding: global_terminal_binding,
+          from: global_from,
+          priority: *global_priority,
+        },
+        dep_id,
+      );
+    }
+  }
+
+  changed
+}
+
 fn process_exports_spec_detached(
   mg: &ModuleGraph,
   exports_info_artifact: &ExportsInfoArtifact,
@@ -922,6 +998,74 @@ fn process_exports_spec_detached(
   changed
 }
 
+fn merge_exports_root(
+  mg: &ModuleGraph,
+  exports_info_artifact: &ExportsInfoArtifact,
+  module_id: &ModuleIdentifier,
+  exports_info: &mut ExportsInfoData,
+  exports: &[ExportNameOrSpec],
+  global_export_info: DefaultExportInfo,
+  dep_id: DependencyId,
+) -> bool {
+  let mut changed = false;
+  for export_name_or_spec in exports {
+    let ParsedExportSpec {
+      name,
+      can_mangle,
+      terminal_binding,
+      exports,
+      from,
+      from_export,
+      priority,
+      hidden,
+      inlinable,
+    } = ParsedExportSpec::new(export_name_or_spec, &global_export_info);
+
+    debug_assert!(
+      exports.is_none(),
+      "root exports fast path should not receive nested exports"
+    );
+
+    {
+      let export_info = exports_info.ensure_owned_export_info(name);
+      changed |= set_export_base_info(export_info, can_mangle, terminal_binding, inlinable);
+      changed |= set_export_target(
+        export_info,
+        from,
+        from_export,
+        priority,
+        hidden,
+        dep_id,
+        name,
+      );
+    }
+
+    let target_exports_info = {
+      let export_info = exports_info
+        .named_exports(name)
+        .expect("should have named export");
+      find_target_exports_info_root(
+        mg,
+        exports_info_artifact,
+        module_id,
+        exports_info,
+        export_info,
+      )
+    };
+
+    let export_info = exports_info
+      .named_exports_mut(name)
+      .expect("should have named export");
+    let should_update_exports_info =
+      target_exports_info.is_some() || !export_info.exports_info_owned();
+    if export_info.exports_info() != target_exports_info && should_update_exports_info {
+      export_info.set_exports_info(target_exports_info);
+      changed = true;
+    }
+  }
+  changed
+}
+
 fn merge_exports_detached(
   context: &ProcessExportsContext,
   patch: &mut DetachedExportsInfoPatch,
@@ -969,7 +1113,8 @@ fn merge_exports_detached(
     {
       let export_info = patch
         .get_mut(exports_info, context.exports_info_artifact)
-        .ensure_owned_export_info(name);
+        .named_exports_mut(name)
+        .expect("should have named export");
       changed |= set_export_target(
         export_info,
         from,
@@ -997,7 +1142,8 @@ fn merge_exports_detached(
 
     let export_info = patch
       .get_mut(exports_info, context.exports_info_artifact)
-      .ensure_owned_export_info(name);
+      .named_exports_mut(name)
+      .expect("should have named export");
     let should_update_exports_info = if in_nested_exports {
       export_info.exports_info_owned() && target_exports_info.is_some()
     } else {
@@ -1039,7 +1185,8 @@ fn ensure_nested_exports_info(
 
   let export_info = patch
     .get_mut(parent_exports_info, exports_info)
-    .ensure_owned_export_info(name);
+    .named_exports_mut(name)
+    .expect("should have named export");
   export_info.set_exports_info(Some(new_exports_info_id));
   export_info.set_exports_info_owned(true);
 
@@ -1111,6 +1258,36 @@ fn set_export_target(
     }
   }
   changed
+}
+
+fn find_target_exports_info_root(
+  mg: &ModuleGraph,
+  exports_info_artifact: &ExportsInfoArtifact,
+  module_id: &ModuleIdentifier,
+  root_exports_info: &ExportsInfoData,
+  export_info: &ExportInfoData,
+) -> Option<ExportsInfo> {
+  let target = get_target(
+    export_info,
+    mg,
+    exports_info_artifact,
+    &|_| true,
+    &mut Default::default(),
+  );
+
+  if let Some(GetTargetResult::Target(target)) = target {
+    if &target.module == module_id {
+      return root_exports_info
+        .get_nested_exports_info(exports_info_artifact, target.export.as_deref())
+        .map(|data| data.id());
+    }
+    return exports_info_artifact
+      .get_exports_info_data(&target.module)
+      .get_nested_exports_info(exports_info_artifact, target.export.as_deref())
+      .map(|data| data.id());
+  }
+
+  None
 }
 
 fn find_target_exports_info_detached(
