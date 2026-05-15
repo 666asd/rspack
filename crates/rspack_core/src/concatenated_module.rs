@@ -393,6 +393,8 @@ pub struct ConcatenatedModuleInfo {
   pub interop_default_access_used: bool,
   pub interop_default_access_name: Option<Atom>,
   pub global_scope_ident: Vec<ConcatenatedModuleIdent>,
+  pub global_scope_ident_ranges_by_symbol: HashMap<Atom, Vec<(u32, u32, bool)>>,
+  pub replaced_global_import_ranges: HashSet<(u32, u32)>,
   pub module_references: Vec<ConcatenatedModuleReference>,
   pub idents: Vec<ConcatenatedModuleIdent>,
   pub all_used_names: HashSet<Atom>,
@@ -793,24 +795,18 @@ impl ConcatenatedModule {
       return;
     }
 
-    let Some(source) = info.source.as_mut() else {
+    let Some(references) = info.global_scope_ident_ranges_by_symbol.get(atom) else {
       return;
     };
-    for reference in info
-      .global_scope_ident
-      .iter()
-      .filter(|reference| &reference.id.sym == atom)
-    {
-      let start = reference.id.span.real_lo();
-      let end = reference.id.span.real_hi();
-      if source
-        .replacements()
-        .iter()
-        .any(|replacement| replacement.start() < end && replacement.end() > start)
-      {
+    let references = references.clone();
+    for (start, end, shorthand) in references {
+      if !info.replaced_global_import_ranges.insert((start, end)) {
         continue;
       }
-      if reference.shorthand {
+      let Some(source) = info.source.as_mut() else {
+        return;
+      };
+      if shorthand {
         source.insert(end, format!(": {internal_name}"), None);
       } else {
         source.replace(start, end, internal_name.to_string(), None);
@@ -1582,6 +1578,17 @@ impl Module for ConcatenatedModule {
     // `NameAllocator` can retain a large amount of temporary name state.
     // Move it off the critical path once naming is complete.
     fast_set(&mut name_allocator, NameAllocator::default());
+
+    for info in module_to_info_map.values_mut() {
+      if let ModuleInfo::Concatenated(info) = info {
+        fast_set(&mut info.global_scope_ident, Vec::new());
+        fast_set(
+          &mut info.global_scope_ident_ranges_by_symbol,
+          HashMap::default(),
+        );
+        fast_set(&mut info.replaced_global_import_ranges, HashSet::default());
+      }
+    }
 
     // Find and replace references to modules
     // Splitting read and write to avoid violating rustc borrow rules
@@ -2907,6 +2914,16 @@ impl ConcatenatedModule {
           .iter()
           .map(|reference| reference.ident.clone()),
       );
+      module_info.global_scope_ident_ranges_by_symbol =
+        HashMap::with_capacity_and_hasher(module_info.global_scope_ident.len(), Default::default());
+      for reference in &module_info.global_scope_ident {
+        let span = reference.id.span();
+        module_info
+          .global_scope_ident_ranges_by_symbol
+          .entry(reference.id.sym.clone())
+          .or_default()
+          .push((span.real_lo(), span.real_hi(), reference.shorthand));
+      }
       module_info
         .all_used_names
         .extend(module_info.internal_names.values().cloned());
