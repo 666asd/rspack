@@ -108,6 +108,49 @@ impl CodeGenerationExportsFinalNames {
   }
 }
 
+#[derive(Clone, Debug)]
+pub struct CodeGenerationModuleReferenceReplacement {
+  pub source_start: u32,
+  pub source_end: u32,
+  pub content_start: u32,
+  pub content_end: u32,
+  pub name: Atom,
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct CodeGenerationModuleReferenceReplacements {
+  inner: Vec<CodeGenerationModuleReferenceReplacement>,
+}
+
+impl CodeGenerationModuleReferenceReplacements {
+  pub fn push(&mut self, replacement: CodeGenerationModuleReferenceReplacement) {
+    self.inner.push(replacement);
+  }
+
+  pub fn push_from_content(&mut self, source_start: u32, source_end: u32, content: &str) {
+    const MODULE_REFERENCE_PREFIX: &str = "__rspack_module_ref";
+    const MODULE_REFERENCE_SUFFIX: &str = "__._";
+
+    for (content_start, _) in content.match_indices(MODULE_REFERENCE_PREFIX) {
+      let Some(relative_end) = content[content_start..].find(MODULE_REFERENCE_SUFFIX) else {
+        continue;
+      };
+      let content_end = content_start + relative_end + 2;
+      self.push(CodeGenerationModuleReferenceReplacement {
+        source_start,
+        source_end,
+        content_start: content_start as u32,
+        content_end: content_end as u32,
+        name: Atom::from(&content[content_start..content_end]),
+      });
+    }
+  }
+
+  pub fn inner(&self) -> &[CodeGenerationModuleReferenceReplacement] {
+    &self.inner
+  }
+}
+
 #[derive(Debug, Default, Clone)]
 pub struct CodeGenerationData {
   inner: anymap::Map<dyn CloneAny + Send + Sync>,

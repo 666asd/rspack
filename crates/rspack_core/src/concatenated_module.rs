@@ -39,16 +39,17 @@ use crate::{
   BoxModuleDependency, BuildContext, BuildInfo, BuildMeta, BuildMetaDefaultObject,
   BuildMetaExportsType, BuildResult, ChunkGraph, ChunkInitFragments, ChunkRenderContext,
   CodeGenerationDataTopLevelDeclarations, CodeGenerationExportsFinalNames,
-  CodeGenerationPublicPathAutoReplace, CodeGenerationResult, Compilation, ConcatenatedModuleIdent,
-  ConcatenationScope, ConditionalInitFragment, ConnectionState, Context, DEFAULT_EXPORT,
-  DEFAULT_EXPORT_ATOM, DependenciesBlock, DependencyId, DependencyType, ExportInfo, ExportProvided,
-  ExportsArgument, ExportsInfoArtifact, ExportsType, FactoryMeta, ImportedByDeferModulesArtifact,
-  InitFragment, InitFragmentStage, LibIdentOptions, Module, ModuleArgument,
-  ModuleCodeGenerationContext, ModuleGraph, ModuleGraphCacheArtifact, ModuleGraphConnection,
-  ModuleIdentifier, ModuleLayer, ModuleStaticCache, ModuleType, NAMESPACE_OBJECT_EXPORT, Resolve,
-  RuntimeCondition, RuntimeGlobals, RuntimeSpec, SideEffectsStateArtifact, SourceType,
-  URLStaticMode, UsageState, UsedName, UsedNameItem, escape_identifier, fast_set, filter_runtime,
-  find_target, get_runtime_key, impl_source_map_config, merge_runtime_condition,
+  CodeGenerationModuleReferenceReplacements, CodeGenerationPublicPathAutoReplace,
+  CodeGenerationResult, Compilation, ConcatenatedModuleIdent, ConcatenationScope,
+  ConditionalInitFragment, ConnectionState, Context, DEFAULT_EXPORT, DEFAULT_EXPORT_ATOM,
+  DependenciesBlock, DependencyId, DependencyType, ExportInfo, ExportProvided, ExportsArgument,
+  ExportsInfoArtifact, ExportsType, FactoryMeta, ImportedByDeferModulesArtifact, InitFragment,
+  InitFragmentStage, LibIdentOptions, Module, ModuleArgument, ModuleCodeGenerationContext,
+  ModuleGraph, ModuleGraphCacheArtifact, ModuleGraphConnection, ModuleIdentifier, ModuleLayer,
+  ModuleStaticCache, ModuleType, NAMESPACE_OBJECT_EXPORT, Resolve, RuntimeCondition,
+  RuntimeGlobals, RuntimeSpec, SideEffectsStateArtifact, SourceType, URLStaticMode, UsageState,
+  UsedName, UsedNameItem, escape_identifier, fast_set, filter_runtime, find_target,
+  get_runtime_key, impl_source_map_config, merge_runtime_condition,
   merge_runtime_condition_non_false, module_update_hash, property_access, property_name,
   render_make_deferred_namespace_mode_from_exports_type,
   reserved_names::RESERVED_NAMES_ATOM_SET,
@@ -1708,20 +1709,13 @@ impl Module for ConcatenatedModule {
           .expect("should have module");
         let build_meta = module.build_meta();
         let mut refs = vec![];
-        let source_code = info
-          .source
-          .as_ref()
-          .expect("should have source")
-          .source()
-          .into_string_lossy()
-          .to_string();
-        for reference in Self::collect_module_reference_idents(&source_code) {
+        for reference in &info.global_scope_ident {
           let name = &reference.id.sym;
           let match_result = ConcatenationScope::match_module_reference(name.as_str());
           if let Some(match_info) = match_result {
             let referenced_info_id = &references_info[match_info.index].0;
             refs.push((
-              reference,
+              reference.clone(),
               referenced_info_id,
               match_info
                 .ids
@@ -2798,27 +2792,104 @@ impl ConcatenatedModule {
     references_map.into_values().collect()
   }
 
-  pub fn collect_module_reference_idents(source_code: &str) -> Vec<ConcatenatedModuleIdent> {
-    const MODULE_REFERENCE_PREFIX: &str = "__rspack_module_ref";
-    const MODULE_REFERENCE_SUFFIX: &str = "__._";
-
-    let mut idents = Vec::new();
-    for (low, _) in source_code.match_indices(MODULE_REFERENCE_PREFIX) {
-      let Some(relative_end) = source_code[low..].find(MODULE_REFERENCE_SUFFIX) else {
-        continue;
-      };
-      let high = low + relative_end + 2;
-      let name = &source_code[low..high];
-      idents.push(ConcatenatedModuleIdent {
-        id: swc_ecma_ast::Ident::new(
-          Atom::from(name),
-          Span::new(BytePos(low as u32 + 1), BytePos(high as u32 + 1)),
-          SyntaxContext::empty(),
-        ),
-        is_class_expr_with_ident: false,
-        shorthand: false,
-      });
+  fn collect_module_reference_idents_from_source(
+    source: &dyn Source,
+    replacements: &CodeGenerationModuleReferenceReplacements,
+    base_offset: usize,
+    idents: &mut Vec<ConcatenatedModuleIdent>,
+  ) {
+    if let Some(source) = source.as_any().downcast_ref::<CachedSource>() {
+      return Self::collect_module_reference_idents_from_source(
+        source.inner().as_ref(),
+        replacements,
+        base_offset,
+        idents,
+      );
     }
+
+    if let Some(source) = source.as_any().downcast_ref::<ConcatSource>() {
+      let mut offset = base_offset;
+      for child in source.children() {
+        Self::collect_module_reference_idents_from_source(
+          child.as_ref(),
+          replacements,
+          offset,
+          idents,
+        );
+        offset += child.size();
+      }
+      return;
+    }
+
+    if let Some(source) = source.as_any().downcast_ref::<ReplaceSource>() {
+      Self::collect_module_reference_idents_from_replace_source(
+        source,
+        replacements,
+        base_offset,
+        idents,
+      );
+    }
+  }
+
+  fn collect_module_reference_idents_from_replace_source(
+    source: &ReplaceSource,
+    replacements: &CodeGenerationModuleReferenceReplacements,
+    base_offset: usize,
+    idents: &mut Vec<ConcatenatedModuleIdent>,
+  ) {
+    let mut inner_pos = 0usize;
+    let mut generated_pos = base_offset;
+    for replacement in source.replacements() {
+      let start = replacement.start() as usize;
+      let end = replacement.end() as usize;
+      if start > inner_pos {
+        generated_pos += start - inner_pos;
+        inner_pos = start;
+      }
+
+      for reference in replacements.inner().iter().filter(|reference| {
+        reference.source_start == replacement.start() && reference.source_end == replacement.end()
+      }) {
+        let content = replacement.content();
+        let content_start = reference.content_start as usize;
+        let content_end = reference.content_end as usize;
+        if content_end > content.len() || content_start >= content_end {
+          continue;
+        }
+        if content[content_start..content_end] != *reference.name {
+          continue;
+        }
+        let low = generated_pos + content_start;
+        let high = generated_pos + content_end;
+        idents.push(ConcatenatedModuleIdent {
+          id: swc_ecma_ast::Ident::new(
+            reference.name.clone(),
+            Span::new(BytePos(low as u32 + 1), BytePos(high as u32 + 1)),
+            SyntaxContext::empty(),
+          ),
+          is_class_expr_with_ident: false,
+          shorthand: false,
+        });
+      }
+
+      generated_pos += replacement.content().len();
+      inner_pos = inner_pos.max(end);
+    }
+  }
+
+  pub fn collect_module_reference_idents_from_replacements(
+    source: &dyn Source,
+    replacements: Option<&CodeGenerationModuleReferenceReplacements>,
+  ) -> Vec<ConcatenatedModuleIdent> {
+    let Some(replacements) = replacements else {
+      return vec![];
+    };
+    if replacements.inner().is_empty() {
+      return vec![];
+    }
+
+    let mut idents = Vec::with_capacity(replacements.inner().len());
+    Self::collect_module_reference_idents_from_source(source, replacements, 0, &mut idents);
     idents
   }
 
@@ -2852,6 +2923,7 @@ impl ConcatenatedModule {
 
       let CodeGenerationResult {
         mut inner,
+        data,
         mut chunk_init_fragments,
         mut runtime_requirements,
         concatenation_scope,
@@ -2860,7 +2932,7 @@ impl ConcatenatedModule {
 
       runtime_requirements.extend(*runtime_template.runtime_requirements());
 
-      if let Some(fragments) = codegen_res.data.get::<ChunkInitFragments>() {
+      if let Some(fragments) = data.get::<ChunkInitFragments>() {
         chunk_init_fragments.extend(fragments.iter().cloned());
       }
 
@@ -2868,7 +2940,6 @@ impl ConcatenatedModule {
       let source = inner
         .remove(&SourceType::JavaScript)
         .expect("should have javascript source");
-      let source_code = source.source().into_string_lossy();
       let mut module_info = concatenation_scope.current_module;
 
       let top_level_renames = &concatenation_scope.top_level_renames;
@@ -2935,9 +3006,12 @@ impl ConcatenatedModule {
             }));
         }
       }
-      module_info
-        .global_scope_ident
-        .extend(Self::collect_module_reference_idents(source_code.as_ref()));
+      module_info.global_scope_ident.extend(
+        Self::collect_module_reference_idents_from_replacements(
+          source.as_ref(),
+          data.get::<CodeGenerationModuleReferenceReplacements>(),
+        ),
+      );
       module_info
         .all_used_names
         .extend(module_info.internal_names.values().cloned());
@@ -2947,13 +3021,12 @@ impl ConcatenatedModule {
       module_info.internal_source = Some(source);
       module_info.source = Some(result_source);
       module_info.chunk_init_fragments = chunk_init_fragments;
-      if let Some(CodeGenerationPublicPathAutoReplace(true)) = codegen_res
-        .data
-        .get::<CodeGenerationPublicPathAutoReplace>(
-      ) {
+      if let Some(CodeGenerationPublicPathAutoReplace(true)) =
+        data.get::<CodeGenerationPublicPathAutoReplace>()
+      {
         module_info.public_path_auto_replacement = Some(true);
       }
-      if codegen_res.data.contains::<URLStaticMode>() {
+      if data.contains::<URLStaticMode>() {
         module_info.static_url_replacement = true;
       }
       Ok(ModuleInfo::Concatenated(Box::new(module_info)))

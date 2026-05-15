@@ -3,8 +3,9 @@ use std::{borrow::Cow, sync::Arc};
 use atomic_refcell::AtomicRefCell;
 use rspack_collections::IdentifierMap;
 use rspack_core::{
-  Dependency, DependencyId, DependencyTemplate, ExportsType, FakeNamespaceObjectMode, ModuleGraph,
-  ModuleReferenceOptions, RuntimeGlobals, TemplateContext, get_exports_type,
+  CodeGenerationModuleReferenceReplacements, Dependency, DependencyId, DependencyTemplate,
+  ExportsType, FakeNamespaceObjectMode, ModuleGraph, ModuleReferenceOptions, RuntimeGlobals,
+  TemplateContext, get_exports_type,
 };
 use rspack_plugin_javascript::dependency::ImportDependency;
 use rspack_plugin_rslib::dyn_import_external::render_dyn_import_external_module;
@@ -266,12 +267,15 @@ impl DependencyTemplate for DynamicImportDependencyTemplate {
           ..Default::default()
         },
       );
-      source.replace(
-        import_dep.range.start,
-        import_dep.range.end,
-        format!("Promise.resolve({ns_ref})"),
-        None,
-      );
+      let content = format!("Promise.resolve({ns_ref})");
+      let mut replacements = code_generatable_context
+        .data
+        .get::<CodeGenerationModuleReferenceReplacements>()
+        .cloned()
+        .unwrap_or_default();
+      replacements.push_from_content(import_dep.range.start, import_dep.range.end, &content);
+      code_generatable_context.data.insert(replacements);
+      source.replace(import_dep.range.start, import_dep.range.end, content, None);
       return;
     }
 

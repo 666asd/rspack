@@ -8,16 +8,15 @@ use rayon::{iter::Either, prelude::*};
 use rspack_collections::{IdentifierIndexMap, IdentifierIndexSet, IdentifierMap};
 use rspack_core::{
   BuildMetaDefaultObject, BuildMetaExportsType, ChunkGraph, ChunkInitFragments, ChunkRenderContext,
-  ChunkUkey, CodeGenerationPublicPathAutoReplace, Compilation, ConcatenatedModuleInfo,
-  ConditionalInitFragment, DependencyType, ExportInfo, ExportMode, ExportProvided,
-  ExportsInfoArtifact, ExportsType, FindTargetResult, ImportSpec, InitFragmentKey, ModuleGraph,
-  ModuleGraphCacheArtifact, ModuleIdentifier, ModuleInfo, NAMESPACE_OBJECT_EXPORT, PathData,
-  RuntimeGlobals, SideEffectsStateArtifact, SourceType, URLStaticMode, UsageState, UsedName,
-  UsedNameItem, escape_name_atom_ref, find_new_name, find_target, get_cached_readable_identifier,
-  get_cached_readable_identifier_with_parts, get_js_chunk_filename_template, get_module_directives,
-  get_module_hashbang, property_access, property_name,
-  reserved_names::RESERVED_NAMES_ATOM_SET,
-  rspack_sources::{ReplaceSource, Source},
+  ChunkUkey, CodeGenerationModuleReferenceReplacements, CodeGenerationPublicPathAutoReplace,
+  Compilation, ConcatenatedModuleInfo, ConditionalInitFragment, DependencyType, ExportInfo,
+  ExportMode, ExportProvided, ExportsInfoArtifact, ExportsType, FindTargetResult, ImportSpec,
+  InitFragmentKey, ModuleGraph, ModuleGraphCacheArtifact, ModuleIdentifier, ModuleInfo,
+  NAMESPACE_OBJECT_EXPORT, PathData, RuntimeGlobals, SideEffectsStateArtifact, SourceType,
+  URLStaticMode, UsageState, UsedName, UsedNameItem, escape_name_atom_ref, find_new_name,
+  find_target, get_cached_readable_identifier, get_cached_readable_identifier_with_parts,
+  get_js_chunk_filename_template, get_module_directives, get_module_hashbang, property_access,
+  property_name, reserved_names::RESERVED_NAMES_ATOM_SET, rspack_sources::ReplaceSource,
   split_readable_identifier, to_normal_comment,
 };
 use rspack_error::{Diagnostic, Result};
@@ -1858,13 +1857,12 @@ var {} = {{}};
                 {
                   concate_info.all_used_names = scope_info.all_used_names.clone();
                 }
-                let source_code = render_source.source.source().into_string_lossy();
                 concate_info.global_scope_ident.extend(
-                  rspack_core::ConcatenatedModule::collect_module_reference_idents(
-                    source_code.as_ref(),
+                  rspack_core::ConcatenatedModule::collect_module_reference_idents_from_replacements(
+                    render_source.source.as_ref(),
+                    codegen_res.data.get::<CodeGenerationModuleReferenceReplacements>(),
                   ),
                 );
-                drop(source_code);
 
                 concate_info.source = Some(
                   render_source

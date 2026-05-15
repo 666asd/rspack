@@ -4,15 +4,16 @@ use rspack_cacheable::{
 };
 use rspack_collections::{IdentifierMap, IdentifierSet};
 use rspack_core::{
-  AsContextDependency, ConnectionState, Dependency, DependencyCategory, DependencyCodeGeneration,
-  DependencyCondition, DependencyConditionFn, DependencyId, DependencyLocation, DependencyRange,
-  DependencyTemplate, DependencyTemplateType, DependencyType, ExportPresenceMode, ExportProvided,
-  ExportsInfoArtifact, ExportsType, ExtendedReferencedExport, FactorizeInfo, ForwardId,
-  ImportAttributes, ImportPhase, JavascriptParserOptions, ModuleDependency, ModuleGraph,
-  ModuleGraphCacheArtifact, ModuleGraphConnection, ModuleReferenceOptions, ReferencedExport,
-  ResourceIdentifier, RuntimeSpec, SideEffectsStateArtifact, TemplateContext,
-  TemplateReplaceSource, UsedByExports, UsedByExportsCondition, UsedName,
-  create_exports_object_referenced, property_access, to_identifier_with_escaped, to_normal_comment,
+  AsContextDependency, CodeGenerationModuleReferenceReplacements, ConnectionState, Dependency,
+  DependencyCategory, DependencyCodeGeneration, DependencyCondition, DependencyConditionFn,
+  DependencyId, DependencyLocation, DependencyRange, DependencyTemplate, DependencyTemplateType,
+  DependencyType, ExportPresenceMode, ExportProvided, ExportsInfoArtifact, ExportsType,
+  ExtendedReferencedExport, FactorizeInfo, ForwardId, ImportAttributes, ImportPhase,
+  JavascriptParserOptions, ModuleDependency, ModuleGraph, ModuleGraphCacheArtifact,
+  ModuleGraphConnection, ModuleReferenceOptions, ReferencedExport, ResourceIdentifier, RuntimeSpec,
+  SideEffectsStateArtifact, TemplateContext, TemplateReplaceSource, UsedByExports,
+  UsedByExportsCondition, UsedName, create_exports_object_referenced, property_access,
+  to_identifier_with_escaped, to_normal_comment,
 };
 use rspack_error::Diagnostic;
 use rspack_util::json_stringify_str;
@@ -383,6 +384,21 @@ impl ESMImportSpecifierDependencyTemplate {
     DependencyTemplateType::Dependency(DependencyType::EsmImportSpecifier)
   }
 
+  fn record_module_reference_replacements(
+    context: &mut TemplateContext,
+    source_start: u32,
+    source_end: u32,
+    content: &str,
+  ) {
+    let mut replacements = context
+      .data
+      .get::<CodeGenerationModuleReferenceReplacements>()
+      .cloned()
+      .unwrap_or_default();
+    replacements.push_from_content(source_start, source_end, content);
+    context.data.insert(replacements);
+  }
+
   fn get_code_for_ids(
     &self,
     ids: &[Atom],
@@ -677,12 +693,14 @@ impl ESMImportSpecifierDependencyTemplate {
           connection,
           code_generatable_context,
         );
-        source.replace(
+        let content = format!("{} in {code}", json_stringify_str(used_name.as_str()));
+        Self::record_module_reference_replacements(
+          code_generatable_context,
           dep.range.start,
           dep.range.end,
-          format!("{} in {code}", json_stringify_str(used_name.as_str())),
-          None,
-        )
+          &content,
+        );
+        source.replace(dep.range.start, dep.range.end, content, None)
       }
     }
   }
@@ -740,8 +758,21 @@ impl DependencyTemplate for ESMImportSpecifierDependencyTemplate {
     let export_expr = self.get_code_for_ids(ids, dep, connection, code_generatable_context);
 
     if dep.shorthand {
-      source.insert(dep.range.end, format!(": {export_expr}"), None);
+      let content = format!(": {export_expr}");
+      Self::record_module_reference_replacements(
+        code_generatable_context,
+        dep.range.end,
+        dep.range.end,
+        &content,
+      );
+      source.insert(dep.range.end, content, None);
     } else {
+      Self::record_module_reference_replacements(
+        code_generatable_context,
+        dep.range.start,
+        dep.range.end,
+        &export_expr,
+      );
       source.replace(dep.range.start, dep.range.end, export_expr, None);
     }
 

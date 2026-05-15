@@ -1065,10 +1065,7 @@ var {} = {{}};
       }
     }
 
-    let source_code = source.source().into_string_lossy().to_string();
-    let source_bytes = source_code.as_bytes();
-    let mut generated_ref_replacements = vec![];
-    for ident in rspack_core::ConcatenatedModule::collect_module_reference_idents(&source_code) {
+    for ident in &info.global_scope_ident {
       if ConcatenationScope::match_module_reference(ident.id.sym.as_str()).is_none() {
         continue;
       }
@@ -1079,27 +1076,9 @@ var {} = {{}};
           Ref::Inline(inline) => Cow::Borrowed(inline),
         };
         let low = ident.id.span.real_lo();
-        let mut high = ident.id.span.real_hi();
-        if source_bytes
-          .get(high as usize..high as usize + 2)
-          .is_some_and(|suffix| suffix == b"._")
-        {
-          high += 2;
-        }
-        generated_ref_replacements.push((low, high, final_name.into_owned()));
+        let high = ident.id.span.real_hi() + 2;
+        source.replace(low, high, final_name.into_owned(), None);
       }
-    }
-    drop(source_code);
-    if !generated_ref_replacements.is_empty() {
-      let mut next_source = ReplaceSource::new(
-        RawStringSource::from(source.source().into_string_lossy().to_string()).boxed(),
-      );
-      for (low, high, final_name) in generated_ref_replacements {
-        next_source.replace(low, high, final_name, None);
-      }
-      source = ReplaceSource::new(
-        RawStringSource::from(next_source.source().into_string_lossy().to_string()).boxed(),
-      );
     }
 
     Ok(source)
