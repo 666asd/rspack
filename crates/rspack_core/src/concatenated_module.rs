@@ -1716,56 +1716,35 @@ impl Module for ConcatenatedModule {
           .module_by_identifier(&info.module)
           .expect("should have module");
         let build_meta = module.build_meta();
-        let mut refs = vec![];
-        for reference in &info.module_references {
-          let match_info = &reference.options;
-          let referenced_info_id = &references_info[match_info.index].0;
-          refs.push((
-            reference.ident.clone(),
-            referenced_info_id,
-            match_info.ids.clone(),
-            match_info.call,
-            !match_info.direct_import,
-            match_info.deferred_import,
-            build_meta.strict_esm_module,
-            match_info.asi_safe,
-          ));
-        }
-
         let mut changes = vec![];
+        let mut final_names = vec![];
         let mut final_name_cache = HashMap::default();
-        for (
-          reference_ident,
-          referenced_info_id,
-          export_name,
-          call,
-          call_context,
-          deferred_import,
-          strict_esm_module,
-          asi_safe,
-        ) in refs
-        {
-          let final_name = final_name_cache
+        for reference in &info.module_references {
+          let reference_ident = &reference.ident;
+          let final_name_index = *final_name_cache
             .entry(reference_ident.id.sym.clone())
             .or_insert_with(|| {
-              Self::get_final_name(
+              let match_info = &reference.options;
+              let referenced_info_id = &references_info[match_info.index].0;
+              let final_name = Self::get_final_name(
                 compilation.get_module_graph(),
                 &compilation.module_graph_cache_artifact,
                 &compilation.exports_info_artifact,
                 &compilation.module_static_cache,
                 referenced_info_id,
-                export_name,
+                match_info.ids.clone(),
                 &module_to_info_map,
                 runtime,
-                deferred_import,
-                call,
-                call_context,
-                strict_esm_module,
-                asi_safe,
+                match_info.deferred_import,
+                match_info.call,
+                !match_info.direct_import,
+                build_meta.strict_esm_module,
+                match_info.asi_safe,
                 &context,
-              )
-            })
-            .clone();
+              );
+              final_names.push(final_name);
+              final_names.len() - 1
+            });
 
           // We assume this should be concatenated module info because previous loop
           let span = reference_ident.id.span();
@@ -1774,25 +1753,27 @@ impl Module for ConcatenatedModule {
           // let source = info.source.as_mut().expect("should have source");
           // range is extended by 2 chars to cover the appended "._"
           // https://github.com/webpack/webpack/blob/ac7e531436b0d47cd88451f497cdfd0dad41535d/lib/optimize/ConcatenatedModule.js#L1411-L1412
-          changes.push((final_name, (low, high + 2)));
+          changes.push((final_names[final_name_index].name.clone(), (low, high + 2)));
         }
-        Some((info.module, changes))
+        Some((info.module, changes, final_names))
       })
       .collect::<Vec<_>>();
 
-    for (module_info_id, module_changes) in changes.iter_mut() {
-      for (name_result, (low, high)) in mem::take(module_changes) {
+    for (module_info_id, module_changes, final_names) in changes.iter_mut() {
+      for name_result in mem::take(final_names) {
         name_result.apply_to_info(
           &mut module_to_info_map,
           &mut needed_namespace_objects,
           &mut needed_namespace_objects_queue,
         );
+      }
+      for (name, (low, high)) in mem::take(module_changes) {
         let info = module_to_info_map
           .get_mut(module_info_id)
           .and_then(|info| info.try_as_concatenated_mut())
           .expect("should have concatenate module info");
         let source = info.source.as_mut().expect("should have source");
-        source.replace(low, high, name_result.name, None);
+        source.replace(low, high, name, None);
       }
     }
 
