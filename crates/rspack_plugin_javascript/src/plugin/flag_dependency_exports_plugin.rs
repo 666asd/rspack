@@ -72,15 +72,14 @@ impl<'a> FlagDependencyExportsState<'a> {
       // collect the exports specs from modules by calling `dependency.get_exports`
       let module_exports_specs = modules
         .into_par_iter()
-        .map(|module_id| {
-          let exports_specs = collect_module_exports_specs(
+        .filter_map(|module_id| {
+          collect_module_exports_specs(
             &module_id,
             self.mg,
             self.mg_cache,
             self.exports_info_artifact,
           )
-          .unwrap_or_default();
-          (module_id, exports_specs)
+          .map(|exports_specs| (module_id, exports_specs))
         })
         .collect::<Vec<_>>();
 
@@ -269,7 +268,11 @@ fn collect_module_exports_specs(
     res.push((id, exports_spec));
   }
   // mg_cache.unfreeze();
-  Some((res, has_nested_exports))
+  if res.is_empty() {
+    None
+  } else {
+    Some((res, has_nested_exports))
+  }
 }
 
 /// Merge exports specs to exports info data
@@ -718,6 +721,10 @@ fn find_target_exports_info(
   exports_info_artifact: &ExportsInfoArtifact,
   export_info: &ExportInfoData,
 ) -> (Option<ExportsInfo>, Option<ModuleIdentifier>) {
+  if !export_info.target_is_set() || export_info.target().is_empty() {
+    return (None, None);
+  }
+
   // Recalculate target exportsInfo
   let target = get_target(
     export_info,
