@@ -419,14 +419,55 @@ impl<'parser> JavascriptParser<'parser> {
     parse_meta: ParseMeta,
     parser_runtime_requirements: &'parser ParserRuntimeRequirementsData,
   ) -> Self {
-    let warning_diagnostics: Vec<Diagnostic> = Vec::with_capacity(4);
-    let errors = Vec::with_capacity(4);
-    let dependencies = Vec::with_capacity(64);
-    let blocks = Vec::with_capacity(64);
-    let presentational_dependencies = Vec::with_capacity(64);
+    let warning_diagnostics: Vec<Diagnostic> = Vec::new();
+    let errors = Vec::new();
+    let dependencies = Vec::new();
+    let blocks = Vec::new();
+    let presentational_dependencies = Vec::new();
     let parser_exports_state: Option<bool> = None;
 
-    let mut plugins: Vec<BoxJavascriptParserPlugin> = Vec::with_capacity(32 + parser_plugins.len());
+    let mut plugin_capacity = parser_plugins.len() + 5;
+    if matches!(module_type, ModuleType::JsAuto | ModuleType::JsDynamic) {
+      plugin_capacity += 2;
+    }
+    if module_type.is_js_auto() || module_type.is_js_esm() {
+      plugin_capacity += 6;
+    }
+    if compiler_options.amd.is_some() && (module_type.is_js_auto() || module_type.is_js_dynamic()) {
+      plugin_capacity += 3;
+    }
+    if module_type.is_js_auto() || module_type.is_js_dynamic() {
+      plugin_capacity += 2;
+      let commonjs_exports = javascript_options
+        .commonjs
+        .as_ref()
+        .map_or(JavascriptParserCommonjsExportsOption::Enable, |commonjs| {
+          commonjs.exports
+        });
+      if commonjs_exports != JavascriptParserCommonjsExportsOption::Disable {
+        plugin_capacity += 1;
+      }
+    }
+    let handle_cjs =
+      (module_type.is_js_auto() || module_type.is_js_dynamic()) && compiler_options.node.is_some();
+    let handle_esm = module_type.is_js_auto() || module_type.is_js_esm();
+    if handle_cjs || handle_esm {
+      plugin_capacity += 1;
+    }
+    if module_type.is_js_auto() || module_type.is_js_dynamic() || module_type.is_js_esm() {
+      plugin_capacity += 6;
+    }
+    if compiler_options.optimization.inline_exports {
+      plugin_capacity += 1;
+    }
+    if compiler_options.optimization.inner_graph {
+      plugin_capacity += 1;
+    }
+    if compiler_options.optimization.side_effects.is_true() {
+      plugin_capacity += 1;
+    }
+
+    let mut plugins: Vec<BoxJavascriptParserPlugin> = Vec::with_capacity(plugin_capacity);
 
     plugins.append(parser_plugins);
 
@@ -492,9 +533,6 @@ impl<'parser> JavascriptParser<'parser> {
 
     // NodeStuffPlugin: handle __dirname/__filename/global (CJS) and import.meta.dirname/filename (ESM)
     // CJS features require node options; ESM features are always available for ESM-capable modules
-    let handle_cjs =
-      (module_type.is_js_auto() || module_type.is_js_dynamic()) && compiler_options.node.is_some();
-    let handle_esm = module_type.is_js_auto() || module_type.is_js_esm();
     if handle_cjs || handle_esm {
       plugins.push(Box::new(parser_plugin::NodeStuffPlugin::new(
         handle_cjs, handle_esm,
