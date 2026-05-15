@@ -176,9 +176,22 @@ impl EsmLibraryPlugin {
   }
 
   fn find_new_name_avoiding_current(local_name: &Atom, used_names: &FxHashSet<Atom>) -> Atom {
-    let mut used_names = used_names.clone();
-    used_names.insert(local_name.clone());
-    find_new_name(local_name.as_str(), &used_names, &[])
+    let mut i = 0;
+    let mut base_with_underscore = String::with_capacity(local_name.len() + 1);
+    base_with_underscore.push_str(local_name.as_str());
+    base_with_underscore.push('_');
+
+    let mut numbered = String::with_capacity(base_with_underscore.len() + 8);
+    loop {
+      numbered.clear();
+      numbered.push_str(&base_with_underscore);
+      numbered.push_str(&i.to_string());
+      let candidate = Atom::from(numbered.as_str());
+      if candidate != *local_name && !used_names.contains(&candidate) {
+        return candidate;
+      }
+      i += 1;
+    }
   }
 
   fn replace_global_import_references(
@@ -663,35 +676,12 @@ impl EsmLibraryPlugin {
         .exports_require_via_runtime_module = true;
     }
 
-    let import_sources = concate_modules_map
-      .par_values()
-      .fold(FxHashSet::default, |mut import_sources, info| {
-        if let ModuleInfo::Concatenated(info) = info
-          && let Some(import_map) = &info.import_map
-        {
-          import_sources.extend(import_map.keys().map(|(source, _)| source.clone()));
-        }
-        import_sources
-      })
-      .reduce(FxHashSet::default, |mut a, b| {
-        a.extend(b);
-        a
-      });
-    let mut import_source_parts =
-      FxHashMap::with_capacity_and_hasher(import_sources.len(), Default::default());
-    for source in import_sources {
-      import_source_parts
-        .entry(source)
-        .or_insert_with_key(|source| split_readable_identifier(source.as_str()));
-    }
-
     let (escaped_name_entries, escaped_identifier_entries) = concate_modules_map
       .par_values()
       .map(|info| {
         let (name_capacity, identifier_capacity) = match info {
           ModuleInfo::Concatenated(info) => {
             let import_map = info.import_map.as_ref();
-            let import_sources = import_map.map_or(0, |map| map.len());
             let imported_names = import_map.map_or(0, |map| {
               map
                 .values()
@@ -702,10 +692,7 @@ impl EsmLibraryPlugin {
                 })
                 .sum::<usize>()
             });
-            (
-              info.binding_to_ref.len() + imported_names,
-              1 + import_sources,
-            )
+            (info.binding_to_ref.len() + imported_names, 1)
           }
           ModuleInfo::External(_) => (0, 1),
         };
@@ -729,14 +716,7 @@ impl EsmLibraryPlugin {
                 .or_insert_with(|| escape_name_atom_ref(&id.0));
             }
             if let Some(import_map) = &info.import_map {
-              for ((source, _), imported_atoms) in import_map.iter() {
-                escaped_identifiers.push((
-                  source.clone(),
-                  import_source_parts
-                    .get(source)
-                    .expect("should have import source parts")
-                    .clone(),
-                ));
+              for ((_, _), imported_atoms) in import_map.iter() {
                 for atom in &imported_atoms.specifiers {
                   escaped_names
                     .entry(atom.clone())
@@ -785,6 +765,7 @@ impl EsmLibraryPlugin {
     for (identifier, parts) in escaped_identifier_entries {
       escaped_identifiers.insert(identifier, parts);
     }
+    let mut import_source_parts = FxHashMap::with_capacity_and_hasher(0, Default::default());
 
     for chunk_link in link.values_mut() {
       self.deconflict_symbols(
@@ -794,6 +775,7 @@ impl EsmLibraryPlugin {
         chunk_link,
         &escaped_names,
         &escaped_identifiers,
+        &mut import_source_parts,
       );
     }
 
@@ -1165,6 +1147,7 @@ var {} = {{}};
     chunk_link: &mut ChunkLinkContext,
     escaped_names: &FxHashMap<Atom, Atom>,
     escaped_identifiers: &FxHashMap<String, Vec<Atom>>,
+    import_source_parts: &mut FxHashMap<String, Vec<Atom>>,
   ) {
     let context = &compilation.options.context;
 
@@ -1452,7 +1435,10 @@ var {} = {{}};
                 })
                 .unwrap_or_else(|| {
                   if atom == "default" {
-                    find_new_name("", &all_used_names, &escaped_identifiers[&source])
+                    let source_parts = import_source_parts
+                      .entry(source.clone())
+                      .or_insert_with(|| split_readable_identifier(source.as_str()));
+                    find_new_name("", &all_used_names, source_parts)
                   } else {
                     atom.clone()
                   }

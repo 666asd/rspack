@@ -145,21 +145,13 @@ static REGEX: LazyLock<Regex> = LazyLock::new(|| {
 #[derive(Default)]
 struct NameAllocator {
   used_names: HashSet<Atom>,
-  used_strings: HashSet<String>,
   suffix_counters: HashMap<Atom, u32>,
 }
 
 impl NameAllocator {
   fn new(used_names: HashSet<Atom>) -> Self {
-    let mut used_strings: HashSet<String> = HashSet::default();
-    used_strings.reserve(used_names.len());
-    for name in &used_names {
-      used_strings.insert(name.as_ref().to_string());
-    }
-
     Self {
       used_names,
-      used_strings,
       suffix_counters: HashMap::default(),
     }
   }
@@ -169,7 +161,6 @@ impl NameAllocator {
   }
 
   fn insert(&mut self, name: Atom) {
-    self.used_strings.insert(name.as_ref().to_string());
     self.used_names.insert(name);
   }
 
@@ -193,23 +184,20 @@ impl NameAllocator {
       name = new_name;
 
       let escaped = to_identifier_with_escaped(name.clone());
-      if !self.used_strings.contains(&escaped) {
-        self.used_strings.insert(escaped.clone());
-        let candidate: Atom = escaped.into();
+      let candidate: Atom = escaped.into();
+      if !self.used_names.contains(&candidate) {
         self.used_names.insert(candidate.clone());
         return candidate;
       }
     }
 
     let base_str = to_identifier_with_escaped(name);
-    if !base_str.is_empty() && !self.used_strings.contains(&base_str) {
-      self.used_strings.insert(base_str.clone());
-      let base: Atom = base_str.into();
+    let base: Atom = base_str.into();
+    if !base.is_empty() && !self.used_names.contains(&base) {
       self.used_names.insert(base.clone());
       return base;
     }
 
-    let base: Atom = base_str.into();
     let counter = self.suffix_counters.entry(base.clone()).or_insert(0);
     let mut i = *counter;
     let mut i_buffer = itoa::Buffer::new();
@@ -224,9 +212,8 @@ impl NameAllocator {
       numbered.push_str(&base_with_underscore);
       numbered.push_str(i_buffer.format(i));
 
-      if !self.used_strings.contains(&numbered) {
-        self.used_strings.insert(numbered.clone());
-        let candidate: Atom = Atom::from(numbered.as_str());
+      let candidate: Atom = Atom::from(numbered.as_str());
+      if !self.used_names.contains(&candidate) {
         self.used_names.insert(candidate.clone());
         *counter = i + 1;
         return candidate;
@@ -1350,35 +1337,12 @@ impl Module for ConcatenatedModule {
     let module_graph = compilation.get_module_graph();
     let mut import_stmts = FxIndexMap::<(String, Option<String>), ImportSpec>::default();
 
-    let import_sources = module_to_info_map
-      .par_values()
-      .fold(HashSet::default, |mut import_sources, info| {
-        if let ModuleInfo::Concatenated(info) = info
-          && let Some(import_map) = &info.import_map
-        {
-          import_sources.extend(import_map.keys().map(|(source, _)| source.clone()));
-        }
-        import_sources
-      })
-      .reduce(HashSet::default, |mut a, b| {
-        a.extend(b);
-        a
-      });
-    let mut import_source_parts =
-      HashMap::with_capacity_and_hasher(import_sources.len(), Default::default());
-    for source in import_sources {
-      import_source_parts
-        .entry(source)
-        .or_insert_with_key(|source| split_readable_identifier(source.as_str()));
-    }
-
     let (escaped_name_entries, escaped_identifier_entries) = module_to_info_map
       .par_values()
       .map(|info| {
         let (name_capacity, identifier_capacity) = match info {
           ModuleInfo::Concatenated(info) => {
             let import_map = info.import_map.as_ref();
-            let import_sources = import_map.map_or(0, |map| map.len());
             let imported_names = import_map.map_or(0, |map| {
               map
                 .values()
@@ -1387,10 +1351,7 @@ impl Module for ConcatenatedModule {
                 })
                 .sum::<usize>()
             });
-            (
-              info.binding_to_ref.len() + imported_names,
-              1 + import_sources,
-            )
+            (info.binding_to_ref.len() + imported_names, 1)
           }
           ModuleInfo::External(_) => (0, 1),
         };
@@ -1412,15 +1373,8 @@ impl Module for ConcatenatedModule {
             }
 
             if let Some(import_map) = &info.import_map {
-              for ((source, _), imported) in import_map.iter() {
+              for ((_, _), imported) in import_map.iter() {
                 let specifiers = &imported.specifiers;
-                escaped_identifiers.push((
-                  source.clone(),
-                  import_source_parts
-                    .get(source)
-                    .expect("should have import source parts")
-                    .clone(),
-                ));
                 for atom in specifiers {
                   escaped_names
                     .entry(atom.clone())
@@ -1460,6 +1414,7 @@ impl Module for ConcatenatedModule {
     for (identifier, parts) in escaped_identifier_entries {
       escaped_identifiers.insert(identifier, parts);
     }
+    let mut import_source_parts = HashMap::with_capacity_and_hasher(0, Default::default());
 
     let mut name_allocator = NameAllocator::new(all_used_names);
 
@@ -1492,10 +1447,7 @@ impl Module for ConcatenatedModule {
           // Iterate over imported symbols
           if let Some(import_map) = info.import_map.take() {
             for ((source, attr), imported) in import_map {
-              let source_parts = escaped_identifiers
-                .get(&source)
-                .expect("should have escaped identifier");
-              let total_imported_atoms = import_stmts.entry((source, attr)).or_default();
+              let total_imported_atoms = import_stmts.entry((source.clone(), attr)).or_default();
 
               if let Some(ns_import) = imported.namespace {
                 if let Some(internal_ns_import) = total_imported_atoms.ns_import.as_ref() {
@@ -1556,6 +1508,9 @@ impl Module for ConcatenatedModule {
 
                 let new_name = if name_allocator.contains(&atom) {
                   let new_name = if atom == "default" {
+                    let source_parts = import_source_parts
+                      .entry(source.clone())
+                      .or_insert_with(|| split_readable_identifier(source.as_str()));
                     name_allocator.find_new_name("", source_parts)
                   } else {
                     name_allocator.find_new_name(
