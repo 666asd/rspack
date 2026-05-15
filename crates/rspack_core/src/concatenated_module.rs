@@ -39,18 +39,19 @@ use crate::{
   BoxModuleDependency, BuildContext, BuildInfo, BuildMeta, BuildMetaDefaultObject,
   BuildMetaExportsType, BuildResult, ChunkGraph, ChunkInitFragments, ChunkRenderContext,
   CodeGenerationDataTopLevelDeclarations, CodeGenerationExportsFinalNames,
-  CodeGenerationModuleReferenceReplacements, CodeGenerationPublicPathAutoReplace,
-  CodeGenerationResult, Compilation, ConcatenatedModuleIdent, ConcatenationScope,
-  ConditionalInitFragment, ConnectionState, Context, DEFAULT_EXPORT, DEFAULT_EXPORT_ATOM,
-  DependenciesBlock, DependencyId, DependencyType, ExportInfo, ExportProvided, ExportsArgument,
-  ExportsInfoArtifact, ExportsType, FactoryMeta, ImportedByDeferModulesArtifact, InitFragment,
-  InitFragmentStage, LibIdentOptions, Module, ModuleArgument, ModuleCodeGenerationContext,
-  ModuleGraph, ModuleGraphCacheArtifact, ModuleGraphConnection, ModuleIdentifier, ModuleLayer,
-  ModuleReferenceOptions, ModuleStaticCache, ModuleType, NAMESPACE_OBJECT_EXPORT, Resolve,
-  RuntimeCondition, RuntimeGlobals, RuntimeSpec, SideEffectsStateArtifact, SourceType,
-  URLStaticMode, UsageState, UsedName, UsedNameItem, escape_identifier, fast_set, filter_runtime,
-  find_target, get_runtime_key, impl_source_map_config, merge_runtime_condition,
-  merge_runtime_condition_non_false, module_update_hash, property_access, property_name,
+  CodeGenerationModuleReferenceReplacement, CodeGenerationModuleReferenceReplacements,
+  CodeGenerationPublicPathAutoReplace, CodeGenerationResult, Compilation, ConcatenatedModuleIdent,
+  ConcatenationScope, ConditionalInitFragment, ConnectionState, Context, DEFAULT_EXPORT,
+  DEFAULT_EXPORT_ATOM, DependenciesBlock, DependencyId, DependencyType, ExportInfo, ExportProvided,
+  ExportsArgument, ExportsInfoArtifact, ExportsType, FactoryMeta, ImportedByDeferModulesArtifact,
+  InitFragment, InitFragmentStage, LibIdentOptions, Module, ModuleArgument,
+  ModuleCodeGenerationContext, ModuleGraph, ModuleGraphCacheArtifact, ModuleGraphConnection,
+  ModuleIdentifier, ModuleLayer, ModuleReferenceOptions, ModuleStaticCache, ModuleType,
+  NAMESPACE_OBJECT_EXPORT, Resolve, RuntimeCondition, RuntimeGlobals, RuntimeSpec,
+  SideEffectsStateArtifact, SourceType, URLStaticMode, UsageState, UsedName, UsedNameItem,
+  escape_identifier, fast_set, filter_runtime, find_target, get_runtime_key,
+  impl_source_map_config, merge_runtime_condition, merge_runtime_condition_non_false,
+  module_update_hash, property_access, property_name,
   render_make_deferred_namespace_mode_from_exports_type,
   reserved_names::RESERVED_NAMES_ATOM_SET,
   subtract_runtime_condition, to_identifier_with_escaped, to_normal_comment,
@@ -2800,7 +2801,7 @@ impl ConcatenatedModule {
 
   fn collect_module_reference_idents_from_source(
     source: &dyn Source,
-    replacements: &CodeGenerationModuleReferenceReplacements,
+    replacements: &HashMap<(u32, u32), Vec<&CodeGenerationModuleReferenceReplacement>>,
     base_offset: usize,
     references: &mut Vec<ConcatenatedModuleReference>,
   ) {
@@ -2839,7 +2840,7 @@ impl ConcatenatedModule {
 
   fn collect_module_reference_idents_from_replace_source(
     source: &ReplaceSource,
-    replacements: &CodeGenerationModuleReferenceReplacements,
+    replacements: &HashMap<(u32, u32), Vec<&CodeGenerationModuleReferenceReplacement>>,
     base_offset: usize,
     references: &mut Vec<ConcatenatedModuleReference>,
   ) {
@@ -2853,9 +2854,13 @@ impl ConcatenatedModule {
         inner_pos = start;
       }
 
-      for reference in replacements.inner().iter().filter(|reference| {
-        reference.source_start == replacement.start() && reference.source_end == replacement.end()
-      }) {
+      let Some(module_references) = replacements.get(&(replacement.start(), replacement.end()))
+      else {
+        generated_pos += replacement.content().len();
+        inner_pos = inner_pos.max(end);
+        continue;
+      };
+      for reference in module_references {
         let content = replacement.content();
         let content_start = reference.content_start as usize;
         let content_end = reference.content_end as usize;
@@ -2898,7 +2903,22 @@ impl ConcatenatedModule {
     }
 
     let mut references = Vec::with_capacity(replacements.inner().len());
-    Self::collect_module_reference_idents_from_source(source, replacements, 0, &mut references);
+    let mut replacements_by_range: HashMap<
+      (u32, u32),
+      Vec<&CodeGenerationModuleReferenceReplacement>,
+    > = HashMap::default();
+    for replacement in replacements.inner() {
+      replacements_by_range
+        .entry((replacement.source_start, replacement.source_end))
+        .or_default()
+        .push(replacement);
+    }
+    Self::collect_module_reference_idents_from_source(
+      source,
+      &replacements_by_range,
+      0,
+      &mut references,
+    );
     references
   }
 

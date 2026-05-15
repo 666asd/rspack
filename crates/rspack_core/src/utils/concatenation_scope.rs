@@ -39,6 +39,7 @@ pub struct ConcatenationScope {
   pub modules_map: Arc<IdentifierIndexMap<ModuleInfo>>,
   pub data: anymap::Map<dyn CloneAny + Send + Sync>,
   pub refs: IdentifierIndexMap<FxIndexMap<String, ModuleReferenceOptions>>,
+  module_ref_options: FxIndexMap<String, ModuleReferenceOptions>,
   pub dyn_refs: IdentifierIndexMap<FxIndexSet<(String, Atom)>>,
   pub re_exports: IdentifierIndexMap<Vec<ExportMode>>,
   pub top_level_renames: HashMap<Atom, Atom>,
@@ -60,6 +61,7 @@ impl ConcatenationScope {
       modules_map,
       data: Default::default(),
       refs: IdentifierIndexMap::default(),
+      module_ref_options: Default::default(),
       dyn_refs: Default::default(),
       re_exports: Default::default(),
       top_level_renames,
@@ -254,7 +256,7 @@ impl ConcatenationScope {
   pub fn create_module_reference(
     &mut self,
     module: &ModuleIdentifier,
-    options: ModuleReferenceOptions,
+    mut options: ModuleReferenceOptions,
   ) -> String {
     let info = self
       .modules_map
@@ -269,6 +271,7 @@ impl ConcatenationScope {
 
     let mut index_buffer = itoa::Buffer::new();
     let index_str = index_buffer.format(info.index());
+    options.index = info.index();
     let mut module_ref = String::with_capacity(index_str.len() + export_data.len() + 64);
     module_ref.push_str("__rspack_module_ref");
     module_ref.push_str(index_str);
@@ -287,10 +290,22 @@ impl ConcatenationScope {
       module_ref.push_str(if asi_safe { "_asiSafe1" } else { "_asiSafe0" });
     }
     module_ref.push_str("__._");
+    let module_ref_options = options.clone();
     let entry = self.refs.entry(*module).or_default();
     entry.insert(module_ref.clone(), options);
+    self.module_ref_options.insert(
+      module_ref
+        .strip_suffix(MODULE_REFERENCE_PROPERTY_ACCESS_SUFFIX)
+        .expect("should have module reference property access suffix")
+        .to_string(),
+      module_ref_options,
+    );
 
     module_ref
+  }
+
+  pub fn get_module_reference_options(&self, name: &str) -> Option<&ModuleReferenceOptions> {
+    self.module_ref_options.get(name)
   }
 
   pub fn match_module_reference(name: &str) -> Option<ModuleReferenceOptions> {

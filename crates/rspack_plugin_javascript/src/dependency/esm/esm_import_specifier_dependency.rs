@@ -390,13 +390,25 @@ impl ESMImportSpecifierDependencyTemplate {
     source_end: u32,
     content: &str,
   ) {
-    let mut replacements = context
+    if !context
       .data
-      .get::<CodeGenerationModuleReferenceReplacements>()
-      .cloned()
-      .unwrap_or_default();
-    replacements.push_from_content(source_start, source_end, content);
-    context.data.insert(replacements);
+      .contains::<CodeGenerationModuleReferenceReplacements>()
+    {
+      context
+        .data
+        .insert(CodeGenerationModuleReferenceReplacements::default());
+    }
+    context
+      .data
+      .get_mut::<CodeGenerationModuleReferenceReplacements>()
+      .expect("should have module reference replacements")
+      .push_from_content(source_start, source_end, content, |name| {
+        context
+          .concatenation_scope
+          .as_deref()
+          .and_then(|scope| scope.get_module_reference_options(name))
+          .cloned()
+      });
   }
 
   fn get_code_for_ids(

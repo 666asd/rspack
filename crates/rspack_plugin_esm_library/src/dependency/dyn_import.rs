@@ -268,13 +268,30 @@ impl DependencyTemplate for DynamicImportDependencyTemplate {
         },
       );
       let content = format!("Promise.resolve({ns_ref})");
-      let mut replacements = code_generatable_context
+      if !code_generatable_context
         .data
-        .get::<CodeGenerationModuleReferenceReplacements>()
-        .cloned()
-        .unwrap_or_default();
-      replacements.push_from_content(import_dep.range.start, import_dep.range.end, &content);
-      code_generatable_context.data.insert(replacements);
+        .contains::<CodeGenerationModuleReferenceReplacements>()
+      {
+        code_generatable_context
+          .data
+          .insert(CodeGenerationModuleReferenceReplacements::default());
+      }
+      code_generatable_context
+        .data
+        .get_mut::<CodeGenerationModuleReferenceReplacements>()
+        .expect("should have module reference replacements")
+        .push_from_content(
+          import_dep.range.start,
+          import_dep.range.end,
+          &content,
+          |name| {
+            code_generatable_context
+              .concatenation_scope
+              .as_deref()
+              .and_then(|scope| scope.get_module_reference_options(name))
+              .cloned()
+          },
+        );
       source.replace(import_dep.range.start, import_dep.range.end, content, None);
       return;
     }

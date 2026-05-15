@@ -129,7 +129,13 @@ impl CodeGenerationModuleReferenceReplacements {
     self.inner.push(replacement);
   }
 
-  pub fn push_from_content(&mut self, source_start: u32, source_end: u32, content: &str) {
+  pub fn push_from_content(
+    &mut self,
+    source_start: u32,
+    source_end: u32,
+    content: &str,
+    mut get_options: impl FnMut(&str) -> Option<ModuleReferenceOptions>,
+  ) {
     const MODULE_REFERENCE_PREFIX: &str = "__rspack_module_ref";
     const MODULE_REFERENCE_SUFFIX: &str = "__._";
 
@@ -139,7 +145,7 @@ impl CodeGenerationModuleReferenceReplacements {
       };
       let content_end = content_start + relative_end + 2;
       let name = Atom::from(&content[content_start..content_end]);
-      let Some(options) = ConcatenationScope::match_module_reference(name.as_str()) else {
+      let Some(options) = get_options(name.as_str()) else {
         continue;
       };
       self.push(CodeGenerationModuleReferenceReplacement {
