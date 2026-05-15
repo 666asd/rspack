@@ -37,16 +37,45 @@ use super::flag_dependency_exports_plugin::FLAG_DEPENDENCY_EXPORTS_STAGE;
 type InitialModuleExportsSpecs = Vec<CollectedExportsSpec>;
 type RefreshedModuleExportsSpecs = Vec<CollectedExportsSpec>;
 
+#[derive(Default)]
 struct CollectedExportsSpecs {
   modules: Vec<(ModuleIdentifier, CollectedModuleExports)>,
-  has_backtracking_modules: bool,
+  backtracking_modules: Vec<BacktrackingModule>,
 }
 
 struct CollectedModuleExports {
   specs: CollectedModuleExportsSpecs,
   needs_backtracking: bool,
   has_nested_exports: bool,
+}
+
+struct BacktrackingModule {
+  module_id: ModuleIdentifier,
   dependencies: Option<Vec<ModuleIdentifier>>,
+}
+
+impl CollectedExportsSpecs {
+  fn push(&mut self, module_id: ModuleIdentifier, collected_exports: CollectedModuleExports) {
+    self.modules.push((module_id, collected_exports));
+  }
+
+  fn push_backtracking_module(
+    &mut self,
+    module_id: ModuleIdentifier,
+    dependencies: Option<Vec<ModuleIdentifier>>,
+  ) {
+    self.backtracking_modules.push(BacktrackingModule {
+      module_id,
+      dependencies,
+    });
+  }
+
+  fn append(&mut self, mut other: Self) {
+    self.modules.append(&mut other.modules);
+    self
+      .backtracking_modules
+      .append(&mut other.backtracking_modules);
+  }
 }
 
 enum CollectedModuleExportsSpecs {
@@ -101,20 +130,17 @@ impl<'a> ParallelFlagDependencyExportsState<'a> {
     self.initialize_exports_info(&modules);
 
     let collected_exports_specs = self.collect_exports_specs(&modules);
+    let backtracking_modules = collected_exports_specs.backtracking_modules;
     let module_exports_specs = collected_exports_specs.modules;
     self
       .process_module_exports_specs_batch(ModuleExportsSpecsBatch::Initial(&module_exports_specs));
-    if !collected_exports_specs.has_backtracking_modules {
+    if backtracking_modules.is_empty() {
       return;
     }
-    let mut dependency_graph = build_reexport_dependency_graph(&module_exports_specs);
+    let mut dependency_graph = build_reexport_dependency_graph(&backtracking_modules);
     if dependency_graph.is_empty() {
       return;
     }
-    let module_exports_specs = module_exports_specs
-      .into_iter()
-      .filter(|(module_id, _)| dependency_graph.contains_module(module_id))
-      .collect::<IdentifierMap<_>>();
 
     while let Some(batch) = dependency_graph.take_leaf_modules() {
       let refreshed_exports_specs = self.collect_refreshed_modules_exports_specs(&batch);
@@ -131,20 +157,13 @@ impl<'a> ParallelFlagDependencyExportsState<'a> {
       while changed {
         changed = false;
         for module_id in &cyclic_modules {
-          changed |= self.process_refreshed_module_exports_specs(module_id, &module_exports_specs);
+          changed |= self.process_refreshed_module_exports_specs(module_id);
         }
       }
     }
   }
 
-  fn process_refreshed_module_exports_specs(
-    &mut self,
-    module_id: &ModuleIdentifier,
-    module_exports_specs: &IdentifierMap<CollectedModuleExports>,
-  ) -> bool {
-    if !module_exports_specs.contains_key(module_id) {
-      return false;
-    }
+  fn process_refreshed_module_exports_specs(&mut self, module_id: &ModuleIdentifier) -> bool {
     let refreshed_exports_specs = refresh_module_exports_specs(
       self.mg,
       self.mg_cache,
@@ -331,25 +350,30 @@ impl<'a> ParallelFlagDependencyExportsState<'a> {
   }
 
   fn collect_exports_specs(&self, modules: &IdentifierSet) -> CollectedExportsSpecs {
-    let modules = modules
+    modules
       .par_iter()
-      .filter_map(|module_id| {
-        let collected_exports = collect_module_exports(
-          module_id,
-          self.mg,
-          self.mg_cache,
-          self.exports_info_artifact,
-        )?;
-        Some((*module_id, collected_exports))
+      .fold(
+        CollectedExportsSpecs::default,
+        |mut collected, module_id| {
+          let Some((collected_exports, backtracking_dependencies)) = collect_module_exports(
+            module_id,
+            self.mg,
+            self.mg_cache,
+            self.exports_info_artifact,
+          ) else {
+            return collected;
+          };
+          if collected_exports.needs_backtracking {
+            collected.push_backtracking_module(*module_id, backtracking_dependencies);
+          }
+          collected.push(*module_id, collected_exports);
+          collected
+        },
+      )
+      .reduce(CollectedExportsSpecs::default, |mut left, right| {
+        left.append(right);
+        left
       })
-      .collect::<Vec<_>>();
-    let has_backtracking_modules = modules
-      .iter()
-      .any(|(_, collected_exports)| collected_exports.needs_backtracking);
-    CollectedExportsSpecs {
-      modules,
-      has_backtracking_modules,
-    }
   }
 }
 
@@ -362,10 +386,6 @@ struct ReexportDependencyGraph {
 impl ReexportDependencyGraph {
   fn is_empty(&self) -> bool {
     self.dependency_count.is_empty()
-  }
-
-  fn contains_module(&self, module_id: &ModuleIdentifier) -> bool {
-    self.dependency_count.contains_key(module_id)
   }
 
   fn take_leaf_modules(&mut self) -> Option<Vec<ModuleIdentifier>> {
@@ -401,33 +421,29 @@ impl ReexportDependencyGraph {
 }
 
 fn build_reexport_dependency_graph(
-  module_exports_specs: &[(ModuleIdentifier, CollectedModuleExports)],
+  backtracking_modules: &[BacktrackingModule],
 ) -> ReexportDependencyGraph {
-  let backtracking_modules = module_exports_specs
+  let backtracking_module_ids = backtracking_modules
     .iter()
-    .filter_map(|(module_id, collected_exports)| {
-      collected_exports.needs_backtracking.then_some(*module_id)
-    })
+    .map(|backtracking_module| backtracking_module.module_id)
     .collect::<IdentifierSet>();
   let mut reverse_dependencies = IdentifierMap::<IdentifierSet>::default();
   let mut dependency_count = IdentifierMap::<usize>::default();
-  for (module_id, collected_exports) in module_exports_specs {
-    if !backtracking_modules.contains(module_id) {
-      continue;
-    }
+  for backtracking_module in backtracking_modules {
+    let module_id = backtracking_module.module_id;
     let mut count = 0;
-    if let Some(dependencies) = &collected_exports.dependencies {
+    if let Some(dependencies) = &backtracking_module.dependencies {
       for dependency in dependencies.iter().copied() {
-        if dependency != *module_id && backtracking_modules.contains(&dependency) {
+        if dependency != module_id && backtracking_module_ids.contains(&dependency) {
           reverse_dependencies
             .entry(dependency)
             .or_default()
-            .insert(*module_id);
+            .insert(module_id);
           count += 1;
         }
       }
     }
-    dependency_count.insert(*module_id, count);
+    dependency_count.insert(module_id, count);
   }
 
   let leaf_modules = dependency_count
@@ -660,7 +676,7 @@ fn collect_module_exports(
   mg: &ModuleGraph,
   mg_cache: &ModuleGraphCacheArtifact,
   exports_info_artifact: &ExportsInfoArtifact,
-) -> Option<CollectedModuleExports> {
+) -> Option<(CollectedModuleExports, Option<Vec<ModuleIdentifier>>)> {
   let mgm = mg.module_graph_module_by_identifier(module_id)?;
   let all_dependencies = mgm.all_dependencies();
   let mut needs_backtracking = false;
@@ -679,12 +695,14 @@ fn collect_module_exports(
   }
 
   if needs_backtracking {
-    return Some(CollectedModuleExports {
-      specs: CollectedModuleExportsSpecs::Reexport,
-      needs_backtracking,
-      has_nested_exports: false,
+    return Some((
+      CollectedModuleExports {
+        specs: CollectedModuleExportsSpecs::Reexport,
+        needs_backtracking,
+        has_nested_exports: false,
+      },
       dependencies,
-    });
+    ));
   }
 
   let mut specs: Option<Vec<CollectedExportsSpec>> = None;
@@ -712,11 +730,15 @@ fn collect_module_exports(
         exports_spec,
       });
   }
-  specs.map(|specs| CollectedModuleExports {
-    specs: CollectedModuleExportsSpecs::Initial(specs),
-    needs_backtracking,
-    has_nested_exports,
-    dependencies,
+  specs.map(|specs| {
+    (
+      CollectedModuleExports {
+        specs: CollectedModuleExportsSpecs::Initial(specs),
+        needs_backtracking,
+        has_nested_exports,
+      },
+      dependencies,
+    )
   })
 }
 
