@@ -167,7 +167,16 @@ impl CodeGenerationResult {
     let mut hasher = RspackHash::with_salt(hash_function, hash_salt);
     for (source_type, source) in self.inner.as_ref() {
       source_type.hash(&mut hasher);
-      source.hash(&mut hasher);
+      // Hash only the emitted bytes, matching webpack's
+      // `CodeGenerationResults.getHash` which feeds `source.updateHash(hash)`
+      // and never mixes source-map metadata into the digest.
+      // `Source::hash` for `SourceMapSource` also folds in `source_map`
+      // (including the `sourcesContent` snapshot of the loader-input file).
+      // For multi-block sources like Vue SFCs that means changing one block
+      // shifts the codegen hash of every sibling sub-module even when their
+      // emitted bytes are identical, which causes HMR to ship unchanged
+      // modules in hot-update chunks and breaks downstream HMR flows.
+      source.buffer().hash(&mut hasher);
     }
     self.chunk_init_fragments.hash(&mut hasher);
     self.runtime_requirements.hash(&mut hasher);
