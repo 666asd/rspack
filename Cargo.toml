@@ -131,7 +131,7 @@ rkyv      = { version = "=0.8.8", default-features = false, features = ["std", "
 # Must be pinned with the same swc versions
 pnp                 = { version = "0.12.8", default-features = false }
 swc                 = { version = "63.0.0", default-features = false }
-swc_config          = { version = "4.0.1", default-features = false }
+swc_config          = { version = "5.0.0", default-features = false }
 swc_core            = { version = "65.1.0", default-features = false, features = ["parallel_rayon"] }
 swc_ecma_minifier   = { version = "52.0.6", default-features = false }
 swc_error_reporters = { version = "23.0.0", default-features = false }
