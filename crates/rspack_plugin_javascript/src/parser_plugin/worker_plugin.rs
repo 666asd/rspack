@@ -3,7 +3,6 @@ use std::{
   sync::{Arc, LazyLock},
 };
 
-use itertools::Itertools;
 use rspack_core::{
   AsyncDependenciesBlock, ConstDependency, DependencyRange, EntryOptions, GroupOptions,
 };
@@ -27,7 +26,7 @@ use crate::{
   magic_comment::try_extract_magic_comment,
   parser_plugin::url_plugin::is_meta_url,
   utils::object_properties::get_literal_str_by_obj_prop,
-  visitors::{JavascriptParser, TagInfoData, VariableDeclaration},
+  visitors::{AtomMembers, JavascriptParser, TagInfoData, VariableDeclaration},
 };
 
 #[derive(Debug)]
@@ -238,9 +237,9 @@ fn handle_worker<'a>(
 struct WorkerPluginInner {
   new_syntax: FxHashSet<String>,
   call_syntax: FxHashSet<String>,
-  from_new_syntax: FxHashSet<(String, String)>,
-  from_call_syntax: FxHashSet<(String, String)>,
-  pattern_syntax: FxHashMap<String, FxHashSet<String>>,
+  from_new_syntax: FxHashSet<(AtomMembers, Atom)>,
+  from_call_syntax: FxHashSet<(AtomMembers, Atom)>,
+  pattern_syntax: FxHashMap<String, FxHashSet<AtomMembers>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -306,11 +305,11 @@ impl WorkerPluginInner {
       let pattern = &syntax[0..first_dot];
       let members = &syntax[first_dot + 1..];
       if let Some(value) = self.pattern_syntax.get_mut(pattern) {
-        value.insert(members.to_string());
+        value.insert(worker_syntax_members(members));
       } else {
         self.pattern_syntax.insert(
           pattern.to_string(),
-          FxHashSet::from_iter([members.to_string()]),
+          FxHashSet::from_iter([worker_syntax_members(members)]),
         );
       }
     } else if let Some(syntax) = syntax.strip_suffix("()") {
@@ -319,16 +318,24 @@ impl WorkerPluginInner {
       if is_call {
         self
           .from_call_syntax
-          .insert((ids.to_string(), source.to_string()));
+          .insert((worker_syntax_members(ids), Atom::from(source)));
       } else {
         self
           .from_new_syntax
-          .insert((ids.to_string(), source.to_string()));
+          .insert((worker_syntax_members(ids), Atom::from(source)));
       }
     } else {
       self.new_syntax.insert(syntax.to_string());
     }
   }
+}
+
+fn worker_syntax_members(ids: &str) -> AtomMembers {
+  ids.split('.').map(Atom::from).collect()
+}
+
+fn worker_members(members: &[Atom]) -> AtomMembers {
+  members.iter().cloned().collect()
 }
 
 impl WorkerPlugin {
@@ -407,7 +414,7 @@ impl JavascriptParserPlugin for WorkerPlugin {
       .expect_get_tag_info(parser.current_tag_info?);
     let data = WorkerSpecifierData::downcast(tag_info.data.clone()?);
     if let Some(value) = self.inner.pattern_syntax.get(data.key.as_str())
-      && value.contains(&members.iter().map(|id| id.as_str()).join("."))
+      && value.contains(&worker_members(members))
     {
       return handle_worker(parser, &call_expr.args, call_expr.span).map(
         |(parsed_path, parsed_options, first_arg, need_new_url)| {
@@ -443,11 +450,10 @@ impl JavascriptParserPlugin for WorkerPlugin {
         .definitions_db
         .expect_get_tag_info(parser.current_tag_info?);
       let settings = ESMSpecifierData::downcast(tag_info.data.clone()?);
-      let ids = settings.ids.iter().map(|id| id.as_str()).join(".");
       if self
         .inner
         .from_call_syntax
-        .contains(&(ids, settings.source.to_string()))
+        .contains(&(settings.ids, settings.source))
       {
         return handle_worker(parser, &call_expr.args, call_expr.span).map(
           |(parsed_path, parsed_options, first_arg, need_new_url)| {
@@ -506,11 +512,10 @@ impl JavascriptParserPlugin for WorkerPlugin {
         .definitions_db
         .expect_get_tag_info(parser.current_tag_info?);
       let settings = ESMSpecifierData::downcast(tag_info.data.clone()?);
-      let ids = settings.ids.iter().map(|id| id.as_str()).join(".");
       if self
         .inner
         .from_new_syntax
-        .contains(&(ids, settings.source.to_string()))
+        .contains(&(settings.ids, settings.source))
       {
         return new_expr
           .args

@@ -122,6 +122,13 @@ struct ImportTagData {
   import_span: Span,
 }
 
+fn current_import_tag_span(parser: &JavascriptParser) -> Option<Span> {
+  let tag_info = parser
+    .definitions_db
+    .expect_get_tag_info(parser.current_tag_info?);
+  Some(ImportTagData::downcast_ref(tag_info.data.as_deref()?).import_span)
+}
+
 pub struct ImportParserPlugin;
 
 #[rspack_macros::implemented_javascript_parser_hooks]
@@ -177,10 +184,7 @@ impl JavascriptParserPlugin for ImportParserPlugin {
     if for_name != DYNAMIC_IMPORT_TAG {
       return None;
     }
-    let tag_info = parser
-      .definitions_db
-      .expect_get_tag_info(parser.current_tag_info?);
-    let data = ImportTagData::downcast(tag_info.data.clone()?);
+    let import_span = current_import_tag_span(parser)?;
     if let Some(keys) = parser
       .destructuring_assignment_properties
       .get(&ident.span())
@@ -192,13 +196,13 @@ impl JavascriptParserPlugin for ImportParserPlugin {
       for ids in refs {
         parser
           .dynamic_import_references
-          .get_import_mut_expect(&data.import_span)
+          .get_import_mut_expect(&import_span)
           .add_reference(ids);
       }
     } else {
       parser
         .dynamic_import_references
-        .get_import_mut_expect(&data.import_span)
+        .get_import_mut_expect(&import_span)
         .add_reference(vec![]);
     }
     Some(true)
@@ -216,14 +220,11 @@ impl JavascriptParserPlugin for ImportParserPlugin {
     if for_name != DYNAMIC_IMPORT_TAG {
       return None;
     }
-    let tag_info = parser
-      .definitions_db
-      .expect_get_tag_info(parser.current_tag_info?);
-    let data = ImportTagData::downcast(tag_info.data.clone()?);
+    let import_span = current_import_tag_span(parser)?;
     let ids = get_non_optional_part(members, members_optionals);
     parser
       .dynamic_import_references
-      .get_import_mut_expect(&data.import_span)
+      .get_import_mut_expect(&import_span)
       .add_reference(ids.to_vec());
     Some(true)
   }
@@ -240,15 +241,12 @@ impl JavascriptParserPlugin for ImportParserPlugin {
     if for_name != DYNAMIC_IMPORT_TAG {
       return None;
     }
-    let tag_info = parser
-      .definitions_db
-      .expect_get_tag_info(parser.current_tag_info?);
-    let data = ImportTagData::downcast(tag_info.data.clone()?);
+    let import_span = current_import_tag_span(parser)?;
     let ids = get_non_optional_part(members, members_optionals);
     let direct_import = members.is_empty();
     parser
       .dynamic_import_references
-      .get_import_mut_expect(&data.import_span)
+      .get_import_mut_expect(&import_span)
       .add_call_reference(
         ids.to_vec(),
         parser

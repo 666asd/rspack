@@ -686,6 +686,10 @@ impl JavascriptParserPlugin for RstestParserPlugin {
   }
 
   fn statement(&self, parser: &mut JavascriptParser, stmt: Statement) -> Option<bool> {
+    if !self.options.hoist_mock_module {
+      return None;
+    }
+
     let call_expr = match stmt {
       Statement::Expr(expr_stmt) if expr_stmt.expr.as_call().is_some() => expr_stmt
         .expr
@@ -693,10 +697,6 @@ impl JavascriptParserPlugin for RstestParserPlugin {
         .expect("call expression should exist after checking with is_some()"),
       _ => return None,
     };
-
-    if !self.options.hoist_mock_module {
-      return None;
-    }
 
     if let Some(callee_expr) = call_expr.callee.as_expr()
       && let Some(member_expr) = callee_expr.as_member()

@@ -26,7 +26,7 @@ pub struct PluginCssExtractParserPlugin {
 #[rspack_plugin_javascript::implemented_javascript_parser_hooks]
 impl JavascriptParserPlugin for PluginCssExtractParserPlugin {
   fn finish(&self, parser: &mut JavascriptParser) -> Option<bool> {
-    let deps = if let Some(data_str) = parser.parse_meta.remove(PLUGIN_NAME)
+    if let Some(data_str) = parser.parse_meta.remove(PLUGIN_NAME)
       && let Ok(data_str) = (data_str as Box<dyn std::any::Any>)
         .downcast::<String>()
         .map(|i| *i)
@@ -37,13 +37,13 @@ impl JavascriptParserPlugin for PluginCssExtractParserPlugin {
         self.cache.insert(data_str, data.clone());
         data
       } else {
-        vec![]
+        return None;
       };
       if data.is_empty() {
-        vec![]
+        return None;
       } else {
         parser.build_info.strict = true;
-        data
+        let deps = data
           .iter()
           .enumerate()
           .map(
@@ -79,12 +79,10 @@ impl JavascriptParserPlugin for PluginCssExtractParserPlugin {
               )) as BoxDependency
             },
           )
-          .collect::<Vec<_>>()
+          .collect::<Vec<_>>();
+        parser.add_dependencies(deps);
       }
-    } else {
-      vec![]
-    };
-    parser.add_dependencies(deps);
+    }
     None
   }
 }

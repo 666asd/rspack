@@ -97,6 +97,13 @@ struct RequireTagData {
   require_span: Span,
 }
 
+fn current_require_tag_span(parser: &JavascriptParser) -> Option<Span> {
+  let tag_info = parser
+    .definitions_db
+    .expect_get_tag_info(parser.current_tag_info?);
+  Some(RequireTagData::downcast_ref(tag_info.data.as_deref()?).require_span)
+}
+
 fn tag_commonjs_require_referenced(
   parser: &mut JavascriptParser,
   require_call: &CallExpr,
@@ -665,10 +672,7 @@ impl JavascriptParserPlugin for CommonJsImportsParserPlugin {
     for_name: &str,
   ) -> Option<bool> {
     if for_name == COMMONJS_REQUIRE_TAG {
-      let tag_info = parser
-        .definitions_db
-        .expect_get_tag_info(parser.current_tag_info?);
-      let data = RequireTagData::downcast(tag_info.data.clone()?);
+      let require_span = current_require_tag_span(parser)?;
       if let Some(keys) = parser
         .destructuring_assignment_properties
         .get(&ident.span())
@@ -680,13 +684,13 @@ impl JavascriptParserPlugin for CommonJsImportsParserPlugin {
         for ids in refs {
           parser
             .common_js_require_references
-            .get_require_mut_expect(&data.require_span)
+            .get_require_mut_expect(&require_span)
             .add_reference(ids);
         }
       } else {
         parser
           .common_js_require_references
-          .get_require_mut_expect(&data.require_span)
+          .get_require_mut_expect(&require_span)
           .add_reference(vec![]);
       }
       return Some(true);
@@ -711,14 +715,11 @@ impl JavascriptParserPlugin for CommonJsImportsParserPlugin {
     if for_name != COMMONJS_REQUIRE_TAG {
       return None;
     }
-    let tag_info = parser
-      .definitions_db
-      .expect_get_tag_info(parser.current_tag_info?);
-    let data = RequireTagData::downcast(tag_info.data.clone()?);
+    let require_span = current_require_tag_span(parser)?;
     let ids = get_non_optional_part(members, members_optionals);
     parser
       .common_js_require_references
-      .get_require_mut_expect(&data.require_span)
+      .get_require_mut_expect(&require_span)
       .add_reference(ids.to_vec());
     Some(true)
   }
@@ -735,15 +736,12 @@ impl JavascriptParserPlugin for CommonJsImportsParserPlugin {
     if for_name != COMMONJS_REQUIRE_TAG {
       return None;
     }
-    let tag_info = parser
-      .definitions_db
-      .expect_get_tag_info(parser.current_tag_info?);
-    let data = RequireTagData::downcast(tag_info.data.clone()?);
+    let require_span = current_require_tag_span(parser)?;
     let ids = get_non_optional_part(members, members_optionals);
     let direct_import = members.is_empty();
     parser
       .common_js_require_references
-      .get_require_mut_expect(&data.require_span)
+      .get_require_mut_expect(&require_span)
       .add_call_reference(
         ids.to_vec(),
         parser
