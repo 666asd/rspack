@@ -1857,11 +1857,17 @@ var {} = {{}};
                 {
                   concate_info.all_used_names = scope_info.all_used_names.clone();
                 }
-                concate_info.global_scope_ident.extend(
-                  rspack_core::ConcatenatedModule::collect_module_reference_idents_from_replacements(
+                concate_info.module_references.extend(
+                  rspack_core::ConcatenatedModule::collect_module_references_from_replacements(
                     render_source.source.as_ref(),
                     codegen_res.data.get::<CodeGenerationModuleReferenceReplacements>(),
                   ),
+                );
+                concate_info.global_scope_ident.extend(
+                  concate_info
+                    .module_references
+                    .iter()
+                    .map(|reference| reference.ident.clone()),
                 );
 
                 concate_info.source = Some(

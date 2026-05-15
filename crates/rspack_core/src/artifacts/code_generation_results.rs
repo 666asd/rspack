@@ -15,7 +15,8 @@ use serde::Serialize;
 
 use crate::{
   ArtifactExt, AssetInfo, BindingCell, ChunkInitFragments, ConcatenationScope, ModuleIdentifier,
-  RuntimeGlobals, RuntimeSpec, RuntimeSpecMap, SourceType, incremental::IncrementalPasses,
+  ModuleReferenceOptions, RuntimeGlobals, RuntimeSpec, RuntimeSpecMap, SourceType,
+  incremental::IncrementalPasses,
 };
 
 #[derive(Clone, Debug)]
@@ -115,6 +116,7 @@ pub struct CodeGenerationModuleReferenceReplacement {
   pub content_start: u32,
   pub content_end: u32,
   pub name: Atom,
+  pub options: ModuleReferenceOptions,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -136,12 +138,17 @@ impl CodeGenerationModuleReferenceReplacements {
         continue;
       };
       let content_end = content_start + relative_end + 2;
+      let name = Atom::from(&content[content_start..content_end]);
+      let Some(options) = ConcatenationScope::match_module_reference(name.as_str()) else {
+        continue;
+      };
       self.push(CodeGenerationModuleReferenceReplacement {
         source_start,
         source_end,
         content_start: content_start as u32,
         content_end: content_end as u32,
-        name: Atom::from(&content[content_start..content_end]),
+        name,
+        options,
       });
     }
   }

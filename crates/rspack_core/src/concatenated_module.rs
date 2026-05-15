@@ -46,10 +46,10 @@ use crate::{
   ExportsInfoArtifact, ExportsType, FactoryMeta, ImportedByDeferModulesArtifact, InitFragment,
   InitFragmentStage, LibIdentOptions, Module, ModuleArgument, ModuleCodeGenerationContext,
   ModuleGraph, ModuleGraphCacheArtifact, ModuleGraphConnection, ModuleIdentifier, ModuleLayer,
-  ModuleStaticCache, ModuleType, NAMESPACE_OBJECT_EXPORT, Resolve, RuntimeCondition,
-  RuntimeGlobals, RuntimeSpec, SideEffectsStateArtifact, SourceType, URLStaticMode, UsageState,
-  UsedName, UsedNameItem, escape_identifier, fast_set, filter_runtime, find_target,
-  get_runtime_key, impl_source_map_config, merge_runtime_condition,
+  ModuleReferenceOptions, ModuleStaticCache, ModuleType, NAMESPACE_OBJECT_EXPORT, Resolve,
+  RuntimeCondition, RuntimeGlobals, RuntimeSpec, SideEffectsStateArtifact, SourceType,
+  URLStaticMode, UsageState, UsedName, UsedNameItem, escape_identifier, fast_set, filter_runtime,
+  find_target, get_runtime_key, impl_source_map_config, merge_runtime_condition,
   merge_runtime_condition_non_false, module_update_hash, property_access, property_name,
   render_make_deferred_namespace_mode_from_exports_type,
   reserved_names::RESERVED_NAMES_ATOM_SET,
@@ -117,6 +117,12 @@ pub enum Binding {
 pub enum BindingType {
   Raw,
   Symbol,
+}
+
+#[derive(Debug, Clone)]
+pub struct ConcatenatedModuleReference {
+  pub ident: ConcatenatedModuleIdent,
+  pub options: ModuleReferenceOptions,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -386,6 +392,7 @@ pub struct ConcatenatedModuleInfo {
   pub interop_default_access_used: bool,
   pub interop_default_access_name: Option<Atom>,
   pub global_scope_ident: Vec<ConcatenatedModuleIdent>,
+  pub module_references: Vec<ConcatenatedModuleReference>,
   pub idents: Vec<ConcatenatedModuleIdent>,
   pub all_used_names: HashSet<Atom>,
   pub binding_to_ref: FxIndexMap<(Atom, SyntaxContext), Vec<ConcatenatedModuleIdent>>,
@@ -1709,29 +1716,23 @@ impl Module for ConcatenatedModule {
           .expect("should have module");
         let build_meta = module.build_meta();
         let mut refs = vec![];
-        for reference in &info.global_scope_ident {
-          let name = &reference.id.sym;
-          let match_result = ConcatenationScope::match_module_reference(name.as_str());
-          if let Some(match_info) = match_result {
-            let referenced_info_id = &references_info[match_info.index].0;
-            refs.push((
-              reference.clone(),
-              referenced_info_id,
-              match_info
-                .ids
-                .into_iter()
-                .map(|item| Atom::from(item.as_str()))
-                .collect::<Vec<_>>(),
-              match_info.call,
-              !match_info.direct_import,
-              match_info.deferred_import,
-              build_meta.strict_esm_module,
-              match_info.asi_safe,
-            ));
-          }
+        for reference in &info.module_references {
+          let match_info = &reference.options;
+          let referenced_info_id = &references_info[match_info.index].0;
+          refs.push((
+            reference.ident.clone(),
+            referenced_info_id,
+            match_info.ids.clone(),
+            match_info.call,
+            !match_info.direct_import,
+            match_info.deferred_import,
+            build_meta.strict_esm_module,
+            match_info.asi_safe,
+          ));
         }
 
         let mut changes = vec![];
+        let mut final_name_cache = HashMap::default();
         for (
           reference_ident,
           referenced_info_id,
@@ -1743,22 +1744,27 @@ impl Module for ConcatenatedModule {
           asi_safe,
         ) in refs
         {
-          let final_name = Self::get_final_name(
-            compilation.get_module_graph(),
-            &compilation.module_graph_cache_artifact,
-            &compilation.exports_info_artifact,
-            &compilation.module_static_cache,
-            referenced_info_id,
-            export_name,
-            &module_to_info_map,
-            runtime,
-            deferred_import,
-            call,
-            call_context,
-            strict_esm_module,
-            asi_safe,
-            &context,
-          );
+          let final_name = final_name_cache
+            .entry(reference_ident.id.sym.clone())
+            .or_insert_with(|| {
+              Self::get_final_name(
+                compilation.get_module_graph(),
+                &compilation.module_graph_cache_artifact,
+                &compilation.exports_info_artifact,
+                &compilation.module_static_cache,
+                referenced_info_id,
+                export_name,
+                &module_to_info_map,
+                runtime,
+                deferred_import,
+                call,
+                call_context,
+                strict_esm_module,
+                asi_safe,
+                &context,
+              )
+            })
+            .clone();
 
           // We assume this should be concatenated module info because previous loop
           let span = reference_ident.id.span();
@@ -2796,14 +2802,14 @@ impl ConcatenatedModule {
     source: &dyn Source,
     replacements: &CodeGenerationModuleReferenceReplacements,
     base_offset: usize,
-    idents: &mut Vec<ConcatenatedModuleIdent>,
+    references: &mut Vec<ConcatenatedModuleReference>,
   ) {
     if let Some(source) = source.as_any().downcast_ref::<CachedSource>() {
       return Self::collect_module_reference_idents_from_source(
         source.inner().as_ref(),
         replacements,
         base_offset,
-        idents,
+        references,
       );
     }
 
@@ -2814,7 +2820,7 @@ impl ConcatenatedModule {
           child.as_ref(),
           replacements,
           offset,
-          idents,
+          references,
         );
         offset += child.size();
       }
@@ -2826,7 +2832,7 @@ impl ConcatenatedModule {
         source,
         replacements,
         base_offset,
-        idents,
+        references,
       );
     }
   }
@@ -2835,7 +2841,7 @@ impl ConcatenatedModule {
     source: &ReplaceSource,
     replacements: &CodeGenerationModuleReferenceReplacements,
     base_offset: usize,
-    idents: &mut Vec<ConcatenatedModuleIdent>,
+    references: &mut Vec<ConcatenatedModuleReference>,
   ) {
     let mut inner_pos = 0usize;
     let mut generated_pos = base_offset;
@@ -2861,14 +2867,17 @@ impl ConcatenatedModule {
         }
         let low = generated_pos + content_start;
         let high = generated_pos + content_end;
-        idents.push(ConcatenatedModuleIdent {
-          id: swc_ecma_ast::Ident::new(
-            reference.name.clone(),
-            Span::new(BytePos(low as u32 + 1), BytePos(high as u32 + 1)),
-            SyntaxContext::empty(),
-          ),
-          is_class_expr_with_ident: false,
-          shorthand: false,
+        references.push(ConcatenatedModuleReference {
+          ident: ConcatenatedModuleIdent {
+            id: swc_ecma_ast::Ident::new(
+              reference.name.clone(),
+              Span::new(BytePos(low as u32 + 1), BytePos(high as u32 + 1)),
+              SyntaxContext::empty(),
+            ),
+            is_class_expr_with_ident: false,
+            shorthand: false,
+          },
+          options: reference.options.clone(),
         });
       }
 
@@ -2877,10 +2886,10 @@ impl ConcatenatedModule {
     }
   }
 
-  pub fn collect_module_reference_idents_from_replacements(
+  pub fn collect_module_references_from_replacements(
     source: &dyn Source,
     replacements: Option<&CodeGenerationModuleReferenceReplacements>,
-  ) -> Vec<ConcatenatedModuleIdent> {
+  ) -> Vec<ConcatenatedModuleReference> {
     let Some(replacements) = replacements else {
       return vec![];
     };
@@ -2888,9 +2897,9 @@ impl ConcatenatedModule {
       return vec![];
     }
 
-    let mut idents = Vec::with_capacity(replacements.inner().len());
-    Self::collect_module_reference_idents_from_source(source, replacements, 0, &mut idents);
-    idents
+    let mut references = Vec::with_capacity(replacements.inner().len());
+    Self::collect_module_reference_idents_from_source(source, replacements, 0, &mut references);
+    references
   }
 
   /// Using `ModuleIdentifier` instead of `ModuleInfo` to work around rustc borrow checker
@@ -3006,11 +3015,17 @@ impl ConcatenatedModule {
             }));
         }
       }
-      module_info.global_scope_ident.extend(
-        Self::collect_module_reference_idents_from_replacements(
+      module_info
+        .module_references
+        .extend(Self::collect_module_references_from_replacements(
           source.as_ref(),
           data.get::<CodeGenerationModuleReferenceReplacements>(),
-        ),
+        ));
+      module_info.global_scope_ident.extend(
+        module_info
+          .module_references
+          .iter()
+          .map(|reference| reference.ident.clone()),
       );
       module_info
         .all_used_names
@@ -3780,7 +3795,7 @@ impl FinalBindingResult {
   }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct FinalNameResult {
   name: String,
   info_id: Identifier,

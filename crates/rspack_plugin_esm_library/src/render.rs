@@ -4,10 +4,10 @@ use cow_utils::CowUtils;
 use rspack_collections::IdentifierIndexSet;
 use rspack_core::{
   AssetInfo, Chunk, ChunkGraph, ChunkGroup, ChunkRenderContext, ChunkUkey,
-  CodeGenerationDataFilename, Compilation, ConcatenatedModuleInfo, ConcatenationScope,
-  DependencyId, InitFragment, InitFragmentExt, ModuleIdentifier, NormalInitFragment, PathData,
-  PathInfo, RuntimeCodeTemplate, RuntimeGlobals, RuntimeVariable, SourceType, export_name,
-  get_js_chunk_filename_template, get_undo_path, render_imports, render_init_fragments,
+  CodeGenerationDataFilename, Compilation, ConcatenatedModuleInfo, DependencyId, InitFragment,
+  InitFragmentExt, ModuleIdentifier, NormalInitFragment, PathData, PathInfo, RuntimeCodeTemplate,
+  RuntimeGlobals, RuntimeVariable, SourceType, export_name, get_js_chunk_filename_template,
+  get_undo_path, render_imports, render_init_fragments,
   rspack_sources::{ConcatSource, RawStringSource, ReplaceSource, Source, SourceExt},
 };
 use rspack_error::Result;
@@ -1065,11 +1065,8 @@ var {} = {{}};
       }
     }
 
-    for ident in &info.global_scope_ident {
-      if ConcatenationScope::match_module_reference(ident.id.sym.as_str()).is_none() {
-        continue;
-      }
-
+    for reference in &info.module_references {
+      let ident = &reference.ident;
       if let Some(binding_ref) = chunk_link.refs.get(ident.id.sym.as_str()) {
         let final_name = match binding_ref {
           Ref::Symbol(symbol_ref) => Cow::Owned(symbol_ref.render()),
