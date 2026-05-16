@@ -6,15 +6,26 @@ use swc_core::{
   ecma::ast::{Ident, MemberExpr},
 };
 
-use super::JavascriptParserPlugin;
+use super::{JavascriptParserPlugin, JavascriptParserPluginHook};
 use crate::{dependency::ExportInfoDependency, visitors::JavascriptParser};
 
 const EXPORTS_INFO: &str = "__webpack_exports_info__";
 
 pub struct ExportsInfoApiPlugin;
 
+const EXPORTS_INFO_NAMES: &[&str] = &[EXPORTS_INFO];
+
 #[rspack_macros::implemented_javascript_parser_hooks]
 impl JavascriptParserPlugin for ExportsInfoApiPlugin {
+  fn hook_name_filter(&self, hook: JavascriptParserPluginHook) -> Option<&'static [&'static str]> {
+    match hook {
+      JavascriptParserPluginHook::MemberChain | JavascriptParserPluginHook::Identifier => {
+        Some(EXPORTS_INFO_NAMES)
+      }
+      _ => None,
+    }
+  }
+
   fn member_chain(
     &self,
     parser: &mut JavascriptParser,

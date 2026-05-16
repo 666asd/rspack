@@ -9,7 +9,7 @@ use swc_core::{
   },
 };
 
-use super::JavascriptParserPlugin;
+use super::{JavascriptParserPlugin, JavascriptParserPluginHook};
 use crate::{
   dependency::{
     CommonJsExportRequireDependency, CommonJsExportsDependency, CommonJsSelfReferenceDependency,
@@ -259,6 +259,12 @@ pub struct CommonJsExportsParserPlugin {
   skip_in_esm: bool,
 }
 
+const COMMONJS_EXPORTS_ROOT_NAMES: &[&str] = &["exports", "module", "this"];
+const COMMONJS_EXPORTS_CALL_NAMES: &[&str] = &["Object.defineProperty"];
+const COMMONJS_EXPORTS_IDENTIFIER_NAMES: &[&str] = &["module", "exports"];
+const COMMONJS_EXPORTS_MEMBER_NAMES: &[&str] = &["module.exports"];
+const COMMONJS_EXPORTS_TYPEOF_NAMES: &[&str] = &["module", "exports"];
+
 impl CommonJsExportsParserPlugin {
   pub fn new(skip_in_esm: bool) -> Self {
     Self { skip_in_esm }
@@ -271,6 +277,19 @@ impl CommonJsExportsParserPlugin {
 
 #[rspack_macros::implemented_javascript_parser_hooks]
 impl JavascriptParserPlugin for CommonJsExportsParserPlugin {
+  fn hook_name_filter(&self, hook: JavascriptParserPluginHook) -> Option<&'static [&'static str]> {
+    match hook {
+      JavascriptParserPluginHook::AssignMemberChain
+      | JavascriptParserPluginHook::MemberChain
+      | JavascriptParserPluginHook::CallMemberChain => Some(COMMONJS_EXPORTS_ROOT_NAMES),
+      JavascriptParserPluginHook::Call => Some(COMMONJS_EXPORTS_CALL_NAMES),
+      JavascriptParserPluginHook::Identifier => Some(COMMONJS_EXPORTS_IDENTIFIER_NAMES),
+      JavascriptParserPluginHook::Member => Some(COMMONJS_EXPORTS_MEMBER_NAMES),
+      JavascriptParserPluginHook::EvaluateTypeof => Some(COMMONJS_EXPORTS_TYPEOF_NAMES),
+      _ => None,
+    }
+  }
+
   fn assign_member_chain(
     &self,
     parser: &mut JavascriptParser,

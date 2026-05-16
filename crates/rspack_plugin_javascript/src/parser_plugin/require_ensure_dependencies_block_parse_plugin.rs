@@ -11,7 +11,7 @@ use swc_core::{
   ecma::ast::{ArrowExpr, BlockStmtOrExpr, CallExpr, Expr, FnExpr, UnaryExpr},
 };
 
-use super::JavascriptParserPlugin;
+use super::{JavascriptParserPlugin, JavascriptParserPluginHook};
 use crate::{
   dependency::{RequireEnsureDependency, RequireEnsureItemDependency},
   utils::eval::{self, BasicEvaluatedExpression},
@@ -20,8 +20,19 @@ use crate::{
 
 pub struct RequireEnsureDependenciesBlockParserPlugin;
 
+const REQUIRE_ENSURE_NAMES: &[&str] = &["require.ensure"];
+
 #[rspack_macros::implemented_javascript_parser_hooks]
 impl JavascriptParserPlugin for RequireEnsureDependenciesBlockParserPlugin {
+  fn hook_name_filter(&self, hook: JavascriptParserPluginHook) -> Option<&'static [&'static str]> {
+    match hook {
+      JavascriptParserPluginHook::EvaluateTypeof
+      | JavascriptParserPluginHook::Typeof
+      | JavascriptParserPluginHook::Call => Some(REQUIRE_ENSURE_NAMES),
+      _ => None,
+    }
+  }
+
   fn evaluate_typeof<'a>(
     &self,
     _parser: &mut JavascriptParser,

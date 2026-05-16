@@ -19,7 +19,7 @@ use super::state::{
 use crate::{
   ClassExt,
   dependency::{ESMImportSpecifierDependency, PureExpressionDependency, URLDependency},
-  parser_plugin::{DEFAULT_STAR_JS_WORD, JavascriptParserPlugin},
+  parser_plugin::{DEFAULT_STAR_JS_WORD, JavascriptParserPlugin, JavascriptParserPluginHook},
   side_effects_parser_plugin::{
     is_pure_class, is_pure_class_member, is_pure_expression, is_pure_function,
   },
@@ -36,6 +36,7 @@ pub struct InnerGraphParserPlugin {
 }
 
 pub static TOP_LEVEL_SYMBOL: &str = "inner graph top level symbol";
+const TOP_LEVEL_SYMBOL_NAMES: &[&str] = &[TOP_LEVEL_SYMBOL];
 
 impl InnerGraphParserPlugin {
   pub fn new(unresolved_mark: Mark, analyze_pure_annotation: bool) -> Self {
@@ -361,6 +362,16 @@ impl InnerGraphParserPlugin {
 
 #[rspack_macros::implemented_javascript_parser_hooks]
 impl JavascriptParserPlugin for InnerGraphParserPlugin {
+  fn hook_name_filter(&self, hook: JavascriptParserPluginHook) -> Option<&'static [&'static str]> {
+    match hook {
+      JavascriptParserPluginHook::Member
+      | JavascriptParserPluginHook::Assign
+      | JavascriptParserPluginHook::Identifier
+      | JavascriptParserPluginHook::This => Some(TOP_LEVEL_SYMBOL_NAMES),
+      _ => None,
+    }
+  }
+
   fn program(
     &self,
     parser: &mut crate::visitors::JavascriptParser,

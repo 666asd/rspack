@@ -13,7 +13,7 @@ use swc_core::{
   },
 };
 
-use super::JavascriptParserPlugin;
+use super::{JavascriptParserPlugin, JavascriptParserPluginHook};
 use crate::{
   dependency::{
     CommonJsFullRequireDependency, CommonJsRequireContextDependency, CommonJsRequireDependency,
@@ -30,6 +30,22 @@ use crate::{
 };
 
 const COMMONJS_REQUIRE_TAG: &str = "commonjs require";
+const COMMONJS_REQUIRE_TAG_NAMES: &[&str] = &[COMMONJS_REQUIRE_TAG];
+const COMMONJS_REQUIRE_IDENTIFIER_NAMES: &[&str] = &[COMMONJS_REQUIRE_TAG, expr_name::REQUIRE];
+const COMMONJS_REQUIRE_NAMES: &[&str] = &[expr_name::REQUIRE];
+const COMMONJS_REQUIRE_TYPEOF_NAMES: &[&str] = &[
+  expr_name::REQUIRE,
+  expr_name::REQUIRE_RESOLVE,
+  expr_name::REQUIRE_RESOLVE_WEAK,
+];
+const COMMONJS_REQUIRE_CALL_NAMES: &[&str] = &[
+  expr_name::REQUIRE,
+  expr_name::MODULE_REQUIRE,
+  expr_name::REQUIRE_RESOLVE,
+  expr_name::REQUIRE_RESOLVE_WEAK,
+];
+const COMMONJS_REQUIRE_CALL_OR_NEW_NAMES: &[&str] =
+  &[expr_name::REQUIRE, expr_name::MODULE_REQUIRE];
 
 #[derive(Debug, Default)]
 pub struct RequireReferencesState {
@@ -624,6 +640,28 @@ impl CommonJsImportsParserPlugin {
 
 #[rspack_macros::implemented_javascript_parser_hooks]
 impl JavascriptParserPlugin for CommonJsImportsParserPlugin {
+  fn hook_name_filter(&self, hook: JavascriptParserPluginHook) -> Option<&'static [&'static str]> {
+    match hook {
+      JavascriptParserPluginHook::Identifier => Some(COMMONJS_REQUIRE_IDENTIFIER_NAMES),
+      JavascriptParserPluginHook::MemberChain | JavascriptParserPluginHook::CallMemberChain => {
+        Some(COMMONJS_REQUIRE_TAG_NAMES)
+      }
+      JavascriptParserPluginHook::CanRename
+      | JavascriptParserPluginHook::Rename
+      | JavascriptParserPluginHook::Assign => Some(COMMONJS_REQUIRE_NAMES),
+      JavascriptParserPluginHook::EvaluateTypeof
+      | JavascriptParserPluginHook::EvaluateIdentifier
+      | JavascriptParserPluginHook::Typeof => Some(COMMONJS_REQUIRE_TYPEOF_NAMES),
+      JavascriptParserPluginHook::Call => Some(COMMONJS_REQUIRE_CALL_NAMES),
+      JavascriptParserPluginHook::NewExpression
+      | JavascriptParserPluginHook::MemberChainOfCallMemberChain
+      | JavascriptParserPluginHook::CallMemberChainOfCallMemberChain => {
+        Some(COMMONJS_REQUIRE_CALL_OR_NEW_NAMES)
+      }
+      _ => None,
+    }
+  }
+
   fn can_collect_destructuring_assignment_properties(
     &self,
     parser: &mut JavascriptParser,

@@ -11,7 +11,7 @@ use crate::{
     ModuleArgumentDependency, ModuleHotAcceptDependency, ModuleHotDeclineDependency,
     import_emitted_runtime,
   },
-  parser_plugin::JavascriptParserPlugin,
+  parser_plugin::{JavascriptParserPlugin, JavascriptParserPluginHook},
   utils::eval,
   visitors::{JavascriptParser, expr_name},
 };
@@ -124,6 +124,10 @@ pub struct ModuleHotReplacementParserPlugin {
   _private: (),
 }
 
+const MODULE_HOT_EVALUATE_OR_MEMBER_NAMES: &[&str] = &[expr_name::MODULE_HOT];
+const MODULE_HOT_CALL_NAMES: &[&str] =
+  &[expr_name::MODULE_HOT_ACCEPT, expr_name::MODULE_HOT_DECLINE];
+
 impl ModuleHotReplacementParserPlugin {
   #[allow(clippy::new_without_default)]
   pub fn new() -> Self {
@@ -134,6 +138,16 @@ impl ModuleHotReplacementParserPlugin {
 
 #[rspack_macros::implemented_javascript_parser_hooks]
 impl JavascriptParserPlugin for ModuleHotReplacementParserPlugin {
+  fn hook_name_filter(&self, hook: JavascriptParserPluginHook) -> Option<&'static [&'static str]> {
+    match hook {
+      JavascriptParserPluginHook::EvaluateIdentifier | JavascriptParserPluginHook::Member => {
+        Some(MODULE_HOT_EVALUATE_OR_MEMBER_NAMES)
+      }
+      JavascriptParserPluginHook::Call => Some(MODULE_HOT_CALL_NAMES),
+      _ => None,
+    }
+  }
+
   fn evaluate_identifier(
     &self,
     _parser: &mut JavascriptParser,
@@ -192,6 +206,12 @@ pub struct ImportMetaHotReplacementParserPlugin {
   _private: (),
 }
 
+const IMPORT_META_HOT_EVALUATE_OR_MEMBER_NAMES: &[&str] = &[expr_name::IMPORT_META_HOT];
+const IMPORT_META_HOT_CALL_NAMES: &[&str] = &[
+  expr_name::IMPORT_META_HOT_ACCEPT,
+  expr_name::IMPORT_META_HOT_DECLINE,
+];
+
 impl ImportMetaHotReplacementParserPlugin {
   #[allow(clippy::new_without_default)]
   pub fn new() -> Self {
@@ -202,6 +222,16 @@ impl ImportMetaHotReplacementParserPlugin {
 
 #[rspack_macros::implemented_javascript_parser_hooks]
 impl JavascriptParserPlugin for ImportMetaHotReplacementParserPlugin {
+  fn hook_name_filter(&self, hook: JavascriptParserPluginHook) -> Option<&'static [&'static str]> {
+    match hook {
+      JavascriptParserPluginHook::EvaluateIdentifier | JavascriptParserPluginHook::Member => {
+        Some(IMPORT_META_HOT_EVALUATE_OR_MEMBER_NAMES)
+      }
+      JavascriptParserPluginHook::Call => Some(IMPORT_META_HOT_CALL_NAMES),
+      _ => None,
+    }
+  }
+
   fn evaluate_identifier(
     &self,
     _parser: &mut JavascriptParser,

@@ -6,7 +6,7 @@ use swc_core::{
   ecma::ast::{CallExpr, Lit},
 };
 
-use super::JavascriptParserPlugin;
+use super::{JavascriptParserPlugin, JavascriptParserPluginHook};
 use crate::{
   dependency::ImportMetaContextDependency,
   utils::{
@@ -108,8 +108,19 @@ fn create_import_meta_context_dependency(
 
 pub struct ImportMetaContextDependencyParserPlugin;
 
+const IMPORT_META_CONTEXT_NAMES: &[&str] = &[expr_name::IMPORT_META_CONTEXT];
+
 #[rspack_macros::implemented_javascript_parser_hooks]
 impl JavascriptParserPlugin for ImportMetaContextDependencyParserPlugin {
+  fn hook_name_filter(&self, hook: JavascriptParserPluginHook) -> Option<&'static [&'static str]> {
+    match hook {
+      JavascriptParserPluginHook::EvaluateIdentifier | JavascriptParserPluginHook::Call => {
+        Some(IMPORT_META_CONTEXT_NAMES)
+      }
+      _ => None,
+    }
+  }
+
   fn evaluate_identifier(
     &self,
     _parser: &mut JavascriptParser,

@@ -16,7 +16,7 @@ use swc_core::{
 };
 
 use crate::{
-  JavascriptParserPlugin,
+  JavascriptParserPlugin, JavascriptParserPluginHook,
   dependency::{
     AMDRequireContextDependency,
     amd_define_dependency::AMDDefineDependency,
@@ -31,6 +31,8 @@ use crate::{
 };
 
 pub struct AMDDefineDependencyParserPlugin;
+
+const AMD_DEFINE_CALL_NAMES: &[&str] = &["define"];
 
 fn is_unbound_function_expression(expr: &Expr) -> bool {
   expr.is_fn_expr() || expr.is_arrow()
@@ -589,6 +591,13 @@ impl AMDDefineDependencyParserPlugin {
 
 #[rspack_macros::implemented_javascript_parser_hooks]
 impl JavascriptParserPlugin for AMDDefineDependencyParserPlugin {
+  fn hook_name_filter(&self, hook: JavascriptParserPluginHook) -> Option<&'static [&'static str]> {
+    match hook {
+      JavascriptParserPluginHook::Call => Some(AMD_DEFINE_CALL_NAMES),
+      _ => None,
+    }
+  }
+
   fn call(
     &self,
     parser: &mut JavascriptParser,

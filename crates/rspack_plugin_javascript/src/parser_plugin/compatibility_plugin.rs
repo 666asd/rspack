@@ -6,13 +6,15 @@ use swc_core::{
   ecma::ast::{CallExpr, VarDeclarator},
 };
 
-use super::JavascriptParserPlugin;
+use super::{JavascriptParserPlugin, JavascriptParserPluginHook};
 use crate::{
   dependency::CommonJsRequireContextDependency,
   visitors::{JavascriptParser, Statement, TagInfoData, VariableDeclaration, expr_name},
 };
 
 pub const NESTED_IDENTIFIER_TAG: &str = "_identifier__nested_rspack_identifier__";
+const NESTED_IDENTIFIER_TAG_NAMES: &[&str] = &[NESTED_IDENTIFIER_TAG];
+const REQUIRE_NAMES: &[&str] = &[expr_name::REQUIRE];
 
 #[derive(Debug, Clone)]
 pub struct NestedRequireData {
@@ -76,6 +78,14 @@ impl CompatibilityPlugin {
 
 #[rspack_macros::implemented_javascript_parser_hooks]
 impl JavascriptParserPlugin for CompatibilityPlugin {
+  fn hook_name_filter(&self, hook: JavascriptParserPluginHook) -> Option<&'static [&'static str]> {
+    match hook {
+      JavascriptParserPluginHook::Identifier => Some(NESTED_IDENTIFIER_TAG_NAMES),
+      JavascriptParserPluginHook::Call => Some(REQUIRE_NAMES),
+      _ => None,
+    }
+  }
+
   fn program(
     &self,
     parser: &mut JavascriptParser,

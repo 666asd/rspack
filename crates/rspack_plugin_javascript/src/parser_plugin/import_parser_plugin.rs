@@ -16,7 +16,7 @@ use swc_core::{
   },
 };
 
-use super::JavascriptParserPlugin;
+use super::{JavascriptParserPlugin, JavascriptParserPluginHook};
 use crate::{
   dependency::{
     ImportContextDependency, ImportDependency, ImportEagerDependency, ImportWeakDependency,
@@ -31,6 +31,7 @@ use crate::{
 };
 
 const DYNAMIC_IMPORT_TAG: &str = "dynamic import";
+const DYNAMIC_IMPORT_TAG_NAMES: &[&str] = &[DYNAMIC_IMPORT_TAG];
 
 fn tag_dynamic_import_referenced(
   parser: &mut JavascriptParser,
@@ -133,6 +134,15 @@ pub struct ImportParserPlugin;
 
 #[rspack_macros::implemented_javascript_parser_hooks]
 impl JavascriptParserPlugin for ImportParserPlugin {
+  fn hook_name_filter(&self, hook: JavascriptParserPluginHook) -> Option<&'static [&'static str]> {
+    match hook {
+      JavascriptParserPluginHook::Identifier
+      | JavascriptParserPluginHook::MemberChain
+      | JavascriptParserPluginHook::CallMemberChain => Some(DYNAMIC_IMPORT_TAG_NAMES),
+      _ => None,
+    }
+  }
+
   fn can_collect_destructuring_assignment_properties(
     &self,
     parser: &mut JavascriptParser,

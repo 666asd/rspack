@@ -17,7 +17,7 @@ use swc_core::{
 use url::Url;
 
 use super::{
-  JavascriptParserPlugin,
+  JavascriptParserPlugin, JavascriptParserPluginHook,
   esm_import_dependency_parser_plugin::{ESM_SPECIFIER_TAG, ESMSpecifierData},
   url_plugin::get_url_request,
 };
@@ -248,6 +248,7 @@ pub struct WorkerPlugin {
 }
 
 const WORKER_SPECIFIER_TAG: &str = "_identifier__worker_specifier_tag__";
+const WORKER_SPECIFIER_TAG_NAMES: &[&str] = &[WORKER_SPECIFIER_TAG];
 const DEFAULT_SYNTAX: [&str; 4] = [
   "Worker",
   "SharedWorker",
@@ -362,6 +363,13 @@ impl WorkerPlugin {
 
 #[rspack_macros::implemented_javascript_parser_hooks]
 impl JavascriptParserPlugin for WorkerPlugin {
+  fn hook_name_filter(&self, hook: JavascriptParserPluginHook) -> Option<&'static [&'static str]> {
+    match hook {
+      JavascriptParserPluginHook::CallMemberChain => Some(WORKER_SPECIFIER_TAG_NAMES),
+      _ => None,
+    }
+  }
+
   fn pre_declarator(
     &self,
     parser: &mut JavascriptParser,

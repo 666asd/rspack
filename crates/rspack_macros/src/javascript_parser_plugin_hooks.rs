@@ -54,6 +54,9 @@ fn expand_impl(input: &mut ItemImpl) -> Result<()> {
         "remove manual hook metadata; this attribute generates it automatically",
       ));
     }
+    if normalized_name == "hook_name_filter" {
+      continue;
+    }
 
     hook_variants.push(hook_variant_ident(&func.sig.ident)?);
   }

@@ -6,7 +6,7 @@ use rspack_util::SpanExt;
 use swc_core::common::Spanned;
 
 pub use self::logic_expr::is_logic_op;
-use super::JavascriptParserPlugin;
+use super::{JavascriptParserPlugin, JavascriptParserPluginHook};
 use crate::{
   utils::eval::evaluate_to_string,
   visitors::{JavascriptParser, Statement},
@@ -16,9 +16,19 @@ pub struct ConstPlugin;
 
 const RESOURCE_FRAGMENT: &str = "__resourceFragment";
 const RESOURCE_QUERY: &str = "__resourceQuery";
+const CONST_IDENTIFIER_NAMES: &[&str] = &[RESOURCE_FRAGMENT, RESOURCE_QUERY];
 
 #[rspack_macros::implemented_javascript_parser_hooks]
 impl JavascriptParserPlugin for ConstPlugin {
+  fn hook_name_filter(&self, hook: JavascriptParserPluginHook) -> Option<&'static [&'static str]> {
+    match hook {
+      JavascriptParserPluginHook::Identifier | JavascriptParserPluginHook::EvaluateIdentifier => {
+        Some(CONST_IDENTIFIER_NAMES)
+      }
+      _ => None,
+    }
+  }
+
   fn expression_logical_operator(
     &self,
     parser: &mut JavascriptParser,

@@ -2,15 +2,24 @@ use rspack_util::atom::Atom;
 use rustc_hash::FxHashSet;
 
 use super::{
-  JavascriptParserPlugin,
+  JavascriptParserPlugin, JavascriptParserPluginHook,
   inner_graph::state::{InnerGraphMapUsage, TopLevelSymbol},
 };
 use crate::visitors::JavascriptParser;
 
 pub struct JavascriptMetaInfoPlugin;
 
+const JAVASCRIPT_META_CALL_NAMES: &[&str] = &["eval"];
+
 #[rspack_macros::implemented_javascript_parser_hooks]
 impl JavascriptParserPlugin for JavascriptMetaInfoPlugin {
+  fn hook_name_filter(&self, hook: JavascriptParserPluginHook) -> Option<&'static [&'static str]> {
+    match hook {
+      JavascriptParserPluginHook::Call => Some(JAVASCRIPT_META_CALL_NAMES),
+      _ => None,
+    }
+  }
+
   fn call(
     &self,
     parser: &mut JavascriptParser,

@@ -4,7 +4,7 @@ use cow_utils::CowUtils;
 use rspack_util::SpanExt;
 use swc_core::ecma::ast::CallExpr;
 
-use super::JavascriptParserPlugin;
+use super::{JavascriptParserPlugin, JavascriptParserPluginHook};
 use crate::{utils::eval::BasicEvaluatedExpression, visitors::JavascriptParser};
 
 const SLICE_METHOD_NAME: &str = "slice";
@@ -14,11 +14,31 @@ const INDEXOF_METHOD_NAME: &str = "indexOf";
 const SPLIT_METHOD_NAME: &str = "split";
 const SUBSTR_METHOD_NAME: &str = "substr";
 const SUBSTRING_METHOD_NAME: &str = "substring";
+const EVALUATE_CALL_EXPRESSION_NAMES: &[&str] = &["String", "Number", "Boolean"];
+const EVALUATE_CALL_EXPRESSION_MEMBER_NAMES: &[&str] = &[
+  SLICE_METHOD_NAME,
+  REPLACE_METHOD_NAME,
+  CONCAT_METHOD_NAME,
+  INDEXOF_METHOD_NAME,
+  SPLIT_METHOD_NAME,
+  SUBSTR_METHOD_NAME,
+  SUBSTRING_METHOD_NAME,
+];
 
 pub struct InitializeEvaluating;
 
 #[rspack_macros::implemented_javascript_parser_hooks]
 impl JavascriptParserPlugin for InitializeEvaluating {
+  fn hook_name_filter(&self, hook: JavascriptParserPluginHook) -> Option<&'static [&'static str]> {
+    match hook {
+      JavascriptParserPluginHook::EvaluateCallExpression => Some(EVALUATE_CALL_EXPRESSION_NAMES),
+      JavascriptParserPluginHook::EvaluateCallExpressionMember => {
+        Some(EVALUATE_CALL_EXPRESSION_MEMBER_NAMES)
+      }
+      _ => None,
+    }
+  }
+
   fn evaluate_call_expression<'a>(
     &self,
     parser: &mut JavascriptParser,

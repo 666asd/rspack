@@ -1,4 +1,6 @@
-use rspack_plugin_javascript::{JavascriptParserPlugin, visitors::JavascriptParser};
+use rspack_plugin_javascript::{
+  JavascriptParserPlugin, JavascriptParserPluginHook, visitors::JavascriptParser,
+};
 use swc_core::ecma::ast::MemberExpr;
 
 #[derive(PartialEq, Debug, Default)]
@@ -14,8 +16,26 @@ impl RslibParserPlugin {
   }
 }
 
+const RSLIB_MEMBER_NAMES: &[&str] = &[
+  "require.cache",
+  "require.extensions",
+  "require.config",
+  "require.version",
+  "require.include",
+  "require.onError",
+];
+const RSLIB_TYPEOF_NAMES: &[&str] = &["module"];
+
 #[rspack_plugin_javascript::implemented_javascript_parser_hooks]
 impl JavascriptParserPlugin for RslibParserPlugin {
+  fn hook_name_filter(&self, hook: JavascriptParserPluginHook) -> Option<&'static [&'static str]> {
+    match hook {
+      JavascriptParserPluginHook::Member => Some(RSLIB_MEMBER_NAMES),
+      JavascriptParserPluginHook::Typeof => Some(RSLIB_TYPEOF_NAMES),
+      _ => None,
+    }
+  }
+
   fn member(
     &self,
     _parser: &mut JavascriptParser,

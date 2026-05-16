@@ -8,7 +8,7 @@ use swc_core::{
 
 use crate::{
   dependency::{ModuleArgumentDependency, RequireMainDependency},
-  parser_plugin::JavascriptParserPlugin,
+  parser_plugin::{JavascriptParserPlugin, JavascriptParserPluginHook},
   utils::eval::{self, BasicEvaluatedExpression},
   visitors::{JavascriptParser, Statement, VariableDeclaration, create_traceable_error},
 };
@@ -55,6 +55,68 @@ const API_GET_SCRIPT_FILENAME: &str = "__webpack_get_script_filename__";
 const API_VERSION: &str = "__rspack_version__";
 const API_UNIQUE_ID: &str = "__rspack_unique_id__";
 const API_RSC_MANIFEST: &str = "__rspack_rsc_manifest__";
+const API_IDENTIFIER_NAMES: &[&str] = &[
+  API_REQUIRE,
+  API_HASH,
+  API_LAYER,
+  API_PUBLIC_PATH,
+  API_MODULES,
+  API_CHUNK_LOAD,
+  API_MODULE,
+  API_BASE_URI,
+  API_NON_REQUIRE,
+  API_SYSTEM_CONTEXT,
+  API_SHARE_SCOPES,
+  API_INIT_SHARING,
+  API_NONCE,
+  API_CHUNK_NAME,
+  API_RUNTIME_ID,
+  API_GET_SCRIPT_FILENAME,
+  API_VERSION,
+  API_UNIQUE_ID,
+  API_RSC_MANIFEST,
+];
+const API_EVALUATE_TYPEOF_NAMES: &[&str] = &[
+  API_REQUIRE,
+  API_HASH,
+  API_LAYER,
+  API_PUBLIC_PATH,
+  API_MODULES,
+  API_MODULE,
+  API_CHUNK_LOAD,
+  API_BASE_URI,
+  API_NON_REQUIRE,
+  API_SYSTEM_CONTEXT,
+  API_SHARE_SCOPES,
+  API_INIT_SHARING,
+  API_NONCE,
+  API_CHUNK_NAME,
+  API_RUNTIME_ID,
+  API_GET_SCRIPT_FILENAME,
+  API_VERSION,
+  API_UNIQUE_ID,
+  API_RSC_MANIFEST,
+];
+const API_EVALUATE_IDENTIFIER_NAMES: &[&str] = &[API_LAYER];
+const API_MEMBER_NAMES: &[&str] = &[
+  "require.extensions",
+  "require.config",
+  "require.version",
+  "require.include",
+  "require.onError",
+  "require.main.require",
+  "module.parent.require",
+  "require.cache",
+  "require.main",
+  "__webpack_module__.id",
+];
+const API_CALL_NAMES: &[&str] = &[
+  "require.config",
+  "require.include",
+  "require.onError",
+  "require.main.require",
+  "module.parent.require",
+];
 
 pub struct APIPluginOptions {
   module: bool,
@@ -97,6 +159,17 @@ fn get_typeof_evaluate_of_api(sym: &str) -> Option<&str> {
 
 #[rspack_macros::implemented_javascript_parser_hooks]
 impl JavascriptParserPlugin for APIPlugin {
+  fn hook_name_filter(&self, hook: JavascriptParserPluginHook) -> Option<&'static [&'static str]> {
+    match hook {
+      JavascriptParserPluginHook::Identifier => Some(API_IDENTIFIER_NAMES),
+      JavascriptParserPluginHook::EvaluateIdentifier => Some(API_EVALUATE_IDENTIFIER_NAMES),
+      JavascriptParserPluginHook::EvaluateTypeof => Some(API_EVALUATE_TYPEOF_NAMES),
+      JavascriptParserPluginHook::Member => Some(API_MEMBER_NAMES),
+      JavascriptParserPluginHook::Call => Some(API_CALL_NAMES),
+      _ => None,
+    }
+  }
+
   fn evaluate_typeof<'a>(
     &self,
     parser: &mut JavascriptParser,

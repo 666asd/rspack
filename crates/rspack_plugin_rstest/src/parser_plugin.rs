@@ -3,7 +3,7 @@ use rspack_core::{
   AsyncDependenciesBlock, ConstDependency, DependencyRange, ImportAttributes, ImportPhase,
 };
 use rspack_plugin_javascript::{
-  JavascriptParserPlugin,
+  JavascriptParserPlugin, JavascriptParserPluginHook,
   dependency::{CommonJsRequireDependency, ImportDependency, RequireHeaderDependency},
   try_extract_magic_comment,
   utils::{
@@ -32,6 +32,8 @@ const FILE_NAME: &str = "__filename";
 const IMPORT_META_DIRNAME: &str = "import.meta.dirname";
 const IMPORT_META_FILENAME: &str = "import.meta.filename";
 pub(crate) const MOCK_TARGET_REQUEST_PREFIX: &str = "\0rstest_mock_target:\0";
+const MODULE_PATH_NAMES: &[&str] = &[DIR_NAME, FILE_NAME];
+const IMPORT_META_PATH_NAMES: &[&str] = &[IMPORT_META_DIRNAME, IMPORT_META_FILENAME];
 
 #[derive(PartialEq)]
 enum ModulePathType {
@@ -650,6 +652,17 @@ impl RstestParserPlugin {
 
 #[rspack_plugin_javascript::implemented_javascript_parser_hooks]
 impl JavascriptParserPlugin for RstestParserPlugin {
+  fn hook_name_filter(&self, hook: JavascriptParserPluginHook) -> Option<&'static [&'static str]> {
+    match hook {
+      JavascriptParserPluginHook::Identifier => Some(MODULE_PATH_NAMES),
+      JavascriptParserPluginHook::EvaluateTypeof
+      | JavascriptParserPluginHook::EvaluateIdentifier
+      | JavascriptParserPluginHook::Typeof
+      | JavascriptParserPluginHook::Member => Some(IMPORT_META_PATH_NAMES),
+      _ => None,
+    }
+  }
+
   fn declarator(
     &self,
     parser: &mut JavascriptParser,

@@ -9,7 +9,8 @@ use swc_core::{
 };
 
 use super::{
-  InnerGraphParserPlugin, JavascriptParserPlugin, inner_graph::state::InnerGraphUsageOperation,
+  InnerGraphParserPlugin, JavascriptParserPlugin, JavascriptParserPluginHook,
+  inner_graph::state::InnerGraphUsageOperation,
 };
 use crate::{
   dependency::{ESMImportSideEffectDependency, ESMImportSpecifierDependency},
@@ -24,6 +25,7 @@ use crate::{
 pub struct ESMImportDependencyParserPlugin;
 
 pub const ESM_SPECIFIER_TAG: &str = "_identifier__esm_specifier_tag__";
+const ESM_SPECIFIER_TAG_NAMES: &[&str] = &[ESM_SPECIFIER_TAG];
 
 #[derive(Debug, Clone)]
 pub struct ESMSpecifierData {
@@ -38,6 +40,15 @@ pub struct ESMSpecifierData {
 
 #[rspack_macros::implemented_javascript_parser_hooks]
 impl JavascriptParserPlugin for ESMImportDependencyParserPlugin {
+  fn hook_name_filter(&self, hook: JavascriptParserPluginHook) -> Option<&'static [&'static str]> {
+    match hook {
+      JavascriptParserPluginHook::Identifier
+      | JavascriptParserPluginHook::MemberChain
+      | JavascriptParserPluginHook::CallMemberChain => Some(ESM_SPECIFIER_TAG_NAMES),
+      _ => None,
+    }
+  }
+
   fn import(
     &self,
     parser: &mut JavascriptParser,

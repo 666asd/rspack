@@ -6,7 +6,7 @@ use swc_core::{
 };
 
 use crate::{
-  JavascriptParserPlugin,
+  JavascriptParserPlugin, JavascriptParserPluginHook,
   utils::eval::{BasicEvaluatedExpression, evaluate_to_identifier, evaluate_to_string},
   visitors::JavascriptParser,
 };
@@ -17,9 +17,34 @@ const DEFINE: &str = "define";
 const REQUIRE: &str = "require";
 const DEFINE_AMD: &str = "define.amd";
 const REQUIRE_AMD: &str = "require.amd";
+const AMD_CALL_NAMES: &[&str] = &["require.config", "requirejs.config"];
+const AMD_MEMBER_NAMES: &[&str] = &[
+  "require.version",
+  "requirejs.onError",
+  DEFINE_AMD,
+  REQUIRE_AMD,
+];
+const AMD_TYPEOF_NAMES: &[&str] = &[DEFINE, REQUIRE, DEFINE_AMD, REQUIRE_AMD];
+const AMD_IDENTIFIER_NAMES: &[&str] = &[DEFINE];
+const AMD_EVALUATE_IDENTIFIER_NAMES: &[&str] = &[DEFINE_AMD, REQUIRE_AMD];
 
 #[rspack_macros::implemented_javascript_parser_hooks]
 impl JavascriptParserPlugin for AMDParserPlugin {
+  fn hook_name_filter(&self, hook: JavascriptParserPluginHook) -> Option<&'static [&'static str]> {
+    match hook {
+      JavascriptParserPluginHook::Call => Some(AMD_CALL_NAMES),
+      JavascriptParserPluginHook::Member => Some(AMD_MEMBER_NAMES),
+      JavascriptParserPluginHook::Typeof | JavascriptParserPluginHook::EvaluateTypeof => {
+        Some(AMD_TYPEOF_NAMES)
+      }
+      JavascriptParserPluginHook::Identifier
+      | JavascriptParserPluginHook::CanRename
+      | JavascriptParserPluginHook::Rename => Some(AMD_IDENTIFIER_NAMES),
+      JavascriptParserPluginHook::EvaluateIdentifier => Some(AMD_EVALUATE_IDENTIFIER_NAMES),
+      _ => None,
+    }
+  }
+
   fn call(
     &self,
     parser: &mut JavascriptParser,

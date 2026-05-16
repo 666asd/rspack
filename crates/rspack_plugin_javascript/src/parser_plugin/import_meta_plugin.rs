@@ -12,7 +12,7 @@ use swc_core::{
 };
 use url::Url;
 
-use super::JavascriptParserPlugin;
+use super::{JavascriptParserPlugin, JavascriptParserPluginHook};
 use crate::{
   dependency::{
     IMPORT_META_RSC_BINDING, ImportMetaResolveContextDependency, ImportMetaResolveDependency,
@@ -58,6 +58,28 @@ fn create_import_meta_resolve_context_dependency(
 }
 
 pub struct ImportMetaPlugin(pub(crate) ImportMeta);
+
+const IMPORT_META_ROOT_NAMES: &[&str] = &[expr_name::IMPORT_META];
+const IMPORT_META_TYPEOF_NAMES: &[&str] = &[
+  expr_name::IMPORT_META,
+  expr_name::IMPORT_META_URL,
+  expr_name::IMPORT_META_RESOLVE,
+  expr_name::IMPORT_META_VERSION,
+  expr_name::IMPORT_META_MAIN,
+  expr_name::IMPORT_META_RSPACK_RSC,
+];
+const IMPORT_META_EVALUATE_IDENTIFIER_NAMES: &[&str] = &[
+  expr_name::IMPORT_META_VERSION,
+  expr_name::IMPORT_META_URL,
+  expr_name::IMPORT_META_RESOLVE,
+];
+const IMPORT_META_MEMBER_NAMES: &[&str] = &[
+  expr_name::IMPORT_META_URL,
+  expr_name::IMPORT_META_VERSION,
+  expr_name::IMPORT_META_MAIN,
+  expr_name::IMPORT_META_RSPACK_RSC,
+];
+const IMPORT_META_CALL_NAMES: &[&str] = &[expr_name::IMPORT_META_RESOLVE];
 
 impl ImportMetaPlugin {
   fn import_meta_url(&self, parser: &JavascriptParser) -> String {
@@ -214,6 +236,20 @@ fn mark_import_meta_rsc_used(parser: &mut JavascriptParser) {
 
 #[rspack_macros::implemented_javascript_parser_hooks]
 impl JavascriptParserPlugin for ImportMetaPlugin {
+  fn hook_name_filter(&self, hook: JavascriptParserPluginHook) -> Option<&'static [&'static str]> {
+    match hook {
+      JavascriptParserPluginHook::EvaluateTypeof | JavascriptParserPluginHook::Typeof => {
+        Some(IMPORT_META_TYPEOF_NAMES)
+      }
+      JavascriptParserPluginHook::EvaluateIdentifier => Some(IMPORT_META_EVALUATE_IDENTIFIER_NAMES),
+      JavascriptParserPluginHook::MetaProperty
+      | JavascriptParserPluginHook::UnhandledExpressionMemberChain => Some(IMPORT_META_ROOT_NAMES),
+      JavascriptParserPluginHook::Member => Some(IMPORT_META_MEMBER_NAMES),
+      JavascriptParserPluginHook::Call => Some(IMPORT_META_CALL_NAMES),
+      _ => None,
+    }
+  }
+
   fn evaluate_typeof<'a>(
     &self,
     parser: &mut JavascriptParser,
@@ -569,6 +605,13 @@ pub struct ImportMetaDisabledPlugin;
 
 #[rspack_macros::implemented_javascript_parser_hooks]
 impl JavascriptParserPlugin for ImportMetaDisabledPlugin {
+  fn hook_name_filter(&self, hook: JavascriptParserPluginHook) -> Option<&'static [&'static str]> {
+    match hook {
+      JavascriptParserPluginHook::MetaProperty => Some(IMPORT_META_ROOT_NAMES),
+      _ => None,
+    }
+  }
+
   fn meta_property(
     &self,
     parser: &mut JavascriptParser,

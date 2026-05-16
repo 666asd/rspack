@@ -7,7 +7,7 @@ use swc_core::{
   ecma::ast::{Ident, ModuleItem, Program, UnaryExpr},
 };
 
-use super::JavascriptParserPlugin;
+use super::{JavascriptParserPlugin, JavascriptParserPluginHook};
 use crate::{
   dependency::ESMCompatibilityDependency,
   utils::eval::BasicEvaluatedExpression,
@@ -47,9 +47,21 @@ fn is_non_esm_identifier(name: &str) -> bool {
   name == "exports" || name == "define"
 }
 
+const NON_ESM_IDENTIFIER_NAMES: &[&str] = &["exports", "define"];
+
 // Port from https://github.com/webpack/webpack/blob/main/lib/dependencies/HarmonyDetectionParserPlugin.js
 #[rspack_macros::implemented_javascript_parser_hooks]
 impl JavascriptParserPlugin for ESMDetectionParserPlugin {
+  fn hook_name_filter(&self, hook: JavascriptParserPluginHook) -> Option<&'static [&'static str]> {
+    match hook {
+      JavascriptParserPluginHook::EvaluateTypeof
+      | JavascriptParserPluginHook::Typeof
+      | JavascriptParserPluginHook::Identifier
+      | JavascriptParserPluginHook::Call => Some(NON_ESM_IDENTIFIER_NAMES),
+      _ => None,
+    }
+  }
+
   fn program(&self, parser: &mut JavascriptParser, ast: &Program) -> Option<bool> {
     let is_strict_esm = matches!(parser.module_type, ModuleType::JsEsm);
     let is_esm = is_strict_esm

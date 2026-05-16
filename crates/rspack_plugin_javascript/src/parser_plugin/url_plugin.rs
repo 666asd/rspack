@@ -12,7 +12,9 @@ use swc_core::{
 };
 use url::Url;
 
-use super::{JavascriptParserPlugin, inner_graph::state::InnerGraphUsageOperation};
+use super::{
+  JavascriptParserPlugin, JavascriptParserPluginHook, inner_graph::state::InnerGraphUsageOperation,
+};
 use crate::{
   InnerGraphParserPlugin,
   dependency::{URLContextDependency, URLDependency},
@@ -102,8 +104,19 @@ pub struct URLPlugin {
   pub mode: Option<JavascriptParserUrl>,
 }
 
+const URL_NAMES: &[&str] = &["URL"];
+
 #[rspack_macros::implemented_javascript_parser_hooks]
 impl JavascriptParserPlugin for URLPlugin {
+  fn hook_name_filter(&self, hook: JavascriptParserPluginHook) -> Option<&'static [&'static str]> {
+    match hook {
+      JavascriptParserPluginHook::CanRename | JavascriptParserPluginHook::NewExpression => {
+        Some(URL_NAMES)
+      }
+      _ => None,
+    }
+  }
+
   fn can_rename(&self, _parser: &mut JavascriptParser, for_name: &str) -> Option<bool> {
     (for_name == "URL").then_some(true)
   }

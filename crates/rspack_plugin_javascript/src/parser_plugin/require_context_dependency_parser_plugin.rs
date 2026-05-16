@@ -5,7 +5,7 @@ use rspack_regex::RspackRegex;
 use rspack_util::SpanExt;
 use swc_core::{common::Spanned, ecma::ast::CallExpr};
 
-use super::JavascriptParserPlugin;
+use super::{JavascriptParserPlugin, JavascriptParserPluginHook};
 use crate::{
   dependency::RequireContextDependency,
   visitors::{JavascriptParser, clean_regexp_in_context_module, default_context_reg_exp},
@@ -13,8 +13,17 @@ use crate::{
 
 pub struct RequireContextDependencyParserPlugin;
 
+const REQUIRE_CONTEXT_NAMES: &[&str] = &["require.context"];
+
 #[rspack_macros::implemented_javascript_parser_hooks]
 impl JavascriptParserPlugin for RequireContextDependencyParserPlugin {
+  fn hook_name_filter(&self, hook: JavascriptParserPluginHook) -> Option<&'static [&'static str]> {
+    match hook {
+      JavascriptParserPluginHook::Call => Some(REQUIRE_CONTEXT_NAMES),
+      _ => None,
+    }
+  }
+
   fn call(&self, parser: &mut JavascriptParser, expr: &CallExpr, for_name: &str) -> Option<bool> {
     if for_name != "require.context" {
       return None;

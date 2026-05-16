@@ -1,7 +1,7 @@
 use rspack_core::{ConstDependency, RuntimeGlobals, RuntimeRequirementsDependency};
 use swc_core::ecma::ast::MemberExpr;
 
-use super::JavascriptParserPlugin;
+use super::{JavascriptParserPlugin, JavascriptParserPluginHook};
 use crate::{
   utils::eval::{BasicEvaluatedExpression, evaluate_to_identifier},
   visitors::{JavascriptParser, expr_name},
@@ -9,8 +9,21 @@ use crate::{
 
 pub struct CommonJsPlugin;
 
+const COMMON_JS_EVALUATE_IDENTIFIER_NAMES: &[&str] = &[expr_name::MODULE_HOT];
+const COMMON_JS_TYPEOF_NAMES: &[&str] = &[expr_name::MODULE];
+const COMMON_JS_MEMBER_NAMES: &[&str] = &["module.id", "module.loaded"];
+
 #[rspack_macros::implemented_javascript_parser_hooks]
 impl JavascriptParserPlugin for CommonJsPlugin {
+  fn hook_name_filter(&self, hook: JavascriptParserPluginHook) -> Option<&'static [&'static str]> {
+    match hook {
+      JavascriptParserPluginHook::EvaluateIdentifier => Some(COMMON_JS_EVALUATE_IDENTIFIER_NAMES),
+      JavascriptParserPluginHook::Typeof => Some(COMMON_JS_TYPEOF_NAMES),
+      JavascriptParserPluginHook::Member => Some(COMMON_JS_MEMBER_NAMES),
+      _ => None,
+    }
+  }
+
   fn evaluate_identifier(
     &self,
     _parser: &mut JavascriptParser,

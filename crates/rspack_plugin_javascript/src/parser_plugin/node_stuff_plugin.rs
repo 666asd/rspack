@@ -9,10 +9,10 @@ use swc_core::{common::Spanned, ecma::ast::Expr};
 use url::Url;
 
 use crate::{
-  JavascriptParserPlugin,
+  JavascriptParserPlugin, JavascriptParserPluginHook,
   dependency::ExternalModuleDependency,
   utils::eval,
-  visitors::{DestructuringAssignmentProperty, JavascriptParser},
+  visitors::{DestructuringAssignmentProperty, JavascriptParser, expr_name},
 };
 
 const DIRNAME: &str = "__dirname";
@@ -22,6 +22,28 @@ const IMPORT_META_FILENAME: &str = "import.meta.filename";
 const GLOBAL: &str = "global";
 const MOCK_DIRNAME: &str = "/";
 const MOCK_FILENAME: &str = "/index.js";
+const NODE_IDENTIFIER_NAMES: &[&str] = &[DIRNAME, FILENAME, GLOBAL];
+const NODE_RENAME_NAMES: &[&str] = &[GLOBAL];
+const NODE_TYPEOF_NAMES: &[&str] = &[
+  DIRNAME,
+  FILENAME,
+  expr_name::IMPORT_META_DIRNAME,
+  expr_name::IMPORT_META_FILENAME,
+];
+const NODE_EVALUATE_TYPEOF_NAMES: &[&str] = &[
+  expr_name::IMPORT_META_DIRNAME,
+  expr_name::IMPORT_META_FILENAME,
+];
+const NODE_EVALUATE_IDENTIFIER_NAMES: &[&str] = &[
+  DIRNAME,
+  FILENAME,
+  expr_name::IMPORT_META_DIRNAME,
+  expr_name::IMPORT_META_FILENAME,
+];
+const NODE_MEMBER_NAMES: &[&str] = &[
+  expr_name::IMPORT_META_DIRNAME,
+  expr_name::IMPORT_META_FILENAME,
+];
 
 /// Represents the type of import.meta property being handled (filename or dirname)
 #[derive(Clone, Copy)]
@@ -398,6 +420,18 @@ impl NodeStuffPlugin {
 
 #[rspack_macros::implemented_javascript_parser_hooks]
 impl JavascriptParserPlugin for NodeStuffPlugin {
+  fn hook_name_filter(&self, hook: JavascriptParserPluginHook) -> Option<&'static [&'static str]> {
+    match hook {
+      JavascriptParserPluginHook::Identifier => Some(NODE_IDENTIFIER_NAMES),
+      JavascriptParserPluginHook::Rename => Some(NODE_RENAME_NAMES),
+      JavascriptParserPluginHook::Typeof => Some(NODE_TYPEOF_NAMES),
+      JavascriptParserPluginHook::EvaluateTypeof => Some(NODE_EVALUATE_TYPEOF_NAMES),
+      JavascriptParserPluginHook::EvaluateIdentifier => Some(NODE_EVALUATE_IDENTIFIER_NAMES),
+      JavascriptParserPluginHook::Member => Some(NODE_MEMBER_NAMES),
+      _ => None,
+    }
+  }
+
   fn identifier(
     &self,
     parser: &mut JavascriptParser,

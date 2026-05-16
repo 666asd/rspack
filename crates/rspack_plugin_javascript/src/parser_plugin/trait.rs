@@ -217,6 +217,14 @@ Please annotate your `impl JavascriptParserPlugin for ...` block with `#[rspack_
     JavascriptParserPluginHooks::all()
   }
 
+  /// Optional static name filter for name-based parser hooks.
+  ///
+  /// Returning `Some(names)` lets the parser drive skip this plugin before
+  /// virtual dispatch when the current hook name is not in `names`.
+  fn hook_name_filter(&self, _hook: JavascriptParserPluginHook) -> Option<&'static [&'static str]> {
+    None
+  }
+
   /// Return:
   /// - `Some(true)` signifies the termination of the current
   ///   statement's visit during the pre-walk phase.

@@ -1,3 +1,4 @@
+use rustc_hash::FxHashMap;
 use swc_core::{
   atoms::Atom,
   common::Span,
@@ -25,6 +26,8 @@ pub struct JavaScriptParserPluginDrive {
   // Each bit stores whether the plugin at the same index implements the hook.
   // This keeps hook dispatch allocation-free for the common case while preserving plugin order.
   plugins_by_hook: [u64; JavascriptParserPluginHook::COUNT],
+  name_filtered_plugins_by_hook: [FxHashMap<&'static str, u64>; JavascriptParserPluginHook::COUNT],
+  unfiltered_plugins_by_hook: [u64; JavascriptParserPluginHook::COUNT],
 }
 
 struct PluginBitmaskIter<'a> {
@@ -54,6 +57,9 @@ impl JavaScriptParserPluginDrive {
     );
 
     let mut plugins_by_hook = [0; JavascriptParserPluginHook::COUNT];
+    let mut name_filtered_plugins_by_hook =
+      std::array::from_fn(|_| FxHashMap::<&'static str, u64>::default());
+    let mut unfiltered_plugins_by_hook = [0; JavascriptParserPluginHook::COUNT];
 
     for (idx, plugin) in plugins.iter().enumerate() {
       let plugin_bit = 1u64 << idx;
@@ -64,12 +70,24 @@ impl JavaScriptParserPluginDrive {
         implemented_hooks &= implemented_hooks - 1;
 
         plugins_by_hook[hook_idx] |= plugin_bit;
+        let hook = JavascriptParserPluginHook::ALL[hook_idx];
+        if let Some(names) = plugin.hook_name_filter(hook) {
+          for name in names {
+            *name_filtered_plugins_by_hook[hook_idx]
+              .entry(*name)
+              .or_default() |= plugin_bit;
+          }
+        } else {
+          unfiltered_plugins_by_hook[hook_idx] |= plugin_bit;
+        }
       }
     }
 
     Self {
       plugins,
       plugins_by_hook,
+      name_filtered_plugins_by_hook,
+      unfiltered_plugins_by_hook,
     }
   }
 
@@ -79,6 +97,29 @@ impl JavaScriptParserPluginDrive {
     PluginBitmaskIter {
       plugins: &self.plugins,
       plugin_bitmask: unsafe { *self.plugins_by_hook.get_unchecked(hook_idx) },
+    }
+  }
+
+  #[inline]
+  fn plugins_for_name(
+    &self,
+    hook: JavascriptParserPluginHook,
+    name: &str,
+  ) -> PluginBitmaskIter<'_> {
+    let hook_idx = hook as usize;
+    let unfiltered_plugin_bitmask =
+      unsafe { *self.unfiltered_plugins_by_hook.get_unchecked(hook_idx) };
+    let filtered_plugin_bitmask = unsafe {
+      self
+        .name_filtered_plugins_by_hook
+        .get_unchecked(hook_idx)
+        .get(name)
+        .copied()
+        .unwrap_or_default()
+    };
+    PluginBitmaskIter {
+      plugins: &self.plugins,
+      plugin_bitmask: unfiltered_plugin_bitmask | filtered_plugin_bitmask,
     }
   }
 }
@@ -163,7 +204,7 @@ impl JavascriptParserPlugin for JavaScriptParserPluginDrive {
   }
 
   fn call(&self, parser: &mut JavascriptParser, expr: &CallExpr, name: &str) -> Option<bool> {
-    for plugin in self.plugins_for(JavascriptParserPluginHook::Call) {
+    for plugin in self.plugins_for_name(JavascriptParserPluginHook::Call, name) {
       let res = plugin.call(parser, expr, name);
       // `SyncBailHook`
       if res.is_some() {
@@ -179,7 +220,7 @@ impl JavascriptParserPlugin for JavaScriptParserPluginDrive {
     expr: &swc_core::ecma::ast::MemberExpr,
     for_name: &str,
   ) -> Option<bool> {
-    for plugin in self.plugins_for(JavascriptParserPluginHook::Member) {
+    for plugin in self.plugins_for_name(JavascriptParserPluginHook::Member, for_name) {
       let res = plugin.member(parser, expr, for_name);
       // `SyncBailHook`
       if res.is_some() {
@@ -198,7 +239,7 @@ impl JavascriptParserPlugin for JavaScriptParserPluginDrive {
     members_optionals: &[bool],
     member_ranges: &[Span],
   ) -> Option<bool> {
-    for plugin in self.plugins_for(JavascriptParserPluginHook::MemberChain) {
+    for plugin in self.plugins_for_name(JavascriptParserPluginHook::MemberChain, for_name) {
       let res = plugin.member_chain(
         parser,
         expr,
@@ -225,7 +266,7 @@ impl JavascriptParserPlugin for JavaScriptParserPluginDrive {
     member_ranges: &[Span],
   ) -> Option<bool> {
     assert!(matches!(expr.callee, Callee::Expr(_)));
-    for plugin in self.plugins_for(JavascriptParserPluginHook::CallMemberChain) {
+    for plugin in self.plugins_for_name(JavascriptParserPluginHook::CallMemberChain, for_name) {
       let res = plugin.call_member_chain(
         parser,
         expr,
@@ -263,7 +304,10 @@ impl JavascriptParserPlugin for JavaScriptParserPluginDrive {
     member_ranges: &[Span],
     for_name: &str,
   ) -> Option<bool> {
-    for plugin in self.plugins_for(JavascriptParserPluginHook::MemberChainOfCallMemberChain) {
+    for plugin in self.plugins_for_name(
+      JavascriptParserPluginHook::MemberChainOfCallMemberChain,
+      for_name,
+    ) {
       let res = plugin.member_chain_of_call_member_chain(
         parser,
         member_expr,
@@ -291,7 +335,10 @@ impl JavascriptParserPlugin for JavaScriptParserPluginDrive {
     member_ranges: &[Span],
     for_name: &str,
   ) -> Option<bool> {
-    for plugin in self.plugins_for(JavascriptParserPluginHook::CallMemberChainOfCallMemberChain) {
+    for plugin in self.plugins_for_name(
+      JavascriptParserPluginHook::CallMemberChainOfCallMemberChain,
+      for_name,
+    ) {
       let res = plugin.call_member_chain_of_call_member_chain(
         parser,
         call_expr,
@@ -315,7 +362,7 @@ impl JavascriptParserPlugin for JavaScriptParserPluginDrive {
     expr: &AssignExpr,
     for_name: &str,
   ) -> Option<bool> {
-    for plugin in self.plugins_for(JavascriptParserPluginHook::Assign) {
+    for plugin in self.plugins_for_name(JavascriptParserPluginHook::Assign, for_name) {
       let res = plugin.assign(parser, expr, for_name);
       // `SyncBailHook`
       if res.is_some() {
@@ -332,7 +379,7 @@ impl JavascriptParserPlugin for JavaScriptParserPluginDrive {
     members: &[Atom],
     for_name: &str,
   ) -> Option<bool> {
-    for plugin in self.plugins_for(JavascriptParserPluginHook::AssignMemberChain) {
+    for plugin in self.plugins_for_name(JavascriptParserPluginHook::AssignMemberChain, for_name) {
       let res = plugin.assign_member_chain(parser, expr, members, for_name);
       // `SyncBailHook`
       if res.is_some() {
@@ -349,7 +396,7 @@ impl JavascriptParserPlugin for JavaScriptParserPluginDrive {
     for_name: &str,
   ) -> Option<bool> {
     assert!(expr.op == UnaryOp::TypeOf);
-    for plugin in self.plugins_for(JavascriptParserPluginHook::Typeof) {
+    for plugin in self.plugins_for_name(JavascriptParserPluginHook::Typeof, for_name) {
       let res = plugin.r#typeof(parser, expr, for_name);
       // `SyncBailHook`
       if res.is_some() {
@@ -442,7 +489,7 @@ impl JavascriptParserPlugin for JavaScriptParserPluginDrive {
     expr: &swc_core::ecma::ast::NewExpr,
     for_name: &str,
   ) -> Option<bool> {
-    for plugin in self.plugins_for(JavascriptParserPluginHook::NewExpression) {
+    for plugin in self.plugins_for_name(JavascriptParserPluginHook::NewExpression, for_name) {
       let res = plugin.new_expression(parser, expr, for_name);
       // `SyncBailHook`
       if res.is_some() {
@@ -458,7 +505,7 @@ impl JavascriptParserPlugin for JavaScriptParserPluginDrive {
     expr: &swc_core::ecma::ast::Ident,
     for_name: &str,
   ) -> Option<bool> {
-    for plugin in self.plugins_for(JavascriptParserPluginHook::Identifier) {
+    for plugin in self.plugins_for_name(JavascriptParserPluginHook::Identifier, for_name) {
       let res = plugin.identifier(parser, expr, for_name);
       // `SyncBailHook`
       if res.is_some() {
@@ -523,7 +570,7 @@ impl JavascriptParserPlugin for JavaScriptParserPluginDrive {
     expr: &swc_core::ecma::ast::ThisExpr,
     for_name: &str,
   ) -> Option<bool> {
-    for plugin in self.plugins_for(JavascriptParserPluginHook::This) {
+    for plugin in self.plugins_for_name(JavascriptParserPluginHook::This, for_name) {
       let res = plugin.this(parser, expr, for_name);
       // `SyncBailHook`
       if res.is_some() {
@@ -554,7 +601,7 @@ impl JavascriptParserPlugin for JavaScriptParserPluginDrive {
     expr: &'a UnaryExpr,
     for_name: &str,
   ) -> Option<BasicEvaluatedExpression<'a>> {
-    for plugin in self.plugins_for(JavascriptParserPluginHook::EvaluateTypeof) {
+    for plugin in self.plugins_for_name(JavascriptParserPluginHook::EvaluateTypeof, for_name) {
       let res = plugin.evaluate_typeof(parser, expr, for_name);
       // `SyncBailHook`
       if res.is_some() {
@@ -570,7 +617,7 @@ impl JavascriptParserPlugin for JavaScriptParserPluginDrive {
     name: &str,
     expr: &'a CallExpr,
   ) -> Option<BasicEvaluatedExpression<'a>> {
-    for plugin in self.plugins_for(JavascriptParserPluginHook::EvaluateCallExpression) {
+    for plugin in self.plugins_for_name(JavascriptParserPluginHook::EvaluateCallExpression, name) {
       let res = plugin.evaluate_call_expression(parser, name, expr);
       if res.is_some() {
         return res;
@@ -586,7 +633,10 @@ impl JavascriptParserPlugin for JavaScriptParserPluginDrive {
     expr: &'a CallExpr,
     param: BasicEvaluatedExpression<'a>,
   ) -> Option<BasicEvaluatedExpression<'a>> {
-    for plugin in self.plugins_for(JavascriptParserPluginHook::EvaluateCallExpressionMember) {
+    for plugin in self.plugins_for_name(
+      JavascriptParserPluginHook::EvaluateCallExpressionMember,
+      property,
+    ) {
       let res = plugin.evaluate_call_expression_member(parser, property, expr, param.clone());
       // `SyncBailHook`
       if res.is_some() {
@@ -603,7 +653,7 @@ impl JavascriptParserPlugin for JavaScriptParserPluginDrive {
     start: u32,
     end: u32,
   ) -> Option<BasicEvaluatedExpression<'static>> {
-    for plugin in self.plugins_for(JavascriptParserPluginHook::EvaluateIdentifier) {
+    for plugin in self.plugins_for_name(JavascriptParserPluginHook::EvaluateIdentifier, for_name) {
       let res = plugin.evaluate_identifier(parser, for_name, start, end);
       // `SyncBailHook`
       if res.is_some() {
@@ -636,7 +686,7 @@ impl JavascriptParserPlugin for JavaScriptParserPluginDrive {
     ident: &swc_core::ecma::ast::Ident,
     for_name: &str,
   ) -> Option<bool> {
-    for plugin in self.plugins_for(JavascriptParserPluginHook::Pattern) {
+    for plugin in self.plugins_for_name(JavascriptParserPluginHook::Pattern, for_name) {
       let res = plugin.pattern(parser, ident, for_name);
       // `SyncBailHook`
       if res.is_some() {
@@ -663,7 +713,7 @@ impl JavascriptParserPlugin for JavaScriptParserPluginDrive {
   }
 
   fn can_rename(&self, parser: &mut JavascriptParser, str: &str) -> Option<bool> {
-    for plugin in self.plugins_for(JavascriptParserPluginHook::CanRename) {
+    for plugin in self.plugins_for_name(JavascriptParserPluginHook::CanRename, str) {
       let res = plugin.can_rename(parser, str);
       // `SyncBailHook`
       if res.is_some() {
@@ -674,7 +724,7 @@ impl JavascriptParserPlugin for JavaScriptParserPluginDrive {
   }
 
   fn rename(&self, parser: &mut JavascriptParser, expr: &Expr, str: &str) -> Option<bool> {
-    for plugin in self.plugins_for(JavascriptParserPluginHook::Rename) {
+    for plugin in self.plugins_for_name(JavascriptParserPluginHook::Rename, str) {
       let res = plugin.rename(parser, expr, str);
       // `SyncBailHook`
       if res.is_some() {
@@ -730,7 +780,7 @@ impl JavascriptParserPlugin for JavaScriptParserPluginDrive {
     root_name: &swc_core::atoms::Atom,
     span: Span,
   ) -> Option<bool> {
-    for plugin in self.plugins_for(JavascriptParserPluginHook::MetaProperty) {
+    for plugin in self.plugins_for_name(JavascriptParserPluginHook::MetaProperty, root_name) {
       let res = plugin.meta_property(parser, root_name, span);
       // `SyncBailHook`
       if res.is_some() {

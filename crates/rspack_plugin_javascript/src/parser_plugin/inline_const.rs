@@ -2,7 +2,7 @@ use rspack_core::EvaluatedInlinableValue;
 use rspack_util::ryu_js;
 use swc_core::ecma::ast::VarDeclarator;
 
-use super::JavascriptParserPlugin;
+use super::{JavascriptParserPlugin, JavascriptParserPluginHook};
 use crate::{
   utils::eval::{
     BasicEvaluatedExpression, evaluate_to_boolean, evaluate_to_null, evaluate_to_number,
@@ -15,6 +15,7 @@ use crate::{
 };
 
 pub const INLINABLE_CONST_TAG: &str = "inlinable const";
+const INLINABLE_CONST_TAG_NAMES: &[&str] = &[INLINABLE_CONST_TAG];
 
 #[derive(Debug, Clone)]
 pub struct InlinableConstData {
@@ -26,6 +27,13 @@ pub struct InlineConstPlugin;
 
 #[rspack_macros::implemented_javascript_parser_hooks]
 impl JavascriptParserPlugin for InlineConstPlugin {
+  fn hook_name_filter(&self, hook: JavascriptParserPluginHook) -> Option<&'static [&'static str]> {
+    match hook {
+      JavascriptParserPluginHook::EvaluateIdentifier => Some(INLINABLE_CONST_TAG_NAMES),
+      _ => None,
+    }
+  }
+
   fn evaluate_identifier(
     &self,
     parser: &mut JavascriptParser,
