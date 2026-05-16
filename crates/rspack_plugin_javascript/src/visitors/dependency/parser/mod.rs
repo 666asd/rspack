@@ -130,7 +130,7 @@ pub struct CallExpressionInfo<'ast> {
 
 #[derive(Debug)]
 pub struct ExpressionExpressionInfo {
-  pub name: String,
+  pub name: Atom,
   pub root_info: ExportedVariableInfo,
   pub members: AtomMembers,
   pub members_optionals: OptionalMembers,
@@ -143,7 +143,11 @@ pub enum ExportedVariableInfo {
   VariableInfo(VariableInfoId),
 }
 
-fn object_and_members_to_name(object: &Atom, members_reversed: &[impl AsRef<str>]) -> String {
+fn object_and_members_to_name(object: &Atom, members_reversed: &[impl AsRef<str>]) -> Atom {
+  if members_reversed.is_empty() {
+    return object.clone();
+  }
+
   let total_len = object.len()
     + members_reversed.len()
     + members_reversed
@@ -158,7 +162,7 @@ fn object_and_members_to_name(object: &Atom, members_reversed: &[impl AsRef<str>
     name.push('.');
     name.push_str(member.as_ref());
   }
-  name
+  name.into()
 }
 
 pub trait RootName {
