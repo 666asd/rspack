@@ -5172,7 +5172,7 @@ dependencies = [
 [[package]]
 name = "rspack_resolver"
 version = "0.8.0"
-source = "git+https://github.com/rstackjs/rspack-resolver?branch=codex%2Fprehash-path-dependencies#1bef3bc84fc7a0181942399c0b61a516a82b8c6a"
+source = "git+https://github.com/rstackjs/rspack-resolver?branch=codex%2Fprehash-path-dependencies#c5d3b9df28180b8e23dc5671e26cbf28206427d8"
 dependencies = [
  "arc-swap",
  "async-trait",
