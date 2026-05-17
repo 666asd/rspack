@@ -19,6 +19,8 @@ env:
   CARGO_INCREMENTAL: 0
 
 permissions:
+  actions: read
+  contents: read
   issues: write
 
 jobs:
@@ -80,13 +82,269 @@ jobs:
 
       - name: Prepare Valgrind temporary files artifact
         if: ${{ always() }}
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          mkdir -p "${RUNNER_TEMP}/codspeed-valgrind-tmp"
+          current_dir="${RUNNER_TEMP}/codspeed-valgrind-tmp"
+          main_dir="${RUNNER_TEMP}/codspeed-valgrind-main"
+          diff_file="${current_dir}/VALGRIND_CALLGRIND_DIFF.md"
+          artifact_name="codspeed-valgrind-tmp-${{ inputs.target }}"
+
+          mkdir -p "${current_dir}" "${main_dir}"
+
           {
-            echo "TMPDIR=${RUNNER_TEMP}/codspeed-valgrind-tmp"
+            echo "# Valgrind Callgrind Diff"
             echo
-            find "${RUNNER_TEMP}/codspeed-valgrind-tmp" -mindepth 1 -maxdepth 2 -printf '%M %s %p\n' | sort
-          } > "${RUNNER_TEMP}/codspeed-valgrind-tmp/MANIFEST.txt"
+            echo "- Current ref: \`${GITHUB_SHA}\`"
+            echo "- Main artifact: \`${artifact_name}\`"
+            echo
+          } > "${diff_file}"
+
+          main_run_id=""
+          if command -v gh >/dev/null 2>&1; then
+            while IFS= read -r run_id; do
+              if gh run download "${run_id}" --name "${artifact_name}" --dir "${main_dir}" >/tmp/download-main-valgrind.log 2>&1; then
+                main_run_id="${run_id}"
+                break
+              fi
+            done < <(gh run list --workflow ci.yml --branch main --status success --json databaseId --jq '.[].databaseId' --limit 20 2>/tmp/list-main-runs.log || true)
+          else
+            echo "GitHub CLI is not available." >/tmp/download-main-valgrind.log
+          fi
+
+          if [ -n "${main_run_id}" ]; then
+            {
+              echo "Downloaded main artifact from run \`${main_run_id}\`."
+              echo
+            } >> "${diff_file}"
+          else
+            {
+              echo "Could not download a matching main-branch Valgrind artifact."
+              echo
+              echo "\`\`\`text"
+              cat /tmp/list-main-runs.log 2>/dev/null || true
+              cat /tmp/download-main-valgrind.log 2>/dev/null || true
+              echo "\`\`\`"
+              echo
+            } >> "${diff_file}"
+          fi
+
+          find_callgrind_files() {
+            find "$1" -type f -size +0c -print0 | xargs -0 -r grep -Ilm1 '^# callgrind format' | sort
+          }
+
+          largest_callgrind_file() {
+            local largest_file=""
+            local largest_size=-1
+            local size
+
+            for file in "${@:1}"; do
+              size="$(stat -c '%s' "${file}")"
+              if [ "${size}" -gt "${largest_size}" ]; then
+                largest_file="${file}"
+                largest_size="${size}"
+              fi
+            done
+
+            echo "${largest_file}"
+          }
+
+          mapfile -t current_callgrind_files < <(find_callgrind_files "${current_dir}")
+          mapfile -t main_callgrind_files < <(find_callgrind_files "${main_dir}")
+
+          {
+            echo "## Files"
+            echo
+            echo "- Current callgrind files: ${#current_callgrind_files[@]}"
+            echo "- Main callgrind files: ${#main_callgrind_files[@]}"
+            echo
+          } >> "${diff_file}"
+
+          if [ "${#current_callgrind_files[@]}" -eq 0 ] || [ "${#main_callgrind_files[@]}" -eq 0 ]; then
+            echo "No comparable callgrind files were found." >> "${diff_file}"
+          elif command -v callgrind_annotate >/dev/null 2>&1; then
+            diff_command="callgrind_differ"
+          else
+            diff_command=""
+          fi
+
+          if [ "${#current_callgrind_files[@]}" -ne 0 ] && [ "${#main_callgrind_files[@]}" -ne 0 ] && [ -z "${diff_command:-}" ]; then
+            echo "\`callgrind_annotate\` is not available on this runner." >> "${diff_file}"
+          elif [ "${#current_callgrind_files[@]}" -ne 0 ] && [ "${#main_callgrind_files[@]}" -ne 0 ]; then
+            export PATH="${HOME}/.cargo/bin:${PATH}"
+
+            if ! command -v callgrind_differ >/dev/null 2>&1; then
+              if ! cargo install --git https://github.com/Ethiraric/callgrind_differ --rev 160bd23078c271e99860c2b53cd93df94ff3282b --locked --bin callgrind_differ; then
+                diff_command=""
+                echo "Failed to install \`callgrind_differ\`." >> "${diff_file}"
+              fi
+            fi
+
+            if [ -n "${diff_command:-}" ]; then
+              current_file="$(largest_callgrind_file "${current_callgrind_files[@]}")"
+              main_largest_file="$(largest_callgrind_file "${main_callgrind_files[@]}")"
+              current_annotated_file="${current_dir}/current-largest.callgrind_annotate.txt"
+              main_annotated_file="${current_dir}/main-largest.callgrind_annotate.txt"
+              full_diff_file="${current_dir}/CALLGRIND_DIFF_FULL.txt"
+              relative_file="${current_file#${current_dir}/}"
+              main_file="${main_dir}/${relative_file}"
+              match_note="matched by relative path"
+
+              if [ ! -f "${main_file}" ]; then
+                current_basename="$(basename "${current_file}")"
+                main_file="$(find "${main_dir}" -type f -name "${current_basename}" | sort | head -n 1)"
+                match_note="matched by file name"
+              fi
+
+              if [ -z "${main_file}" ] || [ ! -f "${main_file}" ]; then
+                main_file="${main_largest_file}"
+                match_note="matched by largest file"
+              fi
+
+              echo "## Diff" >> "${diff_file}"
+              echo >> "${diff_file}"
+
+              if [ -z "${main_file}" ] || [ ! -f "${main_file}" ]; then
+                {
+                  echo "### ${relative_file}"
+                  echo
+                  echo "No matching main callgrind file found."
+                  echo
+                } >> "${diff_file}"
+              else
+                {
+                  echo "### ${relative_file}"
+                  echo
+                  echo "- Current size: $(stat -c '%s' "${current_file}") bytes"
+                  echo "- Main size: $(stat -c '%s' "${main_file}") bytes"
+                  echo "- Match: ${match_note} (${main_file#${main_dir}/})"
+                  echo "- Tool: ${diff_command}"
+                  echo "- Full diff: \`CALLGRIND_DIFF_FULL.txt\`"
+                  echo
+                  if ! callgrind_annotate --auto=no --threshold=99.99 "${main_file}" > "${main_annotated_file}"; then
+                    echo "\`\`\`text"
+                    echo "Failed to annotate main callgrind file."
+                    echo "\`\`\`"
+                  elif ! callgrind_annotate --auto=no --threshold=99.99 "${current_file}" > "${current_annotated_file}"; then
+                    echo "\`\`\`text"
+                    echo "Failed to annotate current callgrind file."
+                    echo "\`\`\`"
+                  elif ! callgrind_differ --color never --csv-names=main,current --sort-by=-last-ir --show=all "${main_annotated_file}" "${current_annotated_file}" 2>&1 | perl -pe 's/\e\[[0-9;]*m//g' > "${full_diff_file}"; then
+                    echo "\`\`\`text"
+                    echo "Failed to diff callgrind_annotate outputs."
+                    sed -n '1,80p' "${full_diff_file}" 2>/dev/null || true
+                    echo "\`\`\`"
+                  else
+                    perl - "${full_diff_file}" <<'PERL'
+          use strict;
+          use warnings;
+
+          my ($path) = @ARGV;
+          open my $fh, '<', $path or die "failed to open $path: $!";
+
+          my @rows;
+          my @total;
+
+          while (my $line = <$fh>) {
+            chomp $line;
+            next if $line !~ /\|/;
+            my @parts = split /\|/, $line;
+            next if @parts < 3;
+
+            my $symbol = trim($parts[0]);
+            my $main = trim($parts[1]);
+            my $current = trim($parts[2]);
+
+            next if $symbol eq '' || $symbol =~ /^-+$/ || $symbol eq 'Symbol';
+            next if $main !~ /^\d+$/;
+            next if $current !~ /([+-])\s*([0-9]+)\s+([+-])\s*([0-9.]+)%\s+(\d+)/;
+
+            my $diff = ($1 eq '-' ? -1 : 1) * $2;
+            my $pct = ($3 eq '-' ? '-' : '+') . $4 . '%';
+            my $current_ir = $5;
+            my $row = {
+              symbol => compact_symbol($symbol),
+              main => commify($main),
+              current => commify($current_ir),
+              diff => $diff,
+              pct => $pct,
+            };
+
+            if ($symbol eq 'Total IR') {
+              @total = ($row);
+            } else {
+              push @rows, $row;
+            }
+          }
+
+          print "#### Total\n\n";
+          print_table(@total);
+
+          my @regressions = sort { $b->{diff} <=> $a->{diff} } grep { $_->{diff} > 0 } @rows;
+          my @improvements = sort { $a->{diff} <=> $b->{diff} } grep { $_->{diff} < 0 } @rows;
+
+          print "\n#### Top regressions\n\n";
+          print_table(@regressions[0 .. min(19, $#regressions)]);
+
+          print "\n#### Top improvements\n\n";
+          print_table(@improvements[0 .. min(19, $#improvements)]);
+
+          sub print_table {
+            my @items = @_;
+            if (!@items) {
+              print "_No entries._\n";
+              return;
+            }
+
+            print "| Symbol | Main IR | Current IR | Diff | Diff % |\n";
+            print "| --- | ---: | ---: | ---: | ---: |\n";
+            for my $item (@items) {
+              my $diff = ($item->{diff} > 0 ? '+' : '') . commify($item->{diff});
+              print "| `$item->{symbol}` | $item->{main} | $item->{current} | $diff | $item->{pct} |\n";
+            }
+          }
+
+          sub trim {
+            my ($value) = @_;
+            $value =~ s/^\s+|\s+$//g;
+            return $value;
+          }
+
+          sub compact_symbol {
+            my ($value) = @_;
+            $value =~ s/\|/\\|/g;
+            $value =~ s/`/'/g;
+            return length($value) > 120 ? substr($value, 0, 117) . '...' : $value;
+          }
+
+          sub commify {
+            my ($value) = @_;
+            my $sign = $value =~ s/^-// ? '-' : '';
+            1 while $value =~ s/^(\d+)(\d{3})/$1,$2/;
+            return $sign . $value;
+          }
+
+          sub min {
+            return $_[0] < $_[1] ? $_[0] : $_[1];
+          }
+          PERL
+                  fi
+                } >> "${diff_file}"
+              fi
+            fi
+          fi
+
+          {
+            echo "## Valgrind Callgrind Diff"
+            echo
+            cat "${diff_file}"
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+          {
+            echo "TMPDIR=${current_dir}"
+            echo
+            find "${current_dir}" -mindepth 1 -maxdepth 2 -printf '%M %s %p\n' | sort
+          } > "${current_dir}/MANIFEST.txt"
 
       - name: Upload Valgrind temporary files
         if: ${{ always() }}
