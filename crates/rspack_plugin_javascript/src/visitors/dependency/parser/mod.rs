@@ -1320,10 +1320,15 @@ impl<'parser> JavascriptParser<'parser> {
       match ast {
         Program::Module(m) => {
           self.set_strict(true);
-          self.prev_statement = None;
-          self.module_pre_walk_module_items(&m.body);
-          self.prev_statement = None;
-          self.pre_walk_module_items(&m.body);
+          self.is_esm = true;
+          if Self::module_items_need_module_pre_walk(&m.body) {
+            self.prev_statement = None;
+            self.module_pre_walk_module_items(&m.body);
+          }
+          if Self::module_items_need_pre_walk(&m.body) {
+            self.prev_statement = None;
+            self.pre_walk_module_items(&m.body);
+          }
           self.prev_statement = None;
           self.block_pre_walk_module_items(&m.body);
           self.prev_statement = None;

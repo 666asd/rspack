@@ -3,7 +3,7 @@ use std::borrow::Cow;
 use swc_core::{
   common::Spanned,
   ecma::ast::{
-    ArrayPat, AssignExpr, BlockStmt, CatchClause, DoWhileStmt, ForHead, ForInStmt, ForOfStmt,
+    ArrayPat, AssignExpr, BlockStmt, CatchClause, Decl, DoWhileStmt, ForHead, ForInStmt, ForOfStmt,
     ForStmt, IfStmt, LabeledStmt, ModuleDecl, ModuleItem, ObjectPat, ObjectPatProp, Pat, Stmt,
     SwitchCase, SwitchStmt, TryStmt, VarDeclarator, WhileStmt, WithStmt,
   },
@@ -20,6 +20,64 @@ use crate::{
 };
 
 impl JavascriptParser<'_> {
+  pub(super) fn module_items_need_pre_walk(statements: &[ModuleItem]) -> bool {
+    statements.iter().any(|statement| match statement {
+      ModuleItem::ModuleDecl(_) => false,
+      ModuleItem::Stmt(stmt) => Self::stmt_needs_pre_walk(stmt),
+    })
+  }
+
+  fn stmts_need_pre_walk(statements: &[Stmt]) -> bool {
+    statements.iter().any(Self::stmt_needs_pre_walk)
+  }
+
+  fn stmt_needs_pre_walk(statement: &Stmt) -> bool {
+    match statement {
+      Stmt::Block(stmt) => Self::stmts_need_pre_walk(&stmt.stmts),
+      Stmt::With(stmt) => Self::stmt_needs_pre_walk(&stmt.body),
+      Stmt::Labeled(stmt) => Self::stmt_needs_pre_walk(&stmt.body),
+      Stmt::If(stmt) => {
+        Self::stmt_needs_pre_walk(&stmt.cons)
+          || stmt.alt.as_deref().is_some_and(Self::stmt_needs_pre_walk)
+      }
+      Stmt::Switch(stmt) => stmt
+        .cases
+        .iter()
+        .any(|case| Self::stmts_need_pre_walk(&case.cons)),
+      Stmt::Try(stmt) => {
+        Self::stmts_need_pre_walk(&stmt.block.stmts)
+          || stmt
+            .handler
+            .as_ref()
+            .is_some_and(|handler| Self::stmts_need_pre_walk(&handler.body.stmts))
+          || stmt
+            .finalizer
+            .as_ref()
+            .is_some_and(|finalizer| Self::stmts_need_pre_walk(&finalizer.stmts))
+      }
+      Stmt::While(stmt) => Self::stmt_needs_pre_walk(&stmt.body),
+      Stmt::DoWhile(stmt) => Self::stmt_needs_pre_walk(&stmt.body),
+      Stmt::For(stmt) => {
+        stmt
+          .init
+          .as_ref()
+          .is_some_and(|init| init.as_var_decl().is_some())
+          || Self::stmt_needs_pre_walk(&stmt.body)
+      }
+      Stmt::ForIn(stmt) => {
+        matches!(stmt.left, ForHead::VarDecl(_) | ForHead::UsingDecl(_))
+          || Self::stmt_needs_pre_walk(&stmt.body)
+      }
+      Stmt::ForOf(stmt) => {
+        matches!(stmt.left, ForHead::VarDecl(_) | ForHead::UsingDecl(_))
+          || Self::stmt_needs_pre_walk(&stmt.body)
+      }
+      Stmt::Decl(Decl::Fn(_) | Decl::Var(_)) => true,
+      Stmt::Decl(_) | Stmt::Expr(_) | Stmt::Empty(_) | Stmt::Debugger(_) => false,
+      Stmt::Return(_) | Stmt::Break(_) | Stmt::Continue(_) | Stmt::Throw(_) => false,
+    }
+  }
+
   pub fn pre_walk_module_items(&mut self, statements: &Vec<ModuleItem>) {
     for statement in statements {
       self.pre_walk_module_item(statement);

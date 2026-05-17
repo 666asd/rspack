@@ -11,6 +11,18 @@ use crate::{
 };
 
 impl JavascriptParser<'_> {
+  pub(super) fn module_items_need_module_pre_walk(statements: &[ModuleItem]) -> bool {
+    statements.iter().any(|statement| match statement {
+      ModuleItem::ModuleDecl(ModuleDecl::Import(_) | ModuleDecl::ExportAll(_)) => true,
+      ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(decl)) => {
+        decl.src.is_some()
+          || decl.specifiers.len() == 1
+            && matches!(decl.specifiers.first(), Some(ExportSpecifier::Namespace(_)))
+      }
+      ModuleItem::ModuleDecl(_) | ModuleItem::Stmt(_) => false,
+    })
+  }
+
   pub fn module_pre_walk_module_items(&mut self, statements: &Vec<ModuleItem>) {
     for statement in statements {
       self.statement_path.push(statement.span().into());
