@@ -18,9 +18,14 @@ pub async fn module_rules_matcher<'a>(
   matched_rules: &mut Vec<&'a ModuleRuleEffect>,
 ) -> Result<()> {
   let matched_rules_len = matched_rules.len();
+  let resource_path = resource_data
+    .path()
+    .unwrap_or_else(|| Utf8Path::new(""))
+    .as_str();
   if let Some(result) = module_rules_matcher_sync(
     rules,
     resource_data,
+    resource_path,
     issuer,
     issuer_layer,
     dependency,
@@ -33,6 +38,7 @@ pub async fn module_rules_matcher<'a>(
   module_rules_matcher_async(
     rules,
     resource_data,
+    resource_path,
     issuer,
     issuer_layer,
     dependency,
@@ -45,6 +51,7 @@ pub async fn module_rules_matcher<'a>(
 fn module_rules_matcher_sync<'a>(
   rules: &'a [ModuleRule],
   resource_data: &ResourceData,
+  resource_path: &str,
   issuer: Option<&'a str>,
   issuer_layer: Option<&'a str>,
   dependency: &DependencyCategory,
@@ -55,6 +62,7 @@ fn module_rules_matcher_sync<'a>(
     match module_rule_matcher_sync(
       rule,
       resource_data,
+      resource_path,
       issuer,
       issuer_layer,
       dependency,
@@ -72,6 +80,7 @@ fn module_rules_matcher_sync<'a>(
 async fn module_rules_matcher_async<'a>(
   rules: &'a [ModuleRule],
   resource_data: &ResourceData,
+  resource_path: &str,
   issuer: Option<&'a str>,
   issuer_layer: Option<&'a str>,
   dependency: &DependencyCategory,
@@ -82,6 +91,7 @@ async fn module_rules_matcher_async<'a>(
     module_rule_matcher_async(
       rule,
       resource_data,
+      resource_path,
       issuer,
       issuer_layer,
       dependency,
@@ -146,9 +156,14 @@ pub async fn module_rule_matcher<'a>(
   matched_rules: &mut Vec<&'a ModuleRuleEffect>,
 ) -> Result<bool> {
   let matched_rules_len = matched_rules.len();
+  let resource_path = resource_data
+    .path()
+    .unwrap_or_else(|| Utf8Path::new(""))
+    .as_str();
   if let Some(result) = module_rule_matcher_sync(
     module_rule,
     resource_data,
+    resource_path,
     issuer,
     issuer_layer,
     dependency,
@@ -161,6 +176,7 @@ pub async fn module_rule_matcher<'a>(
   module_rule_matcher_async(
     module_rule,
     resource_data,
+    resource_path,
     issuer,
     issuer_layer,
     dependency,
@@ -173,6 +189,7 @@ pub async fn module_rule_matcher<'a>(
 fn module_rule_matcher_sync<'a>(
   module_rule: &'a ModuleRule,
   resource_data: &ResourceData,
+  resource_path: &str,
   issuer: Option<&'a str>,
   issuer_layer: Option<&'a str>,
   dependency: &DependencyCategory,
@@ -182,11 +199,6 @@ fn module_rule_matcher_sync<'a>(
   if let Some(test_rule) = &module_rule.rspack_resource {
     ensure_sync_matched!(test_rule.try_match_sync(resource_data.resource().into()));
   }
-
-  let resource_path = resource_data
-    .path()
-    .unwrap_or_else(|| Utf8Path::new(""))
-    .as_str();
 
   if let Some(test_rule) = &module_rule.test {
     ensure_sync_matched!(test_rule.try_match_sync(resource_path.into()));
@@ -284,6 +296,7 @@ fn module_rule_matcher_sync<'a>(
     match module_rules_matcher_sync(
       rules,
       resource_data,
+      resource_path,
       issuer,
       issuer_layer,
       dependency,
@@ -302,6 +315,7 @@ fn module_rule_matcher_sync<'a>(
       match module_rule_matcher_sync(
         rule,
         resource_data,
+        resource_path,
         issuer,
         issuer_layer,
         dependency,
@@ -329,6 +343,7 @@ fn module_rule_matcher_sync<'a>(
 async fn module_rule_matcher_async<'a>(
   module_rule: &'a ModuleRule,
   resource_data: &ResourceData,
+  resource_path: &str,
   issuer: Option<&'a str>,
   issuer_layer: Option<&'a str>,
   dependency: &DependencyCategory,
@@ -340,13 +355,6 @@ async fn module_rule_matcher_async<'a>(
   {
     return Ok(false);
   }
-
-  // Include all modules that pass test assertion. If you supply a Rule.test option, you cannot also supply a `Rule.resource`.
-  // See: https://webpack.js.org/configuration/module/#ruletest
-  let resource_path = resource_data
-    .path()
-    .unwrap_or_else(|| Utf8Path::new(""))
-    .as_str();
 
   if let Some(test_rule) = &module_rule.test
     && !test_rule.try_match(resource_path.into()).await?
