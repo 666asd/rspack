@@ -126,6 +126,16 @@ impl Trigger {
       return;
     }
 
+    // Suppress stale Remove events: in NoDefer + latency=0 mode, macOS packs
+    // ITEM_REMOVED into the same batch as ITEM_CREATED/ITEM_MODIFIED when
+    // fs.cp overwrites an inode or when a tool rewrites a file via temp+rename.
+    // The semantic invariant of Remove is "file is gone"; if the file is still
+    // on disk, the Remove is stale and should not propagate (otherwise rspack
+    // invalidates a still-live dependency and emits "removed ... and N more").
+    if kind == FsEventKind::Remove && path.exists() {
+      return;
+    }
+
     let finder = self.finder();
     let associated_event = finder.find_associated_event(path, kind);
     self.trigger_events(associated_event);

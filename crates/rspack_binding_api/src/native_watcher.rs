@@ -58,6 +58,31 @@ fn timestamp_to_system_time(millis: u64) -> SystemTime {
 impl NativeWatcher {
   #[napi(constructor)]
   pub fn new(options: NativeWatcherOptions) -> Self {
+    {
+      use std::io::Write;
+      if let Ok(mut f) = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open("/tmp/rca-binding-trace.log")
+      {
+        let _ = writeln!(
+          f,
+          "[RCA_TRACE] {}.{:09} pid={} NativeWatcher::new agg={:?} poll={:?} sym={:?}",
+          std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_secs())
+            .unwrap_or(0),
+          std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.subsec_nanos())
+            .unwrap_or(0),
+          std::process::id(),
+          options.aggregate_timeout,
+          options.poll_interval,
+          options.follow_symlinks,
+        );
+      }
+    }
     let watcher = FsWatcher::new(
       FsWatcherOptions {
         follow_symlinks: options.follow_symlinks.unwrap_or(false),
@@ -203,6 +228,30 @@ impl rspack_watcher::EventAggregateHandler for JsEventHandler {
   ) {
     let changed_files_vec: Vec<String> = changed_files.into_iter().collect();
     let deleted_files_vec: Vec<String> = deleted_files.into_iter().collect();
+    {
+      use std::io::Write;
+      if let Ok(mut f) = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open("/tmp/rca-binding-trace.log")
+      {
+        let _ = writeln!(
+          f,
+          "[RCA_TRACE] {}.{:09} pid={} on_event_handle changed={:?} deleted={:?}",
+          std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_secs())
+            .unwrap_or(0),
+          std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.subsec_nanos())
+            .unwrap_or(0),
+          std::process::id(),
+          changed_files_vec,
+          deleted_files_vec,
+        );
+      }
+    }
     let result = NativeWatchResult {
       changed_files: changed_files_vec,
       removed_files: deleted_files_vec,
@@ -251,6 +300,29 @@ impl JsEventHandlerUndelayed {
 
 impl rspack_watcher::EventHandler for JsEventHandlerUndelayed {
   fn on_change(&self, changed_file: String) -> rspack_error::Result<()> {
+    {
+      use std::io::Write;
+      if let Ok(mut f) = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open("/tmp/rca-binding-trace.log")
+      {
+        let _ = writeln!(
+          f,
+          "[RCA_TRACE] {}.{:09} pid={} undelayed on_change file={}",
+          std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_secs())
+            .unwrap_or(0),
+          std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.subsec_nanos())
+            .unwrap_or(0),
+          std::process::id(),
+          changed_file,
+        );
+      }
+    }
     self.inner.call(
       changed_file,
       napi::threadsafe_function::ThreadsafeFunctionCallMode::NonBlocking,
