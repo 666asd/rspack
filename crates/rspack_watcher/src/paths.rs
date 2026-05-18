@@ -204,16 +204,41 @@ impl PathManager {
     }
   }
 
-  /// Reset the state of the `PathManager`, clearing all tracked paths.
+  /// Reset the per-`watch()`-call diff state (added / removed sets) without
+  /// touching the long-lived mtime baselines.
+  ///
+  /// `file_mtimes` is intentionally NOT cleared here: the mtime baselines
+  /// are tied to the lifetime of the registered files, not to the lifetime
+  /// of a single `FsWatcher::watch()` invocation. Each call to `watch()`
+  /// from rspack's rebuild cycle (aggregate → pause → rebuild → rewatch)
+  /// must NOT re-snapshot the baseline, otherwise the snapshot can capture
+  /// a post-user-write mtime and then `has_mtime_changed` silently
+  /// suppresses the very FSEvent that the user is waiting for. Stale
+  /// entries for files that have actually been unregistered are pruned by
+  /// `update()` via `remove_file_mtime`.
   pub fn reset(&self) {
     self.files.reset();
     self.directories.reset();
     self.missing.reset();
-    self.file_mtimes.clear();
   }
 
-  pub fn set_file_mtime(&self, path: ArcPath, mtime: SystemTime) {
-    self.file_mtimes.insert(path, mtime);
+  /// Record an initial baseline mtime for `path`, but only if no baseline
+  /// already exists. This is the "incremental" form used by
+  /// `FsWatcher::wait_for_event`: on the first `watch()` call we record
+  /// mtimes for all newly-registered files; on subsequent `watch()` calls
+  /// we MUST skip files that already have a baseline, otherwise we risk
+  /// snapshotting a mtime that the user has just bumped via `writeFile`.
+  ///
+  /// Use `has_mtime_changed` (which atomically reads-and-updates the
+  /// baseline) to advance the recorded mtime in response to real events.
+  pub fn set_file_mtime_if_absent(&self, path: ArcPath, mtime: SystemTime) {
+    self.file_mtimes.entry(path).or_insert(mtime);
+  }
+
+  /// Drop the baseline for a path that is no longer being watched, so the
+  /// map does not grow unboundedly across watch cycles.
+  pub fn remove_file_mtime(&self, path: &ArcPath) {
+    self.file_mtimes.remove(path);
   }
 
   /// Check if a file's mtime has changed from the stored baseline.
@@ -259,6 +284,15 @@ impl PathManager {
     PathUpdater::from(files).update(&self.files, &self.ignored)?;
     PathUpdater::from(directories).update(&self.directories, &self.ignored)?;
     PathUpdater::from(missing).update(&self.missing, &self.ignored)?;
+
+    // Prune mtime baselines for files no longer being watched so the map
+    // does not grow unboundedly across `watch()` cycles. `reset()` has
+    // already cleared `self.files.removed` at the start of this `watch()`
+    // call, so what we see here is only this cycle's removals.
+    let removed_files: Vec<ArcPath> = self.files.removed.iter().map(|p| p.clone()).collect();
+    for path in &removed_files {
+      self.remove_file_mtime(path);
+    }
 
     Ok(())
   }
