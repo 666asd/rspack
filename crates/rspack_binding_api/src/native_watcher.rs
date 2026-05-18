@@ -60,6 +60,9 @@ impl NativeWatcher {
   pub fn new(options: NativeWatcherOptions) -> Self {
     {
       use std::io::Write;
+      // RCA_CACHE_BUST_TAG_18142 ensures this compilation unit cannot
+      // be served from a stale cargo/sccache entry of an older build.
+      let _bust = "RCA_CACHE_BUST_TAG_18142";
       if let Ok(mut f) = std::fs::OpenOptions::new()
         .create(true)
         .append(true)
@@ -67,7 +70,7 @@ impl NativeWatcher {
       {
         let _ = writeln!(
           f,
-          "[RCA_TRACE] {}.{:09} pid={} NativeWatcher::new agg={:?} poll={:?} sym={:?}",
+          "[RCA_TRACE_18142] {}.{:09} pid={} NativeWatcher::new agg={:?} poll={:?} sym={:?}",
           std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .map(|d| d.as_secs())
