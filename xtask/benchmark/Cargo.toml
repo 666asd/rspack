@@ -24,6 +24,7 @@ mimalloc = { workspace = true, features = ["v3"] }
 [dev-dependencies]
 # Make rust analyzer happy
 async-trait                = { workspace = true }
+camino                     = { workspace = true }
 rspack                     = { workspace = true, features = ["codspeed", "full"] }
 rspack_cacheable           = { workspace = true }
 rspack_collections         = { workspace = true }

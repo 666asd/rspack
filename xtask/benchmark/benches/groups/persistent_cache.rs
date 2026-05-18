@@ -8,6 +8,7 @@ use std::{
   },
 };
 
+use camino::Utf8PathBuf;
 use criterion::{BatchSize, Criterion};
 use rspack_core::{
   CacheOptions, Mode,
@@ -195,7 +196,10 @@ fn persistent_compiler(project_dir: &Path, cache_dir: &Path) -> rspack::builder:
     .context(project_dir.to_string_lossy().to_string())
     .mode(Mode::Development)
     .cache(CacheOptions::Persistent(PersistentCacheOptions {
-      build_dependencies: vec![project_dir.join(CONFIG_FILE)],
+      build_dependencies: vec![
+        Utf8PathBuf::from_path_buf(project_dir.join(CONFIG_FILE))
+          .expect("expected UTF-8 benchmark config path"),
+      ],
       version: String::new(),
       snapshot: SnapshotOptions::default(),
       storage: StorageOptions::FileSystem {

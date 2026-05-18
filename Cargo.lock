@@ -3645,6 +3645,7 @@ name = "rspack_benchmark"
 version = "0.100.3"
 dependencies = [
  "async-trait",
+ "camino",
  "codspeed-criterion-compat",
  "mimalloc",
  "rspack",
