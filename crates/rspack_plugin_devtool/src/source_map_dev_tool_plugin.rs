@@ -935,7 +935,15 @@ impl SourceMapDevToolPlugin {
         let source_map_url = if let Some(public_path) = &plugin.public_path {
           format!("{public_path}{source_map_filename}")
         } else {
-          source_map_filename.clone()
+          let file_path = Utf8Path::new("/").join(filename.as_ref());
+
+          diff_utf8_paths(
+            &normalized_source_map_filename,
+            #[allow(clippy::unwrap_used)]
+            file_path.parent().unwrap(),
+          )
+          .expect("source map filename should be diffable against asset filename")
+          .into_string()
         };
         let data = data.url(&source_map_url);
         let current_source_mapping_url_comment = match &current_source_mapping_url_comment {
