@@ -8,7 +8,7 @@ use std::{
 use anymap::CloneAny;
 use rspack_collections::IdentifierMap;
 use rspack_hash::{HashDigest, HashFunction, HashSalt, RspackHash, RspackHashDigest};
-use rspack_sources::BoxSource;
+use rspack_sources::{BoxSource, CachedSource, SourceMapSource};
 use rspack_util::atom::Atom;
 use rustc_hash::{FxHashMap as HashMap, FxHashSet};
 use serde::Serialize;
@@ -167,22 +167,47 @@ impl CodeGenerationResult {
     let mut hasher = RspackHash::with_salt(hash_function, hash_salt);
     for (source_type, source) in self.inner.as_ref() {
       source_type.hash(&mut hasher);
-      // Hash only the emitted bytes, matching webpack's
-      // `CodeGenerationResults.getHash` which feeds `source.updateHash(hash)`
-      // and never mixes source-map metadata into the digest.
-      // `Source::hash` for `SourceMapSource` also folds in `source_map`
-      // (including the `sourcesContent` snapshot of the loader-input file).
-      // For multi-block sources like Vue SFCs that means changing one block
-      // shifts the codegen hash of every sibling sub-module even when their
-      // emitted bytes are identical, which causes HMR to ship unchanged
-      // modules in hot-update chunks and breaks downstream HMR flows.
-      source.buffer().hash(&mut hasher);
+      hash_source_content(source, &mut hasher);
     }
     self.chunk_init_fragments.hash(&mut hasher);
     self.runtime_requirements.hash(&mut hasher);
     self.hash = Some(hasher.digest(hash_digest));
   }
+}
 
+/// Hash the *emitted bytes* of a code generation source, matching webpack's
+/// `CodeGenerationResults.getHash` semantics.
+///
+/// `Source::hash` for `SourceMapSource` folds in the wrapped `source_map`
+/// (including its `sourcesContent` snapshot of the loader-input file). For
+/// multi-block sources like Vue SFCs that means changing one block shifts the
+/// codegen hash of every sibling sub-module even when their emitted bytes are
+/// identical, which causes HMR to ship unchanged modules in hot-update chunks
+/// (https://github.com/web-infra-dev/rspack/issues/11635).
+///
+/// Other source types (`RawStringSource`, `OriginalSource`, etc.) already
+/// hash only the buffer in their own `Hash` impl, so we delegate to
+/// `Source::hash` to keep `CachedSource`'s memoised digest on the hot path.
+fn hash_source_content<H: std::hash::Hasher>(source: &BoxSource, hasher: &mut H) {
+  // `source.as_any()` would resolve through the `Box<dyn Source>: AsAny`
+  // blanket impl and hand back the Box wrapper. Deref to `&dyn Source` first
+  // so the underlying concrete type's `as_any` is dispatched via the vtable.
+  let inner: &dyn rspack_sources::Source = source.as_ref();
+  let any = inner.as_any();
+  if let Some(cached) = any.downcast_ref::<CachedSource>() {
+    let cached_inner: &dyn rspack_sources::Source = cached.inner().as_ref();
+    if cached_inner.as_any().is::<SourceMapSource>() {
+      source.buffer().hash(hasher);
+      return;
+    }
+  } else if any.is::<SourceMapSource>() {
+    source.buffer().hash(hasher);
+    return;
+  }
+  source.hash(hasher);
+}
+
+impl CodeGenerationResult {
   /// Concatenated modules already encode the generated module bodies into
   /// `ConcatenatedModule::get_runtime_hash`, so we can reuse that digest here
   /// and only mix in codegen-specific metadata instead of hashing the large
@@ -423,4 +448,76 @@ pub struct CodeGenerationJob {
   pub runtime: RuntimeSpec,
   pub runtimes: Vec<RuntimeSpec>,
   pub scope: Option<ConcatenationScope>,
+}
+
+#[cfg(test)]
+mod tests {
+  use std::hash::Hasher;
+
+  use rspack_sources::{
+    BoxSource, CachedSource, RawStringSource, SourceExt, SourceMap, SourceMapSource,
+    WithoutOriginalOptions,
+  };
+  use rustc_hash::FxHasher;
+
+  use super::hash_source_content;
+
+  fn raw(value: &str) -> BoxSource {
+    RawStringSource::from(value.to_string()).boxed()
+  }
+
+  fn source_map_source(value: &str, sources_content: &str) -> BoxSource {
+    let map = SourceMap::from_json(&format!(
+      r#"{{"version":3,"sources":["child.vue"],"sourcesContent":[{}],"names":[],"mappings":""}}"#,
+      serde_json::Value::String(sources_content.to_string()),
+    ))
+    .unwrap();
+    SourceMapSource::new(WithoutOriginalOptions {
+      value: value.to_string(),
+      name: "child.vue".to_string(),
+      source_map: map,
+    })
+    .boxed()
+  }
+
+  fn hash(source: &BoxSource) -> u64 {
+    let mut hasher = FxHasher::default();
+    hash_source_content(source, &mut hasher);
+    hasher.finish()
+  }
+
+  #[test]
+  fn raw_source_is_routed_through_source_hash() {
+    // For non-SourceMapSource we delegate to `Source::hash` (which already
+    // hashes only the buffer + a tag), preserving `CachedSource`'s memoised
+    // digest fast path.
+    let a = raw("hello");
+    let b = raw("hello");
+    let c = raw("world");
+    assert_eq!(hash(&a), hash(&b));
+    assert_ne!(hash(&a), hash(&c));
+  }
+
+  #[test]
+  fn source_map_source_hash_only_depends_on_emitted_bytes() {
+    let baseline = source_map_source("hello", "<template>child:0</template>");
+    let baseline_hash = hash(&baseline);
+    // Same emitted bytes, *different* sources_content (mimicking the Vue SFC
+    // case where the template block changes but the script-setup output does
+    // not). Hash must be stable.
+    let same_bytes_other_map = source_map_source("hello", "<template>child:9</template>");
+    assert_eq!(hash(&same_bytes_other_map), baseline_hash);
+    let different_bytes = source_map_source("world", "<template>child:0</template>");
+    assert_ne!(hash(&different_bytes), baseline_hash);
+  }
+
+  #[test]
+  fn cached_source_wrapping_source_map_source_takes_buffer_path() {
+    let baseline =
+      CachedSource::new(source_map_source("hello", "<template>child:0</template>")).boxed();
+    let baseline_hash = hash(&baseline);
+    let same_bytes =
+      CachedSource::new(source_map_source("hello", "<template>child:9</template>")).boxed();
+    assert_eq!(hash(&same_bytes), baseline_hash);
+  }
 }
