@@ -261,9 +261,7 @@ fn module_rule_matcher_sync<'a>(
       for (k, matcher) in description_data {
         ensure_sync_matched!(check_optional_sync(
           matcher,
-          k.split('.')
-            .try_fold(resource_description.json(), |acc, key| acc.get(key))
-            .map(Into::into),
+          k.get(resource_description.json()).map(Into::into),
         ));
       }
     } else {
@@ -435,13 +433,8 @@ async fn module_rule_matcher_async<'a>(
   if let Some(description_data) = &module_rule.description_data {
     if let Some(resource_description) = resource_data.description() {
       for (k, matcher) in description_data {
-        if !check_optional_async(
-          matcher,
-          k.split('.')
-            .try_fold(resource_description.json(), |acc, key| acc.get(key))
-            .map(Into::into),
-        )
-        .await?
+        if !check_optional_async(matcher, k.get(resource_description.json()).map(Into::into))
+          .await?
         {
           return Ok(false);
         }

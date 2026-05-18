@@ -23,7 +23,7 @@ use rspack_core::{
   JavascriptParserOptions, JavascriptParserOrder, JavascriptParserUrl, JsonGeneratorOptions,
   JsonParserOptions, ModuleNoParseRule, ModuleNoParseRules, ModuleNoParseTestFn, ModuleOptions,
   ModuleRule, ModuleRuleEffect, ModuleRuleEnforce, ModuleRuleUse, ModuleRuleUseLoader,
-  OverrideStrict, ParseOption, ParserOptions, ParserOptionsMap, TypeReexportPresenceMode,
+  OverrideStrict, ParseOption, ParserOptions, ParserOptionsMap, TypeReexportPresenceMode, With,
 };
 use rspack_error::error;
 use rspack_napi::threadsafe_function::ThreadsafeFunction;
@@ -954,7 +954,7 @@ impl TryFrom<RawModuleRule> for ModuleRule {
       .map(|data| {
         data
           .into_iter()
-          .map(|(k, v)| Ok((k, v.try_into()?)))
+          .map(|(k, v)| Ok((k.into(), v.try_into()?)))
           .collect::<rspack_error::Result<DescriptionData>>()
       })
       .transpose()?;
@@ -965,7 +965,7 @@ impl TryFrom<RawModuleRule> for ModuleRule {
         data
           .into_iter()
           .map(|(k, v)| Ok((k, v.try_into()?)))
-          .collect::<rspack_error::Result<DescriptionData>>()
+          .collect::<rspack_error::Result<With>>()
       })
       .transpose()?;
 

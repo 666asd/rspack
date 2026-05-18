@@ -187,6 +187,89 @@ fn merge_parser_options_with_local(
   }
 }
 
+struct CollectedModuleRuleEffects {
+  module_type: ModuleType,
+  module_layer: Option<ModuleLayer>,
+  resolve: Option<Resolve>,
+  parser: Option<ParserOptions>,
+  generator: Option<GeneratorOptions>,
+  side_effects: Option<bool>,
+  extract_source_map: Option<bool>,
+}
+
+fn collect_module_rule_effects(
+  module_rules: &[&ModuleRuleEffect],
+  matched_module_type: Option<ModuleType>,
+  issuer_layer: Option<&ModuleLayer>,
+) -> CollectedModuleRuleEffects {
+  let mut collected = CollectedModuleRuleEffects {
+    module_type: matched_module_type.unwrap_or(ModuleType::JsAuto),
+    module_layer: issuer_layer.cloned(),
+    resolve: None,
+    parser: None,
+    generator: None,
+    side_effects: None,
+    extract_source_map: None,
+  };
+
+  for rule in module_rules {
+    if let Some(module_type) = rule.r#type {
+      collected.module_type = module_type;
+    }
+    if let Some(module_layer) = &rule.layer {
+      collected.module_layer = Some(module_layer.clone());
+    }
+    if let Some(rule_resolve) = &rule.resolve {
+      collected.resolve = Some(if let Some(resolve) = collected.resolve.take() {
+        resolve.merge(rule_resolve.to_owned())
+      } else {
+        rule_resolve.to_owned()
+      });
+    }
+    collected.parser = collected.parser.merge_from(&rule.parser);
+    collected.generator = collected.generator.merge_from(&rule.generator);
+    if rule.side_effects.is_some() {
+      collected.side_effects = rule.side_effects;
+    }
+    if rule.extract_source_map.is_some() {
+      collected.extract_source_map = rule.extract_source_map;
+    }
+  }
+
+  collected
+}
+
+#[cfg(test)]
+mod module_rule_effect_collection_tests {
+  use super::*;
+
+  #[test]
+  fn collects_rule_effects_in_match_order_with_last_wins_fields() {
+    let first = ModuleRuleEffect {
+      r#type: Some(ModuleType::Asset),
+      layer: Some("first".to_owned()),
+      side_effects: Some(true),
+      extract_source_map: Some(false),
+      ..Default::default()
+    };
+    let second = ModuleRuleEffect {
+      r#type: Some(ModuleType::Json),
+      layer: Some("second".to_owned()),
+      side_effects: Some(false),
+      extract_source_map: Some(true),
+      ..Default::default()
+    };
+    let rules = [&first, &second];
+
+    let collected = collect_module_rule_effects(&rules, Some(ModuleType::JsAuto), None);
+
+    assert_eq!(collected.module_type, ModuleType::Json);
+    assert_eq!(collected.module_layer.as_deref(), Some("second"));
+    assert_eq!(collected.side_effects, Some(false));
+    assert_eq!(collected.extract_source_map, Some(true));
+  }
+}
+
 #[derive(Debug, Default)]
 pub struct NormalModuleFactoryHooks {
   pub before_resolve: NormalModuleFactoryBeforeResolveHook,
@@ -718,22 +801,23 @@ module.exports = "data:,";
       resource_data.resource().to_owned()
     };
 
-    let resolved_module_type =
-      self.calculate_module_type(match_module_type, &resolved_module_rules);
-    let resolved_module_layer =
-      self.calculate_module_layer(data.issuer_layer.as_ref(), &resolved_module_rules);
+    let resolved_module_rule_effects = collect_module_rule_effects(
+      &resolved_module_rules,
+      match_module_type,
+      data.issuer_layer.as_ref(),
+    );
+    let resolved_module_type = resolved_module_rule_effects.module_type;
+    let resolved_module_layer = resolved_module_rule_effects.module_layer;
 
-    let resolved_resolve_options = self.calculate_resolve_options(&resolved_module_rules);
-    let (resolved_parser_options, resolved_generator_options) =
-      self.calculate_parser_and_generator_options(&resolved_module_rules);
+    let resolved_resolve_options = resolved_module_rule_effects.resolve.map(Arc::new);
     let (resolved_parser_options, resolved_generator_options) = self
       .merge_global_parser_and_generator_options(
         &resolved_module_type,
-        resolved_parser_options,
-        resolved_generator_options,
+        resolved_module_rule_effects.parser,
+        resolved_module_rule_effects.generator,
       );
-    let resolved_side_effects = self.calculate_side_effects(&resolved_module_rules);
-    let resolved_extract_source_map = self.calculate_extract_source_map(&resolved_module_rules);
+    let resolved_side_effects = resolved_module_rule_effects.side_effects;
+    let resolved_extract_source_map = resolved_module_rule_effects.extract_source_map;
     let mut resolved_parser_and_generator = self
       .plugin_driver
       .registered_parser_and_generator_builder
@@ -849,57 +933,6 @@ module.exports = "data:,";
     Ok(rules)
   }
 
-  fn calculate_resolve_options(&self, module_rules: &[&ModuleRuleEffect]) -> Option<Arc<Resolve>> {
-    let mut resolved: Option<Resolve> = None;
-    for rule in module_rules {
-      if let Some(rule_resolve) = &rule.resolve {
-        if let Some(r) = resolved {
-          resolved = Some(r.merge(rule_resolve.to_owned()));
-        } else {
-          resolved = Some(rule_resolve.to_owned());
-        }
-      }
-    }
-    resolved.map(Arc::new)
-  }
-
-  fn calculate_side_effects(&self, module_rules: &[&ModuleRuleEffect]) -> Option<bool> {
-    let mut side_effect_res = None;
-    // side_effects from module rule has higher priority
-    for rule in module_rules.iter() {
-      if rule.side_effects.is_some() {
-        side_effect_res = rule.side_effects;
-      }
-    }
-    side_effect_res
-  }
-
-  fn calculate_extract_source_map(&self, module_rules: &[&ModuleRuleEffect]) -> Option<bool> {
-    let mut extract_source_map_res = None;
-    // extract_source_map from module rule has higher priority
-    for rule in module_rules.iter() {
-      if rule.extract_source_map.is_some() {
-        extract_source_map_res = rule.extract_source_map;
-      }
-    }
-    extract_source_map_res
-  }
-
-  fn calculate_parser_and_generator_options(
-    &self,
-    module_rules: &[&ModuleRuleEffect],
-  ) -> (Option<ParserOptions>, Option<GeneratorOptions>) {
-    let mut resolved_parser = None;
-    let mut resolved_generator = None;
-
-    for rule in module_rules {
-      resolved_parser = resolved_parser.merge_from(&rule.parser);
-      resolved_generator = resolved_generator.merge_from(&rule.generator);
-    }
-
-    (resolved_parser, resolved_generator)
-  }
-
   fn merge_global_parser_and_generator_options(
     &self,
     module_type: &ModuleType,
@@ -975,36 +1008,6 @@ module.exports = "data:,";
       },
     );
     (parser, generator)
-  }
-
-  fn calculate_module_type(
-    &self,
-    matched_module_type: Option<ModuleType>,
-    module_rules: &[&ModuleRuleEffect],
-  ) -> ModuleType {
-    let mut resolved_module_type = matched_module_type.unwrap_or(ModuleType::JsAuto);
-    for module_rule in module_rules.iter() {
-      if let Some(module_type) = module_rule.r#type {
-        resolved_module_type = module_type;
-      };
-    }
-
-    resolved_module_type
-  }
-
-  fn calculate_module_layer(
-    &self,
-    issuer_layer: Option<&ModuleLayer>,
-    module_rules: &[&ModuleRuleEffect],
-  ) -> Option<ModuleLayer> {
-    let mut resolved_module_layer = issuer_layer;
-    for module_rule in module_rules.iter() {
-      if let Some(module_layer) = &module_rule.layer {
-        resolved_module_layer = Some(module_layer);
-      };
-    }
-
-    resolved_module_layer.cloned()
   }
 
   async fn factorize(&self, data: &mut ModuleFactoryCreateData) -> Result<ModuleFactoryResult> {

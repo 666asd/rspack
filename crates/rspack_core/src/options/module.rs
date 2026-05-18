@@ -863,11 +863,73 @@ impl Default for CssExportsConvention {
   }
 }
 
-pub type DescriptionData = HashMap<String, RuleSetConditionWithEmpty>;
+pub type DescriptionData = HashMap<DescriptionDataMatcherKey, RuleSetConditionWithEmpty>;
 pub type With = HashMap<String, RuleSetConditionWithEmpty>;
 
 pub type RuleSetConditionFnMatcher =
   Box<dyn Fn(DataRef) -> BoxFuture<'static, Result<bool>> + Sync + Send>;
+
+#[derive(Clone, Eq, PartialEq, Hash)]
+pub struct DescriptionDataMatcherKey {
+  original: String,
+  path: Box<[String]>,
+}
+
+impl DescriptionDataMatcherKey {
+  pub fn get<'a>(&self, description: &'a serde_json::Value) -> Option<&'a serde_json::Value> {
+    self
+      .path
+      .iter()
+      .try_fold(description, |acc, key| acc.get(key))
+  }
+}
+
+impl From<String> for DescriptionDataMatcherKey {
+  fn from(value: String) -> Self {
+    let path = value.split('.').map(str::to_owned).collect();
+    Self {
+      original: value,
+      path,
+    }
+  }
+}
+
+impl From<&str> for DescriptionDataMatcherKey {
+  fn from(value: &str) -> Self {
+    value.to_owned().into()
+  }
+}
+
+impl fmt::Debug for DescriptionDataMatcherKey {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    self.original.fmt(f)
+  }
+}
+
+#[cfg(test)]
+mod description_data_matcher_key_tests {
+  use serde_json::json;
+
+  use super::DescriptionDataMatcherKey;
+
+  #[test]
+  fn precomputes_dot_path_lookup_without_changing_debug_shape() {
+    let key = DescriptionDataMatcherKey::from("exports.browser.import".to_owned());
+    let description = json!({
+      "exports": {
+        "browser": {
+          "import": "browser-entry"
+        }
+      }
+    });
+
+    assert_eq!(
+      key.get(&description).and_then(|value| value.as_str()),
+      Some("browser-entry")
+    );
+    assert_eq!(format!("{key:?}"), "\"exports.browser.import\"");
+  }
+}
 
 pub enum RuleSetCondition {
   String(String),
