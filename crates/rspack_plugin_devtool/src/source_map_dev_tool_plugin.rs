@@ -922,21 +922,20 @@ impl SourceMapDevToolPlugin {
       let source_map_filename = compilation
         .get_asset_path(source_map_filename_config, data)
         .await?;
+      let normalized_source_map_filename = Utf8Path::new("/")
+        .node_join(source_map_filename.as_str())
+        .node_normalize();
+      let source_map_filename = normalized_source_map_filename
+        .strip_prefix("/")
+        .expect("normalized source map filename should stay under root")
+        .as_str()
+        .to_string();
 
       if let Some(current_source_mapping_url_comment) = current_source_mapping_url_comment {
         let source_map_url = if let Some(public_path) = &plugin.public_path {
           format!("{public_path}{source_map_filename}")
         } else {
-          let file_path = Utf8Path::new("/").join(filename.as_ref());
-          let source_map_path = Utf8Path::new("/").join(&source_map_filename);
-
-          diff_utf8_paths(
-            &source_map_path,
-            #[allow(clippy::unwrap_used)]
-            file_path.parent().unwrap(),
-          )
-          .expect("source map filename should be diffable against asset filename")
-          .into_string()
+          source_map_filename.clone()
         };
         let data = data.url(&source_map_url);
         let current_source_mapping_url_comment = match &current_source_mapping_url_comment {
