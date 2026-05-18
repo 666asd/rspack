@@ -1,8 +1,6 @@
-use std::{
-  path::{Path, PathBuf},
-  sync::Arc,
-};
+use std::sync::Arc;
 
+use camino::{Utf8Path, Utf8PathBuf};
 use regex::Regex;
 use rspack_core::{
   Compilation, CompilationAsset, CompilationProcessAssets, Context, DependenciesBlock, Module,
@@ -57,11 +55,8 @@ impl CollectSharedEntryPlugin {
     }
 
     // 2) Fallback: read version from the deepest node_modules/<pkg>/package.json
-    let path = Path::new(request);
-    let comps: Vec<String> = path
-      .components()
-      .map(|c| c.as_os_str().to_string_lossy().to_string())
-      .collect();
+    let path = Utf8Path::new(request);
+    let comps: Vec<String> = path.components().map(|c| c.as_str().to_owned()).collect();
     if let Some(idx) = comps.iter().rposition(|c| c == "node_modules") {
       let mut pkg_parts: Vec<&str> = Vec::new();
       if let Some(next) = comps.get(idx + 1) {
@@ -75,7 +70,7 @@ impl CollectSharedEntryPlugin {
         }
       }
       if !pkg_parts.is_empty() {
-        let mut package_json_path = PathBuf::new();
+        let mut package_json_path = Utf8PathBuf::new();
         for c in comps.iter().take(idx + 1) {
           package_json_path.push(c);
         }

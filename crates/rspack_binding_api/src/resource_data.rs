@@ -48,9 +48,7 @@ impl ReadonlyResourceData {
     self.with_ref(|resource_data| {
       resource_data
         .description()
-        .map(|data| unsafe {
-          ToNapiValue::to_napi_value(env.raw(), data.path().to_string_lossy().as_ref())
-        })
+        .map(|data| unsafe { ToNapiValue::to_napi_value(env.raw(), data.path().as_str()) })
         .transpose()
     })
   }
@@ -144,7 +142,7 @@ impl From<&rspack_core::ResourceData> for JsResourceData {
       description_file_data: value.description().map(|data| data.json().to_owned()),
       description_file_path: value
         .description()
-        .map(|data| data.path().to_string_lossy().into_owned()),
+        .map(|data| data.path().as_str().to_owned()),
     }
   }
 }

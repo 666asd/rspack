@@ -1,4 +1,4 @@
-use std::{fmt::Debug, path::PathBuf, sync::Arc};
+use std::{fmt::Debug, sync::Arc};
 
 use rspack_error::{Diagnostic, Error, Result, error};
 use rspack_fs::ReadableFileSystem;
@@ -67,11 +67,11 @@ fn create_loader_context<Context: Send>(
   plugin: Option<Arc<dyn LoaderRunnerPlugin<Context = Context>>>,
   context: Context,
 ) -> LoaderContext<Context> {
-  let mut file_dependencies: HashSet<PathBuf> = Default::default();
+  let mut file_dependencies: HashSet<Utf8PathBuf> = Default::default();
   if let Some(resource_path) = resource_data.path()
     && resource_path.is_absolute()
   {
-    file_dependencies.insert(resource_path.to_owned().into_std_path_buf());
+    file_dependencies.insert(resource_path.to_owned());
   }
 
   LoaderContext {
@@ -214,10 +214,10 @@ async fn run_loaders_impl<Context: Send>(
 pub struct LoaderResult<Context> {
   pub context: Context,
   pub cacheable: bool,
-  pub file_dependencies: HashSet<PathBuf>,
-  pub context_dependencies: HashSet<PathBuf>,
-  pub missing_dependencies: HashSet<PathBuf>,
-  pub build_dependencies: HashSet<PathBuf>,
+  pub file_dependencies: HashSet<Utf8PathBuf>,
+  pub context_dependencies: HashSet<Utf8PathBuf>,
+  pub missing_dependencies: HashSet<Utf8PathBuf>,
+  pub build_dependencies: HashSet<Utf8PathBuf>,
   pub diagnostics: Vec<Diagnostic>,
   pub content: Content,
   pub source_map: Option<SourceMap>,
@@ -286,7 +286,7 @@ mod test {
       &self,
       _resource_data: &ResourceData,
       _fs: Arc<dyn ReadableFileSystem>,
-    ) -> Result<Option<(Content, Option<SourceMap>, HashSet<std::path::PathBuf>)>> {
+    ) -> Result<Option<(Content, Option<SourceMap>, HashSet<Utf8PathBuf>)>> {
       Ok(Some((Content::Buffer(vec![]), None, Default::default())))
     }
   }

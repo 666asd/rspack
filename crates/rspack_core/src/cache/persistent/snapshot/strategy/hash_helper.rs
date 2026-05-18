@@ -4,7 +4,7 @@ use std::{
 };
 
 use rspack_fs::{FileMetadata, ReadableFileSystem};
-use rspack_paths::{ArcPath, ArcPathDashMap, AssertUtf8};
+use rspack_paths::{ArcPath, ArcPathDashMap};
 use rustc_hash::FxHasher;
 
 use super::{PackageHelper, SnapshotOptions};
@@ -53,7 +53,7 @@ impl HashHelper {
       return hash.clone();
     }
 
-    let utf8_path = path.assert_utf8();
+    let utf8_path = path.as_path();
     let metadata = if let Some(m) = metadata {
       m
     } else {
@@ -100,7 +100,7 @@ impl HashHelper {
       return hash.clone();
     }
 
-    let utf8_path = path.assert_utf8();
+    let utf8_path = path.as_path();
     let Ok(metadata) = self.fs.metadata(utf8_path).await else {
       self.dir_cache.insert(path.into(), None);
       return None;
@@ -112,11 +112,11 @@ impl HashHelper {
         children.sort();
         for item in children {
           let child_path = ArcPath::from(path.join(item));
-          let child_path_str = child_path.to_string_lossy();
-          if self.snapshot_options.is_immutable_path(&child_path_str) {
+          let child_path_str = child_path.as_str();
+          if self.snapshot_options.is_immutable_path(child_path_str) {
             continue;
           }
-          if self.snapshot_options.is_managed_path(&child_path_str) {
+          if self.snapshot_options.is_managed_path(child_path_str) {
             if let Some(version) = self.package_helper.package_version(&child_path).await {
               version.hash(&mut hasher);
             }

@@ -5,7 +5,7 @@ use std::sync::Arc;
 
 use rspack_fs::ReadableFileSystem;
 use rspack_javascript_compiler::JavaScriptCompiler;
-use rspack_paths::{AssertUtf8, Utf8Path, Utf8PathBuf};
+use rspack_paths::{Utf8Path, Utf8PathBuf};
 use rspack_resolver::ResolveError;
 use rustc_hash::FxHashSet as HashSet;
 use swc_core::{
@@ -131,7 +131,7 @@ impl Helper {
           if let Some(data) = resource.description_data {
             let package_json_path = data.path();
             if is_node_package_path(package_json_path) {
-              result.insert(package_json_path.join("package.json").assert_utf8());
+              result.insert(package_json_path.join("package.json"));
             }
           }
         }

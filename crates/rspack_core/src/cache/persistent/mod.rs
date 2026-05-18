@@ -12,8 +12,7 @@ use std::{
 
 use rspack_cacheable::{
   cacheable,
-  utils::PortablePath,
-  with::{As, AsVec, Skip},
+  with::{AsPreset, AsVec, Skip},
 };
 use rspack_fs::{IntermediateFileSystem, ReadableFileSystem};
 use rspack_workspace::rspack_pkg_version;
@@ -34,7 +33,7 @@ const LOGGER_NAME: &str = "rspack.persistentCache";
 #[cacheable]
 #[derive(Debug, Clone, Hash)]
 pub struct PersistentCacheOptions {
-  #[cacheable(with=AsVec<As<PortablePath>>)]
+  #[cacheable(with=AsVec<AsPreset>)]
   pub build_dependencies: BuildDepsOptions,
   pub version: String,
   pub snapshot: SnapshotOptions,

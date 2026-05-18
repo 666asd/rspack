@@ -97,7 +97,7 @@ impl DiskWatcher {
 
     for path in &stale_paths {
       if let Some(watcher) = &mut self.inner
-        && let Err(e) = watcher.unwatch(path)
+        && let Err(e) = watcher.unwatch(path.as_std_path())
         && !matches!(e.kind, notify::ErrorKind::WatchNotFound)
       {
         return Err(rspack_error::error!(e.to_string()));
@@ -115,7 +115,7 @@ impl DiskWatcher {
 
       if let Some(watcher) = &mut self.inner {
         watcher
-          .watch(&pattern.path, pattern.mode)
+          .watch(pattern.path.as_std_path(), pattern.mode)
           .map_err(|e| rspack_error::error!(e.to_string()))?;
       }
 

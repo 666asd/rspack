@@ -1,15 +1,10 @@
-use std::{
-  fmt::Debug,
-  path::{Path, PathBuf},
-  sync::Arc,
-};
+use std::{fmt::Debug, sync::Arc};
 
 use anymap::CloneAny;
 use once_cell::sync::OnceCell;
 use rspack_cacheable::{
   cacheable,
-  utils::PortablePath,
-  with::{As, AsInner, AsOption, AsPreset},
+  with::{AsInner, AsOption, AsPreset},
 };
 use rspack_error::{Error, Result, ToStringResultToRspackResultExt};
 use rspack_paths::{Utf8Path, Utf8PathBuf};
@@ -308,8 +303,8 @@ impl ResourceData {
 #[derive(Debug, Clone)]
 pub struct DescriptionData {
   /// Path to package.json
-  #[cacheable(with=As<PortablePath>)]
-  path: PathBuf,
+  #[cacheable(with=AsPreset)]
+  path: Utf8PathBuf,
 
   /// Raw package.json
   #[cacheable(with=AsInner<AsPreset>)]
@@ -317,11 +312,11 @@ pub struct DescriptionData {
 }
 
 impl DescriptionData {
-  pub fn new(path: PathBuf, json: Arc<serde_json::Value>) -> Self {
+  pub fn new(path: Utf8PathBuf, json: Arc<serde_json::Value>) -> Self {
     Self { path, json }
   }
 
-  pub fn path(&self) -> &Path {
+  pub fn path(&self) -> &Utf8Path {
     &self.path
   }
 
@@ -329,7 +324,7 @@ impl DescriptionData {
     self.json.as_ref()
   }
 
-  pub fn into_parts(self) -> (PathBuf, Arc<serde_json::Value>) {
+  pub fn into_parts(self) -> (Utf8PathBuf, Arc<serde_json::Value>) {
     (self.path, self.json)
   }
 }

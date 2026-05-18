@@ -56,7 +56,7 @@ impl<'a> AssertUtf8 for &'a Path {
 #[cacheable(with=Custom)]
 #[derive(Clone, PartialEq, Eq)]
 pub struct ArcPath {
-  path: Arc<Path>,
+  path: Arc<Utf8Path>,
   // Pre-calculating and caching the hash value upon creation, making hashing operations
   // in collections virtually free.
   hash: u64,
@@ -69,16 +69,31 @@ impl Debug for ArcPath {
 }
 
 impl ArcPath {
-  pub fn new(path: Arc<Path>) -> Self {
+  pub fn new(path: Arc<Utf8Path>) -> Self {
     let mut hasher = FxHasher::default();
     path.hash(&mut hasher);
     let hash = hasher.finish();
     Self { path, hash }
   }
+
+  #[inline]
+  pub fn as_str(&self) -> &str {
+    self.path.as_str()
+  }
+
+  #[inline]
+  pub fn as_path(&self) -> &Utf8Path {
+    &self.path
+  }
+
+  #[inline]
+  pub fn as_std_path(&self) -> &Path {
+    self.path.as_std_path()
+  }
 }
 
 impl Deref for ArcPath {
-  type Target = Arc<Path>;
+  type Target = Arc<Utf8Path>;
 
   fn deref(&self) -> &Self::Target {
     &self.path
@@ -87,25 +102,37 @@ impl Deref for ArcPath {
 
 impl AsRef<Path> for ArcPath {
   fn as_ref(&self) -> &Path {
+    self.path.as_std_path()
+  }
+}
+
+impl AsRef<Utf8Path> for ArcPath {
+  fn as_ref(&self) -> &Utf8Path {
     &self.path
   }
 }
 
 impl From<PathBuf> for ArcPath {
   fn from(value: PathBuf) -> Self {
-    ArcPath::new(value.into())
+    ArcPath::from(value.assert_utf8())
   }
 }
 
 impl From<&Path> for ArcPath {
   fn from(value: &Path) -> Self {
-    ArcPath::new(value.into())
+    ArcPath::from(value.assert_utf8())
   }
 }
 
 impl From<&Utf8Path> for ArcPath {
   fn from(value: &Utf8Path) -> Self {
-    ArcPath::new(value.as_std_path().into())
+    ArcPath::new(value.into())
+  }
+}
+
+impl From<Utf8PathBuf> for ArcPath {
+  fn from(value: Utf8PathBuf) -> Self {
+    ArcPath::new(value.into())
   }
 }
 
@@ -117,14 +144,17 @@ impl From<&ArcPath> for ArcPath {
 
 impl From<&str> for ArcPath {
   fn from(value: &str) -> Self {
-    ArcPath::new(<str as std::convert::AsRef<Path>>::as_ref(value).into())
+    ArcPath::from(Utf8Path::new(value))
   }
 }
 
 impl CustomConverter for ArcPath {
   type Target = PortablePath;
   fn serialize(&self, guard: &ContextGuard) -> Result<Self::Target, CacheableError> {
-    Ok(PortablePath::new(&self.path, guard.project_root()))
+    Ok(PortablePath::new(
+      self.path.as_std_path(),
+      guard.project_root(),
+    ))
   }
   fn deserialize(data: Self::Target, guard: &ContextGuard) -> Result<Self, CacheableError> {
     Ok(Self::from(PathBuf::from(

@@ -1,10 +1,10 @@
 mod helper;
 
-use std::{collections::VecDeque, path::PathBuf, sync::Arc};
+use std::{collections::VecDeque, sync::Arc};
 
 use rspack_error::Result;
 use rspack_fs::ReadableFileSystem;
-use rspack_paths::{ArcPath, ArcPathSet, AssertUtf8};
+use rspack_paths::{ArcPath, ArcPathSet, Utf8PathBuf};
 use rustc_hash::FxHashSet as HashSet;
 
 use self::helper::{Helper, is_node_package_path};
@@ -16,7 +16,7 @@ use crate::CompilationLogger;
 
 pub const SCOPE: &str = "build_dependencies";
 
-pub type BuildDepsOptions = Vec<PathBuf>;
+pub type BuildDepsOptions = Vec<Utf8PathBuf>;
 
 #[derive(Debug)]
 pub enum BuildDepsValidationResult {
@@ -83,11 +83,11 @@ impl BuildDeps {
         continue;
       }
       new_deps.insert(current.clone());
-      if is_node_package_path(&current) {
+      if is_node_package_path(current.as_ref()) {
         // node package path skip recursive search.
         continue;
       }
-      if let Some(children) = helper.resolve(current.assert_utf8()).await {
+      if let Some(children) = helper.resolve(current.as_ref()).await {
         queue.extend(children.iter().map(|item| item.as_path().into()));
       }
     }
@@ -121,9 +121,10 @@ impl BuildDeps {
 
 #[cfg(test)]
 mod test {
-  use std::{path::PathBuf, sync::Arc};
+  use std::sync::Arc;
 
   use rspack_fs::{MemoryFileSystem, WritableFileSystem};
+  use rspack_paths::Utf8PathBuf;
 
   use super::{
     super::{
@@ -191,7 +192,10 @@ mod test {
       .await
       .unwrap();
 
-    let options = vec![PathBuf::from("/index.js"), PathBuf::from("/configs")];
+    let options = vec![
+      Utf8PathBuf::from("/index.js"),
+      Utf8PathBuf::from("/configs"),
+    ];
     let mut storage = MemoryStorage::default();
     let codec = Arc::new(CacheCodec::new(None));
     let snapshot = Arc::new(Snapshot::new(SnapshotOptions::default(), fs.clone(), codec));

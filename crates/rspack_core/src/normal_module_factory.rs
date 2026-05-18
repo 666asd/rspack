@@ -3,6 +3,7 @@ use std::{borrow::Cow, collections::HashMap, ops::Deref, sync::Arc};
 use rspack_error::{Result, error};
 use rspack_hook::define_hook;
 use rspack_loader_runner::{Loader, Scheme, get_scheme};
+use rspack_paths::AssertUtf8;
 use rspack_util::MergeFrom;
 use sugar_path::SugarPath;
 use winnow::prelude::*;
@@ -395,8 +396,10 @@ impl NormalModuleFactory {
                 .join(resource)
                 .as_std_path()
                 .absolutize()
-                .to_string_lossy()
-                .into_owned()
+                .as_ref()
+                .assert_utf8()
+                .as_str()
+                .to_owned()
             } else {
               resource.to_owned()
             }

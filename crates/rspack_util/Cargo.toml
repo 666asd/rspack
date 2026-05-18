@@ -20,6 +20,7 @@ indexmap         = { workspace = true }
 itoa             = { workspace = true }
 json-escape-simd = { workspace = true }
 memchr           = { workspace = true }
+pathdiff         = { workspace = true, features = ["camino"] }
 regex            = { workspace = true, features = ["pattern"] }
 rspack_cacheable = { workspace = true }
 rspack_paths     = { workspace = true }

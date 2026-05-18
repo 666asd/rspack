@@ -31,7 +31,7 @@ impl From<rspack_core::Resource> for ResolveRequest {
       query: value.query,
       fragment: value.fragment,
       description_file_data: description_file_data.map(std::sync::Arc::unwrap_or_clone),
-      description_file_path: description_file_path.map(|path| path.to_string_lossy().into_owned()),
+      description_file_path: description_file_path.map(|path| path.into_string()),
       file_dependencies: vec![],
       missing_dependencies: vec![],
     }
@@ -85,12 +85,12 @@ impl JsResolver {
             resolve_request.file_dependencies = resolve_dependencies
               .file_dependencies
               .drain()
-              .map(|path| path.to_string_lossy().into_owned())
+              .map(|path| path.as_str().to_owned())
               .collect();
             resolve_request.missing_dependencies = resolve_dependencies
               .missing_dependencies
               .drain()
-              .map(|path| path.to_string_lossy().into_owned())
+              .map(|path| path.as_str().to_owned())
               .collect();
             Ok(match serde_json::to_string(&resolve_request) {
               Ok(json) => Either::<String, ()>::A(json),

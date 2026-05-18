@@ -1,9 +1,9 @@
 use std::{
   fmt,
-  path::Path,
   sync::{Arc, LazyLock},
 };
 
+use camino::Utf8Path;
 use regex::Regex;
 use rspack_core::{
   BoxDependency, BoxModule, Compilation, CompilationParams, CompilerCompilation,
@@ -106,7 +106,7 @@ impl ProvideSharedPlugin {
   /// `package.json` has no `version`, walk up to the parent package and use
   /// its version — but only when the shared key matches
   /// `<parent_name>/<relative_path>`.
-  fn find_parent_package_version(description_path: &Path, share_key: &str) -> Option<String> {
+  fn find_parent_package_version(description_path: &Utf8Path, share_key: &str) -> Option<String> {
     let entry_dir = if description_path
       .file_name()
       .is_some_and(|name| name == "package.json")
@@ -120,12 +120,7 @@ impl ProvideSharedPlugin {
       let parent_name = parent.get("name").and_then(|n| n.as_str())?;
       let parent_version = parent.get("version").and_then(|v| v.as_str())?;
       let rel = entry_dir.strip_prefix(dir).ok()?;
-      let rel_posix: String = rel
-        .components()
-        .map(|c| c.as_os_str().to_string_lossy())
-        .collect::<Vec<_>>()
-        .join("/");
-      let expected_key = format!("{parent_name}/{rel_posix}");
+      let expected_key = format!("{parent_name}/{rel}");
       (share_key == expected_key).then(|| parent_version.to_string())
     })
   }
@@ -190,7 +185,7 @@ impl ProvideSharedPlugin {
           title.to_string(),
           format!(
             "{error_header} No version in description file (usually package.json). Add version to description file {}, or manually specify version in shared config. shared module {key} -> {resource}",
-            description.path().display()
+            description.path().as_str()
           ),
         ));
       }

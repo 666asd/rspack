@@ -148,9 +148,12 @@ impl Resolver {
         path: r.path().to_path_buf().assert_utf8(),
         query: r.query().unwrap_or_default().to_string(),
         fragment: r.fragment().unwrap_or_default().to_string(),
-        description_data: r
-          .package_json()
-          .map(|d| DescriptionData::new(d.directory().to_path_buf(), Arc::clone(d.raw_json()))),
+        description_data: r.package_json().map(|d| {
+          DescriptionData::new(
+            d.directory().to_path_buf().assert_utf8(),
+            Arc::clone(d.raw_json()),
+          )
+        }),
       })),
       Err(rspack_resolver::ResolveError::Ignored(_)) => Ok(ResolveResult::Ignored),
       Err(error) => Err(ResolveInnerError::RspackResolver(error)),
@@ -188,9 +191,12 @@ impl Resolver {
         path: r.path().to_path_buf().assert_utf8(),
         query: r.query().unwrap_or_default().to_string(),
         fragment: r.fragment().unwrap_or_default().to_string(),
-        description_data: r
-          .package_json()
-          .map(|d| DescriptionData::new(d.directory().to_path_buf(), Arc::clone(d.raw_json()))),
+        description_data: r.package_json().map(|d| {
+          DescriptionData::new(
+            d.directory().to_path_buf().assert_utf8(),
+            Arc::clone(d.raw_json()),
+          )
+        }),
       })),
       Err(rspack_resolver::ResolveError::Ignored(_)) => Ok(ResolveResult::Ignored),
       Err(error) => Err(ResolveInnerError::RspackResolver(error)),

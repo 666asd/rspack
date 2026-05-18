@@ -3,6 +3,7 @@ use std::sync::Arc;
 use rspack_error::{Diagnostic, Result};
 use rspack_fs::ReadableFileSystem;
 use rspack_loader_runner::{Content, LoaderContext, LoaderRunnerPlugin, ResourceData};
+use rspack_paths::Utf8PathBuf;
 use rspack_sources::SourceMap;
 use rustc_hash::FxHashSet as HashSet;
 
@@ -34,7 +35,7 @@ impl LoaderRunnerPlugin for RspackLoaderRunnerPlugin {
     &self,
     resource_data: &ResourceData,
     fs: Arc<dyn ReadableFileSystem>,
-  ) -> Result<Option<(Content, Option<SourceMap>, HashSet<std::path::PathBuf>)>> {
+  ) -> Result<Option<(Content, Option<SourceMap>, HashSet<Utf8PathBuf>)>> {
     // First try the plugin's read_resource hook
     let result = self
       .plugin_driver

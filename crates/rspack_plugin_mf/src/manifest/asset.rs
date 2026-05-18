@@ -1,5 +1,4 @@
-use std::path::Path;
-
+use camino::Utf8Path;
 use rspack_core::{BoxModule, Compilation, ModuleGraph, ModuleIdentifier, NormalModule};
 use rspack_util::fx_hash::FxHashSet as HashSet;
 
@@ -192,10 +191,10 @@ pub fn module_source_path(module: &BoxModule, compilation: &Compilation) -> Opti
     && let Some(path) = normal_module.resource_resolved_data().path()
   {
     let context_path = compilation.options.context.as_path();
-    let relative = Path::new(path.as_str())
+    let relative = Utf8Path::new(path.as_str())
       .strip_prefix(context_path)
-      .unwrap_or_else(|_| Path::new(path.as_str()));
-    let mut display = relative.to_string_lossy().into_owned();
+      .unwrap_or_else(|_| Utf8Path::new(path.as_str()));
+    let mut display = relative.as_str().to_owned();
     if display.is_empty() {
       display = path.as_str().to_string();
     }

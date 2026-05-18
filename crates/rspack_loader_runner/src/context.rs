@@ -1,8 +1,8 @@
-use std::{path::PathBuf, sync::Arc};
+use std::sync::Arc;
 
 use derive_more::Debug;
 use rspack_error::Diagnostic;
-use rspack_paths::Utf8Path;
+use rspack_paths::{Utf8Path, Utf8PathBuf};
 use rspack_sources::SourceMap;
 use rustc_hash::FxHashSet as HashSet;
 
@@ -46,10 +46,10 @@ pub struct LoaderContext<Context: Send> {
   pub(crate) additional_data: Option<AdditionalData>,
 
   pub cacheable: bool,
-  pub file_dependencies: HashSet<PathBuf>,
-  pub context_dependencies: HashSet<PathBuf>,
-  pub missing_dependencies: HashSet<PathBuf>,
-  pub build_dependencies: HashSet<PathBuf>,
+  pub file_dependencies: HashSet<Utf8PathBuf>,
+  pub context_dependencies: HashSet<Utf8PathBuf>,
+  pub missing_dependencies: HashSet<Utf8PathBuf>,
+  pub build_dependencies: HashSet<Utf8PathBuf>,
 
   pub diagnostics: Vec<Diagnostic>,
 

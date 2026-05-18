@@ -2,14 +2,14 @@ use std::{
   borrow::Cow,
   cell::OnceCell,
   hash::{Hash, Hasher},
-  path::Path,
 };
 
 use cow_utils::CowUtils;
+use pathdiff::diff_utf8_paths;
 use rspack_core::{ChunkGraph, Compilation, OutputOptions, contextify};
 use rspack_error::Result;
 use rspack_hash::RspackHash;
-use rspack_paths::Utf8Path;
+use rspack_paths::{AssertUtf8, Utf8Path};
 use rustc_hash::FxHashMap as HashMap;
 use sugar_path::SugarPath;
 
@@ -61,19 +61,16 @@ fn resolve_relative_resource_path(
     return Some(
       absolute_resource_path
         .normalize()
-        .to_string_lossy()
+        .as_ref()
+        .assert_utf8()
+        .as_str()
         .cow_replace("\\", "/")
         .to_string(),
     );
   };
 
-  Some(
-    Path::new(absolute_resource_path)
-      .relative(parent)
-      .to_string_lossy()
-      .cow_replace("\\", "/")
-      .to_string(),
-  )
+  diff_utf8_paths(Utf8Path::new(absolute_resource_path), parent)
+    .map(|path| path.as_str().cow_replace("\\", "/").to_string())
 }
 
 impl ModuleFilenameHelpers {

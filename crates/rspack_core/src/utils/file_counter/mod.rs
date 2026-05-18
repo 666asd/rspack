@@ -76,12 +76,12 @@ impl FileCounter {
   pub fn remove_files(&mut self, resource_id: &ResourceId, paths: &ArcPathSet) {
     for path in paths {
       let Some(list) = self.inner.get_mut(path) else {
-        panic!("unable to remove untracked file {}", path.to_string_lossy());
+        panic!("unable to remove untracked file {}", path.as_str());
       };
       if !list.remove(resource_id) {
         panic!(
           "unable to remove path '{}' with resource_id '{:?}', it has not been added.",
-          path.to_string_lossy(),
+          path.as_str(),
           resource_id,
         )
       }

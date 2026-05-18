@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use rspack_fs::ReadableFileSystem;
-use rspack_paths::{ArcPath, ArcPathDashMap, AssertUtf8};
+use rspack_paths::{ArcPath, ArcPathDashMap};
 
 /// A helper for finding package.json versions in directory hierarchies.
 #[derive(Debug)]
@@ -27,7 +27,7 @@ impl PackageHelper {
     }
 
     let mut res = None;
-    if let Ok(content) = self.fs.read(&path.join("package.json").assert_utf8()).await
+    if let Ok(content) = self.fs.read(&path.join("package.json")).await
       && let Ok(mut package_json) =
         serde_json::from_slice::<serde_json::Map<String, serde_json::Value>>(&content)
       && let Some(serde_json::Value::String(version)) = package_json.remove("version")

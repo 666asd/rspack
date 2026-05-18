@@ -1,8 +1,8 @@
-use std::{fmt::Debug, ops::Deref, path::PathBuf, time::SystemTime};
+use std::{fmt::Debug, ops::Deref, time::SystemTime};
 
 use dashmap::setref::multiple::RefMulti;
 use rspack_error::Result;
-use rspack_paths::{ArcPath, ArcPathDashMap, ArcPathDashSet};
+use rspack_paths::{ArcPath, ArcPathDashMap, ArcPathDashSet, AssertUtf8, Utf8PathBuf};
 
 use super::FsWatcherIgnored;
 
@@ -92,7 +92,7 @@ impl<'a> PathAccessor<'a> {
 struct PathUpdater {
   pub added: Vec<ArcPath>,
   pub removed: Vec<ArcPath>,
-  base_dir: PathBuf,
+  base_dir: Utf8PathBuf,
 }
 
 impl<Added, Removed> From<(Added, Removed)> for PathUpdater
@@ -104,7 +104,9 @@ where
     Self {
       added: added.collect(),
       removed: removed.collect(),
-      base_dir: std::env::current_dir().unwrap_or_default(),
+      base_dir: std::env::current_dir()
+        .map(AssertUtf8::assert_utf8)
+        .unwrap_or_default(),
     }
   }
 }
@@ -116,7 +118,7 @@ impl PathUpdater {
     let removed_paths = self.removed;
 
     for added in added_paths {
-      if ignored.should_be_ignored(added.to_str().expect("Path should be valid UTF-8")) {
+      if ignored.should_be_ignored(added.as_str()) {
         continue; // Skip ignored paths
       }
 
@@ -125,7 +127,7 @@ impl PathUpdater {
         continue;
       }
 
-      let added_absolute_path = self.base_dir.join(added.as_ref());
+      let added_absolute_path = self.base_dir.join(added.as_path());
 
       watch_tracker.add(ArcPath::from(added_absolute_path));
     }
@@ -136,7 +138,7 @@ impl PathUpdater {
         continue;
       }
 
-      let removed_absolute_path = self.base_dir.join(removed.as_ref());
+      let removed_absolute_path = self.base_dir.join(removed.as_path());
 
       watch_tracker.remove(ArcPath::from(removed_absolute_path));
     }
@@ -298,11 +300,7 @@ mod tests {
     let all = path_tracker.all;
 
     assert_eq!(all.len(), 1);
-    assert!(
-      all
-        .iter()
-        .any(|p| p.to_string_lossy().contains("src/index.js"))
-    )
+    assert!(all.iter().any(|p| p.as_str().contains("src/index.js")))
   }
 
   #[test]
@@ -328,7 +326,7 @@ mod tests {
     let mut all_paths = vec![];
 
     for path in accessor.all() {
-      all_paths.push(path.to_string_lossy().to_string());
+      all_paths.push(path.as_str().to_owned());
     }
 
     all_paths.sort();
@@ -371,7 +369,7 @@ mod tests {
     let accessor = path_manager.access();
     let mut all_paths = accessor
       .all()
-      .map(|p| p.to_string_lossy().to_string())
+      .map(|p| p.as_str().to_owned())
       .collect::<Vec<_>>();
 
     all_paths.sort();

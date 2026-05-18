@@ -180,7 +180,7 @@ fn create_known_private_properties(env: &Env, properties: &mut Vec<Property>) ->
               .build_info()
               .file_dependencies
               .iter()
-              .map(|dependency| env_ref.create_string(dependency.to_string_lossy().as_ref()))
+              .map(|dependency| env_ref.create_string(dependency.as_str()))
               .collect::<napi::Result<Vec<JsString>>>()
           });
           unsafe { ToNapiValue::to_napi_value(env.raw(), result) }
@@ -204,7 +204,7 @@ fn create_known_private_properties(env: &Env, properties: &mut Vec<Property>) ->
               .build_info()
               .context_dependencies
               .iter()
-              .map(|dependency| env_ref.create_string(dependency.to_string_lossy().as_ref()))
+              .map(|dependency| env_ref.create_string(dependency.as_str()))
               .collect::<napi::Result<Vec<JsString>>>()
           });
           unsafe { ToNapiValue::to_napi_value(env.raw(), result) }
@@ -228,7 +228,7 @@ fn create_known_private_properties(env: &Env, properties: &mut Vec<Property>) ->
               .build_info()
               .missing_dependencies
               .iter()
-              .map(|dependency| env_ref.create_string(dependency.to_string_lossy().as_ref()))
+              .map(|dependency| env_ref.create_string(dependency.as_str()))
               .collect::<napi::Result<Vec<JsString>>>()
           });
           unsafe { ToNapiValue::to_napi_value(env.raw(), result) }
@@ -252,7 +252,7 @@ fn create_known_private_properties(env: &Env, properties: &mut Vec<Property>) ->
               .build_info()
               .build_dependencies
               .iter()
-              .map(|dependency| env_ref.create_string(dependency.to_string_lossy().as_ref()))
+              .map(|dependency| env_ref.create_string(dependency.as_str()))
               .collect::<napi::Result<Vec<JsString>>>()
           });
           unsafe { ToNapiValue::to_napi_value(env.raw(), result) }

@@ -697,22 +697,22 @@ impl JsCompilation {
           file_dependencies: res
             .file_dependencies
             .into_iter()
-            .map(|d| d.to_string_lossy().to_string())
+            .map(|d| d.as_str().to_string())
             .collect(),
           context_dependencies: res
             .context_dependencies
             .into_iter()
-            .map(|d| d.to_string_lossy().to_string())
+            .map(|d| d.as_str().to_string())
             .collect(),
           build_dependencies: res
             .build_dependencies
             .into_iter()
-            .map(|d| d.to_string_lossy().to_string())
+            .map(|d| d.as_str().to_string())
             .collect(),
           missing_dependencies: res
             .missing_dependencies
             .into_iter()
-            .map(|d| d.to_string_lossy().to_string())
+            .map(|d| d.as_str().to_string())
             .collect(),
           id: res.id,
           error: res.error,

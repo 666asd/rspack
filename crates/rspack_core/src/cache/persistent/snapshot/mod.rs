@@ -47,11 +47,11 @@ impl Snapshot {
     path: &ArcPath,
     scope: SnapshotScope,
   ) -> Option<Strategy> {
-    let path_str = path.to_string_lossy();
-    if options.is_immutable_path(&path_str) {
+    let path_str = path.as_str();
+    if options.is_immutable_path(path_str) {
       return None;
     }
-    if options.is_managed_path(&path_str)
+    if options.is_managed_path(path_str)
       && let Some(v) = helper.package_version(path).await
     {
       return Some(v);

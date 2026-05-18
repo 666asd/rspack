@@ -157,22 +157,22 @@ impl TryFrom<&mut LoaderContext<RunnerContext>> for JsLoaderContext {
       file_dependencies: cx
         .file_dependencies
         .iter()
-        .map(|i| i.to_string_lossy().to_string())
+        .map(|i| i.as_str().to_string())
         .collect(),
       context_dependencies: cx
         .context_dependencies
         .iter()
-        .map(|i| i.to_string_lossy().to_string())
+        .map(|i| i.as_str().to_string())
         .collect(),
       missing_dependencies: cx
         .missing_dependencies
         .iter()
-        .map(|i| i.to_string_lossy().to_string())
+        .map(|i| i.as_str().to_string())
         .collect(),
       build_dependencies: cx
         .build_dependencies
         .iter()
-        .map(|i| i.to_string_lossy().to_string())
+        .map(|i| i.as_str().to_string())
         .collect(),
 
       loader_items: cx.loader_items.iter().map(Into::into).collect(),

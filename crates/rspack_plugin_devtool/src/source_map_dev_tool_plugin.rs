@@ -1,7 +1,6 @@
 use std::{
   borrow::Cow,
   hash::Hasher,
-  path::{Component, Path, PathBuf},
   sync::{Arc, LazyLock},
 };
 
@@ -9,6 +8,7 @@ use cow_utils::CowUtils;
 use derive_more::Debug;
 use futures::future::BoxFuture;
 use itertools::Itertools;
+use pathdiff::diff_utf8_paths;
 use regex::Regex;
 use rspack_core::{
   AssetInfo, Chunk, ChunkUkey, Compilation, CompilationAsset, CompilationProcessAssets, Filename,
@@ -29,7 +29,6 @@ use rspack_util::{
   node_path::NodePath,
 };
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
-use sugar_path::SugarPath;
 use thread_local::ThreadLocal;
 use url::Url;
 
@@ -367,10 +366,9 @@ impl SourceMapDevToolPlugin {
       Some(template) => {
         let filename = match &self.file_context {
           Some(file_context) => Cow::Owned(
-            Path::new(asset_filename)
-              .relative(Path::new(file_context))
-              .to_string_lossy()
-              .to_string(),
+            diff_utf8_paths(Utf8Path::new(asset_filename), Utf8Path::new(file_context))
+              .expect("asset filename should be diffable against file_context")
+              .into_string(),
           ),
           None => Cow::Borrowed(asset_filename),
         };
@@ -889,10 +887,12 @@ impl SourceMapDevToolPlugin {
       let chunk = file_to_chunk.get(asset_filename.as_ref());
       let filename = match &plugin.file_context {
         Some(file_context) => Cow::Owned(
-          Path::new(asset_filename.as_ref())
-            .relative(Path::new(file_context))
-            .to_string_lossy()
-            .to_string(),
+          diff_utf8_paths(
+            Utf8Path::new(asset_filename.as_ref()),
+            Utf8Path::new(file_context),
+          )
+          .expect("asset filename should be diffable against file_context")
+          .into_string(),
         ),
         None => Cow::Borrowed(asset_filename.as_ref()),
       };
@@ -927,21 +927,16 @@ impl SourceMapDevToolPlugin {
         let source_map_url = if let Some(public_path) = &plugin.public_path {
           format!("{public_path}{source_map_filename}")
         } else {
-          let mut file_path = PathBuf::new();
-          file_path.push(Component::RootDir);
-          file_path.extend(Path::new(filename.as_ref()).components());
+          let file_path = Utf8Path::new("/").join(filename.as_ref());
+          let source_map_path = Utf8Path::new("/").join(&source_map_filename);
 
-          let mut source_map_path = PathBuf::new();
-          source_map_path.push(Component::RootDir);
-          source_map_path.extend(Path::new(&source_map_filename).components());
-
-          source_map_path
-            .relative(
-              #[allow(clippy::unwrap_used)]
-              file_path.parent().unwrap(),
-            )
-            .to_string_lossy()
-            .to_string()
+          diff_utf8_paths(
+            &source_map_path,
+            #[allow(clippy::unwrap_used)]
+            file_path.parent().unwrap(),
+          )
+          .expect("source map filename should be diffable against asset filename")
+          .into_string()
         };
         let data = data.url(&source_map_url);
         let current_source_mapping_url_comment = match &current_source_mapping_url_comment {

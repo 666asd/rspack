@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use rspack_error::Result;
 use rspack_fs::ReadableFileSystem;
+use rspack_paths::Utf8PathBuf;
 use rspack_sources::SourceMap;
 use rustc_hash::FxHashSet as HashSet;
 
@@ -34,5 +35,5 @@ pub trait LoaderRunnerPlugin: Send + Sync {
     &self,
     resource_data: &ResourceData,
     fs: Arc<dyn ReadableFileSystem>,
-  ) -> Result<Option<(Content, Option<SourceMap>, HashSet<std::path::PathBuf>)>>;
+  ) -> Result<Option<(Content, Option<SourceMap>, HashSet<Utf8PathBuf>)>>;
 }

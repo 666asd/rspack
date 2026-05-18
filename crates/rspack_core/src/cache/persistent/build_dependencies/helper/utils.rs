@@ -1,15 +1,14 @@
-use std::path::{Component, Path};
+use rspack_paths::{Utf8Component, Utf8Path};
 
 /// Check if a path is a node package path.
-pub fn is_node_package_path(path: &Path) -> bool {
+pub fn is_node_package_path(path: &Utf8Path) -> bool {
   let mut result = false;
   for comp in path.components() {
-    if let Component::Normal(os_str) = comp {
-      let comp_str = os_str.to_string_lossy();
-      if comp_str == "node_modules" {
+    if let Utf8Component::Normal(comp) = comp {
+      if comp == "node_modules" {
         result = true;
       }
-      if comp_str.starts_with('.') {
+      if comp.starts_with('.') {
         result = false;
       }
     }
@@ -19,15 +18,12 @@ pub fn is_node_package_path(path: &Path) -> bool {
 
 #[cfg(test)]
 mod test {
-  use std::path::PathBuf;
-
-  use rspack_paths::ArcPath;
+  use rspack_paths::{ArcPath, Utf8PathBuf};
 
   use super::is_node_package_path;
 
   fn generate_arc_path(path: &str) -> ArcPath {
-    let path_buf = PathBuf::from(path);
-    ArcPath::from(path_buf)
+    ArcPath::from(Utf8PathBuf::from(path))
   }
 
   #[test]

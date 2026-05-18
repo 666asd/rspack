@@ -5,7 +5,7 @@ use std::sync::Arc;
 
 use rspack_cacheable::cacheable;
 use rspack_fs::ReadableFileSystem;
-use rspack_paths::{ArcPath, AssertUtf8};
+use rspack_paths::ArcPath;
 
 use self::{
   hash_helper::{ContentHash, HashHelper},
@@ -89,7 +89,7 @@ impl StrategyHelper {
 
   /// get path file modified time
   async fn modified_time(&self, path: &ArcPath) -> Option<u64> {
-    if let Ok(info) = self.fs.metadata(path.assert_utf8()).await {
+    if let Ok(info) = self.fs.metadata(path.as_path()).await {
       // return the larger of ctime and mtime
       if info.ctime_ms > info.mtime_ms {
         Some(info.ctime_ms)

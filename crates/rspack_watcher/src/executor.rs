@@ -137,7 +137,7 @@ impl Executor {
       let future = async move {
         while let Some(events) = rx.lock().await.recv().await {
           for event in &events {
-            let path = event.path.to_string_lossy().to_string();
+            let path = event.path.as_str().to_owned();
             match event.kind {
               FsEventKind::Change => {
                 files_data.lock().await.changed.insert(path);
@@ -212,7 +212,7 @@ fn create_execute_task(
         ExecEvent::Execute(batch_events) => {
           for event in batch_events {
             // Handle each event based on its kind
-            let path = event.path.to_string_lossy().to_string();
+            let path = event.path.as_str().to_owned();
             match event.kind {
               super::FsEventKind::Change | super::FsEventKind::Create => {
                 if event_handler.on_change(path).is_err() {

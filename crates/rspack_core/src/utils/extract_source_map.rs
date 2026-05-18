@@ -3,14 +3,14 @@
   Author Natsu @xiaoxiaojx
 */
 
-use std::{borrow::Cow, path::PathBuf, sync::Arc};
+use std::{borrow::Cow, sync::Arc};
 
 use cow_utils::CowUtils;
 use futures::stream::{FuturesOrdered, StreamExt};
 use once_cell::sync::Lazy;
 use regex::Regex;
 use rspack_fs::ReadableFileSystem;
-use rspack_paths::{AssertUtf8, Utf8Path, Utf8PathBuf};
+use rspack_paths::{Utf8Path, Utf8PathBuf};
 use rspack_sources::SourceMap;
 use rspack_util::{base64, node_path::NodePath};
 use rustc_hash::FxHashSet;
@@ -20,7 +20,7 @@ use rustc_hash::FxHashSet;
 pub struct ExtractSourceMapResult {
   pub source: String,
   pub source_map: Option<SourceMap>,
-  pub file_dependencies: Option<FxHashSet<PathBuf>>,
+  pub file_dependencies: Option<FxHashSet<Utf8PathBuf>>,
 }
 
 /// Source mapping URL information
@@ -136,8 +136,7 @@ async fn fetch_from_filesystem(
     return Ok((source_url.to_string(), None));
   }
 
-  let path = PathBuf::from(source_url);
-  fs.read_to_string(&path.assert_utf8())
+  fs.read_to_string(Utf8Path::new(source_url))
     .await
     .map(|content| (source_url.to_string(), Some(content)))
     .map_err(|err| format!("Failed to parse source map from '{source_url}' file: {err}"))
@@ -195,7 +194,7 @@ async fn fetch_from_url(
     if url.starts_with("file:") {
       // Handle file:// URLs
       let path_from_url = url.strip_prefix("file://").unwrap_or(url);
-      let source_url = PathBuf::from(path_from_url).to_string_lossy().into_owned();
+      let source_url = Utf8PathBuf::from(path_from_url).into_string();
       return fetch_from_filesystem(fs, &source_url).await;
     }
 
@@ -278,7 +277,7 @@ pub async fn extract_source_map(
           None
         } else {
           let mut set = FxHashSet::default();
-          set.insert(PathBuf::from(source_url));
+          set.insert(Utf8PathBuf::from(source_url));
           Some(set)
         },
       });
@@ -300,7 +299,7 @@ pub async fn extract_source_map(
     None
   } else {
     let mut set = FxHashSet::default();
-    set.insert(PathBuf::from(&source_url));
+    set.insert(Utf8PathBuf::from(&source_url));
     Some(set)
   };
 
@@ -342,10 +341,10 @@ pub async fn extract_source_map(
 
     if !skip_reading && !source_url_result.is_empty() && !is_url(&source_url_result) {
       if let Some(ref mut deps) = file_dependencies {
-        deps.insert(PathBuf::from(&source_url_result));
+        deps.insert(Utf8PathBuf::from(&source_url_result));
       } else {
         let mut set = FxHashSet::default();
-        set.insert(PathBuf::from(&source_url_result));
+        set.insert(Utf8PathBuf::from(&source_url_result));
         file_dependencies = Some(set);
       }
     }

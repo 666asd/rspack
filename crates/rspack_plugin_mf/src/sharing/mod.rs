@@ -1,7 +1,4 @@
-use std::{
-  path::{Path, PathBuf},
-  sync::Arc,
-};
+use std::sync::Arc;
 
 use camino::{Utf8Path, Utf8PathBuf};
 use rspack_fs::ReadableFileSystem;
@@ -26,11 +23,11 @@ pub mod shared_used_exports_optimizer_runtime_module;
 
 const DESCRIPTION_FILE_NAME: &str = "package.json";
 
-fn is_node_modules_dir(dir: &Path) -> bool {
+fn is_node_modules_dir(dir: &Utf8Path) -> bool {
   dir.file_name().is_some_and(|name| name == "node_modules")
 }
 
-fn collect_description_file_paths(mut dir: &Path) -> Vec<PathBuf> {
+fn collect_description_file_paths(mut dir: &Utf8Path) -> Vec<Utf8PathBuf> {
   let mut description_file_paths = Vec::new();
 
   loop {
@@ -51,8 +48,8 @@ fn collect_description_file_paths(mut dir: &Path) -> Vec<PathBuf> {
 }
 
 fn find_ancestor_description_data<T>(
-  start_dir: &Path,
-  mut matcher: impl FnMut(&Path, &serde_json::Value) -> Option<T>,
+  start_dir: &Utf8Path,
+  mut matcher: impl FnMut(&Utf8Path, &serde_json::Value) -> Option<T>,
 ) -> Option<T> {
   for description_file in collect_description_file_paths(start_dir) {
     if let Ok(data) = std::fs::read(&description_file)
@@ -74,9 +71,7 @@ async fn get_description_file(
 ) -> (Option<serde_json::Value>, Option<Vec<String>>) {
   let mut checked_file_paths = FxHashSet::default();
 
-  for description_file in collect_description_file_paths(dir.as_std_path()) {
-    let description_file = Utf8PathBuf::from_path_buf(description_file)
-      .expect("description file path should remain utf8");
+  for description_file in collect_description_file_paths(dir) {
     let data = fs.read(&description_file).await;
 
     if let Ok(data) = data
