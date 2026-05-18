@@ -13,7 +13,6 @@ derive_more              = { workspace = true, features = ["debug"] }
 futures                  = { workspace = true }
 itertools                = { workspace = true }
 memchr                   = { workspace = true }
-pathdiff                 = { workspace = true, features = ["camino"] }
 regex                    = { workspace = true }
 rspack_collections       = { workspace = true }
 rspack_core              = { workspace = true }

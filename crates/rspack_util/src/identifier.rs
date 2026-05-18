@@ -1,10 +1,14 @@
-use std::{borrow::Cow, sync::LazyLock};
+use std::{
+  borrow::Cow,
+  path::{Path, PathBuf},
+  sync::LazyLock,
+};
 
 use concat_string::concat_string;
 use cow_utils::CowUtils;
-use pathdiff::diff_utf8_paths;
 use regex::Regex;
-use rspack_paths::{Utf8Path, Utf8PathBuf};
+use rspack_paths::AssertUtf8;
+use sugar_path::SugarPath;
 
 static SEGMENTS_SPLIT_REGEXP: LazyLock<Regex> =
   LazyLock::new(|| Regex::new(r"([|!])").expect("should be a valid regex"));
@@ -103,12 +107,9 @@ pub fn push_absolute_to_request(context: &str, maybe_absolute_path: &str, out: &
 
   if maybe_absolute_path.starts_with('/') {
     let (maybe_absolute_resource, query_part) = split_at_query_mark(maybe_absolute_path);
-    let tmp = diff_utf8_paths(
-      Utf8Path::new(maybe_absolute_resource),
-      Utf8Path::new(context),
-    )
-    .expect("absolute path should be diffable against context");
-    push_relative_path_to_request(tmp.as_str(), out);
+    let tmp = Path::new(maybe_absolute_resource).relative(context);
+    let tmp_path = tmp.assert_utf8().into_string();
+    push_relative_path_to_request(tmp_path.as_str(), out);
     if let Some(query_part) = query_part {
       out.push_str(query_part);
     }
@@ -117,19 +118,15 @@ pub fn push_absolute_to_request(context: &str, maybe_absolute_path: &str, out: &
 
   if is_windows_absolute_path(maybe_absolute_path) {
     let (maybe_absolute_resource, query_part) = split_at_query_mark(maybe_absolute_path);
-    let relative_resource = diff_utf8_paths(
-      Utf8Path::new(maybe_absolute_resource),
-      Utf8Path::new(context),
-    )
-    .expect("absolute path should be diffable against context");
-    let resource = relative_resource.as_str();
+    let relative_resource = maybe_absolute_resource.as_path().relative(context);
+    let resource = relative_resource.assert_utf8().into_string();
 
     // In windows, A path that relative to a another path could still be absolute.
     // ("d:/aaaa/cccc").relative("c:/aaaaa/") would get "d:/aaaa/cccc".
-    if is_windows_absolute_path(resource) {
-      out.push_str(resource);
+    if is_windows_absolute_path(resource.as_str()) {
+      out.push_str(resource.as_str());
     } else {
-      let resource = resource.cow_replace(WINDOWS_PATH_SEPARATOR, "/");
+      let resource = resource.as_str().cow_replace(WINDOWS_PATH_SEPARATOR, "/");
       push_relative_path_to_request(resource.as_ref(), out);
     }
 
@@ -151,9 +148,12 @@ fn request_to_absolute(context: &str, relative_path: &str) -> String {
     } else {
       relative_path
     };
-    Utf8Path::new(context).join(relative_path).into_string()
+    Path::new(context)
+      .join(relative_path)
+      .assert_utf8()
+      .into_string()
   } else {
-    Utf8PathBuf::from(relative_path).into_string()
+    PathBuf::from(relative_path).assert_utf8().into_string()
   }
 }
 

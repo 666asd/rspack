@@ -20,7 +20,6 @@ indexmap         = { workspace = true }
 itoa             = { workspace = true }
 json-escape-simd = { workspace = true }
 memchr           = { workspace = true }
-pathdiff         = { workspace = true, features = ["camino"] }
 regex            = { workspace = true, features = ["pattern"] }
 rspack_cacheable = { workspace = true }
 rspack_paths     = { workspace = true }
@@ -28,6 +27,7 @@ rustc-hash       = { workspace = true }
 ryu-js           = { workspace = true }
 serde            = { workspace = true }
 serde_json       = { workspace = true }
+sugar_path       = { workspace = true }
 unicase          = { workspace = true }
 
 swc_config = { workspace = true }
