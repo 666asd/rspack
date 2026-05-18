@@ -262,6 +262,7 @@ mod test {
   use rspack_collections::Identifier;
   use rspack_error::Result;
   use rspack_fs::{NativeFileSystem, ReadableFileSystem};
+  use rspack_paths::Utf8PathBuf;
   use rspack_sources::SourceMap;
   use rustc_hash::FxHashSet as HashSet;
 
