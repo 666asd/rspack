@@ -5304,7 +5304,6 @@ dependencies = [
  "serde",
  "serde_json",
  "signal-hook",
- "sugar_path",
  "swc_config",
  "swc_core",
  "swc_plugin_runner",
