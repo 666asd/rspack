@@ -145,12 +145,12 @@ impl Resolver {
   ) -> Result<ResolveResult, ResolveInnerError> {
     match self.resolver.resolve(path, request).await {
       Ok(r) => Ok(ResolveResult::Resource(Resource {
-        path: r.path().to_path_buf().assert_utf8(),
+        path: r.path().assert_utf8().to_path_buf(),
         query: r.query().unwrap_or_default().to_string(),
         fragment: r.fragment().unwrap_or_default().to_string(),
         description_data: r.package_json().map(|d| {
           DescriptionData::new(
-            d.directory().to_path_buf().assert_utf8(),
+            d.directory().assert_utf8().to_path_buf(),
             Arc::clone(d.raw_json()),
           )
         }),
@@ -188,12 +188,12 @@ impl Resolver {
     };
     let result = match result {
       Ok(r) => Ok(ResolveResult::Resource(Resource {
-        path: r.path().to_path_buf().assert_utf8(),
+        path: r.path().assert_utf8().to_path_buf(),
         query: r.query().unwrap_or_default().to_string(),
         fragment: r.fragment().unwrap_or_default().to_string(),
         description_data: r.package_json().map(|d| {
           DescriptionData::new(
-            d.directory().to_path_buf().assert_utf8(),
+            d.directory().assert_utf8().to_path_buf(),
             Arc::clone(d.raw_json()),
           )
         }),
