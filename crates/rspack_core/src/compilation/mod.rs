@@ -473,6 +473,12 @@ impl Compilation {
     impl Iterator<Item = &ArcPath>,
     impl Iterator<Item = &ArcPath>,
   ) {
+    // `added_files` chains `updated_files` so consumers that need to learn about
+    // every still-tracked path (e.g. the native watcher's incremental update
+    // protocol) also see paths that went through a remove+add cycle in this
+    // build — for example, a lazy-compiled module whose owning dependency was
+    // revoked and re-factorized. Without this, the native watcher would have
+    // missed registering such paths and silently drop later FSEvents on them.
     let all_files = self
       .build_module_graph_artifact
       .file_dependencies
@@ -482,6 +488,12 @@ impl Compilation {
       .build_module_graph_artifact
       .file_dependencies
       .added_files()
+      .chain(
+        self
+          .build_module_graph_artifact
+          .file_dependencies
+          .updated_files(),
+      )
       .chain(&self.file_dependencies);
     let updated_files = self
       .build_module_graph_artifact
@@ -511,7 +523,13 @@ impl Compilation {
       .build_module_graph_artifact
       .context_dependencies
       .added_files()
-      .chain(&self.file_dependencies);
+      .chain(
+        self
+          .build_module_graph_artifact
+          .context_dependencies
+          .updated_files(),
+      )
+      .chain(&self.context_dependencies);
     let updated_files = self
       .build_module_graph_artifact
       .context_dependencies
@@ -540,7 +558,13 @@ impl Compilation {
       .build_module_graph_artifact
       .missing_dependencies
       .added_files()
-      .chain(&self.file_dependencies);
+      .chain(
+        self
+          .build_module_graph_artifact
+          .missing_dependencies
+          .updated_files(),
+      )
+      .chain(&self.missing_dependencies);
     let updated_files = self
       .build_module_graph_artifact
       .missing_dependencies
@@ -569,7 +593,13 @@ impl Compilation {
       .build_module_graph_artifact
       .build_dependencies
       .added_files()
-      .chain(&self.file_dependencies);
+      .chain(
+        self
+          .build_module_graph_artifact
+          .build_dependencies
+          .updated_files(),
+      )
+      .chain(&self.build_dependencies);
     let updated_files = self
       .build_module_graph_artifact
       .build_dependencies

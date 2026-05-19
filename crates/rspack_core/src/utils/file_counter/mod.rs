@@ -242,6 +242,39 @@ mod test {
   }
 
   #[test]
+  fn file_counter_remove_then_add_in_same_window_marks_as_updated() {
+    // Models the lazy-compilation rebuild cycle: a parent dep is revoked
+    // (remove) and then re-factorized (add) within the same incremental
+    // window, with the same path now also referenced by the newly created
+    // lazy dependency. `added_files()` is intentionally empty (it lists
+    // truly-new paths only); consumers that need every still-tracked path
+    // must read `updated_files()` and merge — see issue #12904.
+    let mut counter = FileCounter::default();
+    let file = ArcPath::from(std::path::PathBuf::from("/a"));
+    let file_list = {
+      let mut list = ArcPathSet::default();
+      list.insert(file.clone());
+      list
+    };
+    let parent_dep = ResourceId::Dependency(DependencyId::from(1));
+    let lazy_dep = ResourceId::Dependency(DependencyId::from(2));
+
+    // Initial: add via parent dep, then commit so subsequent ops show the cycle.
+    counter.add_files(&parent_dep, &file_list);
+    counter.reset_incremental_info();
+
+    // Rebuild: revoke parent dep (path leaves the counter), then re-factorize
+    // (path returns under a new resource id).
+    counter.remove_files(&parent_dep, &file_list);
+    counter.add_files(&lazy_dep, &file_list);
+
+    assert_eq!(counter.added_files().count(), 0);
+    assert_eq!(counter.removed_files().count(), 0);
+    assert_eq!(counter.updated_files().count(), 1);
+    assert_eq!(counter.updated_files().next().unwrap(), &file);
+  }
+
+  #[test]
   fn file_counter_tracks_modules_and_dependencies_separately() {
     let mut counter = FileCounter::default();
     let file = ArcPath::from(std::path::PathBuf::from("/a"));
