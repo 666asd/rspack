@@ -32,6 +32,7 @@ impl<'a> FlagDependencyExportsState<'a> {
   }
 
   pub fn apply(&mut self, modules: IdentifierSet) {
+    let use_parallel = rayon::current_num_threads() > 1;
     // initialize the exports info data and their provided info for all modules
     for module_id in &modules {
       let exports_type_unset = self
@@ -70,19 +71,35 @@ impl<'a> FlagDependencyExportsState<'a> {
       let modules = std::mem::take(&mut batch);
 
       // collect the exports specs from modules by calling `dependency.get_exports`
-      let module_exports_specs = modules
-        .into_par_iter()
-        .map(|module_id| {
-          let exports_specs = collect_module_exports_specs(
-            &module_id,
-            self.mg,
-            self.mg_cache,
-            self.exports_info_artifact,
-          )
-          .unwrap_or_default();
-          (module_id, exports_specs)
-        })
-        .collect::<Vec<_>>();
+      let module_exports_specs = if use_parallel && modules.len() > 32 {
+        modules
+          .into_par_iter()
+          .map(|module_id| {
+            let exports_specs = collect_module_exports_specs(
+              &module_id,
+              self.mg,
+              self.mg_cache,
+              self.exports_info_artifact,
+            )
+            .unwrap_or_default();
+            (module_id, exports_specs)
+          })
+          .collect::<Vec<_>>()
+      } else {
+        modules
+          .into_iter()
+          .map(|module_id| {
+            let exports_specs = collect_module_exports_specs(
+              &module_id,
+              self.mg,
+              self.mg_cache,
+              self.exports_info_artifact,
+            )
+            .unwrap_or_default();
+            (module_id, exports_specs)
+          })
+          .collect::<Vec<_>>()
+      };
 
       let mut changed_modules =
         IdentifierSet::with_capacity_and_hasher(module_exports_specs.len(), Default::default());
@@ -107,30 +124,57 @@ impl<'a> FlagDependencyExportsState<'a> {
         });
 
       // parallelize the merging of exports specs to exports info data
-      let non_nested_tasks = non_nested_specs
-        .into_par_iter()
-        .map(|(module_id, (exports_specs, _))| {
-          let mut changed = false;
-          let mut exports_info = self
-            .exports_info_artifact
-            .get_exports_info_data(&module_id)
-            .clone();
-          let mut dependencies = Vec::with_capacity(exports_specs.len());
-          for (dep_id, exports_spec) in exports_specs {
-            let (is_changed, changed_dependencies) = process_exports_spec_without_nested(
-              self.mg,
-              self.exports_info_artifact,
-              &module_id,
-              dep_id,
-              &exports_spec,
-              &mut exports_info,
-            );
-            changed |= is_changed;
-            dependencies.extend(changed_dependencies);
-          }
-          (module_id, changed, dependencies, exports_info)
-        })
-        .collect::<Vec<_>>();
+      let non_nested_tasks = if use_parallel && non_nested_specs.len() > 32 {
+        non_nested_specs
+          .into_par_iter()
+          .map(|(module_id, (exports_specs, _))| {
+            let mut changed = false;
+            let mut exports_info = self
+              .exports_info_artifact
+              .get_exports_info_data(&module_id)
+              .clone();
+            let mut dependencies = Vec::with_capacity(exports_specs.len());
+            for (dep_id, exports_spec) in exports_specs {
+              let (is_changed, changed_dependencies) = process_exports_spec_without_nested(
+                self.mg,
+                self.exports_info_artifact,
+                &module_id,
+                dep_id,
+                &exports_spec,
+                &mut exports_info,
+              );
+              changed |= is_changed;
+              dependencies.extend(changed_dependencies);
+            }
+            (module_id, changed, dependencies, exports_info)
+          })
+          .collect::<Vec<_>>()
+      } else {
+        non_nested_specs
+          .into_iter()
+          .map(|(module_id, (exports_specs, _))| {
+            let mut changed = false;
+            let mut exports_info = self
+              .exports_info_artifact
+              .get_exports_info_data(&module_id)
+              .clone();
+            let mut dependencies = Vec::with_capacity(exports_specs.len());
+            for (dep_id, exports_spec) in exports_specs {
+              let (is_changed, changed_dependencies) = process_exports_spec_without_nested(
+                self.mg,
+                self.exports_info_artifact,
+                &module_id,
+                dep_id,
+                &exports_spec,
+                &mut exports_info,
+              );
+              changed |= is_changed;
+              dependencies.extend(changed_dependencies);
+            }
+            (module_id, changed, dependencies, exports_info)
+          })
+          .collect::<Vec<_>>()
+      };
 
       // handle collected side effects and apply the merged exports info data to module graph
       for (module_id, changed, changed_dependencies, exports_info) in non_nested_tasks {

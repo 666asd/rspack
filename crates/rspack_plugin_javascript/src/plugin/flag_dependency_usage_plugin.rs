@@ -57,6 +57,7 @@ impl<'a> FlagDependencyUsagePluginProxy<'a> {
   }
 
   async fn apply(&mut self) {
+    let use_parallel = rayon::current_num_threads() > 1;
     let side_effects_state_artifact = self
       .build_module_graph_artifact
       .side_effects_state_artifact
@@ -136,25 +137,47 @@ impl<'a> FlagDependencyUsagePluginProxy<'a> {
 
       // collect referenced exports from modules by calling `dependency.get_referenced_exports`
       // and also added referenced modules to queue for further processing
-      let batch_res = batch
-        .into_par_iter()
-        .map(|(block_id, runtime, force_side_effects)| {
-          let (referenced_exports, module_tasks) = self.process_module(
-            module_graph,
-            &side_effects_state_artifact,
-            block_id,
-            runtime.as_ref(),
-            force_side_effects,
-            self.global,
-          );
-          (
-            runtime,
-            force_side_effects,
-            referenced_exports,
-            module_tasks,
-          )
-        })
-        .collect::<Vec<_>>();
+      let batch_res = if use_parallel && batch.len() > 32 {
+        batch
+          .into_par_iter()
+          .map(|(block_id, runtime, force_side_effects)| {
+            let (referenced_exports, module_tasks) = self.process_module(
+              module_graph,
+              &side_effects_state_artifact,
+              block_id,
+              runtime.as_ref(),
+              force_side_effects,
+              self.global,
+            );
+            (
+              runtime,
+              force_side_effects,
+              referenced_exports,
+              module_tasks,
+            )
+          })
+          .collect::<Vec<_>>()
+      } else {
+        batch
+          .into_iter()
+          .map(|(block_id, runtime, force_side_effects)| {
+            let (referenced_exports, module_tasks) = self.process_module(
+              module_graph,
+              &side_effects_state_artifact,
+              block_id,
+              runtime.as_ref(),
+              force_side_effects,
+              self.global,
+            );
+            (
+              runtime,
+              force_side_effects,
+              referenced_exports,
+              module_tasks,
+            )
+          })
+          .collect::<Vec<_>>()
+      };
 
       let mut nested_tasks = vec![];
       let mut non_nested_tasks: IdentifierMap<Vec<NonNestedTask>> =
@@ -167,35 +190,67 @@ impl<'a> FlagDependencyUsagePluginProxy<'a> {
 
         let mg = self.build_module_graph_artifact.get_module_graph();
 
-        let collected = batch_res
-          .into_par_iter()
-          .map(
-            |(runtime, force_side_effects, referenced_exports, module_tasks)| {
-              let mut nested_tasks = Vec::with_capacity(referenced_exports.len());
-              let mut non_nested_tasks = Vec::with_capacity(referenced_exports.len());
-              for (module_id, exports) in referenced_exports {
-                let exports_info = self.exports_info_artifact.get_exports_info_data(&module_id);
-                let has_nested = exports.iter().any(|e| match e {
-                  ExtendedReferencedExport::Array(arr) => arr.len() > 1,
-                  ExtendedReferencedExport::Export(export) => export.name.len() > 1,
-                });
-                if has_nested {
-                  nested_tasks.push((
-                    runtime.clone(),
-                    force_side_effects,
-                    module_id,
-                    exports_info.id(),
-                    exports,
-                  ));
-                } else {
-                  non_nested_tasks
-                    .push((module_id, (runtime.clone(), force_side_effects, exports)));
+        let collected = if use_parallel && batch_res.len() > 32 {
+          batch_res
+            .into_par_iter()
+            .map(
+              |(runtime, force_side_effects, referenced_exports, module_tasks)| {
+                let mut nested_tasks = Vec::with_capacity(referenced_exports.len());
+                let mut non_nested_tasks = Vec::with_capacity(referenced_exports.len());
+                for (module_id, exports) in referenced_exports {
+                  let exports_info = self.exports_info_artifact.get_exports_info_data(&module_id);
+                  let has_nested = exports.iter().any(|e| match e {
+                    ExtendedReferencedExport::Array(arr) => arr.len() > 1,
+                    ExtendedReferencedExport::Export(export) => export.name.len() > 1,
+                  });
+                  if has_nested {
+                    nested_tasks.push((
+                      runtime.clone(),
+                      force_side_effects,
+                      module_id,
+                      exports_info.id(),
+                      exports,
+                    ));
+                  } else {
+                    non_nested_tasks
+                      .push((module_id, (runtime.clone(), force_side_effects, exports)));
+                  }
                 }
-              }
-              (nested_tasks, non_nested_tasks, module_tasks)
-            },
-          )
-          .collect::<Vec<_>>();
+                (nested_tasks, non_nested_tasks, module_tasks)
+              },
+            )
+            .collect::<Vec<_>>()
+        } else {
+          batch_res
+            .into_iter()
+            .map(
+              |(runtime, force_side_effects, referenced_exports, module_tasks)| {
+                let mut nested_tasks = Vec::with_capacity(referenced_exports.len());
+                let mut non_nested_tasks = Vec::with_capacity(referenced_exports.len());
+                for (module_id, exports) in referenced_exports {
+                  let exports_info = self.exports_info_artifact.get_exports_info_data(&module_id);
+                  let has_nested = exports.iter().any(|e| match e {
+                    ExtendedReferencedExport::Array(arr) => arr.len() > 1,
+                    ExtendedReferencedExport::Export(export) => export.name.len() > 1,
+                  });
+                  if has_nested {
+                    nested_tasks.push((
+                      runtime.clone(),
+                      force_side_effects,
+                      module_id,
+                      exports_info.id(),
+                      exports,
+                    ));
+                  } else {
+                    non_nested_tasks
+                      .push((module_id, (runtime.clone(), force_side_effects, exports)));
+                  }
+                }
+                (nested_tasks, non_nested_tasks, module_tasks)
+              },
+            )
+            .collect::<Vec<_>>()
+        };
 
         for (module_nested_tasks, module_non_nested_tasks, module_tasks) in collected {
           for i in module_tasks {
@@ -212,39 +267,75 @@ impl<'a> FlagDependencyUsagePluginProxy<'a> {
       // so we can process these non-nested tasks parallelly by cloning the exports info data
       let non_nested_res = {
         let mg = self.build_module_graph_artifact.get_module_graph();
-        non_nested_tasks
-          .into_par_iter()
-          .map(|(module_id, tasks)| {
-            let mut exports_info: ExportsInfoData = self
-              .exports_info_artifact
-              .get_exports_info_data(&module_id)
-              .clone();
-            let module = mg
-              .module_by_identifier(&module_id)
-              .expect("should have module");
-            let is_exports_type_unset = matches!(
-              module.build_meta().exports_type,
-              BuildMetaExportsType::Unset
-            );
-            let is_side_effect_free =
-              module_declared_side_effect_free(module.as_ref()).unwrap_or_default();
-
-            let mut res = vec![];
-            for (runtime, force_side_effects, exports) in tasks {
-              let module_res = process_referenced_module_without_nested(
-                module_id,
-                is_exports_type_unset,
-                is_side_effect_free,
-                &mut exports_info,
-                exports,
-                runtime,
-                force_side_effects,
+        if use_parallel && non_nested_tasks.len() > 32 {
+          non_nested_tasks
+            .into_par_iter()
+            .map(|(module_id, tasks)| {
+              let mut exports_info: ExportsInfoData = self
+                .exports_info_artifact
+                .get_exports_info_data(&module_id)
+                .clone();
+              let module = mg
+                .module_by_identifier(&module_id)
+                .expect("should have module");
+              let is_exports_type_unset = matches!(
+                module.build_meta().exports_type,
+                BuildMetaExportsType::Unset
               );
-              res.extend(module_res);
-            }
-            (exports_info, res)
-          })
-          .collect::<Vec<_>>()
+              let is_side_effect_free =
+                module_declared_side_effect_free(module.as_ref()).unwrap_or_default();
+
+              let mut res = vec![];
+              for (runtime, force_side_effects, exports) in tasks {
+                let module_res = process_referenced_module_without_nested(
+                  module_id,
+                  is_exports_type_unset,
+                  is_side_effect_free,
+                  &mut exports_info,
+                  exports,
+                  runtime,
+                  force_side_effects,
+                );
+                res.extend(module_res);
+              }
+              (exports_info, res)
+            })
+            .collect::<Vec<_>>()
+        } else {
+          non_nested_tasks
+            .into_iter()
+            .map(|(module_id, tasks)| {
+              let mut exports_info: ExportsInfoData = self
+                .exports_info_artifact
+                .get_exports_info_data(&module_id)
+                .clone();
+              let module = mg
+                .module_by_identifier(&module_id)
+                .expect("should have module");
+              let is_exports_type_unset = matches!(
+                module.build_meta().exports_type,
+                BuildMetaExportsType::Unset
+              );
+              let is_side_effect_free =
+                module_declared_side_effect_free(module.as_ref()).unwrap_or_default();
+
+              let mut res = vec![];
+              for (runtime, force_side_effects, exports) in tasks {
+                let module_res = process_referenced_module_without_nested(
+                  module_id,
+                  is_exports_type_unset,
+                  is_side_effect_free,
+                  &mut exports_info,
+                  exports,
+                  runtime,
+                  force_side_effects,
+                );
+                res.extend(module_res);
+              }
+              (exports_info, res)
+            })
+            .collect::<Vec<_>>()
+        }
       };
 
       {
