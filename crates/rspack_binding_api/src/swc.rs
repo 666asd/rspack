@@ -48,9 +48,7 @@ fn _transform(source: String, options: String) -> napi::Result<TransformOutput> 
 
   #[cfg(feature = "plugin")]
   {
-    options.runtime_options = options.runtime_options.plugin_runtime(std::sync::Arc::new(
-      rspack_util::swc::runtime::WasmtimeRuntime,
-    ));
+    rspack_util::swc::configure_wasm_plugin_runtime_if_needed(&mut options);
   }
 
   let compiler = JavaScriptCompiler::new();

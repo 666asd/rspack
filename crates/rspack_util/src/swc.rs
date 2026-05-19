@@ -5,12 +5,30 @@ use rustc_hash::FxHashSet;
 use swc_config::types::BoolOr;
 use swc_core::{
   atoms::Atom,
-  base::config::JsMinifyCommentOption,
+  base::config::{JscConfig, JsMinifyCommentOption, Options},
   common::{
     BytePos,
     comments::{Comment, CommentKind, Comments, SingleThreadedComments},
   },
 };
+
+/// Returns true when `jsc.experimental.plugins` contains at least one wasm plugin.
+pub fn has_wasm_plugins(jsc: &JscConfig) -> bool {
+  jsc.experimental
+    .plugins
+    .as_ref()
+    .is_some_and(|plugins| !plugins.is_empty())
+}
+
+/// Registers wasmtime as the SWC plugin runtime only when wasm plugins are configured.
+#[cfg(feature = "plugin")]
+pub fn configure_wasm_plugin_runtime_if_needed(options: &mut Options) {
+  if has_wasm_plugins(&options.config.jsc) {
+    options.runtime_options = options.runtime_options.plugin_runtime(std::sync::Arc::new(
+      crate::swc::runtime::WasmtimeRuntime,
+    ));
+  }
+}
 
 pub fn normalize_custom_filename(source: &str) -> &str {
   if source.starts_with('<') && source.ends_with('>') {
