@@ -149,7 +149,19 @@ pub(crate) async fn walk_dir(
   }
   for filename in fs.read_dir(root).await? {
     let path = root.join(&filename);
-    if fs.metadata(&path).await.is_ok_and(|m| m.is_directory) {
+    let metadata = match fs.symlink_metadata(&path).await {
+      Ok(metadata) => metadata,
+      Err(_) => match fs.metadata(&path).await {
+        Ok(metadata) => metadata,
+        Err(_) => continue,
+      },
+    };
+
+    if metadata.is_symlink && fs.metadata(&path).await.is_ok_and(|m| m.is_directory) {
+      continue;
+    }
+
+    if metadata.is_directory {
       if recursive && should_enter_dir(&path) {
         walk_dir(
           &path,
@@ -186,9 +198,9 @@ pub async fn find_files_by_glob(
   walk_dir(
     base_dir_path,
     fs,
-    true,  // always recursive for glob
+    true,  // glob traversal is pruned by `should_enter_dir` below
     false, // dotfile filtering handled in callback below
-    &mut |_path| true,
+    &mut |path| pattern_can_match_descendant(&normalized_pattern, base_dir_path, path, options),
     &mut |path, _filename| {
       if options.require_literal_leading_dot
         && path_has_dot_component(&path, base_dir_path)
@@ -204,6 +216,45 @@ pub async fn find_files_by_glob(
   )
   .await?;
   Ok(results)
+}
+
+fn pattern_can_match_descendant(
+  pattern: &str,
+  base_dir: &Utf8Path,
+  dir: &Utf8Path,
+  options: &GlobMatchOptions,
+) -> bool {
+  let base_str = normalize_path_separators(base_dir.as_str());
+  let dir_str = normalize_path_separators(dir.as_str());
+  let pattern_suffix = pattern.strip_prefix(&base_str).unwrap_or(pattern);
+  let relative = dir_str.strip_prefix(&base_str).unwrap_or(&dir_str);
+
+  let pattern_segments = pattern_suffix
+    .split('/')
+    .filter(|segment| !segment.is_empty())
+    .collect::<Vec<_>>();
+  let dir_segments = relative
+    .split('/')
+    .filter(|segment| !segment.is_empty())
+    .collect::<Vec<_>>();
+
+  fn matches_prefix(patterns: &[&str], dirs: &[&str], options: &GlobMatchOptions) -> bool {
+    match dirs.split_first() {
+      None => !patterns.is_empty(),
+      Some((&dir_head, dir_rest)) => match patterns.split_first() {
+        None => false,
+        Some((&"**", pattern_rest)) => {
+          matches_prefix(pattern_rest, dirs, options) || matches_prefix(patterns, dir_rest, options)
+        }
+        Some((&pattern_head, pattern_rest)) => {
+          glob_match_with_options(pattern_head, dir_head, options)
+            && matches_prefix(pattern_rest, dir_rest, options)
+        }
+      },
+    }
+  }
+
+  matches_prefix(&pattern_segments, &dir_segments, options)
 }
 
 fn path_has_dot_component(path: &Utf8Path, base_dir: &Utf8Path) -> bool {
@@ -351,6 +402,87 @@ mod tests {
       "./fixtures/directory-a1/index.js",
       &options
     ));
+  }
+
+  #[test]
+  fn pattern_can_match_descendant_prunes_impossible_directories() {
+    let options = GlobMatchOptions::default();
+    let base_dir = Utf8Path::new("./fixtures/");
+
+    assert!(!pattern_can_match_descendant(
+      "./fixtures/*.js",
+      base_dir,
+      Utf8Path::new("./fixtures/nested"),
+      &options
+    ));
+    assert!(pattern_can_match_descendant(
+      "./fixtures/*/index.js",
+      base_dir,
+      Utf8Path::new("./fixtures/nested"),
+      &options
+    ));
+    assert!(!pattern_can_match_descendant(
+      "./fixtures/*/index.js",
+      base_dir,
+      Utf8Path::new("./fixtures/nested/deeper"),
+      &options
+    ));
+    assert!(pattern_can_match_descendant(
+      "./fixtures/**/*.js",
+      base_dir,
+      Utf8Path::new("./fixtures/nested/deeper"),
+      &options
+    ));
+  }
+
+  #[cfg(unix)]
+  #[tokio::test]
+  async fn find_files_by_glob_does_not_descend_symlinked_directories() {
+    use std::{fs, sync::Arc};
+
+    use rspack_fs::NativeFileSystem;
+    use rspack_paths::Utf8PathBuf;
+
+    let temp_dir = std::env::temp_dir().join(format!(
+      "rspack-glob-symlink-test-{}-{}",
+      std::process::id(),
+      std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .expect("system time should be after unix epoch")
+        .as_nanos()
+    ));
+    let temp_dir = Utf8PathBuf::from_path_buf(temp_dir).expect("temp dir path should be utf-8");
+    let public_dir = temp_dir.join("public");
+    let outside_dir = temp_dir.join("outside");
+
+    fs::create_dir_all(&public_dir).expect("should create public dir");
+    fs::create_dir_all(&outside_dir).expect("should create outside dir");
+    fs::write(public_dir.join("file.txt"), "public").expect("should write public file");
+    fs::write(outside_dir.join("secret.txt"), "secret").expect("should write outside file");
+    std::os::unix::fs::symlink(&outside_dir, public_dir.join("leak"))
+      .expect("should create symlink");
+
+    let pattern = format!("{}/**/*", public_dir);
+    let entries = find_files_by_glob(
+      &pattern,
+      &GlobMatchOptions::default(),
+      Arc::new(NativeFileSystem::new(false)),
+    )
+    .await
+    .expect("glob should complete");
+
+    assert!(
+      entries.iter().any(|entry| entry.ends_with("file.txt")),
+      "regular files should still be matched: {entries:?}"
+    );
+    assert!(
+      entries
+        .iter()
+        .all(|entry| !entry.as_str().contains("/leak/")),
+      "symlinked directory contents must not be matched: {entries:?}"
+    );
+
+    fs::remove_dir_all(&temp_dir).expect("should remove temp dir");
   }
 
   #[test]
