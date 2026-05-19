@@ -5,7 +5,7 @@ use rustc_hash::FxHashSet;
 use swc_config::types::BoolOr;
 use swc_core::{
   atoms::Atom,
-  base::config::{JscConfig, JsMinifyCommentOption, Options},
+  base::config::{JsMinifyCommentOption, JscConfig, Options},
   common::{
     BytePos,
     comments::{Comment, CommentKind, Comments, SingleThreadedComments},
@@ -14,7 +14,8 @@ use swc_core::{
 
 /// Returns true when `jsc.experimental.plugins` contains at least one wasm plugin.
 pub fn has_wasm_plugins(jsc: &JscConfig) -> bool {
-  jsc.experimental
+  jsc
+    .experimental
     .plugins
     .as_ref()
     .is_some_and(|plugins| !plugins.is_empty())
@@ -24,9 +25,9 @@ pub fn has_wasm_plugins(jsc: &JscConfig) -> bool {
 #[cfg(feature = "plugin")]
 pub fn configure_wasm_plugin_runtime_if_needed(options: &mut Options) {
   if has_wasm_plugins(&options.config.jsc) {
-    options.runtime_options = options.runtime_options.plugin_runtime(std::sync::Arc::new(
-      crate::swc::runtime::WasmtimeRuntime,
-    ));
+    options.runtime_options = options
+      .runtime_options
+      .plugin_runtime(std::sync::Arc::new(crate::swc::runtime::WasmtimeRuntime));
   }
 }
 
