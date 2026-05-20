@@ -28,9 +28,9 @@ pub fn has_wasm_plugins(jsc: &JscConfig) -> bool {
 #[cfg(feature = "plugin")]
 pub fn configure_wasm_plugin_runtime_if_needed(options: &mut Options) {
   if has_wasm_plugins(&options.config.jsc) {
-    options.runtime_options = options
-      .runtime_options
-      .plugin_runtime(std::sync::Arc::new(crate::swc::runtime::WasmtimeRuntime));
+    let runtime_options = std::mem::take(&mut options.runtime_options);
+    options.runtime_options =
+      runtime_options.plugin_runtime(std::sync::Arc::new(crate::swc::runtime::WasmtimeRuntime));
   }
 }
 
