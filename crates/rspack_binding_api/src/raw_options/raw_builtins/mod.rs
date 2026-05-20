@@ -48,7 +48,9 @@ use rspack_ids::{
 use rspack_plugin_asset::AssetPlugin;
 use rspack_plugin_banner::BannerPlugin;
 use rspack_plugin_case_sensitive::CaseSensitivePlugin;
-use rspack_plugin_circular_dependencies::CircularDependencyRspackPlugin;
+use rspack_plugin_circular_dependencies::{
+  CircularDependencyRspackPlugin, CircularModulesInfoPlugin,
+};
 use rspack_plugin_copy::{CopyRspackPlugin, CopyRspackPluginOptions};
 use rspack_plugin_css::CssPlugin;
 use rspack_plugin_css_chunking::CssChunkingPlugin;
@@ -64,8 +66,8 @@ use rspack_plugin_ensure_chunk_conditions::EnsureChunkConditionsPlugin;
 use rspack_plugin_entry::EntryPlugin;
 use rspack_plugin_esm_library::EsmLibraryPlugin;
 use rspack_plugin_externals::{
-  EsmNodeTargetPlugin, ExternalsPlugin, electron_target_plugin, http_externals_rspack_plugin,
-  node_target_plugin,
+  EsmNodeTargetPlugin, ExternalsPlugin, css_http_externals_rspack_plugin, electron_target_plugin,
+  http_externals_rspack_plugin, node_target_plugin,
 };
 use rspack_plugin_hmr::HotModuleReplacementPlugin;
 use rspack_plugin_html::HtmlRspackPlugin;
@@ -230,6 +232,7 @@ pub enum BuiltinPluginName {
 
   // rspack specific plugins
   // naming format follow XxxRspackPlugin
+  CssHttpExternalsRspackPlugin,
   HttpExternalsRspackPlugin,
   CopyRspackPlugin,
   HtmlRspackPlugin,
@@ -241,6 +244,7 @@ pub enum BuiltinPluginName {
   RsdoctorPlugin,
   RstestPlugin,
   RslibPlugin,
+  CircularModulesInfoPlugin,
   CircularDependencyRspackPlugin,
   URLPlugin,
 
@@ -712,10 +716,13 @@ impl<'a> BuiltinPlugin<'a> {
       }
 
       // rspack specific plugins
+      BuiltinPluginName::CssHttpExternalsRspackPlugin => {
+        plugins.push(css_http_externals_rspack_plugin());
+      }
       BuiltinPluginName::HttpExternalsRspackPlugin => {
         let plugin_options = downcast_into::<RawHttpExternalsRspackPluginOptions>(self.options)
           .map_err(|report| napi::Error::from_reason(report.to_string()))?;
-        let plugin = http_externals_rspack_plugin(plugin_options.css, plugin_options.web_async);
+        let plugin = http_externals_rspack_plugin(plugin_options.web_async);
         plugins.push(plugin);
       }
       BuiltinPluginName::SwcJsMinimizerRspackPlugin => {
@@ -786,6 +793,9 @@ impl<'a> BuiltinPlugin<'a> {
         )
         .boxed(),
       ),
+      BuiltinPluginName::CircularModulesInfoPlugin => {
+        plugins.push(CircularModulesInfoPlugin::default().boxed())
+      }
       BuiltinPluginName::JsLoaderRspackPlugin => {
         // Set the compiler._runLoader property on the JsObject to ensure that the runLoader
         // is not garbage collected by JS while the stats Object holds a reference to JsLoaderPlugin.

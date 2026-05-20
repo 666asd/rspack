@@ -114,7 +114,7 @@ define_hook!(CompilationDependencyReferencedExports: Sync(
 define_hook!(CompilationConcatenationScope: SeriesBail(compilation: &Compilation, curr_module: ModuleIdentifier) -> ConcatenationScope);
 define_hook!(CompilationOptimizeDependencies: SeriesBail(compilation: &Compilation, side_effects_optimize_artifact: &mut SideEffectsOptimizeArtifact,  build_module_graph_artifact: &mut BuildModuleGraphArtifact, exports_info_artifact: &mut ExportsInfoArtifact,
  diagnostics: &mut Vec<Diagnostic>) -> bool);
-define_hook!(CompilationOptimizeModules: SeriesBail(compilation: &Compilation, diagnostics: &mut Vec<Diagnostic>) -> bool);
+define_hook!(CompilationOptimizeModules: SeriesBail(compilation: &Compilation, circular_modules: &mut IdentifierSet, diagnostics: &mut Vec<Diagnostic>) -> bool);
 define_hook!(CompilationAfterOptimizeModules: Series(compilation: &Compilation));
 define_hook!(CompilationOptimizeChunks: SeriesBail(compilation: &mut Compilation) -> bool);
 define_hook!(CompilationOptimizeTree: Series(compilation: &Compilation));
@@ -272,6 +272,7 @@ pub struct Compilation {
 
   pub minimize_persistent_cache_artifact: Option<MinimizePersistentCacheArtifact>,
 
+  pub circular_modules: StealCell<IdentifierSet>,
   pub code_generated_modules: IdentifierSet,
   pub build_time_executed_modules: IdentifierSet,
   pub build_chunk_graph_artifact: BuildChunkGraphArtifact,
@@ -377,6 +378,7 @@ impl Compilation {
 
       async_modules_artifact: StealCell::new(AsyncModulesArtifact::default()),
       imported_by_defer_modules_artifact: StealCell::new(Default::default()),
+      circular_modules: StealCell::new(Default::default()),
       dependencies_diagnostics_artifact: StealCell::new(DependenciesDiagnosticsArtifact::default()),
       exports_info_artifact: StealCell::new(ExportsInfoArtifact::default()),
       side_effects_optimize_artifact: StealCell::new(Default::default()),
@@ -1461,9 +1463,12 @@ pub fn assign_depths<'a>(
   assign_map: &mut IdentifierMap<usize>,
   modules: impl Iterator<Item = &'a ModuleIdentifier>,
   outgoings: &IdentifierMap<Vec<ModuleIdentifier>>,
+  initial_queue_capacity: usize,
 ) {
   // https://github.com/webpack/webpack/blob/1f99ad6367f2b8a6ef17cce0e058f7a67fb7db18/lib/Compilation.js#L3720
-  let mut q = VecDeque::new();
+  let (module_count_lower_bound, module_count_upper_bound) = modules.size_hint();
+  let module_count = module_count_upper_bound.unwrap_or(module_count_lower_bound);
+  let mut q = VecDeque::with_capacity(initial_queue_capacity.max(module_count));
   for item in modules {
     q.push_back((*item, 0));
   }
@@ -1476,8 +1481,10 @@ pub fn assign_depths<'a>(
         vac.insert(depth);
       }
     };
-    for con in outgoings.get(&id).expect("should have outgoings").iter() {
-      q.push_back((*con, depth + 1));
+    if let Some(outgoing_modules) = outgoings.get(&id) {
+      for con in outgoing_modules {
+        q.push_back((*con, depth + 1));
+      }
     }
   }
 }

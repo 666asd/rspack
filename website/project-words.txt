@@ -68,10 +68,12 @@ indicatif
 inituit
 innovatively
 inottn
+intellild
 intlify
 IWANABETHATGUY
 jantimon
 JavaScript
+Jiahan
 jerrykingxyz
 jkzing
 jridgewell
@@ -93,7 +95,6 @@ memfs
 mimalloc
 minifiers
 miro
-MPHF
 modulegeneratorassetdataurl
 modulegeneratorassetdataurlencoding
 modulegeneratorassetdataurlmimetype
@@ -110,6 +111,7 @@ moduleparsercssauto
 moduleparsercssautonamedexports
 moduleparsercssmodule
 monaco
+MPHF
 msvc
 myorg
 myrspackapp
@@ -213,10 +215,11 @@ webpack
 xcode
 xcrun
 xctrace
-xmcp
 Xeon
 XKKCNZZNJD
+xmcp
 xstyled
+xtask
 xxhash
 yannik
 Zack

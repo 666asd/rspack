@@ -45,7 +45,7 @@ use swc_core::{
 
 use crate::{
   BoxJavascriptParserPlugin,
-  dependency::local_module::LocalModule,
+  dependency::{DependencyBranchGuard, local_module::LocalModule, set_dependency_branch_guards},
   parser_and_generator::ParserRuntimeRequirementsData,
   parser_plugin::{
     self, ImportsReferencesState, InnerGraphParserPlugin, JavaScriptParserPluginDrive,
@@ -392,11 +392,11 @@ pub struct JavascriptParser<'parser> {
   pub(crate) local_modules: Vec<LocalModule>,
   pub(crate) last_esm_import_order: i32,
   pub(crate) inner_graph: InnerGraphState,
-  pub(crate) has_inlinable_const_decls: bool,
   pub(crate) side_effects_item: Option<SideEffectsBailoutItemWithSpan>,
   pub(crate) is_renaming: Option<Atom>,
   pub(crate) location_advancer: DependencyLocationAdvancer,
   pub(crate) collecting_dependencies_for_block: Option<usize>,
+  pub(crate) dependency_branch_guards: Vec<DependencyBranchGuard>,
 }
 
 impl<'parser> JavascriptParser<'parser> {
@@ -578,12 +578,12 @@ impl<'parser> JavascriptParser<'parser> {
       inner_graph: InnerGraphState::new(),
       parse_meta,
       local_modules: Default::default(),
-      has_inlinable_const_decls: true,
       side_effects_item: None,
       parser_runtime_requirements,
       is_renaming: None,
       location_advancer: DependencyLocationAdvancer::new(),
       collecting_dependencies_for_block: None,
+      dependency_branch_guards: Vec::new(),
     }
   }
 
@@ -605,12 +605,23 @@ impl<'parser> JavascriptParser<'parser> {
     }
   }
 
-  pub fn add_dependency(&mut self, dep: BoxDependency) {
+  pub fn add_dependency(&mut self, mut dep: BoxDependency) {
+    if !self.dependency_branch_guards.is_empty() {
+      set_dependency_branch_guards(dep.as_mut(), &self.dependency_branch_guards);
+    }
     self.dependencies.push(dep);
   }
 
   pub fn add_dependencies(&mut self, deps: impl IntoIterator<Item = BoxDependency>) {
-    self.dependencies.extend(deps);
+    if self.dependency_branch_guards.is_empty() {
+      self.dependencies.extend(deps);
+    } else {
+      let branch_guards = self.dependency_branch_guards.clone();
+      self.dependencies.extend(deps.into_iter().map(|mut dep| {
+        set_dependency_branch_guards(dep.as_mut(), &branch_guards);
+        dep
+      }));
+    }
   }
 
   pub fn pop_dependency(&mut self) -> Option<BoxDependency> {
@@ -664,7 +675,12 @@ impl<'parser> JavascriptParser<'parser> {
     self.presentational_dependencies.get_mut(idx)
   }
 
-  pub fn add_block(&mut self, block: Box<AsyncDependenciesBlock>) {
+  pub fn add_block(&mut self, mut block: Box<AsyncDependenciesBlock>) {
+    if !self.dependency_branch_guards.is_empty() {
+      for dep in block.dependencies_mut() {
+        set_dependency_branch_guards(dep.as_mut(), &self.dependency_branch_guards);
+      }
+    }
     self.blocks.push(block);
   }
 

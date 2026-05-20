@@ -77,6 +77,14 @@ pub struct RscMeta {
 
   #[cacheable(with=AsVec<AsPreset>)]
   pub client_refs: Vec<Wtf8Atom>,
+
+  /// Whether this server component uses `import.meta.rspackRsc`.
+  ///
+  /// RSC client manifest collection uses this to find the module's transitive
+  /// CSS dependencies, so they can be exposed through `entryCssFiles` and
+  /// rendered by `loadCss()`.
+  pub import_meta_rsc: bool,
+
   pub is_cjs: bool,
 
   #[cacheable(with=AsMap<AsPreset, AsPreset>)]
@@ -125,6 +133,7 @@ pub type CssExports = FxIndexMap<String, FxIndexSet<CssExport>>;
 pub struct IsolatedDts {
   pub resource_path: String,
   pub code: String,
+  pub references: Vec<String>,
 }
 
 #[cacheable]
@@ -161,7 +170,7 @@ pub struct BuildInfo {
   pub inline_exports: bool,
   pub collected_typescript_info: Option<CollectedTypeScriptInfo>,
   pub rsc: Option<RscMeta>,
-  pub isolated_dts: Option<IsolatedDts>,
+  pub isolated_dts: Option<Box<IsolatedDts>>,
   /// Stores external fields from the JS side (Record<string, any>),
   /// while other properties are stored in KnownBuildInfo.
   #[cacheable(with=AsPreset)]
@@ -289,8 +298,6 @@ pub struct BuildMeta {
   pub default_object: BuildMetaDefaultObject,
   #[serde(skip_serializing_if = "Option::is_none")]
   pub side_effect_free: Option<bool>,
-  #[serde(skip_serializing_if = "Option::is_none")]
-  pub exports_final_name: Option<Vec<(String, String)>>,
 }
 
 // webpack build info

@@ -1051,31 +1051,34 @@ export type CssParserOptions = {
    * Allow to enable/disables `@import` at-rules handling.
    * @default true
    * */
-  resolveImport?: CssParserResolveImport;
-};
-
-/** Options object for `css/auto` modules. */
-export type CssAutoParserOptions = {
-  /**
-   * Use ES modules named export for CSS exports.
-   * @default true
-   * */
-  namedExports?: CssParserNamedExports;
-
-  /**
-   * Allow to enable/disables handling the CSS functions url.
-   * @default true
-   * */
-  url?: CssParserUrl;
+  import?: boolean;
 
   /**
    * Allow to enable/disables `@import` at-rules handling.
    * @default true
    * */
   resolveImport?: CssParserResolveImport;
+
+  /**
+   * Enable/disable renaming of `@keyframes`.
+   * @default true
+   */
+  animation?: boolean;
+
+  /**
+   * Enable/disable renaming of custom identifiers.
+   * @default false
+   */
+  customIdents?: boolean;
+
+  /**
+   * Enable/disable renaming of dashed identifiers, e.g. custom properties.
+   * @default false
+   */
+  dashedIdents?: boolean;
 };
 
-/** Options object for `css/module` modules. */
+/** Options object for `css/auto`, `css/global` and `css/module` modules. */
 export type CssModuleParserOptions = {
   /**
    * Use ES modules named export for CSS exports.
@@ -1093,7 +1096,31 @@ export type CssModuleParserOptions = {
    * Allow to enable/disables `@import` at-rules handling.
    * @default true
    * */
+  import?: boolean;
+
+  /**
+   * Allow to filter handling of `@import` at-rules.
+   * @default true
+   * */
   resolveImport?: CssParserResolveImport;
+
+  /**
+   * Enable/disable renaming of `@keyframes`.
+   * @default true
+   */
+  animation?: boolean;
+
+  /**
+   * Enable/disable renaming of custom identifiers.
+   * @default false
+   */
+  customIdents?: boolean;
+
+  /**
+   * Enable/disable renaming of dashed identifiers, e.g. custom properties.
+   * @default false
+   */
+  dashedIdents?: boolean;
 };
 
 type ExportsPresence = 'error' | 'warn' | 'auto' | false;
@@ -1273,7 +1300,10 @@ export type ParserOptionsByModuleTypeKnown = {
   css?: CssParserOptions;
 
   /** Parser options for `css/auto` modules. */
-  'css/auto'?: CssAutoParserOptions;
+  'css/auto'?: CssModuleParserOptions;
+
+  /** Parser options for `css/global` modules. */
+  'css/global'?: CssModuleParserOptions;
 
   /** Parser options for `css/module` modules. */
   'css/module'?: CssModuleParserOptions;
@@ -1390,6 +1420,14 @@ export type CssGeneratorLocalIdentName = string;
 
 export type CssGeneratorEsModule = boolean;
 
+export type CssGeneratorLocalIdentHashDigest = string;
+
+export type CssGeneratorLocalIdentHashDigestLength = number;
+
+export type CssGeneratorLocalIdentHashFunction = string;
+
+export type CssGeneratorLocalIdentHashSalt = string;
+
 /** Generator options for css modules. */
 export type CssGeneratorOptions = {
   /**
@@ -1402,8 +1440,8 @@ export type CssGeneratorOptions = {
   esModule?: CssGeneratorEsModule;
 };
 
-/** Generator options for css/auto modules. */
-export type CssAutoGeneratorOptions = {
+/** Generator options for css/auto, css/global and css/module modules. */
+export type CssModuleGeneratorOptions = {
   /**
    * Customize how CSS export names are exported to javascript modules
    * @default 'as-is'
@@ -1416,15 +1454,32 @@ export type CssAutoGeneratorOptions = {
    */
   exportsOnly?: CssGeneratorExportsOnly;
 
+  /**
+   * Digest types used for the hash.
+   */
+  localIdentHashDigest?: CssGeneratorLocalIdentHashDigest;
+
+  /**
+   * Number of chars which are used for the hash.
+   */
+  localIdentHashDigestLength?: CssGeneratorLocalIdentHashDigestLength;
+
+  /**
+   * Algorithm used for generation the hash.
+   */
+  localIdentHashFunction?: CssGeneratorLocalIdentHashFunction;
+
+  /**
+   * Any string which is added to the hash to salt it.
+   */
+  localIdentHashSalt?: CssGeneratorLocalIdentHashSalt;
+
   /** Customize the format of the local class names generated for CSS modules */
   localIdentName?: CssGeneratorLocalIdentName;
 
   /** This configuration is available for improved ESM-CJS interoperability purposes. */
   esModule?: CssGeneratorEsModule;
 };
-
-/** Generator options for css/module modules. */
-export type CssModuleGeneratorOptions = CssAutoGeneratorOptions;
 
 /** Generator options for json modules. */
 export type JsonGeneratorOptions = {
@@ -1449,7 +1504,10 @@ export type GeneratorOptionsByModuleTypeKnown = {
   css?: CssGeneratorOptions;
 
   /** Generator options for css/auto modules. */
-  'css/auto'?: CssAutoGeneratorOptions;
+  'css/auto'?: CssModuleGeneratorOptions;
+
+  /** Generator options for css/global modules. */
+  'css/global'?: CssModuleGeneratorOptions;
 
   /** Generator options for css/module modules. */
   'css/module'?: CssModuleGeneratorOptions;
@@ -1570,6 +1628,7 @@ export type ExternalsType =
   | 'promise'
   | 'import'
   | 'module-import'
+  | 'modern-module'
   | 'script'
   | 'node-commonjs'
   | 'commonjs-import';

@@ -43,11 +43,10 @@ use regex::Regex;
 use rspack_core::{
   AssetParserDataUrl, AssetParserDataUrlOptions, AssetParserOptions, BoxPlugin, ByDependency,
   CacheOptions, ChunkLoading, ChunkLoadingType, CleanOptions, Compiler, CompilerOptions,
-  CompilerPlatform, Context, CrossOriginLoading, CssAutoGeneratorOptions, CssAutoParserOptions,
-  CssExportsConvention, CssGeneratorOptions, CssModuleGeneratorOptions, CssModuleParserOptions,
-  CssParserImport, CssParserOptions, DynamicImportMode, EntryDescription, EntryOptions,
-  EntryRuntime, Environment, Experiments, ExternalItem, ExternalType, Filename, GeneratorOptions,
-  GeneratorOptionsMap, ImportMeta, JavascriptParserCommonjsExportsOption,
+  CompilerPlatform, Context, CrossOriginLoading, CssGeneratorOptions, CssModuleGeneratorOptions,
+  CssModuleParserOptions, CssParserImport, CssParserOptions, DynamicImportMode, EntryDescription,
+  EntryOptions, EntryRuntime, Environment, Experiments, ExternalItem, ExternalType, Filename,
+  GeneratorOptions, GeneratorOptionsMap, ImportMeta, JavascriptParserCommonjsExportsOption,
   JavascriptParserCommonjsOptions, JavascriptParserOptions, JavascriptParserOrder,
   JavascriptParserUrl, JsonGeneratorOptions, JsonParserOptions, LibraryName, LibraryNonUmdObject,
   LibraryOptions, LibraryType, MangleExportsOption, Mode, ModuleNoParseRules, ModuleOptions,
@@ -1070,7 +1069,16 @@ impl CompilerOptionsBuilder {
 
     w!(self.externals_type, {
       if let Some(library) = &output.library {
-        library.library_type.clone()
+        // Keep modern-module libraries on the existing output.module default
+        // for compatibility. `externalsType: "modern-module"` must be enabled
+        // explicitly for now, and will become the default in the next major.
+        if library.library_type != "modern-module" {
+          library.library_type.clone()
+        } else if output.module {
+          "module-import".to_string()
+        } else {
+          "var".to_string()
+        }
       } else if output.module {
         "module-import".to_string()
       } else {
@@ -1081,10 +1089,11 @@ impl CompilerOptionsBuilder {
     // apply externals plugin
     if let Some(externals) = &mut self.externals {
       let externals = std::mem::take(externals);
+      let externals_type = expect!(self.externals_type.clone());
       builder_context
         .plugins
         .push(BuiltinPluginOptions::ExternalsPlugin((
-          expect!(self.externals_type.clone()),
+          externals_type,
           externals,
           false,
         )));
@@ -1095,6 +1104,9 @@ impl CompilerOptionsBuilder {
       builder_context
         .plugins
         .push(BuiltinPluginOptions::NodeTargetPlugin);
+      builder_context
+        .plugins
+        .push(BuiltinPluginOptions::CssHttpExternalsRspackPlugin);
     }
 
     use rspack_plugin_externals::ElectronTargetContext;
@@ -1142,14 +1154,12 @@ impl CompilerOptionsBuilder {
         )));
     }
 
-    if externals_presets.web() || externals_presets.web_async() || (externals_presets.node() && css)
-    {
+    if externals_presets.web() || externals_presets.web_async() {
       builder_context
         .plugins
-        .push(BuiltinPluginOptions::HttpExternalsRspackPlugin((
-          css,
+        .push(BuiltinPluginOptions::HttpExternalsRspackPlugin(
           externals_presets.web_async(),
-        )));
+        ));
     }
 
     // apply node defaults
@@ -1761,23 +1771,46 @@ impl ModuleOptionsBuilder {
       let css_parser_options = ParserOptions::Css(CssParserOptions {
         named_exports: Some(true),
         resolve_import: Some(CssParserImport::Bool(true)),
+        r#import: Some(true),
         url: Some(true),
+        animation: Some(true),
+        custom_idents: Some(false),
+        dashed_idents: Some(false),
       });
       parser.insert("css".to_string(), css_parser_options);
 
-      let css_auto_parser_options = ParserOptions::CssAuto(CssAutoParserOptions {
+      let css_auto_parser_options = ParserOptions::CssModule(CssModuleParserOptions {
         named_exports: Some(true),
+        r#import: Some(true),
         resolve_import: Some(CssParserImport::Bool(true)),
         url: Some(true),
+        animation: Some(true),
+        custom_idents: Some(false),
+        dashed_idents: Some(false),
       });
       parser.insert("css/auto".to_string(), css_auto_parser_options);
 
       let css_module_parser_options = ParserOptions::CssModule(CssModuleParserOptions {
         named_exports: Some(true),
+        r#import: Some(true),
         resolve_import: Some(CssParserImport::Bool(true)),
         url: Some(true),
+        animation: Some(true),
+        custom_idents: Some(false),
+        dashed_idents: Some(false),
       });
       parser.insert("css/module".to_string(), css_module_parser_options);
+
+      let css_global_parser_options = ParserOptions::CssModule(CssModuleParserOptions {
+        named_exports: Some(true),
+        r#import: Some(true),
+        resolve_import: Some(CssParserImport::Bool(true)),
+        url: Some(true),
+        animation: Some(true),
+        custom_idents: Some(false),
+        dashed_idents: Some(false),
+      });
+      parser.insert("css/global".to_string(), css_global_parser_options);
 
       // CSS generator options
       let exports_only = !target_properties.document();
@@ -1792,12 +1825,9 @@ impl ModuleOptionsBuilder {
 
       generator.insert(
         "css/auto".to_string(),
-        GeneratorOptions::CssAuto(CssAutoGeneratorOptions {
+        GeneratorOptions::CssModule(CssModuleGeneratorOptions {
           exports_only: Some(exports_only),
-          exports_convention: Some(CssExportsConvention::default()),
-          local_ident_name: Some("[uniqueName]-[id]-[local]".into()),
-
-          es_module: Some(true),
+          ..CssModuleGeneratorOptions::css_modules_default()
         }),
       );
 
@@ -1805,9 +1835,15 @@ impl ModuleOptionsBuilder {
         "css/module".to_string(),
         GeneratorOptions::CssModule(CssModuleGeneratorOptions {
           exports_only: Some(exports_only),
-          exports_convention: Some(CssExportsConvention::default()),
-          local_ident_name: Some("[uniqueName]-[id]-[local]".into()),
-          es_module: Some(true),
+          ..CssModuleGeneratorOptions::css_modules_default()
+        }),
+      );
+
+      generator.insert(
+        "css/global".to_string(),
+        GeneratorOptions::CssModule(CssModuleGeneratorOptions {
+          exports_only: Some(exports_only),
+          ..CssModuleGeneratorOptions::css_modules_default()
         }),
       );
     }

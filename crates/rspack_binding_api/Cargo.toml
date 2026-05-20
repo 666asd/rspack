@@ -57,7 +57,6 @@ napi-derive = { workspace = true, features = ["compat-mode"] }
 
 derive_more                            = { workspace = true, features = ["debug"] }
 futures                                = { workspace = true }
-glob                                   = { workspace = true }
 heck                                   = { workspace = true }
 once_cell                              = { workspace = true }
 rayon                                  = { workspace = true }
@@ -130,6 +129,9 @@ parking_lot = { version = "=0.12.5", features = ["nightly"] }
 [target.'cfg(not(target_family = "wasm"))'.dependencies]
 rspack_tracing = { workspace = true }
 sftrace-setup  = { workspace = true, optional = true }
+
+[build-dependencies]
+rspack_binding_build = { workspace = true }
 
 [lints]
 workspace = true

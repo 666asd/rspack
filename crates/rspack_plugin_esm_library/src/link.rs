@@ -15,7 +15,7 @@ use rspack_core::{
   RuntimeGlobals, SideEffectsStateArtifact, SourceType, URLStaticMode, UsageState, UsedName,
   UsedNameItem, collect_ident, escape_name_atom_ref, find_new_name, find_target,
   get_cached_readable_identifier, get_js_chunk_filename_template, get_module_directives,
-  get_module_hashbang, property_access, property_name, reserved_names::RESERVED_NAMES,
+  get_module_hashbang, property_access, property_name, reserved_names::RESERVED_NAMES_ATOM_SET,
   rspack_sources::ReplaceSource, split_readable_identifier, to_normal_comment,
 };
 use rspack_error::{Diagnostic, Error, Result};
@@ -701,7 +701,8 @@ impl EsmLibraryPlugin {
                   if let Some(ext) = module_graph
                     .module_by_identifier(&symbol_binding.module)
                     .and_then(|m| m.as_external_module())
-                    && ext.get_external_type().as_str().starts_with("module")
+                    && (ext.get_external_type().as_str().starts_with("module")
+                      || ext.resolve_external_type() == "module")
                   {
                     let Some((raw_import_source, import_binding)) = concate_modules_map
                       .get(&symbol_binding.module)
@@ -951,18 +952,15 @@ var {} = {{}};
 
     let module_graph = compilation.get_module_graph();
 
-    let mut all_used_names: FxHashSet<Atom> = RESERVED_NAMES
-      .iter()
-      .map(|s| Atom::new(*s))
-      .chain(chunk_link.hoisted_modules.iter().flat_map(|m| {
-        let info = &concate_modules_map[m];
-        info
-          .as_concatenated()
-          .global_scope_ident
-          .iter()
-          .map(|ident| ident.id.sym.clone())
-      }))
-      .collect();
+    let mut all_used_names: FxHashSet<Atom> = RESERVED_NAMES_ATOM_SET.clone();
+    all_used_names.extend(chunk_link.hoisted_modules.iter().flat_map(|m| {
+      let info = &concate_modules_map[m];
+      info
+        .as_concatenated()
+        .global_scope_ident
+        .iter()
+        .map(|ident| ident.id.sym.clone())
+    }));
 
     // merge all all_used_names from hoisted modules
     for id in &chunk_link.hoisted_modules {
@@ -2094,18 +2092,20 @@ var {} = {{}};
                 context,
               )],
             );
-            entry_chunk_link.used_names.insert(new_name.clone());
-            entry_chunk_link
-              .decl_before_exports
-              .insert(format!("var {new_name} = {inlined_value};\n"));
-
-            Self::add_chunk_export(
+            if Self::add_chunk_export(
               entry_chunk,
               new_name.clone(),
               name.clone(),
               exports,
               !allow_rename,
-            );
+            )
+            .is_some()
+            {
+              entry_chunk_link.used_names.insert(new_name.clone());
+              entry_chunk_link
+                .decl_before_exports
+                .insert(format!("var {new_name} = {inlined_value};\n"));
+            }
           }
         }
       }

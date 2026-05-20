@@ -5,8 +5,6 @@ import {
   type RawAssetParserDataUrl,
   type RawAssetParserOptions,
   type RawAssetResourceGeneratorOptions,
-  type RawCssAutoGeneratorOptions,
-  type RawCssAutoParserOptions,
   type RawCssGeneratorOptions,
   type RawCssModuleGeneratorOptions,
   type RawCssModuleParserOptions,
@@ -53,8 +51,9 @@ import type {
   AssetParserDataUrl,
   AssetParserOptions,
   AssetResourceGeneratorOptions,
-  CssAutoGeneratorOptions,
   CssGeneratorOptions,
+  CssModuleGeneratorOptions,
+  CssModuleParserOptions,
   CssParserOptions,
   GeneratorOptionsByModuleType,
   JavascriptParserOptions,
@@ -527,13 +526,19 @@ function getRawParserOptions(
   if (type === 'css') {
     return {
       type: 'css',
-      css: getRawCssParserOptions(parser),
+      css: getRawCssParserOptionsForCss(parser),
     };
   }
   if (type === 'css/auto') {
     return {
       type: 'css/auto',
       cssAuto: getRawCssParserOptions(parser),
+    };
+  }
+  if (type === 'css/global') {
+    return {
+      type: 'css/global',
+      cssGlobal: getRawCssParserOptions(parser),
     };
   }
   if (type === 'css/module') {
@@ -631,12 +636,30 @@ function getRawAssetParserDataUrl(
 }
 
 function getRawCssParserOptions(
-  parser: CssParserOptions,
-): RawCssParserOptions | RawCssAutoParserOptions | RawCssModuleParserOptions {
+  parser: CssModuleParserOptions,
+): RawCssModuleParserOptions {
   return {
     namedExports: parser.namedExports,
     url: parser.url,
+    import: parser.import,
     resolveImport: parser.resolveImport as any,
+    animation: parser.animation,
+    customIdents: parser.customIdents,
+    dashedIdents: parser.dashedIdents,
+  };
+}
+
+function getRawCssParserOptionsForCss(
+  parser: CssParserOptions,
+): RawCssParserOptions {
+  return {
+    namedExports: parser.namedExports,
+    url: parser.url,
+    import: parser.import,
+    resolveImport: parser.resolveImport as any,
+    animation: parser.animation,
+    customIdents: parser.customIdents,
+    dashedIdents: parser.dashedIdents,
   };
 }
 
@@ -688,6 +711,12 @@ function getRawGeneratorOptions(
     return {
       type: 'css/auto',
       cssAuto: getRawCssAutoOrModuleGeneratorOptions(generator),
+    };
+  }
+  if (type === 'css/global') {
+    return {
+      type: 'css/global',
+      cssGlobal: getRawCssAutoOrModuleGeneratorOptions(generator),
     };
   }
   if (type === 'css/module') {
@@ -780,10 +809,14 @@ function getRawCssGeneratorOptions(
 }
 
 function getRawCssAutoOrModuleGeneratorOptions(
-  options: CssAutoGeneratorOptions,
-): RawCssAutoGeneratorOptions | RawCssModuleGeneratorOptions {
+  options: CssModuleGeneratorOptions,
+): RawCssModuleGeneratorOptions {
   return {
     localIdentName: options.localIdentName,
+    localIdentHashDigest: options.localIdentHashDigest,
+    localIdentHashDigestLength: options.localIdentHashDigestLength,
+    localIdentHashFunction: options.localIdentHashFunction,
+    localIdentHashSalt: options.localIdentHashSalt,
     exportsConvention: options.exportsConvention,
     exportsOnly: options.exportsOnly,
     esModule: options.esModule,

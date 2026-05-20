@@ -96,7 +96,7 @@ fn record_module(
     return;
   }
 
-  if is_css_mod(module.as_ref()) {
+  if is_css_mod(module.as_ref(), resource.as_ref()) {
     return;
   }
 
@@ -188,9 +188,15 @@ fn collect_server_entry_css_files(
       continue;
     };
 
-    // Server-entry CSS blocks use the server entry resource as their request.
-    // Client component blocks use the client module request, so this lookup
-    // also filters out non-CSS blocks without walking dependencies again.
+    // Only server CSS blocks should populate `entryCssFiles` for loadCss().
+    // Client component blocks use the client module request here; their CSS is
+    // recorded on `clientManifest[*].cssFiles` when recording the client module.
+    //
+    // It is expected for a grouped client owner to have no `server_entries`
+    // record when that server entry only owns client components and imports no
+    // server CSS directly. Seeding `server_entries` for that case would make
+    // client component CSS look like server-entry CSS, which would duplicate
+    // the client manifest data and change the meaning of `entryCssFiles`.
     if entry_state
       .server_entries
       .get(server_entry)
@@ -213,7 +219,28 @@ fn collect_server_entry_css_files(
     }
 
     if let Some(server_entry_state) = entry_state.server_entries.get_mut(server_entry) {
-      server_entry_state.css_files.extend(css_files);
+      let import_meta_rsc_importers = server_entry_state
+        .import_meta_rsc_importers
+        .iter()
+        .cloned()
+        .collect::<Vec<_>>();
+      server_entry_state
+        .css_files
+        .extend(css_files.iter().cloned());
+
+      // `import.meta.rspackRsc.loadCss()` is keyed only by importer resource in
+      // the runtime manifest, so a shared importer cannot distinguish which
+      // `use server-entry` parent called it. Merge every reachable parent entry's
+      // CSS into the importer bucket; this may over-include styles when the
+      // importer is shared across entry scopes, but it keeps `loadCss()` complete.
+      for importer in import_meta_rsc_importers {
+        entry_state
+          .server_entries
+          .entry(importer)
+          .or_default()
+          .css_files
+          .extend(css_files.iter().cloned());
+      }
     }
   }
 }
@@ -617,6 +644,13 @@ async fn make(&self, compilation: &mut Compilation) -> Result<()> {
 
   for (entry_name, entry_state) in &plugin_state.entries {
     let client_modules = &entry_state.injected_client_entries;
+    if entry_state.injected_client_entries.is_empty()
+      && !entry_state.has_css_imports_by_server_entry()
+      && entry_state.root_css_imports.is_empty()
+    {
+      continue;
+    }
+
     if compilation.entries.get(entry_name.as_ref()).is_none() {
       compilation.push_diagnostic(Diagnostic::error(
         "RSC Client Entry Mismatch".to_string(),
@@ -637,7 +671,9 @@ async fn make(&self, compilation: &mut Compilation) -> Result<()> {
     if !client_modules.is_empty() || entry_state.has_css_imports_by_server_entry() {
       let dependency = Box::new(RscEntryDependency::new(
         entry_name.clone(),
-        client_modules.clone(),
+        entry_state.ungrouped_client_entries.clone(),
+        entry_state.root_client_entries.clone(),
+        entry_state.client_entries_by_server_entry.clone(),
         entry_state.css_imports_by_server_entry(),
         false,
       ));
@@ -667,12 +703,12 @@ async fn make(&self, compilation: &mut Compilation) -> Result<()> {
         .add_dependency(dependency);
     }
 
-    #[allow(clippy::unwrap_used)]
-    let entry_data = compilation.entries.get_mut(entry_name.as_ref()).unwrap();
-    entry_data.dependencies.append(&mut entry_dependencies);
-    entry_data
-      .include_dependencies
-      .append(&mut include_dependencies);
+    if let Some(entry_data) = compilation.entries.get_mut(entry_name.as_ref()) {
+      entry_data.dependencies.append(&mut entry_dependencies);
+      entry_data
+        .include_dependencies
+        .append(&mut include_dependencies);
+    }
   }
 
   Ok(())
