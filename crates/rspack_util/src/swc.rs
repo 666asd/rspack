@@ -3,9 +3,11 @@ pub mod runtime;
 
 use rustc_hash::FxHashSet;
 use swc_config::types::BoolOr;
+#[cfg(feature = "plugin")]
+use swc_core::base::config::{JscConfig, Options};
 use swc_core::{
   atoms::Atom,
-  base::config::{JsMinifyCommentOption, JscConfig, Options},
+  base::config::JsMinifyCommentOption,
   common::{
     BytePos,
     comments::{Comment, CommentKind, Comments, SingleThreadedComments},
@@ -13,6 +15,7 @@ use swc_core::{
 };
 
 /// Returns true when `jsc.experimental.plugins` contains at least one wasm plugin.
+#[cfg(feature = "plugin")]
 pub fn has_wasm_plugins(jsc: &JscConfig) -> bool {
   jsc
     .experimental
