@@ -4149,7 +4149,6 @@ dependencies = [
  "hstr",
  "indexmap",
  "rspack_cacheable",
- "rustc-hash",
  "ustr-fxhash",
 ]
 
