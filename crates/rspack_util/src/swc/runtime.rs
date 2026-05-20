@@ -16,6 +16,9 @@ static ENGINE: OnceCell<wasmtime::Engine> = OnceCell::new();
 #[derive(Clone, Copy, Debug)]
 pub struct WasmtimeRuntime;
 
+#[derive(Clone, Copy, Debug)]
+pub struct UnsupportedRuntime;
+
 struct WasmtimeCache(wasmtime::Module);
 
 struct WasmtimeTable {
@@ -53,6 +56,30 @@ struct WasmtimeCallerRef<'a> {
 fn init_engine() -> anyhow::Result<wasmtime::Engine> {
   let config = wasmtime::Config::default();
   wasmtime::Engine::new(&config)
+}
+
+impl runtime::Runtime for UnsupportedRuntime {
+  fn identifier(&self) -> &'static str {
+    "unsupported"
+  }
+
+  fn prepare_module(&self, _bytes: &[u8]) -> anyhow::Result<runtime::ModuleCache> {
+    Err(anyhow::format_err!(
+      "SWC wasm plugin runtime is not enabled"
+    ))
+  }
+
+  fn init(
+    &self,
+    _name: &str,
+    _imports: Vec<(String, runtime::Func)>,
+    _envs: Vec<(String, String)>,
+    _module: runtime::Module,
+  ) -> anyhow::Result<Box<dyn runtime::Instance>> {
+    Err(anyhow::format_err!(
+      "SWC wasm plugin runtime is not enabled"
+    ))
+  }
 }
 
 impl runtime::Runtime for WasmtimeRuntime {

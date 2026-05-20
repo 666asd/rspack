@@ -24,13 +24,16 @@ pub fn has_wasm_plugins(jsc: &JscConfig) -> bool {
     .is_some_and(|plugins| !plugins.is_empty())
 }
 
-/// Registers wasmtime as the SWC plugin runtime only when wasm plugins are configured.
+/// Registers wasmtime only when wasm plugins are configured.
 #[cfg(feature = "plugin")]
 pub fn configure_wasm_plugin_runtime_if_needed(options: &mut Options) {
+  let runtime_options = std::mem::take(&mut options.runtime_options);
   if has_wasm_plugins(&options.config.jsc) {
-    let runtime_options = std::mem::take(&mut options.runtime_options);
     options.runtime_options =
       runtime_options.plugin_runtime(std::sync::Arc::new(crate::swc::runtime::WasmtimeRuntime));
+  } else {
+    options.runtime_options =
+      runtime_options.plugin_runtime(std::sync::Arc::new(crate::swc::runtime::UnsupportedRuntime));
   }
 }
 
