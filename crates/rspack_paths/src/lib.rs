@@ -1,21 +1,20 @@
 use std::{
   collections::{HashMap, HashSet},
   fmt::Debug,
-  hash::{BuildHasherDefault, Hash, Hasher},
+  hash::BuildHasherDefault,
   ops::Deref,
   path::{Path, PathBuf},
-  sync::Arc,
 };
 
 pub use camino::{Utf8Component, Utf8Components, Utf8Path, Utf8PathBuf, Utf8Prefix};
 use dashmap::{DashMap, DashSet};
+use hstr::Atom;
 use indexmap::IndexSet;
 use rspack_cacheable::{
   ContextGuard, Error as CacheableError, cacheable,
   utils::PortablePath,
   with::{Custom, CustomConverter},
 };
-use rustc_hash::FxHasher;
 use ustr::IdentityHasher;
 
 pub trait AssertUtf8 {
@@ -54,58 +53,58 @@ impl<'a> AssertUtf8 for &'a Path {
 }
 
 #[cacheable(with=Custom)]
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub struct ArcPath {
-  path: Arc<Path>,
-  // Pre-calculating and caching the hash value upon creation, making hashing operations
-  // in collections virtually free.
-  hash: u64,
+  inner: Atom,
 }
 
 impl Debug for ArcPath {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    self.path.fmt(f)
+    self.as_ref().fmt(f)
   }
 }
 
 impl ArcPath {
-  pub fn new(path: Arc<Path>) -> Self {
-    let mut hasher = FxHasher::default();
-    path.hash(&mut hasher);
-    let hash = hasher.finish();
-    Self { path, hash }
+  pub fn new(path: impl Into<Atom>) -> Self {
+    Self { inner: path.into() }
   }
 }
 
 impl Deref for ArcPath {
-  type Target = Arc<Path>;
+  type Target = Path;
 
   fn deref(&self) -> &Self::Target {
-    &self.path
+    self.as_ref()
   }
 }
 
 impl AsRef<Path> for ArcPath {
   fn as_ref(&self) -> &Path {
-    &self.path
+    Path::new(self.inner.as_ref())
   }
 }
 
 impl From<PathBuf> for ArcPath {
   fn from(value: PathBuf) -> Self {
-    ArcPath::new(value.into())
+    let value = value
+      .into_os_string()
+      .into_string()
+      .unwrap_or_else(|p| panic!("expected UTF-8 path, got: {}", PathBuf::from(p).display()));
+    ArcPath::new(value)
   }
 }
 
 impl From<&Path> for ArcPath {
   fn from(value: &Path) -> Self {
-    ArcPath::new(value.into())
+    ArcPath::new(value.to_str().unwrap_or_else(|| {
+      panic!("expected UTF-8 path, got: {}", value.display());
+    }))
   }
 }
 
 impl From<&Utf8Path> for ArcPath {
   fn from(value: &Utf8Path) -> Self {
-    ArcPath::new(value.as_std_path().into())
+    ArcPath::new(value.as_str())
   }
 }
 
@@ -117,26 +116,19 @@ impl From<&ArcPath> for ArcPath {
 
 impl From<&str> for ArcPath {
   fn from(value: &str) -> Self {
-    ArcPath::new(<str as std::convert::AsRef<Path>>::as_ref(value).into())
+    ArcPath::new(value)
   }
 }
 
 impl CustomConverter for ArcPath {
   type Target = PortablePath;
   fn serialize(&self, guard: &ContextGuard) -> Result<Self::Target, CacheableError> {
-    Ok(PortablePath::new(&self.path, guard.project_root()))
+    Ok(PortablePath::new(self.as_ref(), guard.project_root()))
   }
   fn deserialize(data: Self::Target, guard: &ContextGuard) -> Result<Self, CacheableError> {
     Ok(Self::from(PathBuf::from(
       data.into_path_string(guard.project_root()),
     )))
-  }
-}
-
-impl Hash for ArcPath {
-  #[inline]
-  fn hash<H: Hasher>(&self, state: &mut H) {
-    state.write_u64(self.hash);
   }
 }
 
