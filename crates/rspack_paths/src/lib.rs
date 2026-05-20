@@ -4,7 +4,6 @@ use std::{
   hash::{BuildHasherDefault, Hash},
   ops::Deref,
   path::{Path, PathBuf},
-  sync::Arc,
 };
 
 pub use camino::{Utf8Component, Utf8Components, Utf8Path, Utf8PathBuf, Utf8Prefix};
@@ -66,10 +65,6 @@ impl Debug for ArcPath {
 }
 
 impl ArcPath {
-  pub fn new(path: Arc<Path>) -> Self {
-    Self::from_path(&path)
-  }
-
   fn from_path(path: &Path) -> Self {
     let path = path.to_str().unwrap_or_else(|| {
       panic!("expected UTF-8 path, got: {}", path.display());
