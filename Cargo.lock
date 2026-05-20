@@ -4146,9 +4146,9 @@ version = "0.100.3"
 dependencies = [
  "camino",
  "dashmap",
+ "hstr",
  "indexmap",
  "rspack_cacheable",
- "rustc-hash",
  "ustr-fxhash",
 ]
 
