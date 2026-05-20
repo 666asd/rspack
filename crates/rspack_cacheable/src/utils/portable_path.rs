@@ -57,7 +57,12 @@ impl PortablePath {
         .to_string_lossy()
         .into_owned();
     }
-    self.path.normalize().to_string_lossy().into_owned()
+
+    let path = Path::new(&self.path);
+    if path.is_absolute() {
+      return path.normalize().to_string_lossy().into_owned();
+    }
+    self.path
   }
 }
 
@@ -82,13 +87,13 @@ mod tests {
   use super::PortablePath;
 
   #[test]
-  fn should_normalize_untransformed_path_on_deserialize() {
+  fn should_preserve_untransformed_relative_path_on_deserialize() {
     let path = PortablePath {
-      path: "a//b/../c.js".to_string(),
+      path: "./src".to_string(),
       transformed: false,
     };
 
-    assert_eq!(path.into_path_string(None), "a/c.js");
+    assert_eq!(path.into_path_string(None), "./src");
   }
 
   #[cfg(windows)]
