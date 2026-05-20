@@ -53,10 +53,11 @@ impl PortablePath {
       return self
         .path
         .absolutize_with(project_root)
+        .normalize()
         .to_string_lossy()
         .into_owned();
     }
-    self.path
+    self.path.normalize().to_string_lossy().into_owned()
   }
 }
 
@@ -73,5 +74,45 @@ where
 
   fn deserialize(self, guard: &ContextGuard) -> Result<T> {
     Ok(T::from(self.into_path_string(guard.project_root())))
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::PortablePath;
+
+  #[test]
+  fn should_normalize_untransformed_path_on_deserialize() {
+    let path = PortablePath {
+      path: "a//b/../c.js".to_string(),
+      transformed: false,
+    };
+
+    assert_eq!(path.into_path_string(None), "a/c.js");
+  }
+
+  #[cfg(windows)]
+  #[test]
+  fn should_normalize_windows_separators_on_deserialize() {
+    let path = PortablePath {
+      path: "C:/project/src/file.js".to_string(),
+      transformed: false,
+    };
+
+    assert_eq!(path.into_path_string(None), r"C:\project\src\file.js");
+  }
+
+  #[cfg(windows)]
+  #[test]
+  fn should_normalize_transformed_windows_path_on_deserialize() {
+    let path = PortablePath {
+      path: "src/file.js".to_string(),
+      transformed: true,
+    };
+
+    assert_eq!(
+      path.into_path_string(Some(std::path::Path::new(r"C:\project"))),
+      r"C:\project\src\file.js"
+    );
   }
 }
