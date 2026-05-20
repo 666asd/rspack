@@ -7,15 +7,17 @@ use std::{
 
 use atomic_refcell::AtomicRefCell;
 use rspack_core::{
-  AssetInfo, BoxModule, Chunk, ChunkGraph, ChunkKind, ChunkLoading, ChunkLoadingType, ChunkUkey,
-  Compilation, CompilationContentHash, CompilationId, CompilationParams, CompilationRenderManifest,
-  CompilationRuntimeRequirementInTree, CompilerCompilation, CssBuildInfo, CssModuleRenderCondition,
-  DependencyType, ManifestAssetType, Module, ModuleFactoryCreateData, ModuleGraph, ModuleType,
+  AssetInfo, BoxDependency, BoxModule, Chunk, ChunkGraph, ChunkKind, ChunkLoading,
+  ChunkLoadingType, ChunkUkey, Compilation, CompilationContentHash, CompilationId,
+  CompilationParams, CompilationRenderManifest, CompilationRuntimeRequirementInTree,
+  CompilerCompilation, CssAutoOrModuleParserOptions, CssBuildInfo, CssExportType,
+  CssModuleGeneratorOptions, CssModuleRenderCondition, DependencyType, ManifestAssetType, Module,
+  ModuleFactoryCreateData, ModuleGraph, ModuleIdentifier, ModuleType,
   NormalModuleCreateData, NormalModuleFactoryAfterResolve, NormalModuleFactoryModule,
   ParserAndGenerator, PathData, Plugin, PublicPath, RenderManifestEntry, RuntimeGlobals,
-  RuntimeModule, RuntimeModuleExt, SelfModuleFactory, SourceType,
-  css_module_render_conditions_identifier, get_css_chunk_filename_template,
-  rspack_sources::{BoxSource, CachedSource, ConcatSource, ReplaceSource, Source, SourceExt},
+  RuntimeModule, RuntimeModuleExt, SelfModuleFactory, SourceType, get_css_chunk_filename_template,
+  css_module_render_conditions_identifier,
+  rspack_sources::{BoxSource, CachedSource, ReplaceSource, Source, SourceExt},
 };
 use rspack_error::{Diagnostic, Result, ToStringResultToRspackResultExt};
 use rspack_hash::RspackHash;
@@ -28,15 +30,15 @@ use smol_str::SmolStr;
 use crate::{
   CssPlugin,
   dependency::{
-    CssIcssSymbolDependencyTemplate, CssImportDependency, CssImportDependencyTemplate,
-    CssLocalIdentDependencyTemplate, CssSelfReferenceLocalIdentDependencyTemplate,
-    CssUrlDependencyTemplate,
+    CssComposeDependency, CssIcssSymbolDependencyTemplate, CssImportDependency,
+    CssImportDependencyTemplate, CssLocalIdentDependencyTemplate,
+    CssSelfReferenceLocalIdentDependencyTemplate, CssUrlDependencyTemplate,
   },
   parser_and_generator::{
     CodeGenerationDataUnusedLocalIdent, CssParserAndGenerator, CssSourceBuilder,
   },
   plugin::{CssModulesPluginHooks, CssModulesRenderSource, CssPluginInner},
-  runtime::CssLoadingRuntimeModule,
+  runtime::{CssExportRuntimeModule, CssExportRuntimeModuleKind, CssLoadingRuntimeModule},
   utils::AUTO_PUBLIC_PATH_PLACEHOLDER,
 };
 
@@ -47,6 +49,10 @@ type ArcCssModulesPluginHooks = Arc<AtomicRefCell<CssModulesPluginHooks>>;
 
 static COMPILATION_HOOKS_MAP: LazyLock<FxDashMap<CompilationId, ArcCssModulesPluginHooks>> =
   LazyLock::new(Default::default);
+
+struct CssModuleDebugInfo<'a> {
+  pub module: &'a dyn Module,
+}
 
 impl CssPlugin {
   pub fn get_compilation_hooks(id: CompilationId) -> ArcCssModulesPluginHooks {
@@ -155,35 +161,48 @@ impl CssPlugin {
     chunk: &Chunk,
     ordered_css_modules: &[&dyn Module],
     hooks: &CssModulesPluginHooks,
-  ) -> rspack_error::Result<ConcatSource> {
+  ) -> rspack_error::Result<BoxSource> {
     let module_sources = ordered_css_modules
       .iter()
       .map(|module| {
         let module_id = &module.identifier();
+        let render_conditions = css_render_conditions_from_module(*module);
         let code_gen_result = compilation
           .code_generation_results
           .get(module_id, Some(chunk.runtime()));
 
-        Ok(
-          code_gen_result
-            .get(&SourceType::Css)
-            .map(|source| (*module, source)),
-        )
+        Ok(code_gen_result.get(&SourceType::Css).map(|source| {
+          (
+            CssModuleDebugInfo { module: *module },
+            render_conditions,
+            source,
+          )
+        }))
       })
       .collect::<Result<Vec<_>>>()?;
 
     let module_sources = rspack_parallel::scope::<_, Result<_>>(|token| {
-      module_sources
-        .into_iter()
-        .flatten()
-        .for_each(|(module, cur_source)| {
-          let s = unsafe { token.used((compilation, chunk.ukey(), module, cur_source, hooks)) };
+      module_sources.into_iter().flatten().for_each(
+        |(debug_info, render_conditions, cur_source)| {
+          let s = unsafe {
+            token.used((
+              compilation,
+              chunk.ukey(),
+              debug_info,
+              cur_source,
+              render_conditions,
+              hooks,
+            ))
+          };
           s.spawn(
-            |(compilation, chunk, module, cur_source, hooks)| async move {
+            |(compilation, chunk, debug_info, cur_source, render_conditions, hooks)| async move {
               let mut post_module_container = {
-                let render_conditions = css_render_conditions_from_module(module);
                 let mut builder = CssSourceBuilder::new(false);
-                if builder.push_css_source(cur_source.clone(), render_conditions, false) {
+                if builder.push_css_source(
+                  cur_source.clone(),
+                  render_conditions,
+                  css_module_has_charset(debug_info.module),
+                ) {
                   builder.push_line();
                 }
                 CssModulesRenderSource {
@@ -194,38 +213,97 @@ impl CssPlugin {
               let chunk_ukey = chunk.as_u32().into();
               hooks
                 .render_module_package
-                .call(compilation, &chunk_ukey, module, &mut post_module_container)
+                .call(
+                  compilation,
+                  &chunk_ukey,
+                  debug_info.module,
+                  &mut post_module_container,
+                )
                 .await?;
 
-              Ok(post_module_container.source)
+              Ok((debug_info.module.identifier(), post_module_container.source))
             },
           );
-        });
+        },
+      );
     })
     .await
     .into_iter()
     .map(|r| r.to_rspack_result())
     .collect::<Result<Vec<_>>>()?;
 
-    let mut source = ConcatSource::default();
+    let module_sources = module_sources
+      .into_iter()
+      .collect::<Result<Vec<_>>>()?
+      .into_iter()
+      .collect::<HashMap<_, _>>();
+    Ok(Self::render_ordered_css_sources(
+      ordered_css_modules,
+      &module_sources,
+    ))
+  }
 
-    for module_source in module_sources {
-      source.add(module_source?);
+  fn render_ordered_css_sources(
+    ordered_css_modules: &[&dyn Module],
+    module_sources: &HashMap<ModuleIdentifier, BoxSource>,
+  ) -> BoxSource {
+    let non_import_css_resources = ordered_css_modules
+      .iter()
+      .filter(|module| !css_module_is_import_dependency(**module))
+      .filter_map(|module| css_module_resource(*module))
+      .collect::<HashSet<_>>();
+
+    let mut builder = CssSourceBuilder::new(false);
+    for module in ordered_css_modules {
+      if css_module_is_import_dependency(*module)
+        && let Some(resource) = css_module_resource(*module)
+        && non_import_css_resources.contains(resource)
+      {
+        continue;
+      }
+
+      let identifier = module.identifier();
+      if let Some(source) = module_sources.get(&identifier) {
+        if css_module_has_charset(*module) {
+          builder.set_has_charset();
+        }
+        builder.push_css_source(source.clone(), &[], false);
+      }
     }
 
-    Ok(source)
+    builder.into_source()
   }
 }
 
-fn css_render_conditions_from_module(
-  module: &dyn Module,
-) -> impl Iterator<Item = &CssModuleRenderCondition> {
+fn css_render_conditions_from_module(module: &dyn Module) -> &[CssModuleRenderCondition] {
   module
     .build_info()
     .css
     .as_deref()
-    .into_iter()
-    .flat_map(|css| css.render_conditions())
+    .map(|css| css.render_conditions.as_slice())
+    .unwrap_or_default()
+}
+
+fn css_module_has_charset(module: &dyn Module) -> bool {
+  module
+    .build_info()
+    .css
+    .as_deref()
+    .is_some_and(|css| css.has_charset)
+}
+
+fn css_module_is_import_dependency(module: &dyn Module) -> bool {
+  module
+    .build_info()
+    .css
+    .as_deref()
+    .is_some_and(|css| css.css_import_dependency)
+}
+
+fn css_module_resource(module: &dyn Module) -> Option<&str> {
+  module
+    .as_normal_module()
+    .map(|module| module.resource_resolved_data().resource())
 }
 
 #[plugin_hook(NormalModuleFactoryAfterResolve for CssPlugin)]
@@ -239,14 +317,26 @@ async fn normal_module_factory_after_resolve(
     .first()
     .and_then(|dependency| dependency.downcast_ref::<CssImportDependency>())
   else {
+    let Some(css_compose_dep) = data
+      .dependencies
+      .first()
+      .and_then(|dependency| dependency.downcast_ref::<CssComposeDependency>())
+    else {
+      return Ok(None);
+    };
+    if let Some(export_type) = css_compose_dep.export_type() {
+      append_css_export_type_key(create_data, export_type);
+    }
     return Ok(None);
   };
 
-  if let Some(conditions_key) =
-    css_module_render_conditions_identifier(css_import_dep.render_conditions())
-  {
+  let conditions_key = css_render_conditions_key(css_import_dep.render_conditions());
+  if !conditions_key.is_empty() {
     create_data.request.push_str("|css-render-conditions|");
     create_data.request.push_str(&conditions_key);
+  }
+  if let Some(export_type) = css_import_dep.export_type() {
+    append_css_export_type_key(create_data, export_type);
   }
 
   Ok(None)
@@ -259,15 +349,19 @@ async fn normal_module_factory_module(
   _create_data: &NormalModuleCreateData,
   module: &mut BoxModule,
 ) -> Result<()> {
-  let Some(css_import_dep) = data
-    .dependencies
-    .first()
-    .and_then(|dependency| dependency.downcast_ref::<CssImportDependency>())
-  else {
+  let Some(dependency) = data.dependencies.first() else {
     return Ok(());
   };
 
-  if !css_import_dep.has_render_conditions() {
+  let is_css_import_dependency = dependency.downcast_ref::<CssImportDependency>().is_some();
+  let is_css_dependency =
+    is_css_import_dependency || dependency.downcast_ref::<CssComposeDependency>().is_some();
+  let render_conditions = dependency
+    .downcast_ref::<CssImportDependency>()
+    .map(|dep| dep.render_conditions())
+    .unwrap_or_default();
+  let export_type = css_dependency_export_type(dependency);
+  if render_conditions.is_empty() && export_type.is_none() && !is_css_dependency {
     return Ok(());
   }
 
@@ -275,11 +369,34 @@ async fn normal_module_factory_module(
     .build_info_mut()
     .css
     .get_or_insert_with(|| Box::new(CssBuildInfo::default()));
-  css_build_info.inherited_render_conditions =
-    css_import_dep.inherited_render_conditions().to_vec();
-  css_build_info.render_condition = css_import_dep.render_condition().clone();
+  css_build_info.render_conditions = render_conditions.to_vec();
+  css_build_info.export_type = export_type;
+  css_build_info.css_import_dependency = is_css_import_dependency;
 
   Ok(())
+}
+
+fn append_css_export_type_key(
+  create_data: &mut NormalModuleCreateData,
+  export_type: CssExportType,
+) {
+  create_data.request.push_str("|css-export-type|");
+  create_data.request.push_str(&export_type.to_string());
+}
+
+fn css_dependency_export_type(dependency: &BoxDependency) -> Option<CssExportType> {
+  dependency
+    .downcast_ref::<CssImportDependency>()
+    .and_then(|dep| dep.export_type())
+    .or_else(|| {
+      dependency
+        .downcast_ref::<CssComposeDependency>()
+        .and_then(|dep| dep.export_type())
+    })
+}
+
+fn css_render_conditions_key(conditions: &[CssModuleRenderCondition]) -> String {
+  css_module_render_conditions_identifier(conditions).unwrap_or_default()
 }
 
 #[plugin_hook(CompilerCompilation for CssPlugin)]
@@ -334,6 +451,26 @@ async fn runtime_requirements_in_tree(
   runtime_requirements_mut: &mut RuntimeGlobals,
   runtime_modules_to_add: &mut Vec<(ChunkUkey, Box<dyn RuntimeModule>)>,
 ) -> Result<Option<()>> {
+  if runtime_requirements.contains(RuntimeGlobals::CSS_INJECT_STYLE) {
+    runtime_modules_to_add.push((
+      *chunk_ukey,
+      CssExportRuntimeModule::new_inject_style(&compilation.runtime_template).boxed(),
+    ));
+    runtime_requirements_mut.extend(CssExportRuntimeModule::get_runtime_requirements(
+      CssExportRuntimeModuleKind::InjectStyle,
+    ));
+  }
+
+  if runtime_requirements.contains(RuntimeGlobals::CSS_STYLE_SHEET) {
+    runtime_modules_to_add.push((
+      *chunk_ukey,
+      CssExportRuntimeModule::new_style_sheet(&compilation.runtime_template).boxed(),
+    ));
+    runtime_requirements_mut.extend(CssExportRuntimeModule::get_runtime_requirements(
+      CssExportRuntimeModuleKind::StyleSheet,
+    ));
+  }
+
   let is_enabled_for_chunk = is_enabled_for_chunk(
     chunk_ukey,
     &ChunkLoading::Enable(ChunkLoadingType::Jsonp),
@@ -524,6 +661,14 @@ impl Plugin for CssPlugin {
   }
 
   fn apply(&self, ctx: &mut rspack_core::ApplyContext<'_>) -> Result<()> {
+    ctx
+      .normal_module_factory_hooks
+      .after_resolve
+      .tap(normal_module_factory_after_resolve::new(self));
+    ctx
+      .normal_module_factory_hooks
+      .module
+      .tap(normal_module_factory_module::new(self));
     ctx.compiler_hooks.compilation.tap(compilation::new(self));
     ctx
       .compilation_hooks
@@ -537,30 +682,66 @@ impl Plugin for CssPlugin {
       .compilation_hooks
       .render_manifest
       .tap(render_manifest::new(self));
-    ctx
-      .normal_module_factory_hooks
-      .after_resolve
-      .tap(normal_module_factory_after_resolve::new(self));
-    ctx
-      .normal_module_factory_hooks
-      .module
-      .tap(normal_module_factory_module::new(self));
 
     ctx.register_parser_and_generator_builder(
       ModuleType::Css,
-      Box::new(|_| Box::new(CssParserAndGenerator::new()) as Box<dyn ParserAndGenerator>),
+      Box::new(|options| {
+        let p = options
+          .parser_options()
+          .and_then(|p| p.get_css())
+          .expect("should have CssParserOptions");
+        let g = options
+          .generator_options()
+          .and_then(|g| g.get_css())
+          .expect("should have CssGeneratorOptions");
+        Box::new(CssParserAndGenerator::new(
+          CssModuleGeneratorOptions::from(g),
+          CssAutoOrModuleParserOptions::from(p),
+        )) as Box<dyn ParserAndGenerator>
+      }),
     );
     ctx.register_parser_and_generator_builder(
       ModuleType::CssGlobal,
-      Box::new(|_| Box::new(CssParserAndGenerator::new()) as Box<dyn ParserAndGenerator>),
+      Box::new(|options| {
+        let p = options
+          .parser_options()
+          .and_then(|p| p.get_css_global())
+          .expect("should have CssModuleParserOptions");
+        let g = options
+          .generator_options()
+          .and_then(|g| g.get_css_global())
+          .expect("should have CssModuleGeneratorOptions");
+        Box::new(CssParserAndGenerator::new(g.clone(), p.clone().into()))
+          as Box<dyn ParserAndGenerator>
+      }),
     );
     ctx.register_parser_and_generator_builder(
       ModuleType::CssModule,
-      Box::new(|_| Box::new(CssParserAndGenerator::new()) as Box<dyn ParserAndGenerator>),
+      Box::new(|options| {
+        let p = options
+          .parser_options()
+          .and_then(|p| p.get_css_module())
+          .expect("should have CssAutoOrModuleParserOptions");
+        let g = options
+          .generator_options()
+          .and_then(|g| g.get_css_module())
+          .expect("should have CssModuleGeneratorOptions");
+        Box::new(CssParserAndGenerator::new(g.clone(), p.clone())) as Box<dyn ParserAndGenerator>
+      }),
     );
     ctx.register_parser_and_generator_builder(
       ModuleType::CssAuto,
-      Box::new(|_| Box::new(CssParserAndGenerator::new()) as Box<dyn ParserAndGenerator>),
+      Box::new(|options| {
+        let p = options
+          .parser_options()
+          .and_then(|p| p.get_css_auto())
+          .expect("should have CssAutoOrModuleParserOptions");
+        let g = options
+          .generator_options()
+          .and_then(|g| g.get_css_auto())
+          .expect("should have CssModuleGeneratorOptions");
+        Box::new(CssParserAndGenerator::new(g.clone(), p.clone())) as Box<dyn ParserAndGenerator>
+      }),
     );
 
     Ok(())

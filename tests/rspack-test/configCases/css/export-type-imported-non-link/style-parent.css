@@ -1,0 +1,5 @@
+@import url("./text-child.css") layer(theme) supports(display: grid) screen;
+
+.style-parent-class {
+	color: orange;
+}

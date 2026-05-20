@@ -642,6 +642,7 @@ function getRawCssModuleParserOptions(
   parser: CssModuleParserOptions,
 ): RawCssModuleParserOptions {
   return {
+    exportType: parser.exportType,
     namedExports: parser.namedExports,
     url: parser.url,
     import: parser.import,
@@ -668,6 +669,7 @@ function getRawCssParserOptionsForCss(
   parser: CssParserOptions,
 ): RawCssParserOptions {
   return {
+    exportType: parser.exportType,
     namedExports: parser.namedExports,
     url: parser.url,
     import: parser.import,

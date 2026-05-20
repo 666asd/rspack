@@ -1,0 +1,5 @@
+@import url("./conditional-child.css") layer(theme) supports(display: grid) print;
+
+.link-parent-with-conditions {
+	color: navy;
+}

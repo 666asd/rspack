@@ -36,6 +36,26 @@ const STATS_ARTIFACT_FALLBACK_MODULE_GRAPH_CACHE: u8 = 1 << 1;
 const STATS_ARTIFACT_FALLBACK_BUILD_MODULE_GRAPH: u8 = 1 << 2;
 const STATS_ARTIFACT_FALLBACK_MODULE_IDS: u8 = 1 << 3;
 const STATS_ARTIFACT_FALLBACK_CHUNK_HASHES: u8 = 1 << 4;
+const CSS_MODULE_VARIANT_MARKERS: [&str; 2] = ["|css-render-conditions|", "|css-export-type|"];
+
+fn public_stats_module_identifier(
+  identifier: Option<ModuleIdentifier>,
+) -> Option<ModuleIdentifier> {
+  identifier.map(|identifier| {
+    let value = identifier.as_str();
+    let end = CSS_MODULE_VARIANT_MARKERS
+      .iter()
+      .filter_map(|marker| value.find(marker))
+      .min()
+      .unwrap_or(value.len());
+
+    if end == value.len() {
+      identifier
+    } else {
+      ModuleIdentifier::from(&value[..end])
+    }
+  })
+}
 
 #[derive(Debug, Clone, Copy)]
 pub struct StatsContext<'compilation>(&'compilation Compilation);
@@ -1007,7 +1027,7 @@ impl Stats<'_> {
             .emit_diagnostic(d)
             .expect("should print diagnostics"),
           code,
-          module_identifier,
+          module_identifier: public_stats_module_identifier(module_identifier),
           module_name,
           module_id: module_id.flatten(),
           loc: d.loc.as_ref().map(|loc| loc.to_string()),
@@ -1092,7 +1112,7 @@ impl Stats<'_> {
             .emit_diagnostic(d)
             .expect("should print diagnostics"),
           code,
-          module_identifier,
+          module_identifier: public_stats_module_identifier(module_identifier),
           module_name,
           module_id: module_id.flatten(),
           loc: d.loc.as_ref().map(|loc| loc.to_string()),

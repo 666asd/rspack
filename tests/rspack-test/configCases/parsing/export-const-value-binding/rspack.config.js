@@ -5,5 +5,6 @@ module.exports = {
     concatenateModules: false,
     inlineExports: false,
     mangleExports: false,
+    usedExports: false,
   },
 };

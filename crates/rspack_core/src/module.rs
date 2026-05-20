@@ -33,13 +33,13 @@ use crate::{
   AsyncDependenciesBlock, BindingCell, BoxDependency, BoxDependencyTemplate, BoxModuleDependency,
   ChunkGraph, ChunkUkey, CodeGenerationResult, CollectedTypeScriptInfo, Compilation,
   CompilationAsset, CompilationId, CompilerId, CompilerOptions, ConcatenationScope,
-  ConnectionState, Context, ContextModule, DependenciesBlock, DependencyId, ExportProvided,
-  ExportsInfoArtifact, ExternalModule, Filename, GetTargetResult, ModuleCodeTemplate, ModuleGraph,
-  ModuleGraphCacheArtifact, ModuleLayer, ModuleType, NormalModule, OptimizationBailoutItem,
-  RawModule, Resolve, ResolverFactory, RuntimeSpec, SelfModule, SharedPluginDriver,
-  SideEffectsStateArtifact, SourceType, concatenated_module::ConcatenatedModule,
-  dependencies_block::dependencies_block_update_hash, get_target,
-  value_cache_versions::ValueCacheVersions,
+  ConnectionState, Context, ContextModule, CssExportType, DependenciesBlock, DependencyId,
+  ExportProvided, ExportsInfoArtifact, ExternalModule, Filename, GetTargetResult,
+  ModuleCodeTemplate, ModuleGraph, ModuleGraphCacheArtifact, ModuleLayer, ModuleType, NormalModule,
+  OptimizationBailoutItem, RawModule, Resolve, ResolverFactory, RuntimeSpec, SelfModule,
+  SharedPluginDriver, SideEffectsStateArtifact, SourceType,
+  concatenated_module::ConcatenatedModule, dependencies_block::dependencies_block_update_hash,
+  get_target, value_cache_versions::ValueCacheVersions,
 };
 
 pub struct BuildContext {
@@ -134,14 +134,16 @@ pub type CssExports = FxIndexMap<SmolStr, FxIndexSet<CssExport>>;
 pub type CssLocalNames = HashMap<SmolStr, SmolStr>;
 
 #[cacheable]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum CssLayer {
   Anonymous,
   Named(#[cacheable(with=AsPreset)] SmolStr),
 }
 
+pub type CssModuleRenderLayer = CssLayer;
+
 #[cacheable]
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
 pub struct CssModuleRenderCondition {
   #[cacheable(with=AsOption<AsPreset>)]
   pub media: Option<SmolStr>,
@@ -211,6 +213,9 @@ pub fn push_css_module_identifier_part(identifier: &mut String, value: &str) {
 #[cacheable]
 #[derive(Debug, Clone, Default)]
 pub struct CssBuildInfo {
+  pub export_type: Option<CssExportType>,
+  pub has_charset: bool,
+  pub css_import_dependency: bool,
   #[cacheable(with=AsMap<AsPreset, AsVec>)]
   pub exports: CssExports,
   #[cacheable(with=AsMap<AsPreset, AsPreset>)]

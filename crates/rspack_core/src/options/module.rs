@@ -409,6 +409,7 @@ impl MergeFrom for CssParserImport {
 #[cacheable]
 #[derive(Debug, Clone, MergeFrom)]
 pub struct CssParserOptions {
+  pub export_type: Option<CssExportType>,
   pub named_exports: Option<bool>,
   pub url: Option<bool>,
   pub r#import: Option<bool>,
@@ -418,6 +419,7 @@ pub struct CssParserOptions {
 impl Default for CssParserOptions {
   fn default() -> Self {
     Self {
+      export_type: None,
       named_exports: Some(true),
       url: Some(true),
       r#import: Some(true),
@@ -426,9 +428,19 @@ impl Default for CssParserOptions {
   }
 }
 
+impl CssParserOptions {
+  pub fn new(export_type: Option<CssExportType>) -> Self {
+    Self {
+      export_type,
+      ..Default::default()
+    }
+  }
+}
+
 #[cacheable]
 #[derive(Debug, Clone, MergeFrom)]
 pub struct CssModuleParserOptions {
+  pub export_type: Option<CssExportType>,
   pub named_exports: Option<bool>,
   pub url: Option<bool>,
   pub r#import: Option<bool>,
@@ -444,6 +456,7 @@ pub struct CssModuleParserOptions {
 impl Default for CssModuleParserOptions {
   fn default() -> Self {
     Self {
+      export_type: None,
       named_exports: Some(true),
       url: Some(true),
       r#import: Some(true),
@@ -461,6 +474,7 @@ impl Default for CssModuleParserOptions {
 #[cacheable]
 #[derive(Debug, Clone, MergeFrom)]
 pub struct CssAutoOrModuleParserOptions {
+  pub export_type: Option<CssExportType>,
   pub named_exports: Option<bool>,
   pub url: Option<bool>,
   pub r#import: Option<bool>,
@@ -474,9 +488,19 @@ pub struct CssAutoOrModuleParserOptions {
   pub pure: Option<bool>,
 }
 
+impl CssModuleParserOptions {
+  pub fn new(export_type: Option<CssExportType>) -> Self {
+    Self {
+      export_type,
+      ..Default::default()
+    }
+  }
+}
+
 impl From<&CssParserOptions> for CssModuleParserOptions {
   fn from(value: &CssParserOptions) -> Self {
     Self {
+      export_type: value.export_type,
       named_exports: value.named_exports,
       url: value.url,
       r#import: value.r#import,
@@ -498,6 +522,7 @@ impl Default for CssAutoOrModuleParserOptions {
 impl From<CssModuleParserOptions> for CssAutoOrModuleParserOptions {
   fn from(value: CssModuleParserOptions) -> Self {
     Self {
+      export_type: value.export_type,
       named_exports: value.named_exports,
       url: value.url,
       r#import: value.r#import,
@@ -516,11 +541,44 @@ impl From<CssModuleParserOptions> for CssAutoOrModuleParserOptions {
 impl From<&CssParserOptions> for CssAutoOrModuleParserOptions {
   fn from(value: &CssParserOptions) -> Self {
     Self {
+      export_type: value.export_type,
       named_exports: value.named_exports,
       url: value.url,
       r#import: value.r#import,
       resolve_import: value.resolve_import.clone(),
       ..Default::default()
+    }
+  }
+}
+
+#[cacheable]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, MergeFrom, Hash)]
+pub enum CssExportType {
+  Link,
+  Text,
+  CssStyleSheet,
+  Style,
+}
+
+impl fmt::Display for CssExportType {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    match self {
+      CssExportType::Link => write!(f, "link"),
+      CssExportType::Text => write!(f, "text"),
+      CssExportType::CssStyleSheet => write!(f, "css-style-sheet"),
+      CssExportType::Style => write!(f, "style"),
+    }
+  }
+}
+
+impl From<String> for CssExportType {
+  fn from(value: String) -> Self {
+    match value.as_str() {
+      "link" => CssExportType::Link,
+      "text" => CssExportType::Text,
+      "css-style-sheet" => CssExportType::CssStyleSheet,
+      "style" => CssExportType::Style,
+      _ => unreachable!("css exportType error"),
     }
   }
 }

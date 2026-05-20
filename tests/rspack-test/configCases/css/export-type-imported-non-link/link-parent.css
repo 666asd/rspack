@@ -1,0 +1,7 @@
+@import url("./text-child.css");
+@import url("./sheet-child.css");
+@import url("./style-child.css");
+
+.link-parent {
+	color: red;
+}

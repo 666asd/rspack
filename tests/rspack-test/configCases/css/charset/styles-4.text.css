@@ -1,0 +1,12 @@
+@charset "UTF-8";
+
+@import "./import.text.css";
+@import "./import.text.css?foo=bar";
+
+.class-4 {
+	color: red;
+}
+
+.string-charset {
+	content: '@charset "UTF-8";';
+}

@@ -1023,6 +1023,7 @@ export type AssetParserOptions = {
 
 export type CssParserNamedExports = boolean;
 export type CssParserUrl = boolean;
+export type CssParserExportType = 'link' | 'text' | 'css-style-sheet' | 'style';
 
 export type CssParserResolveImportContext = {
   url: string;
@@ -1038,6 +1039,12 @@ export type CssParserResolveImport =
 
 /** Options object for `css` modules. */
 export type CssParserOptions = {
+  /**
+   * Configure how CSS content is exported to JavaScript.
+   * @default undefined, which uses "link" behavior
+   */
+  exportType?: CssParserExportType;
+
   /**
    * Use ES modules named export for CSS exports.
    * @default true
@@ -1065,6 +1072,12 @@ export type CssParserOptions = {
 
 /** Options object for `css/global` modules. */
 export type CssModuleParserOptions = {
+  /**
+   * Configure how CSS content is exported to JavaScript.
+   * @default undefined, which uses "link" behavior
+   */
+  exportType?: CssParserExportType;
+
   /**
    * Use ES modules named export for CSS exports.
    * @default true

@@ -1,0 +1,8 @@
+.one {
+  composes: b from "./b.module.css";
+  composes: c from "./c.module.css";
+}
+
+.two {
+  composes: a from "./a.module.css";
+}

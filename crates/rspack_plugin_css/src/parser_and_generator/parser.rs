@@ -3,14 +3,16 @@ use std::{path::Path, sync::Arc};
 use once_cell::sync::OnceCell;
 use rspack_core::{
   BoxDependencyTemplate, BoxModuleDependency, ConstDependency, CssAutoOrModuleParserOptions,
-  CssExport, CssExports, CssExportsConvention, CssLayer, CssLocalNames, CssModuleGeneratorOptions,
-  CssModuleRenderCondition, CssParserImport, CssParserImportContext, Dependency, DependencyId,
-  DependencyRange, ModuleType, ParseContext, ParseResult, ResourceData,
+  CssBuildInfo, CssExport, CssExportType, CssExports, CssExportsConvention, CssLayer, CssLocalNames,
+  CssModuleGeneratorOptions, CssModuleRenderCondition, CssModuleRenderLayer, CssParserImport,
+  CssParserImportContext, Dependency, DependencyId, DependencyRange, ModuleType, ParseContext,
+  ParseResult, ResourceData, StaticExportsDependency, StaticExportsSpec,
   diagnostics::map_box_diagnostics_to_module_parse_diagnostics, remove_bom, rspack_sources::Source,
   topological_sort,
 };
 use rspack_error::{Diagnostic, IntoTWithDiagnosticArray, Result, Severity, TWithDiagnosticArray};
 use rustc_hash::{FxHashMap, FxHashSet};
+use smol_str::SmolStr;
 
 use super::{REGEX_CUSTOM_PROPERTY_IDENT, REGEX_IS_COMMENTS, REGEX_IS_MODULES};
 use crate::{
@@ -40,8 +42,6 @@ pub(super) struct CssModuleParser<'context> {
   code_generation_dependencies: Vec<BoxModuleDependency>,
   css_exports: CssExports,
   css_local_names: CssLocalNames,
-  inherited_render_conditions: Vec<CssModuleRenderCondition>,
-  render_condition: CssModuleRenderCondition,
   icss_definitions: FxHashMap<String, IcssDefinition>,
   current_icss_import_from: Option<String>,
   composes_order: ComposesOrderState,
@@ -183,17 +183,6 @@ impl<'context> CssModuleParser<'context> {
   ) -> Self {
     let source = remove_bom(parse_context.source.clone());
     let source_code: Arc<str> = source.source().into_string_lossy().into();
-    let (inherited_render_conditions, render_condition) = parse_context
-      .build_info
-      .css
-      .as_deref()
-      .map(|css| {
-        (
-          css.inherited_render_conditions.clone(),
-          css.render_condition.clone(),
-        )
-      })
-      .unwrap_or_default();
 
     Self {
       generator_options,
@@ -208,8 +197,6 @@ impl<'context> CssModuleParser<'context> {
       code_generation_dependencies: vec![],
       css_exports: Default::default(),
       css_local_names: Default::default(),
-      inherited_render_conditions,
-      render_condition,
       icss_definitions: Default::default(),
       current_icss_import_from: None,
       composes_order: Default::default(),
@@ -231,6 +218,18 @@ impl<'context> CssModuleParser<'context> {
 
     self.apply_composes_source_order();
     self.add_warnings(warnings);
+
+    if matches!(
+      self.export_type(),
+      Some(CssExportType::Text | CssExportType::CssStyleSheet)
+    ) {
+      self
+        .dependencies
+        .push(Box::new(StaticExportsDependency::new(
+          StaticExportsSpec::Array(vec!["default".into()]),
+          false,
+        )));
+    }
 
     let css_build_info = self.parse_context.build_info.css.get_or_insert_default();
     css_build_info.exports = self.css_exports;
@@ -274,6 +273,25 @@ impl<'context> CssModuleParser<'context> {
       }
       _ => css_module_lexer::Mode::Css,
     }
+  }
+
+  fn export_type(&self) -> Option<CssExportType> {
+    self
+      .css_build_info()
+      .and_then(|css_build_info| css_build_info.export_type)
+      .or(self.parser_options.export_type)
+  }
+
+  fn css_build_info(&self) -> Option<&CssBuildInfo> {
+    self.parse_context.build_info.css.as_deref()
+  }
+
+  fn css_build_info_mut(&mut self) -> &mut CssBuildInfo {
+    self.parse_context.build_info.css.get_or_insert_default()
+  }
+
+  fn css_dependency_export_type(&self) -> CssExportType {
+    self.export_type().unwrap_or(CssExportType::Link)
   }
 
   fn create_module_hash_options<'source>(
@@ -436,6 +454,13 @@ impl<'context> CssModuleParser<'context> {
             content,
           });
         }
+        css_module_lexer::Dependency::Charset { range, .. } => {
+          presentational_dependency_hash_updates.push(PresentationalDependencyHashUpdate {
+            start: range.start,
+            end: range.end + 1,
+            content: "",
+          });
+        }
         _ => {}
       }
     }
@@ -538,6 +563,10 @@ impl<'context> CssModuleParser<'context> {
         self
           .presentational_dependencies
           .push(Box::new(ConstDependency::new(range, content.into())));
+        Ok(())
+      }
+      css_module_lexer::Dependency::Charset { range, .. } => {
+        self.handle_charset(range);
         Ok(())
       }
       css_module_lexer::Dependency::LocalClass { name, range, .. }
@@ -676,6 +705,16 @@ impl<'context> CssModuleParser<'context> {
     }
   }
 
+  fn handle_charset(&mut self, range: css_module_lexer::Range) {
+    self.css_build_info_mut().has_charset = true;
+    self
+      .presentational_dependencies
+      .push(Box::new(ConstDependency::new(
+        (range.start, range.end).into(),
+        "".into(),
+      )));
+  }
+
   fn handle_url(
     &mut self,
     request: &str,
@@ -742,32 +781,38 @@ impl<'context> CssModuleParser<'context> {
         CssLayer::Named(s.into())
       }
     });
-    let inherited_render_conditions = self.css_import_inherited_render_conditions();
-    let render_condition = CssModuleRenderCondition::new(
-      media.map(|media| media.trim().into()),
-      supports.map(|supports| supports.trim().into()),
-      layer,
-    );
-
+    let render_conditions = self.css_import_render_conditions(media, supports, layer.as_ref());
     self.dependencies.push(Box::new(CssImportDependency::new(
       request,
       DependencyRange::new(range.start, range.end),
-      inherited_render_conditions,
-      render_condition,
+      render_conditions,
+      Some(self.css_dependency_export_type()),
     )));
     Ok(())
   }
 
-  fn css_import_inherited_render_conditions(&self) -> Vec<CssModuleRenderCondition> {
-    if self.render_condition.is_empty() {
-      return self.inherited_render_conditions.clone();
+  fn css_import_render_conditions(
+    &self,
+    media: Option<&str>,
+    supports: Option<&str>,
+    layer: Option<&CssLayer>,
+  ) -> Vec<CssModuleRenderCondition> {
+    let mut render_conditions = self
+      .css_build_info()
+      .map(|css_build_info| css_build_info.render_conditions.clone())
+      .unwrap_or_default();
+    let condition = CssModuleRenderCondition::new(
+      media.map(|media| SmolStr::from(media.trim())),
+      supports.map(|supports| SmolStr::from(supports.trim())),
+      layer.map(|layer| match layer {
+        CssLayer::Anonymous => CssModuleRenderLayer::Anonymous,
+        CssLayer::Named(layer) => CssModuleRenderLayer::Named(layer.as_str().into()),
+      }),
+    );
+    if !condition.is_empty() {
+      render_conditions.push(condition);
     }
-
-    let mut inherited_render_conditions =
-      Vec::with_capacity(self.inherited_render_conditions.len() + 1);
-    inherited_render_conditions.extend(self.inherited_render_conditions.iter().cloned());
-    inherited_render_conditions.push(self.render_condition.clone());
-    inherited_render_conditions
+    render_conditions
   }
 
   async fn should_import(
@@ -1197,6 +1242,7 @@ impl<'context> CssModuleParser<'context> {
         from.to_string(),
         names.iter().map(|s| s.to_owned().into()).collect(),
         DependencyRange::new(range.start, range.end),
+        Some(self.css_dependency_export_type()),
       );
       dep_id = Some(*dep.id());
       self
@@ -1337,6 +1383,7 @@ impl<'context> CssModuleParser<'context> {
       request,
       vec![value.to_owned().into()],
       DependencyRange::new(0, 0),
+      Some(self.css_dependency_export_type()),
     )));
   }
 

@@ -62,17 +62,19 @@ import { __webpack_require__ } from "./runtime.mjs";
 // NAMESPACE OBJECT: ./m1.js
 var m1_namespaceObject = {};
 __webpack_require__.r(m1_namespaceObject);
-__webpack_require__.d(m1_namespaceObject, { 
-  "default": () => (m1),
-  value: () => (value) });
+__webpack_require__.d(m1_namespaceObject, [
+  "default", () => (m1),
+  "value", () => (value)
+]);
 
 
 // NAMESPACE OBJECT: ./m2.js
 var m2_namespaceObject = {};
 __webpack_require__.r(m2_namespaceObject);
-__webpack_require__.d(m2_namespaceObject, { 
-  "default": () => (m2),
-  value: () => (m2_value) });
+__webpack_require__.d(m2_namespaceObject, [
+  "default", () => (m2),
+  "value", () => (m2_value)
+]);
 
 
 // ./m1.js

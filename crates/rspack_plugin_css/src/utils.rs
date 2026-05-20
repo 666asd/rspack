@@ -1,6 +1,6 @@
 use std::{
   borrow::Cow,
-  hash::Hasher,
+  hash::{Hash, Hasher},
   path::Path,
   sync::{Arc, LazyLock},
 };
@@ -16,7 +16,7 @@ use rspack_core::{
 use rspack_error::{Diagnostic, Error, Result, Severity};
 use rspack_hash::{HashDigest, HashFunction, HashSalt, RspackHash};
 use rspack_util::{base64, identifier::make_paths_relative, itoa, json_stringify_str};
-use rustc_hash::FxHashSet;
+use rustc_hash::{FxHashSet, FxHasher};
 
 pub const AUTO_PUBLIC_PATH_PLACEHOLDER: &str = "__RSPACK_PLUGIN_CSS_AUTO_PUBLIC_PATH__";
 pub const CSS_MODULE_ID_PLACEHOLDER: &str = "__RSPACK_PLUGIN_CSS_MODULE_ID__";
@@ -275,12 +275,56 @@ pub fn replace_css_module_id_placeholder<'a>(
     let local_ident = replace_css_module_id_placeholder(custom_property_ident, compilation, module);
     return Cow::Owned(format!("--{local_ident}"));
   }
+
+  let module_id = css_module_id_for_local_ident(compilation, module);
+  replace_css_module_id_placeholder_with_id(local_ident, &module_id)
+}
+
+fn css_module_id_for_local_ident(compilation: &Compilation, module: &dyn Module) -> String {
+  let Some(module_id) =
+    ChunkGraph::get_module_id(&compilation.module_ids_artifact, module.identifier())
+  else {
+    return module
+      .readable_identifier(&compilation.options.context)
+      .into_owned();
+  };
+  let module_id = module_id.as_str();
+
+  let needs_stable_long_id = module
+    .build_info()
+    .css
+    .as_deref()
+    .is_some_and(|css_build_info| !css_build_info.render_conditions.is_empty());
+  if !needs_stable_long_id || module_id.contains('?') {
+    return module_id.to_string();
+  }
+
+  let full_name = make_paths_relative(&compilation.options.context, module.identifier().as_str());
+  let hash = get_css_module_id_hash(full_name, 4);
+  let mut stable_id = String::with_capacity(module_id.len() + 1 + hash.len());
+  stable_id.push_str(module_id);
+  stable_id.push('?');
+  stable_id.push_str(&hash);
+  stable_id
+}
+
+fn get_css_module_id_hash(value: impl Hash, length: usize) -> String {
+  let mut hasher = FxHasher::default();
+  value.hash(&mut hasher);
+  let hash = hasher.finish();
+  let mut hash = format!("{hash:x}");
+  hash.truncate(length);
+  hash
+}
+
+pub fn replace_css_module_id_placeholder_with_id<'a>(
+  local_ident: &'a str,
+  module_id: &str,
+) -> Cow<'a, str> {
   if !local_ident.contains(CSS_MODULE_ID_PLACEHOLDER) {
     return Cow::Borrowed(local_ident);
   }
-  let module_id = ChunkGraph::get_module_id(&compilation.module_ids_artifact, module.identifier())
-    .expect("css module should have module id when rendering local ident");
-  let module_id = prepare_css_module_id(module_id.as_str());
+  let module_id = prepare_css_module_id(module_id);
   let local_ident = local_ident.cow_replace(CSS_MODULE_ID_PLACEHOLDER, module_id.as_ref());
   Cow::Owned(
     LEADING_DIGIT_REGEX
