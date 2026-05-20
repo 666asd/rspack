@@ -1,7 +1,7 @@
 use std::{
   collections::{HashMap, HashSet},
   fmt::Debug,
-  hash::{BuildHasherDefault, Hash, Hasher},
+  hash::{BuildHasherDefault, Hash},
   ops::Deref,
   path::{Path, PathBuf},
   sync::Arc,
@@ -9,13 +9,13 @@ use std::{
 
 pub use camino::{Utf8Component, Utf8Components, Utf8Path, Utf8PathBuf, Utf8Prefix};
 use dashmap::{DashMap, DashSet};
+use hstr::Atom;
 use indexmap::IndexSet;
 use rspack_cacheable::{
   ContextGuard, Error as CacheableError, cacheable,
   utils::PortablePath,
   with::{Custom, CustomConverter},
 };
-use rustc_hash::FxHasher;
 use ustr::IdentityHasher;
 
 pub trait AssertUtf8 {
@@ -54,58 +54,61 @@ impl<'a> AssertUtf8 for &'a Path {
 }
 
 #[cacheable(with=Custom)]
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub struct ArcPath {
-  path: Arc<Path>,
-  // Pre-calculating and caching the hash value upon creation, making hashing operations
-  // in collections virtually free.
-  hash: u64,
+  inner: Atom,
 }
 
 impl Debug for ArcPath {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    self.path.fmt(f)
+    self.as_ref().fmt(f)
   }
 }
 
 impl ArcPath {
   pub fn new(path: Arc<Path>) -> Self {
-    let mut hasher = FxHasher::default();
-    path.hash(&mut hasher);
-    let hash = hasher.finish();
-    Self { path, hash }
+    Self::from_path(&path)
+  }
+
+  fn from_path(path: &Path) -> Self {
+    let path = path.to_str().unwrap_or_else(|| {
+      panic!("expected UTF-8 path, got: {}", path.display());
+    });
+    Self {
+      inner: Atom::from(path),
+    }
   }
 }
 
 impl Deref for ArcPath {
-  type Target = Arc<Path>;
+  type Target = Path;
 
   fn deref(&self) -> &Self::Target {
-    &self.path
+    self.as_ref()
   }
 }
 
 impl AsRef<Path> for ArcPath {
   fn as_ref(&self) -> &Path {
-    &self.path
+    Path::new(self.inner.as_ref())
   }
 }
 
 impl From<PathBuf> for ArcPath {
   fn from(value: PathBuf) -> Self {
-    ArcPath::new(value.into())
+    ArcPath::from_path(&value)
   }
 }
 
 impl From<&Path> for ArcPath {
   fn from(value: &Path) -> Self {
-    ArcPath::new(value.into())
+    ArcPath::from_path(value)
   }
 }
 
 impl From<&Utf8Path> for ArcPath {
   fn from(value: &Utf8Path) -> Self {
-    ArcPath::new(value.as_std_path().into())
+    ArcPath::from_path(value.as_std_path())
   }
 }
 
@@ -117,14 +120,16 @@ impl From<&ArcPath> for ArcPath {
 
 impl From<&str> for ArcPath {
   fn from(value: &str) -> Self {
-    ArcPath::new(<str as std::convert::AsRef<Path>>::as_ref(value).into())
+    Self {
+      inner: Atom::from(value),
+    }
   }
 }
 
 impl CustomConverter for ArcPath {
   type Target = PortablePath;
   fn serialize(&self, guard: &ContextGuard) -> Result<Self::Target, CacheableError> {
-    Ok(PortablePath::new(&self.path, guard.project_root()))
+    Ok(PortablePath::new(self.as_ref(), guard.project_root()))
   }
   fn deserialize(data: Self::Target, guard: &ContextGuard) -> Result<Self, CacheableError> {
     Ok(Self::from(PathBuf::from(
@@ -133,29 +138,22 @@ impl CustomConverter for ArcPath {
   }
 }
 
-impl Hash for ArcPath {
-  #[inline]
-  fn hash<H: Hasher>(&self, state: &mut H) {
-    state.write_u64(self.hash);
-  }
-}
-
 /// A standard `HashMap` using `ArcPath` as the key type with a custom `Hasher`
-/// that just uses the precomputed hash for speed instead of calculating it.
+/// that just uses the `hstr` hash for speed instead of calculating it.
 pub type ArcPathMap<V> = HashMap<ArcPath, V, BuildHasherDefault<IdentityHasher>>;
 
 /// A standard `HashSet` using `ArcPath` as the key type with a custom `Hasher`
-/// that just uses the precomputed hash for speed instead of calculating it.
+/// that just uses the `hstr` hash for speed instead of calculating it.
 pub type ArcPathSet = HashSet<ArcPath, BuildHasherDefault<IdentityHasher>>;
 
 /// A standard `DashMap` using `ArcPath` as the key type with a custom `Hasher`
-/// that just uses the precomputed hash for speed instead of calculating it.
+/// that just uses the `hstr` hash for speed instead of calculating it.
 pub type ArcPathDashMap<V> = DashMap<ArcPath, V, BuildHasherDefault<IdentityHasher>>;
 
 /// A standard `DashSet` using `ArcPath` as the key type with a custom `Hasher`
-/// that just uses the precomputed hash for speed instead of calculating it.
+/// that just uses the `hstr` hash for speed instead of calculating it.
 pub type ArcPathDashSet = DashSet<ArcPath, BuildHasherDefault<IdentityHasher>>;
 
 /// A standard `IndexSet` using `ArcPath` as the key type with a custom `Hasher`
-/// that just uses the precomputed hash for speed instead of calculating it.
+/// that just uses the `hstr` hash for speed instead of calculating it.
 pub type ArcPathIndexSet = IndexSet<ArcPath, BuildHasherDefault<IdentityHasher>>;
