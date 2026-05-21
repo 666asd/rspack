@@ -40,6 +40,10 @@ env:
   GIT_CONFIG_COUNT: '1'
   GIT_CONFIG_KEY_0: 'init.defaultBranch'
   GIT_CONFIG_VALUE_0: 'main'
+  # Silence Node deprecation warnings emitted by third-party tooling during
+  # CI (e.g. punycode, url.parse, fs.existsSync(undefined)). Developers still
+  # see them locally.
+  NODE_OPTIONS: '--no-deprecation'
 
 jobs:
   check-changed:
