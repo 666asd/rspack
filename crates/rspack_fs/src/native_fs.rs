@@ -1,3 +1,10 @@
+// On wasm, the pnp-aware native filesystem is bypassed in favor of a sync stub,
+// so several imports / struct fields are intentionally unused on that target.
+#![cfg_attr(
+  target_family = "wasm",
+  allow(dead_code, unused_imports, unused_variables)
+)]
+
 use std::{
   fs::{self, File},
   io::{BufRead, BufReader, BufWriter, Read, Write},

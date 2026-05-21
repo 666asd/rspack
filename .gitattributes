@@ -5,5 +5,7 @@ tests/**/*.js linguist-detectable=false
 *.css eol=lf
 *.js eol=lf
 *.ts eol=lf
+*.rs eol=lf
+*.toml eol=lf
 
 * text=auto
