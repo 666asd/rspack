@@ -32,6 +32,10 @@ runs:
           NPM_PREFIX=$(cygpath -u "$(npm config get prefix)")
           export PATH="$NPM_PREFIX:$PATH"
         fi
-        npm install -g corepack@0.31.0 --force
+        # Node bundles corepack; only reinstall when the bundled version doesn't
+        # match the pin. Skipping the install avoids the `npm warn using --force`.
+        if [ "$(corepack --version 2>/dev/null)" != "0.31.0" ]; then
+          npm install -g --loglevel=error corepack@0.31.0 --force
+        fi
         echo "Corepack version: $(corepack --version)"
         corepack enable
