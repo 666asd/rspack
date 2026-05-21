@@ -172,4 +172,4 @@ jobs:
         run: |
           ./x version snapshot
           pnpm run build:js:canary
-          ./x publish snapshot --tag latest ${{ inputs.dry_run && '--dry-run' || '' }}
+          ./x publish snapshot --tag canary ${{ inputs.dry_run && '--dry-run' || '' }}
