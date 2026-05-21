@@ -34,7 +34,7 @@ on:
         required: false
         type: boolean
         default: false
-        description: 'Build only — skip the actual npm publish and report binding sizes'
+        description: 'Simulate npm publish with --dry-run (no registry upload) and report binding sizes'
 
 permissions:
   # To publish packages with provenance
