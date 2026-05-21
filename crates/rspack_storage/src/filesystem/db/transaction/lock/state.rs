@@ -152,7 +152,7 @@ fn get_process_name(pid: u32) -> Option<String> {
 }
 
 #[cfg(target_family = "wasm")]
-fn get_process_name(pid: u32) -> Option<String> {
+fn get_process_name(_pid: u32) -> Option<String> {
   None
 }
 
