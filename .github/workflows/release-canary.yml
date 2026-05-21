@@ -25,6 +25,16 @@ on:
           - ci
           - debug
         description: 'profiling means release with debug info for profiling, ci means release with debug info and faster build time'
+      targets:
+        required: false
+        type: string
+        default: 'all'
+        description: 'Comma-separated targets to build (e.g. x86_64-apple-darwin,aarch64-apple-darwin), or "all" to build every target'
+      dry_run:
+        required: false
+        type: boolean
+        default: false
+        description: 'Build only — skip the actual npm publish and report binding sizes'
 
 permissions:
   # To publish packages with provenance
@@ -40,34 +50,56 @@ jobs:
     with:
       force-use-github-runner: true
 
+  prepare:
+    name: Prepare Build Matrix
+    if: ${{ github.repository == 'web-infra-dev/rspack' }}
+    needs: [get-runner-labels]
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set.outputs.matrix }}
+    env:
+      LINUX_RUNNER: ${{ vars.LINUX_SELF_HOSTED_RUNNER_LABELS || '"ubuntu-22.04"' }}
+      WINDOWS_RUNNER: ${{ needs.get-runner-labels.outputs.WINDOWS_RUNNER_LABELS }}
+      MACOS_RUNNER: ${{ needs.get-runner-labels.outputs.MACOS_RUNNER_LABELS }}
+      TARGETS: ${{ inputs.targets || 'all' }}
+    steps:
+      - name: Compute matrix
+        id: set
+        shell: bash
+        run: |
+          node - <<'NODE' >> "$GITHUB_OUTPUT"
+          const all = [
+            { target: 'x86_64-unknown-linux-gnu', runner: process.env.LINUX_RUNNER },
+            { target: 'aarch64-unknown-linux-gnu', runner: process.env.LINUX_RUNNER },
+            { target: 'x86_64-unknown-linux-musl', runner: process.env.LINUX_RUNNER },
+            { target: 'aarch64-unknown-linux-musl', runner: process.env.LINUX_RUNNER },
+            { target: 'i686-pc-windows-msvc', runner: process.env.WINDOWS_RUNNER },
+            { target: 'x86_64-pc-windows-msvc', runner: process.env.WINDOWS_RUNNER },
+            { target: 'aarch64-pc-windows-msvc', runner: process.env.WINDOWS_RUNNER },
+            { target: 'x86_64-apple-darwin', runner: process.env.MACOS_RUNNER },
+            { target: 'aarch64-apple-darwin', runner: process.env.MACOS_RUNNER },
+            { target: 'wasm32-wasip1-threads', runner: process.env.LINUX_RUNNER },
+          ];
+          const input = (process.env.TARGETS || 'all').trim();
+          const selected = (input === '' || input === 'all')
+            ? all
+            : input.split(',').map((s) => s.trim()).filter(Boolean).map((t) => {
+                const m = all.find((x) => x.target === t);
+                if (!m) throw new Error('Unknown target: ' + t);
+                return m;
+              });
+          if (selected.length === 0) throw new Error('No targets selected');
+          process.stderr.write('Selected ' + selected.length + ' targets: ' + selected.map((s) => s.target).join(', ') + '\n');
+          process.stdout.write('matrix=' + JSON.stringify({ array: selected }) + '\n');
+          NODE
+
   build:
     name: Build Canary
     if: ${{ github.repository == 'web-infra-dev/rspack' }}
-    needs: [get-runner-labels]
+    needs: [prepare]
     strategy:
       fail-fast: false
-      matrix:
-        array:
-          - target: x86_64-unknown-linux-gnu
-            runner: ${{ vars.LINUX_SELF_HOSTED_RUNNER_LABELS || '"ubuntu-22.04"' }}
-          - target: aarch64-unknown-linux-gnu
-            runner: ${{ vars.LINUX_SELF_HOSTED_RUNNER_LABELS || '"ubuntu-22.04"' }}
-          - target: x86_64-unknown-linux-musl
-            runner: ${{ vars.LINUX_SELF_HOSTED_RUNNER_LABELS || '"ubuntu-22.04"' }}
-          - target: aarch64-unknown-linux-musl
-            runner: ${{ vars.LINUX_SELF_HOSTED_RUNNER_LABELS || '"ubuntu-22.04"' }}
-          - target: i686-pc-windows-msvc
-            runner: ${{ needs.get-runner-labels.outputs.WINDOWS_RUNNER_LABELS }}
-          - target: x86_64-pc-windows-msvc
-            runner: ${{ needs.get-runner-labels.outputs.WINDOWS_RUNNER_LABELS }}
-          - target: aarch64-pc-windows-msvc
-            runner: ${{ needs.get-runner-labels.outputs.WINDOWS_RUNNER_LABELS }}
-          - target: x86_64-apple-darwin
-            runner: ${{ needs.get-runner-labels.outputs.MACOS_RUNNER_LABELS }}
-          - target: aarch64-apple-darwin
-            runner: ${{ needs.get-runner-labels.outputs.MACOS_RUNNER_LABELS }}
-          - target: wasm32-wasip1-threads
-            runner: ${{ vars.LINUX_SELF_HOSTED_RUNNER_LABELS || '"ubuntu-22.04"' }}
+      matrix: ${{ fromJSON(needs.prepare.outputs.matrix) }}
     uses: ./.github/workflows/reusable-build.yml
     with:
       ref: ${{inputs.commit || github.sha}}
@@ -106,6 +138,22 @@ jobs:
       - name: Clean artifacts
         run: find artifacts -type f -name '*.d.ts'  | xargs rm -f
 
+      - name: List binding sizes
+        run: |
+          {
+            echo "## Canary binding artifacts"
+            echo ""
+            echo "Mode: ${{ inputs.dry_run && 'dry-run (no publish)' || 'publish' }}"
+            echo ""
+            echo "| Binding | Size |"
+            echo "| --- | --- |"
+            for f in artifacts/bindings-*/*.node artifacts/bindings-*/*.wasm; do
+              [ -e "$f" ] || continue
+              size=$(du -h "$f" | cut -f1)
+              echo "| \`$(basename "$(dirname "$f")")/$(basename "$f")\` | $size |"
+            done
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+
       - name: Move artifacts
         run: |
           ls -R artifacts
@@ -124,4 +172,4 @@ jobs:
         run: |
           ./x version snapshot
           pnpm run build:js:canary
-          ./x publish snapshot --tag latest
+          ./x publish snapshot --tag latest ${{ inputs.dry_run && '--dry-run' || '' }}
