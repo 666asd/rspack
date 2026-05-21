@@ -20,6 +20,24 @@ type BuildOptions = CommonOptionsForBuildAndServe & {
   json?: boolean | string;
 };
 
+function updateStatsEndTime(
+  stats: Stats | MultiStats | undefined,
+  endTime: number,
+) {
+  if (!stats) {
+    return;
+  }
+
+  if ('stats' in stats) {
+    for (const stat of stats.stats) {
+      stat.compilation.endTime = endTime;
+    }
+    return;
+  }
+
+  stats.compilation.endTime = endTime;
+}
+
 async function runBuild(cli: RspackCLI, options: BuildOptions): Promise<void> {
   setDefaultNodeEnv(options, 'production');
   normalizeCommonOptions(options, 'build');
@@ -109,6 +127,9 @@ async function runBuild(cli: RspackCLI, options: BuildOptions): Promise<void> {
 
   compiler.run((error: Error | null, stats: Stats | MultiStats | undefined) => {
     compiler.close((closeErr) => {
+      // The build command prints stats after close, so its timing should cover
+      // close-time work such as persistent cache flushing.
+      updateStatsEndTime(stats, Date.now());
       if (closeErr) {
         logger.error(closeErr);
       }

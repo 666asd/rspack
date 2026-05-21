@@ -1,3 +1,4 @@
+import { stripVTControlCharacters } from 'node:util';
 import { resolve } from 'path';
 import { readFile, run, runWatch } from '../../utils/test-utils';
 
@@ -79,6 +80,25 @@ describe('build command', () => {
     expect(exitCode).toBe(0);
     expect(stderr).toBeFalsy();
     expect(stdout).toBeTruthy();
+  });
+  it('should include close duration in printed build time', async () => {
+    const { exitCode, stderr, stdout } = await run(
+      __dirname,
+      ['--config', './entry.close-time.js'],
+      {},
+      {},
+      true,
+    );
+    expect(exitCode).toBe(0);
+    expect(stderr).toBeFalsy();
+
+    const output = stripVTControlCharacters(stdout);
+    const match = output.match(/compiled successfully in ([\d.]+) (ms|s)/i);
+    expect(match).toBeTruthy();
+
+    const [, value, unit] = match!;
+    const durationMs = Number(value) * (unit === 's' ? 1000 : 1);
+    expect(durationMs).toBeGreaterThanOrEqual(1000);
   });
   it.concurrent('should work with mjs configuration ', async () => {
     const { exitCode, stderr, stdout } = await run(
