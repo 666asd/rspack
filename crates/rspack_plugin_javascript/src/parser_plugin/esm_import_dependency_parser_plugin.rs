@@ -25,6 +25,12 @@ pub struct ESMImportDependencyParserPlugin;
 
 pub const ESM_SPECIFIER_TAG: &str = "_identifier__esm_specifier_tag__";
 
+fn is_json_safe_optional_chain(members: &[Atom], members_optionals: &[bool]) -> bool {
+  !members.is_empty()
+    && matches!(members_optionals.first(), Some(true))
+    && members_optionals.iter().skip(1).all(|optional| !*optional)
+}
+
 #[derive(Debug, Clone)]
 pub struct ESMSpecifierData {
   pub name: Atom,
@@ -341,6 +347,8 @@ impl JavascriptParserPlugin for ESMImportDependencyParserPlugin {
     } else {
       member_expr.span()
     };
+    let mut json_safe_ids = settings.ids.clone();
+    json_safe_ids.extend(members.iter().cloned());
     let mut ids = settings.ids;
     ids.extend(non_optional_members.iter().cloned());
     let ns_access = settings.namespace_import && !ids.is_empty();
@@ -348,7 +356,7 @@ impl JavascriptParserPlugin for ESMImportDependencyParserPlugin {
       .destructuring_assignment_properties
       .get(&member_expr.span())
       .cloned();
-    let dep = ESMImportSpecifierDependency::new(
+    let mut dep = ESMImportSpecifierDependency::new(
       settings.source,
       settings.name,
       settings.source_order,
@@ -365,6 +373,9 @@ impl JavascriptParserPlugin for ESMImportDependencyParserPlugin {
       settings.attributes,
       parser.to_dependency_location(DependencyRange::from(span)),
     );
+    if is_json_safe_optional_chain(members, members_optionals) {
+      dep.set_json_safe_ids(json_safe_ids.into_vec(), member_expr.span.into());
+    }
     let dep_idx = parser.next_dependency_idx();
     parser.add_dependency(Box::new(dep));
 

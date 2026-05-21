@@ -1,0 +1,7 @@
+{
+	"name": "should-be-shaken",
+	"version": "1.0.0",
+	"bin": {
+		"rspack-json-optional-chain": "should-be-shaken"
+	}
+}

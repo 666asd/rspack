@@ -43,6 +43,9 @@ pub struct ESMImportSpecifierDependency {
   range: DependencyRange,
   #[cacheable(with=AsVec<AsPreset>)]
   ids: Vec<Atom>,
+  #[cacheable(with=AsOption<AsVec<AsPreset>>)]
+  json_safe_ids: Option<Vec<Atom>>,
+  json_safe_range: Option<DependencyRange>,
   call: bool,
   direct_import: bool,
   used_by_exports: Option<UsedByExports>,
@@ -91,6 +94,8 @@ impl ESMImportSpecifierDependency {
       asi_safe,
       range,
       ids,
+      json_safe_ids: None,
+      json_safe_range: None,
       call,
       direct_import,
       export_presence_mode,
@@ -111,6 +116,31 @@ impl ESMImportSpecifierDependency {
   pub fn get_ids<'a>(&'a self, mg: &'a ModuleGraph) -> &'a [Atom] {
     mg.get_dep_meta_if_existing(&self.id)
       .map_or_else(|| self.ids.as_slice(), |meta| meta.ids.as_slice())
+  }
+
+  pub fn set_json_safe_ids(&mut self, ids: Vec<Atom>, range: DependencyRange) {
+    self.json_safe_ids = Some(ids);
+    self.json_safe_range = Some(range);
+  }
+
+  fn get_json_safe_ids<'a>(
+    &'a self,
+    module_graph: &'a ModuleGraph,
+  ) -> Option<(&'a [Atom], DependencyRange)> {
+    let module = module_graph.get_module_by_dependency_id(&self.id)?;
+    if module
+      .build_info()
+      .json_data
+      .as_ref()
+      .is_some_and(|data| data.is_object() || data.is_array())
+    {
+      Some((
+        self.json_safe_ids.as_deref()?,
+        self.json_safe_range.expect("should have json safe range"),
+      ))
+    } else {
+      None
+    }
   }
 
   pub fn name(&self) -> &Atom {
@@ -295,6 +325,10 @@ impl Dependency for ESMImportSpecifierDependency {
     ) && module.build_info().json_data.is_some()
     {
       namespace_object_as_context = true;
+    }
+
+    if let Some((json_safe_ids, _)) = self.get_json_safe_ids(module_graph) {
+      ids = json_safe_ids;
     }
 
     if let Some(id) = ids.first()
@@ -609,7 +643,10 @@ impl DependencyTemplate for ESMImportSpecifierDependencyTemplate {
     let compilation = code_generatable_context.compilation;
     let runtime = code_generatable_context.runtime;
     let module_graph = compilation.get_module_graph();
-    let ids = dep.get_ids(module_graph);
+    let json_safe_ids = dep.get_json_safe_ids(module_graph);
+    let ids = json_safe_ids
+      .map(|(ids, _)| ids)
+      .unwrap_or_else(|| dep.get_ids(module_graph));
     let connection = module_graph.connection_by_dependency_id(&dep.id);
     // Early return if target is not active and export is not inlined
     if let Some(con) = connection
@@ -643,11 +680,12 @@ impl DependencyTemplate for ESMImportSpecifierDependencyTemplate {
     }
 
     let export_expr = self.get_code_for_ids(ids, dep, connection, code_generatable_context);
+    let range = json_safe_ids.map(|(_, range)| range).unwrap_or(dep.range);
 
     if dep.shorthand {
-      source.insert(dep.range.end, format!(": {export_expr}"), None);
+      source.insert(range.end, format!(": {export_expr}"), None);
     } else {
-      source.replace(dep.range.start, dep.range.end, export_expr, None);
+      source.replace(range.start, range.end, export_expr, None);
     }
 
     let module_graph = code_generatable_context.compilation.get_module_graph();
