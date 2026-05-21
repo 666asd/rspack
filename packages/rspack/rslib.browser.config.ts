@@ -111,7 +111,7 @@ export default defineConfig({
     removeCreateRequirePlugin,
   ],
   source: {
-    tsconfigPath: './tsconfig.browser.json',
+    tsconfigPath: '../rspack-browser/tsconfig.json',
     define: {
       WEBPACK_VERSION: JSON.stringify(packageJson.webpackVersion),
       RSPACK_VERSION: JSON.stringify(packageJson.version),
