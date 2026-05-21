@@ -15,7 +15,7 @@ runs:
   steps:
     - name: Cache to github
       if: ${{ runner.environment == 'github-hosted' }}
-      uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
+      uses: Swatinem/rust-cache@23869a5bd66c73db3c0ac40331f3206eb23791dc # v2.9.1
       with:
         prefix-key: 'RCache-G-2'
         shared-key: ${{ inputs.key }}
