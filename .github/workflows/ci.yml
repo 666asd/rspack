@@ -32,6 +32,11 @@ permissions:
   # Allow commenting on pull requests for `size-limit.yml`
   pull-requests: write
 
+env:
+  # Opt JS actions into Node 24 ahead of GitHub's June 2026 default flip.
+  # Suppresses the "Node.js 20 actions are deprecated" annotation.
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+
 jobs:
   check-changed:
     runs-on: rspack-ubuntu-22.04-mini

@@ -9,6 +9,10 @@ on:
         default: 'all'
         description: 'Strategy for cargo check: all (default) or separated'
 
+env:
+  # Opt JS actions into Node 24 ahead of GitHub's June 2026 default flip.
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+
 jobs:
   check-changed:
     runs-on: rspack-ubuntu-22.04-mini

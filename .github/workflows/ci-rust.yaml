@@ -18,6 +18,11 @@ on:
       - 'rust-toolchain.toml'
     tags-ignore:
       - '**'
+
+env:
+  # Opt JS actions into Node 24 ahead of GitHub's June 2026 default flip.
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+
 jobs:
   rust_tests:
     name: Run Rust Tests

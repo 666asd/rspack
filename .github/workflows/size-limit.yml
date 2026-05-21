@@ -3,6 +3,10 @@ name: Binary Size Limit
 on:
   workflow_call:
 
+env:
+  # Opt JS actions into Node 24 ahead of GitHub's June 2026 default flip.
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+
 permissions:
   # Allow commenting on Pull Requests
   pull-requests: write
