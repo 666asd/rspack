@@ -3578,7 +3578,6 @@ dependencies = [
  "rayon",
  "regex",
  "rspack_allocator",
- "rspack_binding_build",
  "rspack_browserslist",
  "rspack_cacheable",
  "rspack_collections",
