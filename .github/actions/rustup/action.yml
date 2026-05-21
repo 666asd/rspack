@@ -24,9 +24,11 @@ runs:
       shell: bash
       run: |
         if ! command -v rustup &> /dev/null ; then
-          # Some runner images ship a stale ~/.rustup/settings.toml from a prior
-          # partial rustup install; rustup-init warns about it, so drop it first.
-          rm -f "${HOME}/.rustup/settings.toml"
+          # Some runner images ship a stale ~/.rustup from a partial prior
+          # install; rustup-init warns "existing rustup settings file" unless
+          # the directory is gone entirely. The cache-restore step that
+          # follows will repopulate ~/.rustup/toolchains.
+          rm -rf "${HOME}/.rustup"
           curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
           echo "${CARGO_HOME:-$HOME/.cargo}/bin" >> $GITHUB_PATH
         fi
@@ -82,7 +84,9 @@ runs:
       # binaries. ~/.rustup/toolchains is untouched.
       run: |
         if [[ "$(readlink "${CARGO_HOME:-$HOME/.cargo}/bin/rustup" 2>/dev/null)" == */rustup-init ]]; then
-          rm -f "${HOME}/.rustup/settings.toml"
+          # Drop ~/.rustup so rustup-init doesn't warn about a stale settings
+          # file; the cargo-cache step restores ~/.rustup/toolchains.
+          rm -rf "${HOME}/.rustup"
           rustup-init -y --default-toolchain none
           echo "${CARGO_HOME:-$HOME/.cargo}/bin" >> $GITHUB_PATH
         fi
