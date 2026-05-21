@@ -644,9 +644,7 @@ impl DependencyTemplate for ESMImportSpecifierDependencyTemplate {
     let runtime = code_generatable_context.runtime;
     let module_graph = compilation.get_module_graph();
     let json_safe_ids = dep.get_json_safe_ids(module_graph);
-    let ids = json_safe_ids
-      .map(|(ids, _)| ids)
-      .unwrap_or_else(|| dep.get_ids(module_graph));
+    let ids = json_safe_ids.map_or_else(|| dep.get_ids(module_graph), |(ids, _)| ids);
     let connection = module_graph.connection_by_dependency_id(&dep.id);
     // Early return if target is not active and export is not inlined
     if let Some(con) = connection
@@ -680,7 +678,7 @@ impl DependencyTemplate for ESMImportSpecifierDependencyTemplate {
     }
 
     let export_expr = self.get_code_for_ids(ids, dep, connection, code_generatable_context);
-    let range = json_safe_ids.map(|(_, range)| range).unwrap_or(dep.range);
+    let range = json_safe_ids.map_or(dep.range, |(_, range)| range);
 
     if dep.shorthand {
       source.insert(range.end, format!(": {export_expr}"), None);
