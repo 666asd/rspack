@@ -3,11 +3,10 @@
  * preservation implementations.
  * Apache-2.0 licensed.
  */
-use std::{
-  path::Path,
-  sync::Arc,
-};
+use std::{path::Path, sync::Arc};
 
+#[cfg(feature = "plugin")]
+use anyhow::Context;
 use anyhow::{Error, bail};
 use swc_config::{
   file_pattern::FilePattern,
@@ -15,10 +14,12 @@ use swc_config::{
   merge::Merge,
   types::{BoolOr, BoolOrDataConfig},
 };
+#[cfg(feature = "plugin")]
+use swc_core::ecma::visit::{Fold, fold_pass, noop_fold_type};
 use swc_core::{
   base::config::{
-    BuiltInput as SwcBuiltInput, Config, DecoratorVersion, InputSourceMap, JsMinifyCommentOption,
-    JsMinifyOptions, JscOutputConfig, ModuleConfig, Options as SwcOptions, OutputCharset,
+    Config, DecoratorVersion, InputSourceMap, JsMinifyCommentOption, JsMinifyOptions,
+    JscOutputConfig, ModuleConfig, Options as SwcOptions, OutputCharset, PluginConfig,
     SourceMapsConfig,
   },
   common::{
@@ -30,6 +31,7 @@ use swc_core::{
   },
   ecma::{
     ast::{EsVersion, Module, Pass, Program, Script, noop_pass},
+    atoms::Atom,
     parser::Syntax,
     preset_env::{Caniuse, Feature},
     transforms::{
@@ -52,6 +54,12 @@ use swc_core::{
     },
     visit::{VisitMut, VisitMutWith, noop_visit_mut_type, visit_mut_pass},
   },
+};
+use swc_ecma_ext_transforms::jest;
+#[cfg(all(feature = "plugin", not(target_arch = "wasm32")))]
+use swc_ecma_loader::{
+  resolve::Resolve,
+  resolvers::{lru::CachingResolver, node::NodeModulesResolver},
 };
 use swc_ecma_minifier::{
   optimize,
@@ -111,43 +119,7 @@ pub fn build_as_input<'a, P>(
 where
   P: 'a + Pass,
 {
-  if options.config.jsc.experimental.plugins.is_some() {
-    return options
-      .build_as_input(
-        cm,
-        base,
-        parse,
-        output_path,
-        source_root,
-        source_file_name,
-        source_map_ignore_list,
-        handler,
-        config,
-        comments,
-        custom_before_pass,
-      )
-      .map(from_swc_built_input);
-  }
-
   let computed = compute_build_input_config(options, base, &config);
-  if computed.config.jsc.experimental.plugins.is_some() || uses_hidden_jest(&computed.config) {
-    return options
-      .build_as_input(
-        cm,
-        base,
-        parse,
-        output_path,
-        source_root,
-        source_file_name,
-        source_map_ignore_list,
-        handler,
-        config,
-        comments,
-        custom_before_pass,
-      )
-      .map(from_swc_built_input);
-  }
-
   let cfg = &computed.config;
   let input_source_map = merged_input_source_map(options, &config);
   let is_module = computed.is_module;
@@ -439,13 +411,28 @@ where
   );
 
   let keep_import_attributes = experimental.keep_import_attributes.into_bool();
-
-  let mut plugin_transforms: Option<Box<dyn Pass>> = Some(Box::new(noop_pass()));
-
-  let pass: Box<dyn Pass> = if experimental
+  let emit_assert_for_import_attributes =
+    experimental.emit_assert_for_import_attributes.into_bool();
+  let emit_source_map_scopes = experimental.emit_source_map_scopes.into_bool();
+  let emit_isolated_dts = experimental.emit_isolated_dts.into_bool();
+  let run_plugin_first = experimental.run_plugin_first.into_bool();
+  let disable_builtin_transforms_for_internal_testing = experimental
     .disable_builtin_transforms_for_internal_testing
-    .into_bool()
-  {
+    .into_bool();
+
+  let mut plugin_transforms = Some(build_plugin_transforms(
+    options,
+    base,
+    handler,
+    experimental.plugins,
+    experimental.plugin_env_vars,
+    experimental.cache_root,
+    comments,
+    cm.clone(),
+    unresolved_mark,
+  )?);
+
+  let pass: Box<dyn Pass> = if disable_builtin_transforms_for_internal_testing {
     plugin_transforms.take().expect("plugin pass should exist")
   } else {
     let jsx_enabled = syntax.jsx() && transform.react.runtime != Some(react::Runtime::Preserve);
@@ -462,7 +449,7 @@ where
 
     Box::new((
       (
-        if experimental.run_plugin_first.into_bool() {
+        if run_plugin_first {
           plugin_transforms.take()
         } else {
           None
@@ -537,7 +524,7 @@ where
           jsx_enabled,
         ),
         built_pass,
-        Optional::new(noop_pass(), false),
+        Optional::new(jest::jest(), transform.hidden.jest.into_bool()),
         Optional::new(
           dropped_comments_preserver(comments.cloned()),
           preserve_all_comments,
@@ -569,42 +556,287 @@ where
       preamble,
       ..output
     },
-    emit_assert_for_import_attributes: experimental.emit_assert_for_import_attributes.into_bool(),
-    emit_source_map_scopes: experimental.emit_source_map_scopes.into_bool(),
+    emit_assert_for_import_attributes,
+    emit_source_map_scopes,
     codegen_inline_script,
     flow_strip_script_like_module,
-    emit_isolated_dts: experimental.emit_isolated_dts.into_bool(),
+    emit_isolated_dts,
     unresolved_mark,
   })
 }
 
-fn from_swc_built_input<P: Pass>(built_input: SwcBuiltInput<P>) -> BuiltInput<P> {
-  BuiltInput {
-    program: built_input.program,
-    pass: built_input.pass,
-    syntax: built_input.syntax,
-    target: built_input.target,
-    minify: built_input.minify,
-    external_helpers: built_input.external_helpers,
-    source_maps: built_input.source_maps,
-    input_source_map: built_input.input_source_map,
-    is_module: built_input.is_module,
-    output_path: built_input.output_path,
-    source_root: built_input.source_root,
-    source_file_name: built_input.source_file_name,
-    source_map_ignore_list: built_input.source_map_ignore_list,
-    comments: built_input.comments,
-    preserve_comments: built_input.preserve_comments,
-    inline_sources_content: built_input.inline_sources_content,
-    emit_source_map_columns: built_input.emit_source_map_columns,
-    output: built_input.output,
-    emit_assert_for_import_attributes: built_input.emit_assert_for_import_attributes,
-    emit_source_map_scopes: built_input.emit_source_map_scopes,
-    codegen_inline_script: built_input.codegen_inline_script,
-    flow_strip_script_like_module: built_input.flow_strip_script_like_module,
-    emit_isolated_dts: built_input.emit_isolated_dts,
-    unresolved_mark: built_input.unresolved_mark,
+#[allow(clippy::too_many_arguments)]
+#[cfg(feature = "plugin")]
+fn build_plugin_transforms<'a>(
+  options: &SwcOptions,
+  base: &FileName,
+  _handler: &Handler,
+  plugins: Option<Vec<PluginConfig>>,
+  plugin_env_vars: Option<Vec<Atom>>,
+  cache_root: Option<String>,
+  comments: Option<&SingleThreadedComments>,
+  cm: Arc<SourceMap>,
+  unresolved_mark: Mark,
+) -> Result<Box<dyn 'a + Pass>, Error> {
+  let transform_filename = match base {
+    FileName::Real(path) => path.as_os_str().to_str().map(String::from),
+    FileName::Custom(filename) => Some(filename.to_owned()),
+    _ => None,
+  };
+  let transform_metadata_context = Arc::new(
+    swc_core::common::plugin::metadata::TransformPluginMetadataContext::new(
+      transform_filename,
+      options.env_name.to_owned(),
+      None,
+    ),
+  );
+
+  #[cfg(not(target_arch = "wasm32"))]
+  {
+    let plugin_runtime = Arc::new(rspack_util::swc::runtime::WasmtimeRuntime);
+
+    if let Some(plugins) = &plugins {
+      compile_wasm_plugins(cache_root.as_deref(), plugins, &*plugin_runtime)
+        .context("Failed to compile wasm plugins")?;
+    }
+
+    Ok(Box::new(wasm_plugins(
+      plugins,
+      plugin_env_vars,
+      transform_metadata_context,
+      comments.cloned(),
+      cm,
+      unresolved_mark,
+      plugin_runtime,
+    )))
   }
+
+  #[cfg(target_arch = "wasm32")]
+  {
+    let _ = (
+      options,
+      base,
+      plugin_env_vars,
+      cache_root,
+      comments,
+      cm,
+      unresolved_mark,
+      transform_metadata_context,
+    );
+    if plugins.is_some() {
+      _handler.warn(
+        "Currently @swc/wasm does not support plugins, plugin transform will be skipped. Refer https://github.com/swc-project/swc/issues/3934 for the details.",
+      );
+    }
+
+    Ok(Box::new(noop_pass()))
+  }
+}
+
+#[allow(clippy::too_many_arguments)]
+#[cfg(not(feature = "plugin"))]
+fn build_plugin_transforms<'a>(
+  _options: &SwcOptions,
+  _base: &FileName,
+  handler: &Handler,
+  plugins: Option<Vec<PluginConfig>>,
+  _plugin_env_vars: Option<Vec<Atom>>,
+  _cache_root: Option<String>,
+  _comments: Option<&SingleThreadedComments>,
+  _cm: Arc<SourceMap>,
+  _unresolved_mark: Mark,
+) -> Result<Box<dyn 'a + Pass>, Error> {
+  if plugins.is_some() {
+    handler
+      .warn("Plugin is not supported with current @swc/core. Plugin transform will be skipped.");
+  }
+
+  Ok(Box::new(noop_pass()))
+}
+
+#[cfg(feature = "plugin")]
+fn wasm_plugins(
+  configured_plugins: Option<Vec<PluginConfig>>,
+  plugin_env_vars: Option<Vec<Atom>>,
+  metadata_context: Arc<swc_core::common::plugin::metadata::TransformPluginMetadataContext>,
+  comments: Option<SingleThreadedComments>,
+  source_map: Arc<SourceMap>,
+  unresolved_mark: Mark,
+  plugin_runtime: Arc<dyn swc_core::plugin_runner::runtime::Runtime>,
+) -> impl Pass {
+  fold_pass(WasmPlugins {
+    plugins: configured_plugins,
+    plugin_env_vars: plugin_env_vars.map(Arc::new),
+    metadata_context,
+    comments,
+    source_map,
+    unresolved_mark,
+    plugin_runtime,
+  })
+}
+
+#[cfg(feature = "plugin")]
+struct WasmPlugins {
+  plugins: Option<Vec<PluginConfig>>,
+  plugin_env_vars: Option<Arc<Vec<Atom>>>,
+  metadata_context: Arc<swc_core::common::plugin::metadata::TransformPluginMetadataContext>,
+  comments: Option<SingleThreadedComments>,
+  source_map: Arc<SourceMap>,
+  unresolved_mark: Mark,
+  plugin_runtime: Arc<dyn swc_core::plugin_runner::runtime::Runtime>,
+}
+
+#[cfg(feature = "plugin")]
+impl WasmPlugins {
+  fn apply(&mut self, program: Program) -> Result<Program, Error> {
+    if self
+      .plugins
+      .as_ref()
+      .is_none_or(|plugins| plugins.is_empty())
+    {
+      return Ok(program);
+    }
+
+    let filename = self.metadata_context.filename.clone();
+    self
+      .apply_inner(program)
+      .with_context(|| format!("failed to invoke plugin on '{filename:?}'"))
+  }
+
+  #[cfg(not(target_arch = "wasm32"))]
+  fn apply_inner(&mut self, program: Program) -> Result<Program, Error> {
+    let should_enable_comments_proxy = self.comments.is_some();
+
+    swc_core::plugin::proxies::COMMENTS.set(
+      &swc_core::plugin::proxies::HostCommentsStorage {
+        inner: self.comments.clone(),
+      },
+      || {
+        let program = swc_core::common::plugin::serialized::VersionedSerializable::new(program);
+        let mut serialized =
+          swc_core::common::plugin::serialized::PluginSerializedBytes::try_serialize(&program)?;
+
+        if let Some(plugins) = &mut self.plugins {
+          for plugin in plugins.drain(..) {
+            let plugin_module_bytes = swc_core::base::config::PLUGIN_MODULE_CACHE
+              .inner
+              .get()
+              .expect("plugin module cache should be initialized")
+              .lock()
+              .get(&*self.plugin_runtime, &plugin.0)
+              .expect("plugin module should be loaded");
+
+            let plugin_name = plugin_module_bytes.get_module_name().to_string();
+
+            let mut transform_plugin_executor =
+              swc_core::plugin_runner::create_plugin_transform_executor(
+                &self.source_map,
+                &self.unresolved_mark,
+                &self.metadata_context,
+                self.plugin_env_vars.clone(),
+                plugin_module_bytes,
+                Some(plugin.1),
+                self.plugin_runtime.clone(),
+              );
+
+            serialized = transform_plugin_executor
+              .transform(&serialized, Some(should_enable_comments_proxy))
+              .with_context(|| {
+                format!(
+                  "failed to invoke `{}` as js transform plugin at {}",
+                  &plugin.0, plugin_name
+                )
+              })?;
+          }
+        }
+
+        serialized.deserialize().map(|program| program.into_inner())
+      },
+    )
+  }
+
+  #[cfg(target_arch = "wasm32")]
+  fn apply_inner(&mut self, program: Program) -> Result<Program, Error> {
+    Ok(program)
+  }
+}
+
+#[cfg(feature = "plugin")]
+impl Fold for WasmPlugins {
+  noop_fold_type!();
+
+  fn fold_module(&mut self, module: Module) -> Module {
+    match self.apply(Program::Module(module)) {
+      Ok(program) => program.expect_module(),
+      Err(error) => {
+        swc_core::common::errors::HANDLER.with(|handler| {
+          handler.err_with_code(
+            &error.to_string(),
+            swc_core::common::errors::DiagnosticId::Error("plugin".into()),
+          );
+        });
+        Module::default()
+      }
+    }
+  }
+
+  fn fold_script(&mut self, script: Script) -> Script {
+    match self.apply(Program::Script(script)) {
+      Ok(program) => program.expect_script(),
+      Err(error) => {
+        swc_core::common::errors::HANDLER.with(|handler| {
+          handler.err_with_code(
+            &error.to_string(),
+            swc_core::common::errors::DiagnosticId::Error("plugin".into()),
+          );
+        });
+        Script::default()
+      }
+    }
+  }
+}
+
+#[cfg(all(feature = "plugin", not(target_arch = "wasm32")))]
+fn compile_wasm_plugins(
+  cache_root: Option<&str>,
+  plugins: &[PluginConfig],
+  plugin_runtime: &dyn swc_core::plugin_runner::runtime::Runtime,
+) -> Result<(), Error> {
+  let plugin_resolver = CachingResolver::new(
+    40,
+    NodeModulesResolver::new(swc_ecma_loader::TargetEnv::Node, Default::default(), true),
+  );
+
+  swc_core::base::config::init_plugin_module_cache_once(true, cache_root);
+
+  let mut inner_cache = swc_core::base::config::PLUGIN_MODULE_CACHE
+    .inner
+    .get()
+    .expect("plugin module cache should be initialized")
+    .lock();
+
+  for plugin_config in plugins {
+    let plugin_name = &plugin_config.0;
+
+    if !inner_cache.contains(plugin_runtime, plugin_name) {
+      let resolved_path = plugin_resolver
+        .resolve(
+          &FileName::Real(std::path::PathBuf::from(plugin_name)),
+          plugin_name,
+        )
+        .with_context(|| format!("failed to resolve plugin path: {plugin_name}"))?;
+
+      let path = if let FileName::Real(value) = resolved_path.filename {
+        value
+      } else {
+        bail!("Failed to resolve plugin path: {resolved_path:?}");
+      };
+
+      inner_cache.store_bytes_from_path(plugin_runtime, &path, plugin_name)?;
+    }
+  }
+
+  Ok(())
 }
 
 fn compute_build_input_config(
@@ -633,18 +865,6 @@ fn compute_build_input_config(
     is_module,
     source_maps: source_maps.unwrap_or(SourceMapsConfig::Bool(false)),
   }
-}
-
-fn uses_hidden_jest(config: &Config) -> bool {
-  config
-    .jsc
-    .transform
-    .clone()
-    .into_inner()
-    .unwrap_or_default()
-    .hidden
-    .jest
-    .into_bool()
 }
 
 fn merged_input_source_map(options: &SwcOptions, config: &Option<Config>) -> InputSourceMap {

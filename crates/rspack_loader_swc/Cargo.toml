@@ -9,6 +9,7 @@ version.workspace = true
 [features]
 default = []
 plugin = [
+  "rspack_javascript_compiler/plugin",
   # plugin_transform_host_native cannot be enabled directly to avoid wasmer dependency
   "swc_core/__plugin_transform_host",
   "swc_core/__plugin_transform_host_schema_v1",
