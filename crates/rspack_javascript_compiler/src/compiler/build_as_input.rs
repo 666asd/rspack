@@ -31,7 +31,7 @@ use swc_core::{
     ast::{EsVersion, Module, Pass, Program, Script, noop_pass},
     atoms::Atom,
     parser::Syntax,
-    preset_env::{Caniuse, Feature},
+    preset_env::{Caniuse, Config as PresetEnvConfig, EnvConfig, Feature},
     transforms::{
       base::{
         assumptions::Assumptions,
@@ -66,7 +66,11 @@ use swc_ecma_minifier::{
 
 #[derive(Debug)]
 struct BuildInputConfig {
-  config: Config,
+  env: Option<PresetEnvConfig>,
+  jsc: swc_core::base::config::JscConfig,
+  module: Option<ModuleConfig>,
+  minify: bool,
+  input_source_map: InputSourceMap,
   is_module: IsModule,
 }
 
@@ -98,10 +102,14 @@ pub fn build_as_input<'a, P>(
 where
   P: 'a + Pass,
 {
-  let computed = compute_build_input_config(options, base, &config);
-  let cfg = &computed.config;
-  let input_source_map = merged_input_source_map(options, &config);
-  let is_module = computed.is_module;
+  let BuildInputConfig {
+    env,
+    jsc,
+    module,
+    minify,
+    input_source_map,
+    is_module,
+  } = compute_build_input_config(options, base, &config);
 
   let swc_core::base::config::JscConfig {
     assumptions,
@@ -119,7 +127,7 @@ where
     rewrite_relative_import_extensions,
     preserve_symlinks,
     ..
-  } = cfg.jsc.clone();
+  } = jsc;
   let loose = loose.into_bool();
   let preserve_all_comments = preserve_all_comments.into_bool();
   let keep_class_names = keep_class_names.into_bool();
@@ -135,7 +143,7 @@ where
   let unresolved_mark = options.unresolved_mark.unwrap_or_default();
   let top_level_mark = options.top_level_mark.unwrap_or_default();
 
-  if target.is_some() && cfg.env.is_some() {
+  if target.is_some() && env.is_some() {
     bail!("`env` and `jsc.target` cannot be used together");
   }
 
@@ -158,7 +166,7 @@ where
 
   let default_top_level = program.is_module() && !flow_strip_script_like_module;
 
-  js_minify = normalize_js_minify_options(js_minify, default_top_level, cfg.module.as_ref());
+  js_minify = normalize_js_minify_options(js_minify, default_top_level, module.as_ref());
 
   let preserve_comments = if preserve_all_comments {
     BoolOr::Bool(true)
@@ -170,7 +178,7 @@ where
         None => BoolOr::Bool(true),
       })
       .unwrap_or_else(|| {
-        BoolOr::Data(if cfg.minify.into_bool() {
+        BoolOr::Data(if minify {
           JsMinifyCommentOption::PreserveSomeComments
         } else {
           JsMinifyCommentOption::PreserveAllComments
@@ -234,7 +242,7 @@ where
     json_parse_pass,
   );
 
-  let import_export_assign_config = match &cfg.module {
+  let import_export_assign_config = match &module {
     Some(ModuleConfig::Es6(..)) => TsImportExportAssignConfig::EsNext,
     Some(ModuleConfig::CommonJs(..))
     | Some(ModuleConfig::Amd(..))
@@ -276,11 +284,11 @@ where
       ..Default::default()
     })
   };
-  let env: Option<swc_core::ecma::preset_env::EnvConfig> = cfg.env.clone().map(Into::into);
+  let env: Option<EnvConfig> = env.map(Into::into);
 
   let feature_config = env.as_ref().map(|e| e.get_feature_config());
 
-  let (need_analyzer, import_interop, ignore_dynamic) = match &cfg.module {
+  let (need_analyzer, import_interop, ignore_dynamic) = match &module {
     Some(ModuleConfig::CommonJs(c)) => (true, c.import_interop(), c.ignore_dynamic),
     Some(ModuleConfig::Amd(c)) => (true, c.config.import_interop(), c.config.ignore_dynamic),
     Some(ModuleConfig::Umd(c)) => (true, c.config.import_interop(), c.config.ignore_dynamic),
@@ -319,13 +327,13 @@ where
     &base_url,
     paths,
     base,
-    cfg.module.as_ref(),
+    module.as_ref(),
     preserve_symlinks.into_bool(),
   );
 
   let rewrite_import_pass: Box<dyn Pass> = {
     let swc_import_rewriter: Box<dyn Pass> = match resolver.clone() {
-      Some((base, resolver)) => match &cfg.module {
+      Some((base, resolver)) => match &module {
         None | Some(ModuleConfig::Es6(..) | ModuleConfig::NodeNext(..)) => {
           Box::new(modules::rewriter::import_rewriter(base, resolver))
         }
@@ -352,7 +360,7 @@ where
     ModuleConfig::build(
       cm.clone(),
       comments.map(|v| v as &dyn Comments),
-      cfg.module.clone(),
+      module.clone(),
       unresolved_mark,
       resolver.clone(),
       |f| {
@@ -508,7 +516,7 @@ where
 
   Ok(BuiltInput {
     program,
-    minify: cfg.minify.into_bool(),
+    minify,
     pass,
     target: es_version,
     input_source_map,
@@ -800,6 +808,8 @@ fn compute_build_input_config(
   base: &FileName,
   config: &Option<Config>,
 ) -> BuildInputConfig {
+  let input_source_map = merged_input_source_map(options, config);
+
   let mut cfg = options.config.clone();
   cfg.input_source_map = None;
 
@@ -811,11 +821,22 @@ fn compute_build_input_config(
     cfg.adjust(base);
   }
 
-  let is_module = cfg.is_module.unwrap_or_default();
+  let Config {
+    env,
+    jsc,
+    module,
+    minify,
+    is_module,
+    ..
+  } = cfg;
 
   BuildInputConfig {
-    config: cfg,
-    is_module,
+    env,
+    jsc,
+    module,
+    minify: minify.into_bool(),
+    input_source_map,
+    is_module: is_module.unwrap_or_default(),
   }
 }
 
