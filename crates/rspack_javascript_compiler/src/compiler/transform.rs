@@ -17,9 +17,7 @@ pub use swc_core::base::config::Options as SwcOptions;
 use swc_core::{
   base::{
     BoolOr,
-    config::{
-      BuiltInput, Config, InputSourceMap, JsMinifyCommentOption, OutputCharset, SourceMapsConfig,
-    },
+    config::{Config, InputSourceMap, JsMinifyCommentOption, OutputCharset, SourceMapsConfig},
     sourcemap,
   },
   common::{
@@ -53,6 +51,7 @@ use url::Url;
 
 use super::{
   IsolatedDtsTransformOutput, JavaScriptCompiler, TransformOutput,
+  build_as_input::{self, BuiltInput},
   stringify::{PrintOptions, SourceMapConfig},
 };
 
@@ -403,7 +402,8 @@ impl<'a> JavaScriptTransformer<'a> {
   {
     self.run(|| {
       try_with_handler(self.cm.clone(), Default::default(), |handler| {
-        self.options.build_as_input(
+        build_as_input::build_as_input(
+          &self.options,
           &self.cm.clone(),
           &self.fm.name,
           move |syntax, target, is_module| {

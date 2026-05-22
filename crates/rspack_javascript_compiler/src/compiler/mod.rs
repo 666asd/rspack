@@ -5,6 +5,8 @@ pub mod parse;
 pub mod stringify;
 pub mod transform;
 
+mod build_as_input;
+
 use rspack_sources::SourceMap;
 use swc_core::common::{GLOBALS, Globals, SourceMap as SwcSourceMap};
 
