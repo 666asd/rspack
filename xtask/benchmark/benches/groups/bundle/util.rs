@@ -18,6 +18,14 @@ pub struct BuilderOptions {
   pub swc_loader: bool,
 }
 
+// Keep the Rust bundle benchmark aligned with the benchmark fixture
+// package.json: `"browserslist": "Chrome >= 93"`.
+//
+// Rust benchmarks construct builtin:swc-loader options directly, so they do
+// not pass through the JS-side default that derives `env.targets` from the
+// Rspack target.
+const BENCH_BROWSERSLIST_TARGET: &str = "Chrome >= 93";
+
 pub fn basic_compiler_builder(options: BuilderOptions) -> CompilerBuilder {
   let mut builder = Compiler::builder();
 
@@ -43,6 +51,7 @@ pub fn basic_compiler_builder(options: BuilderOptions) -> CompilerBuilder {
 
   if options.swc_loader {
     builder
+      .target(vec![format!("browserslist:{BENCH_BROWSERSLIST_TARGET}")])
       .module(ModuleOptions::builder().rule(ModuleRule {
         test: Some(RuleSetCondition::Regexp(
           RspackRegex::new("\\.(j|t)s(x)?$").unwrap(),
@@ -62,6 +71,9 @@ pub fn basic_compiler_builder(options: BuilderOptions) -> CompilerBuilder {
                               "runtime": "automatic",
                           },
                       }
+                  },
+                  "env": {
+                      "targets": BENCH_BROWSERSLIST_TARGET,
                   },
               })
               .to_string(),
