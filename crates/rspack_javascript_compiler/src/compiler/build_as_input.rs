@@ -4,13 +4,11 @@
  * Apache-2.0 licensed.
  */
 use std::{
-  fmt::Write as _,
   path::Path,
-  sync::{Arc, LazyLock, RwLock},
+  sync::Arc,
 };
 
 use anyhow::{Error, bail};
-use rustc_hash::FxHashMap;
 use swc_config::{
   file_pattern::FilePattern,
   is_module::IsModule,
@@ -60,27 +58,8 @@ use swc_ecma_minifier::{
   option::{ExtraOptions, MinifyOptions, terser::TerserTopLevelOptions},
 };
 
-const BUILD_INPUT_CONFIG_CACHE_LIMIT: usize = 1024;
-
-static BUILD_INPUT_CONFIG_CACHE: LazyLock<
-  RwLock<FxHashMap<BuildInputConfigCacheKey, Arc<CachedBuildInputConfig>>>,
-> = LazyLock::new(|| RwLock::new(FxHashMap::default()));
-
-#[derive(Debug, PartialEq, Eq, Hash)]
-struct BuildInputConfigCacheKey {
-  options: String,
-  config: String,
-  base: BaseAdjustKey,
-}
-
-#[derive(Debug, PartialEq, Eq, Hash)]
-struct BaseAdjustKey {
-  extension: Option<String>,
-  is_dts: bool,
-}
-
 #[derive(Debug)]
-struct CachedBuildInputConfig {
+struct BuildInputConfig {
   config: Config,
   is_module: IsModule,
   source_maps: SourceMapsConfig,
@@ -150,8 +129,8 @@ where
       .map(from_swc_built_input);
   }
 
-  let cached = cached_build_input_config(options, base, &config);
-  if cached.config.jsc.experimental.plugins.is_some() || uses_hidden_jest(&cached.config) {
+  let computed = compute_build_input_config(options, base, &config);
+  if computed.config.jsc.experimental.plugins.is_some() || uses_hidden_jest(&computed.config) {
     return options
       .build_as_input(
         cm,
@@ -169,9 +148,9 @@ where
       .map(from_swc_built_input);
   }
 
-  let cfg = &cached.config;
+  let cfg = &computed.config;
   let input_source_map = merged_input_source_map(options, &config);
-  let is_module = cached.is_module;
+  let is_module = computed.is_module;
 
   let swc_core::base::config::JscConfig {
     assumptions,
@@ -575,7 +554,7 @@ where
     syntax,
     target: es_version,
     is_module,
-    source_maps: cached.source_maps.clone(),
+    source_maps: computed.source_maps.clone(),
     inline_sources_content: cfg.inline_sources_content.into_bool(),
     input_source_map,
     output_path: output_path.map(|v| v.to_path_buf()),
@@ -628,36 +607,11 @@ fn from_swc_built_input<P: Pass>(built_input: SwcBuiltInput<P>) -> BuiltInput<P>
   }
 }
 
-fn cached_build_input_config(
+fn compute_build_input_config(
   options: &SwcOptions,
   base: &FileName,
   config: &Option<Config>,
-) -> Arc<CachedBuildInputConfig> {
-  let key = BuildInputConfigCacheKey::new(options, base, config);
-
-  if let Some(cached) = BUILD_INPUT_CONFIG_CACHE
-    .read()
-    .unwrap_or_else(|poisoned| poisoned.into_inner())
-    .get(&key)
-  {
-    return cached.clone();
-  }
-
-  let cached = Arc::new(create_cached_build_input_config(options, base, config));
-  let mut cache = BUILD_INPUT_CONFIG_CACHE
-    .write()
-    .unwrap_or_else(|poisoned| poisoned.into_inner());
-  if cache.len() >= BUILD_INPUT_CONFIG_CACHE_LIMIT {
-    cache.clear();
-  }
-  cache.entry(key).or_insert_with(|| cached.clone()).clone()
-}
-
-fn create_cached_build_input_config(
-  options: &SwcOptions,
-  base: &FileName,
-  config: &Option<Config>,
-) -> CachedBuildInputConfig {
+) -> BuildInputConfig {
   let mut cfg = options.config.clone();
   cfg.input_source_map = None;
 
@@ -674,7 +628,7 @@ fn create_cached_build_input_config(
   let mut source_maps = options.source_maps.clone();
   source_maps.merge(cfg.source_maps.clone());
 
-  CachedBuildInputConfig {
+  BuildInputConfig {
     config: cfg,
     is_module,
     source_maps: source_maps.unwrap_or(SourceMapsConfig::Bool(false)),
@@ -699,64 +653,6 @@ fn merged_input_source_map(options: &SwcOptions, config: &Option<Config>) -> Inp
     input_source_map.merge(config.input_source_map.clone());
   }
   input_source_map.unwrap_or_default()
-}
-
-impl BuildInputConfigCacheKey {
-  fn new(options: &SwcOptions, base: &FileName, config: &Option<Config>) -> Self {
-    Self {
-      options: options_cache_key(options),
-      config: sanitized_config_cache_key(config),
-      base: BaseAdjustKey::new(base),
-    }
-  }
-}
-
-impl BaseAdjustKey {
-  fn new(base: &FileName) -> Self {
-    match base {
-      FileName::Real(path) => Self {
-        extension: path
-          .extension()
-          .and_then(|extension| extension.to_str())
-          .map(str::to_owned),
-        is_dts: path
-          .file_name()
-          .and_then(|file_name| file_name.to_str())
-          .is_some_and(|file_name| file_name.ends_with(".d.ts")),
-      },
-      _ => Self {
-        extension: None,
-        is_dts: false,
-      },
-    }
-  }
-}
-
-fn options_cache_key(options: &SwcOptions) -> String {
-  let mut config = options.config.clone();
-  config.input_source_map = None;
-
-  let mut key = String::new();
-  let _ = write!(
-    key,
-    "{:?}|skip_helper_injection={:?}|disable_hygiene={:?}|disable_fixer={:?}|source_maps={:?}",
-    config,
-    options.skip_helper_injection,
-    options.disable_hygiene,
-    options.disable_fixer,
-    options.source_maps,
-  );
-  key
-}
-
-fn sanitized_config_cache_key(config: &Option<Config>) -> String {
-  let Some(config) = config else {
-    return String::new();
-  };
-
-  let mut config = config.clone();
-  config.input_source_map = None;
-  format!("{config:?}")
 }
 
 fn normalize_js_minify_options(
