@@ -328,8 +328,7 @@ impl<'a> JavaScriptTransformer<'a> {
 
     let diagnostics = self.transform_with_built_input(&mut built_input, inspect_parsed_ast)?;
     let ascii_only = built_input
-      .output
-      .charset
+      .output_charset
       .as_ref()
       .is_some_and(|v| matches!(v, OutputCharset::Ascii));
 
@@ -341,7 +340,7 @@ impl<'a> JavaScriptTransformer<'a> {
       input_source_map: input_source_map.as_ref(),
       minify,
       comments: Some(&self.comments as &dyn Comments),
-      preamble: &built_input.output.preamble,
+      preamble: &built_input.output_preamble,
       ascii_only,
       inline_script: built_input.codegen_inline_script,
     };
@@ -418,10 +417,6 @@ impl<'a> JavaScriptTransformer<'a> {
               )
               .map(|program| (program, false))
           },
-          self.options.output_path.as_deref(),
-          self.options.source_root.clone(),
-          self.options.source_file_name.clone(),
-          self.config.source_map_ignore_list.clone(),
           handler,
           Some(self.config.clone()),
           Some(&self.comments),

@@ -3,13 +3,12 @@
  * preservation implementations.
  * Apache-2.0 licensed.
  */
-use std::{path::Path, sync::Arc};
+use std::sync::Arc;
 
 #[cfg(feature = "plugin")]
 use anyhow::Context;
 use anyhow::{Error, bail};
 use swc_config::{
-  file_pattern::FilePattern,
   is_module::IsModule,
   merge::Merge,
   types::{BoolOr, BoolOrDataConfig},
@@ -18,9 +17,8 @@ use swc_config::{
 use swc_core::ecma::visit::{Fold, fold_pass, noop_fold_type};
 use swc_core::{
   base::config::{
-    Config, DecoratorVersion, InputSourceMap, JsMinifyCommentOption, JsMinifyOptions,
-    JscOutputConfig, ModuleConfig, Options as SwcOptions, OutputCharset, PluginConfig,
-    SourceMapsConfig,
+    Config, DecoratorVersion, InputSourceMap, JsMinifyCommentOption, JsMinifyOptions, ModuleConfig,
+    Options as SwcOptions, OutputCharset, PluginConfig,
   },
   common::{
     BytePos, DUMMY_SP, FileName, Mark, SourceMap, Span,
@@ -70,34 +68,19 @@ use swc_ecma_minifier::{
 struct BuildInputConfig {
   config: Config,
   is_module: IsModule,
-  source_maps: SourceMapsConfig,
 }
 
-#[allow(dead_code)]
 pub struct BuiltInput<P: Pass> {
   pub program: Program,
   pub pass: P,
-  pub syntax: Syntax,
   pub target: EsVersion,
   pub minify: bool,
-  pub external_helpers: bool,
-  pub source_maps: SourceMapsConfig,
   pub input_source_map: InputSourceMap,
-  pub is_module: IsModule,
-  pub output_path: Option<std::path::PathBuf>,
-  pub source_root: Option<String>,
-  pub source_file_name: Option<String>,
-  pub source_map_ignore_list: Option<FilePattern>,
   pub comments: Option<SingleThreadedComments>,
   pub preserve_comments: BoolOr<JsMinifyCommentOption>,
-  pub inline_sources_content: bool,
-  pub emit_source_map_columns: bool,
-  pub output: JscOutputConfig,
-  pub emit_assert_for_import_attributes: bool,
-  pub emit_source_map_scopes: bool,
+  pub output_charset: Option<OutputCharset>,
+  pub output_preamble: String,
   pub codegen_inline_script: bool,
-  pub flow_strip_script_like_module: bool,
-  pub emit_isolated_dts: bool,
   pub unresolved_mark: Mark,
 }
 
@@ -107,10 +90,6 @@ pub fn build_as_input<'a, P>(
   cm: &Arc<SourceMap>,
   base: &FileName,
   parse: impl FnOnce(Syntax, EsVersion, IsModule) -> Result<(Program, bool), Error>,
-  output_path: Option<&Path>,
-  source_root: Option<String>,
-  source_file_name: Option<String>,
-  source_map_ignore_list: Option<FilePattern>,
   handler: &Handler,
   config: Option<Config>,
   comments: Option<&'a SingleThreadedComments>,
@@ -128,7 +107,6 @@ where
     assumptions,
     transform,
     syntax,
-    external_helpers,
     target,
     loose,
     keep_class_names,
@@ -145,7 +123,6 @@ where
   let loose = loose.into_bool();
   let preserve_all_comments = preserve_all_comments.into_bool();
   let keep_class_names = keep_class_names.into_bool();
-  let external_helpers = external_helpers.into_bool();
 
   let mut assumptions = assumptions.unwrap_or_else(|| {
     if loose {
@@ -411,10 +388,6 @@ where
   );
 
   let keep_import_attributes = experimental.keep_import_attributes.into_bool();
-  let emit_assert_for_import_attributes =
-    experimental.emit_assert_for_import_attributes.into_bool();
-  let emit_source_map_scopes = experimental.emit_source_map_scopes.into_bool();
-  let emit_isolated_dts = experimental.emit_isolated_dts.into_bool();
   let run_plugin_first = experimental.run_plugin_first.into_bool();
   let disable_builtin_transforms_for_internal_testing = experimental
     .disable_builtin_transforms_for_internal_testing
@@ -537,30 +510,13 @@ where
     program,
     minify: cfg.minify.into_bool(),
     pass,
-    external_helpers,
-    syntax,
     target: es_version,
-    is_module,
-    source_maps: computed.source_maps.clone(),
-    inline_sources_content: cfg.inline_sources_content.into_bool(),
     input_source_map,
-    output_path: output_path.map(|v| v.to_path_buf()),
-    source_root,
-    source_file_name,
-    source_map_ignore_list,
     comments: comments.cloned(),
     preserve_comments,
-    emit_source_map_columns: cfg.emit_source_map_columns.into_bool(),
-    output: JscOutputConfig {
-      charset,
-      preamble,
-      ..output
-    },
-    emit_assert_for_import_attributes,
-    emit_source_map_scopes,
+    output_charset: charset,
+    output_preamble: preamble,
     codegen_inline_script,
-    flow_strip_script_like_module,
-    emit_isolated_dts,
     unresolved_mark,
   })
 }
@@ -857,13 +813,9 @@ fn compute_build_input_config(
 
   let is_module = cfg.is_module.unwrap_or_default();
 
-  let mut source_maps = options.source_maps.clone();
-  source_maps.merge(cfg.source_maps.clone());
-
   BuildInputConfig {
     config: cfg,
     is_module,
-    source_maps: source_maps.unwrap_or(SourceMapsConfig::Bool(false)),
   }
 }
 
