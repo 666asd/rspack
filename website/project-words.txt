@@ -44,6 +44,8 @@ dhruvkelawala
 disabletransformbydefault
 ecma
 edusperoni
+elecmonkey
+elecmonkeyjs
 esbuild
 etags
 evanw
@@ -73,6 +75,7 @@ intlify
 IWANABETHATGUY
 jantimon
 JavaScript
+Jiahan
 jerrykingxyz
 jkzing
 jridgewell

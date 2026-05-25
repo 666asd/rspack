@@ -171,6 +171,12 @@ declare namespace Rspack {
     (dependency: string): unknown;
   }
 
+  type ImportMetaGlobPattern = string | readonly string[];
+  type ImportMetaGlobOptions<Eager extends boolean = boolean> = {
+    eager?: Eager;
+    import?: string;
+  };
+
   interface Module {
     exports: any;
     id: ModuleId;
@@ -240,6 +246,16 @@ interface ImportMeta {
    */
   rspackRsc?: {
     loadCss(): any;
+  };
+  glob: {
+    <T = unknown>(
+      pattern: Rspack.ImportMetaGlobPattern,
+      options?: Rspack.ImportMetaGlobOptions<false>,
+    ): Record<string, () => Promise<T>>;
+    <T = unknown>(
+      pattern: Rspack.ImportMetaGlobPattern,
+      options: Rspack.ImportMetaGlobOptions<true>,
+    ): Record<string, T>;
   };
 }
 

@@ -419,8 +419,8 @@ impl<'parser> JavascriptParser<'parser> {
     parse_meta: ParseMeta,
     parser_runtime_requirements: &'parser ParserRuntimeRequirementsData,
   ) -> Self {
-    let warning_diagnostics: Vec<Diagnostic> = Vec::with_capacity(4);
-    let errors = Vec::with_capacity(4);
+    let warning_diagnostics: Vec<Diagnostic> = Vec::new();
+    let errors = Vec::new();
     let dependencies = Vec::with_capacity(64);
     let blocks = Vec::with_capacity(64);
     let presentational_dependencies = Vec::with_capacity(64);
@@ -517,10 +517,13 @@ impl<'parser> JavascriptParser<'parser> {
       plugins.push(Box::new(parser_plugin::OverrideStrictPlugin));
     }
 
-    if compiler_options.optimization.inline_exports {
+    let inline_exports = compiler_options.optimization.inline_exports;
+    if inline_exports {
       build_info.inline_exports = true;
-      plugins.push(Box::new(parser_plugin::InlineConstPlugin));
     }
+    plugins.push(Box::new(parser_plugin::ConstValuePlugin::new(
+      inline_exports,
+    )));
     if compiler_options.optimization.inner_graph {
       plugins.push(Box::new(parser_plugin::InnerGraphParserPlugin::new(
         unresolved_mark,
