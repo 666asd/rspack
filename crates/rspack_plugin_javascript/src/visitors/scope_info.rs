@@ -139,12 +139,9 @@ impl ScopeInfoDB {
       return Self::normalize_variable_info_id(top_value);
     }
 
-    let mut current = definitions.parent;
-    if current.is_none() {
-      return None;
-    }
+    let mut current_id = definitions.parent?;
 
-    while let Some(current_id) = current {
+    loop {
       let scope = self.expect_get_scope(current_id);
       if let Some(&value) = scope.map.get(key) {
         let result = Self::normalize_variable_info_id(value);
@@ -154,7 +151,10 @@ impl ScopeInfoDB {
         );
         return result;
       }
-      current = scope.parent;
+      let Some(parent) = scope.parent else {
+        break;
+      };
+      current_id = parent;
     }
 
     self
