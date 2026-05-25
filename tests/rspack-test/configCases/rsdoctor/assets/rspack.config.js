@@ -1,7 +1,6 @@
 const {
   experiments: { RsdoctorPlugin },
 } = require('@rspack/core');
-const fs = require('fs');
 
 /** @type {import("@rspack/core").Configuration} */
 module.exports = {
@@ -33,26 +32,15 @@ module.exports = {
               path: a.path,
             }));
             assetsInfo.sort((a, b) => (a.path > b.path ? 1 : -1));
-            expect(assetsInfo).toMatchInlineSnapshot(`
-              Array [
-                Object {
-                  path: a.js,
-                  size: 4298,
-                },
-                Object {
-                  path: b.js,
-                  size: 4298,
-                },
-                Object {
-                  path: c_js.js,
-                  size: 219,
-                },
-                Object {
-                  path: d_js.js,
-                  size: 219,
-                },
-              ]
-            `);
+            expect(assetsInfo.map((asset) => asset.path)).toEqual([
+              'a.js',
+              'b.js',
+              'c_js.js',
+              'd_js.js',
+            ]);
+            expect(assetsInfo[0].size).toBe(assetsInfo[1].size);
+            expect(assetsInfo[2].size).toBe(assetsInfo[3].size);
+            expect(assetsInfo[0].size).toBeGreaterThan(assetsInfo[2].size);
           });
         });
       },

@@ -1,13 +1,15 @@
 function loadUpdateChunk(chunkId, updatedModulesList) {
   var success = false;
-  <%- _global_object %>[<%- _hot_update_global %>] = <%- basicFunction("_, moreModules, runtime") %> {
-      for (var moduleId in moreModules) {
+  <% if (_with_runtime_proxy) { %><%- _global_object %>[<%- _hot_update_global %>] = <%- basicFunction("_, moreModules, runtime, runtimeProxyInstaller") %> {
+  <% } else { %><%- _global_object %>[<%- _hot_update_global %>] = <%- basicFunction("_, moreModules, runtime") %> {
+  <% } %>for (var moduleId in moreModules) {
           if (<%- HAS_OWN_PROPERTY %>(moreModules, moduleId)) {
               currentUpdate[moduleId] = moreModules[moduleId];
               if (updatedModulesList) updatedModulesList.push(moduleId);
           }
       }
-      if (runtime) currentUpdateRuntime.push(runtime);
+<% if (_with_runtime_proxy) { %>      if (runtimeProxyInstaller) runtimeProxyInstaller(<%- VAR_RUNTIME_PROXY %>);
+<% } %>      if (runtime) currentUpdateRuntime.push(runtime);
       success = true;
   };
   // start update chunk loading

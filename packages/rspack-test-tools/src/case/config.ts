@@ -140,6 +140,10 @@ export function overrideOptions(
       level: 'error',
     };
   }
+  if (process.env.RSPACK_TEST_RUNTIME_REQUIREMENTS_PROXY) {
+    options.experiments ??= {};
+    options.experiments.runtimeRequirementsProxy = true;
+  }
 }
 
 export function findBundle(

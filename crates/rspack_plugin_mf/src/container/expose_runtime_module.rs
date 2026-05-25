@@ -69,7 +69,14 @@ impl RuntimeModule for ExposeRuntimeModule {
     let Some(data) = self.find_expose_data(&chunk_ukey, compilation) else {
       return Ok(String::new());
     };
-    let mut runtime_template = compilation.runtime_template.create_module_code_template();
+    let render_mode = if compilation.options.experiments.runtime_requirements_proxy {
+      rspack_core::RuntimeGlobalRenderMode::LexicalRuntime
+    } else {
+      rspack_core::RuntimeGlobalRenderMode::RequireProperty
+    };
+    let mut runtime_template = compilation
+      .runtime_template
+      .create_module_code_template(render_mode);
     let module_map = data.module_map.render(&mut runtime_template);
     let require_name = runtime_template.render_runtime_globals(&RuntimeGlobals::REQUIRE);
     let mut source = format!(

@@ -1,22 +1,23 @@
 var installChunk = <%- basicFunction("data") %> {
-    var __rspack_esm_ids = data.__rspack_esm_ids;
-    var <%- _modules %> = data.<%- _modules %>;
-    var __rspack_esm_runtime = data.__rspack_esm_runtime;
-    // add "modules" to the modules object,
+    var <%- VAR_ESM_IDS %> = data.<%- VAR_ESM_IDS %>;
+    var <%- VAR_MODULES %> = data.<%- VAR_MODULES %>;
+    var <%- VAR_ESM_RUNTIME %> = data.<%- VAR_ESM_RUNTIME %>;
+    <% if (_with_runtime_proxy) { %>if (typeof data.<%- VAR_ESM_RUNTIME_PROXY %> === "function") data.<%- VAR_ESM_RUNTIME_PROXY %>(<%- VAR_RUNTIME_PROXY %>);
+    <% } %>// add "modules" to the modules object,
     // then flag all "ids" as loaded and fire callback
     var moduleId, chunkId, i = 0;
-    for (moduleId in <%- _modules %>) {
-        if (<%- HAS_OWN_PROPERTY %>(<%- _modules %>, moduleId)) {
-            <%- MODULE_FACTORIES %>[moduleId] = <%- _modules %>[moduleId];
+    for (moduleId in <%- VAR_MODULES %>) {
+        if (<%- HAS_OWN_PROPERTY %>(<%- VAR_MODULES %>, moduleId)) {
+            <%- MODULE_FACTORIES %>[moduleId] = <%- VAR_MODULES %>[moduleId];
         }
     }
-    if (__rspack_esm_runtime) __rspack_esm_runtime(<%- REQUIRE %>);
-    for (; i < __rspack_esm_ids.length; i++) {
-        chunkId = __rspack_esm_ids[i];
+    if (<%- VAR_ESM_RUNTIME %>) <%- VAR_ESM_RUNTIME %>(<%- REQUIRE %>);
+    for (; i < <%- VAR_ESM_IDS %>.length; i++) {
+        chunkId = <%- VAR_ESM_IDS %>[i];
         if (<%- HAS_OWN_PROPERTY %>(installedChunks, chunkId) && installedChunks[chunkId]) {
             installedChunks[chunkId][0]();
         }
-        installedChunks[__rspack_esm_ids[i]] = 0;
+        installedChunks[<%- VAR_ESM_IDS %>[i]] = 0;
     }
     <% if (_with_on_chunk_load) { %><%- ON_CHUNKS_LOADED %>();<% } %>
 };

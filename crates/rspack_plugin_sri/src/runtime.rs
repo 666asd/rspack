@@ -77,7 +77,9 @@ impl RuntimeModule for SRIHashVariableRuntimeModule {
 
     let module_graph = compilation.get_module_graph();
 
-    let runtime_template = compilation.runtime_template.create_module_code_template();
+    let runtime_template = compilation
+      .runtime_template
+      .create_module_code_template(rspack_core::RuntimeGlobalRenderMode::RequireProperty);
     let source_types = vec![
       (
         SourceType::JavaScript,

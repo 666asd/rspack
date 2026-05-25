@@ -83,7 +83,7 @@ function createHotStepProcessor(
 
     const lastHash = hashes[hashes.length - 1];
     const snapshotPath = context.getSource(
-      `__snapshots__/${options.target}/${step}.snap.txt`,
+      `${process.env.RSPACK_TEST_RUNTIME_REQUIREMENTS_PROXY ? '__runtime_proxy_snapshots__' : '__snapshots__'}/${options.target}/${step}.snap.txt`,
     );
     const title = `Case ${path.basename(name)}: Step ${step}`;
     const hotUpdateFile: Array<{

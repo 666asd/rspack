@@ -13,6 +13,8 @@ function loadUpdateChunk(chunkId, updatedModulesList) {
 					if(updatedModulesList) updatedModulesList.push(moduleId);
 				}
 			}
+			<% if (_with_runtime_proxy) { %>if(typeof update.<%- VAR_EXTERNAL_RUNTIME_PROXY %> === "function") update.<%- VAR_EXTERNAL_RUNTIME_PROXY %>(<%- VAR_RUNTIME_PROXY %>);
+			<% } %>
 			if(runtime) currentUpdateRuntime.push(runtime);
 			resolve();
 		});

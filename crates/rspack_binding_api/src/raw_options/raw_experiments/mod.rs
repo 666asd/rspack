@@ -14,6 +14,7 @@ pub struct RawExperiments {
   pub use_input_file_system: Option<WithFalse<Vec<RspackRegex>>>,
   pub css: Option<bool>,
   pub defer_import: bool,
+  pub runtime_requirements_proxy: bool,
   pub pure_functions: bool,
 }
 
@@ -22,6 +23,7 @@ impl From<RawExperiments> for Experiments {
     Self {
       css: value.css.unwrap_or(false),
       defer_import: value.defer_import,
+      runtime_requirements_proxy: value.runtime_requirements_proxy,
       pure_functions: value.pure_functions,
     }
   }

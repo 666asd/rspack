@@ -84,6 +84,10 @@ export const getRawOptions = (
 ): RawOptions => {
   const mode = options.mode;
   const experiments = options.experiments as Required<ExperimentsNormalized>;
+  const rawExperiments = {
+    ...experiments,
+    runtimeRequirementsProxy: experiments.runtimeRequirementsProxy,
+  };
   return {
     name: options.name,
     mode,
@@ -100,7 +104,7 @@ export const getRawOptions = (
     optimization: options.optimization as Required<Optimization>,
     stats: getRawStats(options.stats),
     cache: options.cache || false,
-    experiments,
+    experiments: rawExperiments,
     incremental: options.incremental,
     node: getRawNode(options.node),
     amd: options.amd ? JSON.stringify(options.amd || {}) : undefined,

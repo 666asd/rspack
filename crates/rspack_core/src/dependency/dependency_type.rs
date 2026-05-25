@@ -219,7 +219,7 @@ impl DependencyType {
       DependencyType::ProvideModuleForShared => "provide module for shared",
       DependencyType::ConsumeSharedFallback => "consume shared fallback",
       DependencyType::FederationRuntime => "federation runtime",
-      DependencyType::IsIncluded => "__webpack_is_included__",
+      DependencyType::IsIncluded => "is included",
       DependencyType::LazyImport => "lazy import()",
       DependencyType::ModuleDecorator => "module decorator",
       DependencyType::DelegatedSource => "delegated source",

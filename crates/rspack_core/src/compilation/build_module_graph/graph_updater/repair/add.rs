@@ -121,7 +121,9 @@ impl Task<TaskContext> for AddTask {
       resolver_factory: context.resolver_factory.clone(),
       compiler_options: context.compiler_options.clone(),
       plugin_driver: context.plugin_driver.clone(),
-      runtime_template: context.runtime_template.create_module_code_template(),
+      runtime_template: context
+        .runtime_template
+        .create_module_code_template(crate::RuntimeGlobalRenderMode::RequireProperty),
       fs: context.fs.clone(),
       forwarded_ids,
     })])

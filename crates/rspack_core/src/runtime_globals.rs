@@ -378,9 +378,26 @@ pub static REQUIRE_SCOPE_GLOBALS: LazyLock<RuntimeGlobals> = LazyLock::new(|| {
     | RuntimeGlobals::DEFERRED_MODULES_ASYNC_TRANSITIVE_DEPENDENCIES_SYMBOL
 });
 
+/// Runtime globals that can be rendered as concrete require-scope properties.
+///
+/// For example, `RuntimeGlobals::DEFINE_PROPERTY_GETTERS` is included and can
+/// render as `__webpack_require__.d`, while `RuntimeGlobals::REQUIRE_SCOPE` is
+/// excluded because it represents the broad `__webpack_require__.*` surface.
+pub static RENDERABLE_REQUIRE_SCOPE_GLOBALS: LazyLock<RuntimeGlobals> = LazyLock::new(|| {
+  let mut runtime_globals = *REQUIRE_SCOPE_GLOBALS;
+  runtime_globals.remove(RuntimeGlobals::REQUIRE_SCOPE);
+  runtime_globals.remove(RuntimeGlobals::HMR_RUNTIME_STATE_PREFIX);
+  runtime_globals
+});
+
 pub static MODULE_GLOBALS: LazyLock<RuntimeGlobals> =
   LazyLock::new(|| RuntimeGlobals::MODULE_ID | RuntimeGlobals::MODULE_LOADED);
 
+/// Renders a runtime global in the legacy runtime surface.
+///
+/// For example, `RuntimeGlobals::DEFINE_PROPERTY_GETTERS` renders to
+/// `__webpack_require__.d`, while `RuntimeGlobals::EXPORTS` renders to
+/// `__webpack_exports__`.
 pub fn runtime_globals_to_string(
   runtime_globals: &RuntimeGlobals,
   compiler_options: &CompilerOptions,
@@ -397,7 +414,33 @@ pub fn runtime_globals_to_string(
     return "module".to_string();
   }
 
-  let name = match *runtime_globals {
+  let name = runtime_globals_property_name(runtime_globals)
+    .unwrap_or_else(|| panic!("runtime global {runtime_globals:?} cannot be rendered as string"));
+  if REQUIRE_SCOPE_GLOBALS.contains(*runtime_globals) {
+    let require = runtime_variable_to_string(&RuntimeVariable::Require, compiler_options);
+    let mut result = String::with_capacity(require.len() + 1 + name.len());
+    result.push_str(&require);
+    result.push('.');
+    result.push_str(name);
+    return result;
+  }
+  if MODULE_GLOBALS.contains(*runtime_globals) {
+    let mut result = String::with_capacity("module".len() + 1 + name.len());
+    result.push_str("module");
+    result.push('.');
+    result.push_str(name);
+    return result;
+  }
+  name.to_string()
+}
+
+/// Returns the raw runtime-global property name without any owner object.
+///
+/// For example, `RuntimeGlobals::DEFINE_PROPERTY_GETTERS` returns `Some("d")`,
+/// and `RuntimeGlobals::MODULE_FACTORIES_ADD_ONLY` returns
+/// `Some("m (add only)")`.
+pub fn runtime_globals_property_name(runtime_globals: &RuntimeGlobals) -> Option<&'static str> {
+  Some(match *runtime_globals {
     RuntimeGlobals::REQUIRE_SCOPE => "*",
     RuntimeGlobals::MODULE_ID => "id",
     RuntimeGlobals::MODULE_LOADED => "loaded",
@@ -474,29 +517,113 @@ pub fn runtime_globals_to_string(
 
     RuntimeGlobals::RSC_MANIFEST => "rscM",
     RuntimeGlobals::TO_BINARY => "tb",
-    _ => unreachable!(),
-  };
-  if REQUIRE_SCOPE_GLOBALS.contains(*runtime_globals) {
-    let require = runtime_variable_to_string(&RuntimeVariable::Require, compiler_options);
-    let mut result = String::with_capacity(require.len() + 1 + name.len());
-    result.push_str(&require);
-    result.push('.');
-    result.push_str(name);
-    return result;
-  }
-  if MODULE_GLOBALS.contains(*runtime_globals) {
-    let mut result = String::with_capacity("module".len() + 1 + name.len());
-    result.push_str("module");
-    result.push('.');
-    result.push_str(name);
-    return result;
-  }
-  name.to_string()
+    _ => return None,
+  })
+}
+
+static RUNTIME_GLOBALS_BY_PROPERTY_NAME: LazyLock<FxHashMap<&'static str, RuntimeGlobals>> =
+  LazyLock::new(|| {
+    let mut map = FxHashMap::default();
+    for (_, runtime_global) in RuntimeGlobals::all().iter_names() {
+      if let Some(property_name) = runtime_globals_property_name(&runtime_global) {
+        map.entry(property_name).or_insert(runtime_global);
+      }
+    }
+    map.shrink_to_fit();
+    map
+  });
+
+static RUNTIME_GLOBAL_LEXICAL_VARIABLE_MAP: LazyLock<FxHashMap<RuntimeGlobals, String>> =
+  LazyLock::new(|| {
+    let mut map = FxHashMap::default();
+    for (_, runtime_global) in RuntimeGlobals::all().iter_names() {
+      if let Some(property) = runtime_globals_property_name(&runtime_global) {
+        let suffix = if property
+          .chars()
+          .all(|c| c == '_' || c == '$' || c.is_ascii_alphanumeric())
+        {
+          property.to_string()
+        } else {
+          let mut suffix = property
+            .chars()
+            .map(|c| {
+              if c == '_' || c == '$' || c.is_ascii_alphanumeric() {
+                c
+              } else {
+                '_'
+              }
+            })
+            .collect::<String>()
+            .trim_matches('_')
+            .to_string();
+          if suffix.is_empty() {
+            suffix.push('x');
+          }
+          suffix
+        };
+        map.insert(runtime_global, format!("__var_{suffix}"));
+      }
+    }
+    map.shrink_to_fit();
+    map
+  });
+
+/// Finds the runtime global represented by a legacy require property name.
+///
+/// For example, `d` resolves to `RuntimeGlobals::DEFINE_PROPERTY_GETTERS`
+/// and `nc` resolves to `RuntimeGlobals::SCRIPT_NONCE`.
+pub fn runtime_globals_from_property_name(property_name: &str) -> Option<RuntimeGlobals> {
+  RUNTIME_GLOBALS_BY_PROPERTY_NAME.get(property_name).copied()
+}
+
+/// Renders the lexical variable name for a runtime global.
+///
+/// For example, `RuntimeGlobals::DEFINE_PROPERTY_GETTERS` renders to `__var_d`.
+pub fn runtime_globals_to_lexical_variable(
+  runtime_globals: &RuntimeGlobals,
+  _compiler_options: &CompilerOptions,
+) -> String {
+  RUNTIME_GLOBAL_LEXICAL_VARIABLE_MAP
+    .get(runtime_globals)
+    .unwrap_or_else(|| {
+      panic!("runtime global {runtime_globals:?} cannot be rendered as lexical variable")
+    })
+    .clone()
+}
+
+/// Returns whether a runtime global can be rendered through require-scope forms.
+///
+/// For example, `RuntimeGlobals::DEFINE_PROPERTY_GETTERS` returns `true` and can
+/// render as `__webpack_require__.d` or `__rspack_runtime.d`, while
+/// `RuntimeGlobals::REQUIRE_SCOPE` returns `false`.
+pub fn runtime_global_can_render_in_require_scope(runtime_globals: &RuntimeGlobals) -> bool {
+  runtime_globals_property_name(runtime_globals).is_some()
+    && RENDERABLE_REQUIRE_SCOPE_GLOBALS.contains(*runtime_globals)
+}
+
+/// Filters a runtime global set to globals that can be rendered as concrete
+/// require-scope properties.
+///
+/// For example, `RuntimeGlobals::REQUIRE_SCOPE | RuntimeGlobals::PUBLIC_PATH`
+/// renders only `RuntimeGlobals::PUBLIC_PATH`, because `REQUIRE_SCOPE` means the
+/// broad `__webpack_require__.*` surface rather than one property.
+pub fn renderable_require_scope_runtime_globals(runtime_globals: RuntimeGlobals) -> RuntimeGlobals {
+  runtime_globals.intersection(*RENDERABLE_REQUIRE_SCOPE_GLOBALS)
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
 pub enum RuntimeVariable {
   Require,
+  /// The runtime chunk local proxy object captured by module factories.
+  RuntimeProxy,
+  /// The non-ESM async chunk payload field that installs the parent runtime
+  /// proxy into the loaded chunk.
+  ExternalRuntimeProxy,
+  EsmId,
+  EsmIds,
+  EsmRuntime,
+  /// The ESM async chunk export that installs the parent runtime proxy.
+  EsmRuntimeProxy,
   Modules,
   ModuleCache,
   Module,
@@ -504,18 +631,45 @@ pub enum RuntimeVariable {
   StartupExec,
 }
 
+pub fn runtime_variable_to_template_name(runtime_variable: &RuntimeVariable) -> &'static str {
+  match runtime_variable {
+    RuntimeVariable::Require => "VAR_REQUIRE",
+    RuntimeVariable::RuntimeProxy => "VAR_RUNTIME_PROXY",
+    RuntimeVariable::ExternalRuntimeProxy => "VAR_EXTERNAL_RUNTIME_PROXY",
+    RuntimeVariable::EsmId => "VAR_ESM_ID",
+    RuntimeVariable::EsmIds => "VAR_ESM_IDS",
+    RuntimeVariable::EsmRuntime => "VAR_ESM_RUNTIME",
+    RuntimeVariable::EsmRuntimeProxy => "VAR_ESM_RUNTIME_PROXY",
+    RuntimeVariable::Modules => "VAR_MODULES",
+    RuntimeVariable::ModuleCache => "VAR_MODULE_CACHE",
+    RuntimeVariable::Module => "VAR_MODULE",
+    RuntimeVariable::Exports => "VAR_EXPORTS",
+    RuntimeVariable::StartupExec => "VAR_STARTUP_EXEC",
+  }
+}
+
+/// Renders a named runtime variable.
+///
+/// For example, `RuntimeVariable::Require` always renders to
+/// `__webpack_require__`, while `RuntimeVariable::RuntimeProxy` renders to
+/// `__rspack_runtime`.
 pub fn runtime_variable_to_string(
   runtime_variable: &RuntimeVariable,
-  _compiler_options: &CompilerOptions,
+  compiler_options: &CompilerOptions,
 ) -> String {
-  // TODO: use compiler options to get runtime variable names
-  match *runtime_variable {
-    RuntimeVariable::Require => "__webpack_require__".to_string(),
-    RuntimeVariable::Modules => "__webpack_modules__".to_string(),
-    RuntimeVariable::ModuleCache => "__webpack_module_cache__".to_string(),
-    RuntimeVariable::Exports => "__webpack_exports__".to_string(),
-    RuntimeVariable::Module => "__webpack_module__".to_string(),
-    RuntimeVariable::StartupExec => "__webpack_exec__".to_string(),
+  match (*runtime_variable, compiler_options.mode.is_production()) {
+    (RuntimeVariable::RuntimeProxy, _) => "__rspack_runtime".to_string(),
+    (RuntimeVariable::ExternalRuntimeProxy, _) => "installRuntime".to_string(),
+    (RuntimeVariable::EsmRuntime, _) => "__rspack_esm_install_runtime_modules__".to_string(),
+    (RuntimeVariable::EsmRuntimeProxy, _) => "__rspack_install_runtime__".to_string(),
+    (RuntimeVariable::Require, _) => "__webpack_require__".to_string(),
+    (RuntimeVariable::EsmId, _) => "__rspack_esm_id".to_string(),
+    (RuntimeVariable::EsmIds, _) => "__rspack_esm_ids".to_string(),
+    (RuntimeVariable::Modules, _) => "__webpack_modules__".to_string(),
+    (RuntimeVariable::ModuleCache, _) => "__webpack_module_cache__".to_string(),
+    (RuntimeVariable::Exports, _) => "__webpack_exports__".to_string(),
+    (RuntimeVariable::Module, _) => "__webpack_module__".to_string(),
+    (RuntimeVariable::StartupExec, _) => "__webpack_exec__".to_string(),
   }
 }
 

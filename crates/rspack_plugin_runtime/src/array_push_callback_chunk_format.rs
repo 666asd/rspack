@@ -11,7 +11,10 @@ use rspack_hash::RspackHash;
 use rspack_hook::{plugin, plugin_hook};
 use rspack_plugin_javascript::{
   JavascriptModulesChunkHash, JavascriptModulesRenderChunk, JsPlugin, RenderSource,
-  runtime::{render_chunk_runtime_modules, render_runtime_modules},
+  runtime::{
+    render_chunk_runtime_modules_with_external_runtime_proxy,
+    render_runtime_modules_with_external_runtime_proxy, render_runtime_proxy_outer_declarations,
+  },
 };
 
 use super::{generate_entry_startup, update_hash_for_entry_startup};
@@ -122,6 +125,16 @@ async fn render_chunk(
   let hot_update_global = &compilation.options.output.hot_update_global;
   let mut source = ConcatSource::default();
 
+  let runtime_proxy_declarations =
+    render_runtime_proxy_outer_declarations(compilation, chunk_ukey, runtime_template);
+  let wrap_runtime_proxy_scope = runtime_proxy_declarations.is_some();
+  if wrap_runtime_proxy_scope {
+    source.add(RawStringSource::from_static("(() => {\n"));
+  }
+  if let Some(declarations) = runtime_proxy_declarations {
+    source.add(declarations);
+  }
+
   if matches!(chunk.kind(), ChunkKind::HotUpdate) {
     source.add(RawStringSource::from(format!(
       "{}[{}]({}, ",
@@ -132,7 +145,28 @@ async fn render_chunk(
     source.add(render_source.source.clone());
     if has_runtime_modules {
       source.add(RawStringSource::from_static(","));
-      source.add(render_chunk_runtime_modules(compilation, chunk_ukey, runtime_template).await?);
+      source.add(
+        render_chunk_runtime_modules_with_external_runtime_proxy(
+          compilation,
+          chunk_ukey,
+          runtime_template,
+        )
+        .await?,
+      );
+    }
+    if wrap_runtime_proxy_scope {
+      let runtime_proxy = runtime_template.render_runtime_variable(&RuntimeVariable::RuntimeProxy);
+      let set_runtime_proxy = if compilation
+        .options
+        .output
+        .environment
+        .supports_arrow_function()
+      {
+        format!(",(proxy) => {{ {runtime_proxy} = proxy; }}")
+      } else {
+        format!(",function(proxy) {{ {runtime_proxy} = proxy; }}")
+      };
+      source.add(RawStringSource::from(set_runtime_proxy));
     }
     source.add(RawStringSource::from_static(")"));
   } else {
@@ -148,14 +182,22 @@ async fn render_chunk(
     )));
     source.add(render_source.source.clone());
     let has_entry = chunk.has_entry_module(&compilation.build_chunk_graph_artifact.chunk_graph);
-    if has_entry || has_runtime_modules {
+    let has_runtime_payload = has_entry || has_runtime_modules;
+    if has_runtime_payload {
       source.add(RawStringSource::from_static(","));
       source.add(RawStringSource::from(format!(
         "function({}) {{\n",
         runtime_template.render_runtime_globals(&RuntimeGlobals::REQUIRE)
       )));
       if has_runtime_modules {
-        source.add(render_runtime_modules(compilation, chunk_ukey, runtime_template).await?);
+        source.add(
+          render_runtime_modules_with_external_runtime_proxy(
+            compilation,
+            chunk_ukey,
+            runtime_template,
+          )
+          .await?,
+        );
       }
       if has_entry {
         let entries = compilation
@@ -165,8 +207,16 @@ async fn render_chunk(
         let runtime_requirements =
           ChunkGraph::get_tree_runtime_requirements(compilation, chunk_ukey);
         let passive = !runtime_requirements.contains(RuntimeGlobals::STARTUP_ENTRYPOINT);
-        let start_up_source =
-          generate_entry_startup(compilation, chunk_ukey, entries, passive, runtime_template);
+        let startup_runtime_template = compilation
+          .runtime_template
+          .create_runtime_code_template(rspack_core::RuntimeGlobalRenderMode::RequireProperty);
+        let start_up_source = generate_entry_startup(
+          compilation,
+          chunk_ukey,
+          entries,
+          passive,
+          &startup_runtime_template,
+        );
         let last_entry_module = entries
           .keys()
           .next_back()
@@ -183,7 +233,7 @@ async fn render_chunk(
             chunk_ukey,
             last_entry_module,
             &mut render_source,
-            runtime_template,
+            &startup_runtime_template,
           )
           .await?;
         source.add(render_source.source);
@@ -196,7 +246,27 @@ async fn render_chunk(
       }
       source.add(RawStringSource::from_static("\n}\n"));
     }
+    if wrap_runtime_proxy_scope {
+      if !has_runtime_payload {
+        source.add(RawStringSource::from_static(",null"));
+      }
+      let runtime_proxy = runtime_template.render_runtime_variable(&RuntimeVariable::RuntimeProxy);
+      let set_runtime_proxy = if compilation
+        .options
+        .output
+        .environment
+        .supports_arrow_function()
+      {
+        format!(",(proxy) => {{ {runtime_proxy} = proxy; }}")
+      } else {
+        format!(",function(proxy) {{ {runtime_proxy} = proxy; }}")
+      };
+      source.add(RawStringSource::from(set_runtime_proxy));
+    }
     source.add(RawStringSource::from_static("])"));
+  }
+  if wrap_runtime_proxy_scope {
+    source.add(RawStringSource::from_static("\n})();"));
   }
   render_source.source = source.boxed();
   Ok(())

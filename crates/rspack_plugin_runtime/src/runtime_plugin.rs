@@ -7,9 +7,9 @@ use atomic_refcell::AtomicRefCell;
 use rspack_core::{
   ChunkLoading, ChunkUkey, Compilation, CompilationId, CompilationParams,
   CompilationRuntimeRequirementInModule, CompilationRuntimeRequirementInTree, CompilerCompilation,
-  MODULE_GLOBALS, ModuleIdentifier, Plugin, PublicPath, REQUIRE_SCOPE_GLOBALS, RuntimeGlobals,
-  RuntimeModule, RuntimeModuleExt, SourceType, get_css_chunk_filename_template,
-  get_js_chunk_filename_template,
+  MODULE_GLOBALS, ModuleIdentifier, Plugin, PublicPath, REQUIRE_SCOPE_GLOBALS,
+  RuntimeGlobalRenderMode, RuntimeGlobals, RuntimeModule, RuntimeModuleExt, SourceType,
+  get_css_chunk_filename_template, get_js_chunk_filename_template,
 };
 use rspack_error::Result;
 use rspack_hash::RspackHash;
@@ -173,6 +173,15 @@ async fn runtime_requirements_in_tree(
 ) -> Result<Option<()>> {
   handle_scope_globals(runtime_requirements, runtime_requirements_mut);
 
+  let render_mode = if compilation.options.experiments.runtime_requirements_proxy {
+    RuntimeGlobalRenderMode::LexicalRuntime
+  } else {
+    RuntimeGlobalRenderMode::RequireProperty
+  };
+  let runtime_template = compilation
+    .runtime_template
+    .create_runtime_code_template(render_mode);
+
   if runtime_requirements.contains(RuntimeGlobals::INITIALIZE_SHARING) {
     runtime_requirements_mut.insert(RuntimeGlobals::SHARE_SCOPE_MAP);
   }
@@ -210,7 +219,6 @@ async fn runtime_requirements_in_tree(
       .map(|library| library.library_type.clone())
   };
 
-  let runtime_template = compilation.runtime_template.create_runtime_code_template();
   #[allow(clippy::collapsible_match)]
   for runtime_requirement in runtime_requirements.iter() {
     match runtime_requirement {

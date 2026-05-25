@@ -3701,6 +3701,8 @@ pub struct ExperimentsBuilder {
   css: Option<bool>,
   /// Whether to enable async web assembly.
   async_web_assembly: Option<bool>,
+  /// Whether to enable runtime requirements proxy rendering.
+  runtime_requirements_proxy: Option<bool>,
   // TODO: lazy compilation
   pure_functions: Option<bool>,
 }
@@ -3711,6 +3713,7 @@ impl From<Experiments> for ExperimentsBuilder {
       future_defaults: None,
       css: Some(value.css),
       async_web_assembly: None,
+      runtime_requirements_proxy: Some(value.runtime_requirements_proxy),
       pure_functions: Some(value.pure_functions),
     }
   }
@@ -3722,6 +3725,7 @@ impl From<&mut ExperimentsBuilder> for ExperimentsBuilder {
       future_defaults: value.future_defaults.take(),
       css: value.css.take(),
       async_web_assembly: value.async_web_assembly.take(),
+      runtime_requirements_proxy: value.runtime_requirements_proxy.take(),
       pure_functions: value.pure_functions.take(),
     }
   }
@@ -3746,6 +3750,12 @@ impl ExperimentsBuilder {
     self
   }
 
+  /// Set whether to enable runtime requirements proxy rendering.
+  pub fn runtime_requirements_proxy(&mut self, runtime_requirements_proxy: bool) -> &mut Self {
+    self.runtime_requirements_proxy = Some(runtime_requirements_proxy);
+    self
+  }
+
   /// Build [`Experiments`] from options.
   ///
   /// [`Experiments`]: rspack_core::options::Experiments
@@ -3763,6 +3773,7 @@ impl ExperimentsBuilder {
     Ok(Experiments {
       css: d!(self.css, false),
       defer_import: false,
+      runtime_requirements_proxy: self.runtime_requirements_proxy.unwrap_or(false),
       pure_functions: d!(self.pure_functions, false),
     })
   }

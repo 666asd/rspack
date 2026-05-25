@@ -1,7 +1,10 @@
 // install a JSONP callback for chunk loading
 var __rspack_jsonp = <%- basicFunction("parentChunkLoadingFunction, data") %> {
+<% if (_with_runtime_proxy) { %>	<%- destructureArray("chunkIds, moreModules, runtime, installRuntime", "data") %>
+	if (typeof installRuntime === "function") installRuntime(<%- VAR_RUNTIME_PROXY %>);
+<% } else { %>
 	<%- destructureArray("chunkIds, moreModules, runtime", "data") %>
-	// add "moreModules" to the modules object,
+<% } %>	// add "moreModules" to the modules object,
 	// then flag all "chunkIds" as loaded and fire callback
 	var moduleId, chunkId, i = 0;
 	if (chunkIds.some(<%- returningFunction("installedChunks[id] !== 0", "id") %>)) {

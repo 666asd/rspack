@@ -507,7 +507,7 @@ mod tests {
             <%- MODULE_FACTORIES %>[moduleId] = <%- _modules %>[moduleId];
         }
     }
-    if (__rspack_esm_runtime) __rspack_esm_runtime(<%- REQUIRE %>);
+    if (<%- _esm_runtime %>) <%- _esm_runtime %>(<%- REQUIRE %>);
 };"#;
     assert_eq!(
       extract_runtime_globals_from_ejs(ejs),

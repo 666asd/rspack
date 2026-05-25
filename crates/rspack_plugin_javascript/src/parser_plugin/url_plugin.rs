@@ -163,6 +163,14 @@ impl JavascriptParserPlugin for URLPlugin {
       );
       let dep_idx = parser.next_dependency_idx();
       parser.add_dependency(Box::new(dep));
+      if !matches!(
+        self.mode,
+        Some(JavascriptParserUrl::Relative | JavascriptParserUrl::NewUrlRelative)
+      ) {
+        parser.add_presentational_dependency(Box::new(RuntimeRequirementsDependency::add_only(
+          RuntimeGlobals::BASE_URI,
+        )));
+      }
       InnerGraphParserPlugin::on_usage(parser, InnerGraphUsageOperation::URLDependency(dep_idx));
       return Some(true);
     }

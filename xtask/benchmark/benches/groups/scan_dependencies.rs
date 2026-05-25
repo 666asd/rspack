@@ -12,7 +12,8 @@ use rspack::builder::{Builder as _, NodeOptionBuilder};
 use rspack_benchmark::Criterion;
 use rspack_core::{
   BuildInfo, BuildMeta, Compiler, CompilerOptions, Mode, ModuleCodeTemplate, ModuleIdentifier,
-  ModuleType, Optimization, ParseMeta, ParserOptions, ResourceData, SideEffectOption,
+  ModuleType, Optimization, ParseMeta, ParserOptions, ResourceData, RuntimeGlobalRenderMode,
+  SideEffectOption,
 };
 use rspack_javascript_compiler::{JavaScriptCompiler, ast::Program};
 use rspack_plugin_javascript::{
@@ -178,6 +179,7 @@ fn prepare_scan_dependencies_benchmark_case(
     unresolved_mark,
     parser_runtime_requirements: ParserRuntimeRequirementsData::new(&ModuleCodeTemplate::new(
       compiler_options,
+      RuntimeGlobalRenderMode::RequireProperty,
     )),
   }
 }

@@ -2,8 +2,9 @@ use rspack_cacheable::{cacheable, cacheable_dyn};
 use rspack_util::ext::DynHash;
 
 use crate::{
-  Compilation, DependencyCodeGeneration, DependencyRange, DependencyTemplate,
-  DependencyTemplateType, RuntimeGlobals, RuntimeSpec, TemplateContext, TemplateReplaceSource,
+  CodeGenerationRuntimeRequirementsWrite, Compilation, DependencyCodeGeneration, DependencyRange,
+  DependencyTemplate, DependencyTemplateType, RuntimeGlobals, RuntimeSpec, TemplateContext,
+  TemplateReplaceSource,
 };
 
 #[cacheable]
@@ -13,6 +14,7 @@ pub enum RuntimeRequirementsDependencyMode {
   Normal,
   Call,
   AddOnly,
+  Write,
 }
 
 #[cacheable]
@@ -63,6 +65,13 @@ impl RuntimeRequirementsDependency {
       mode: RuntimeRequirementsDependencyMode::AddOnly,
     }
   }
+  pub fn write(runtime_requirements: RuntimeGlobals) -> Self {
+    Self {
+      range: DependencyRange::default(),
+      runtime_requirements,
+      mode: RuntimeRequirementsDependencyMode::Write,
+    }
+  }
 }
 
 #[cacheable]
@@ -94,6 +103,21 @@ impl DependencyTemplate for RuntimeRequirementsDependencyTemplate {
         .runtime_template
         .runtime_requirements_mut()
         .insert(dep.runtime_requirements);
+      return;
+    }
+
+    if matches!(dep.mode, RuntimeRequirementsDependencyMode::Write) {
+      let mut runtime_requirements_write = code_generatable_context
+        .data
+        .get::<CodeGenerationRuntimeRequirementsWrite>()
+        .cloned()
+        .unwrap_or_default();
+      runtime_requirements_write
+        .runtime_requirements
+        .insert(dep.runtime_requirements);
+      code_generatable_context
+        .data
+        .insert(runtime_requirements_write);
       return;
     }
 

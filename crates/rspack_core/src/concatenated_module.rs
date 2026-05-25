@@ -51,10 +51,11 @@ use crate::{
   InitFragment, InitFragmentStage, LibIdentOptions, Module, ModuleArgument,
   ModuleCodeGenerationContext, ModuleGraph, ModuleGraphCacheArtifact, ModuleGraphConnection,
   ModuleIdentifier, ModuleLayer, ModuleStaticCache, ModuleType, NAMESPACE_OBJECT_EXPORT,
-  ParserOptions, Resolve, RuntimeCondition, RuntimeGlobals, RuntimeSpec, SideEffectsStateArtifact,
-  SourceType, URLStaticMode, UsageState, UsedName, UsedNameItem, escape_identifier, fast_set,
-  filter_runtime, find_target, get_runtime_key, impl_source_map_config, merge_runtime_condition,
-  merge_runtime_condition_non_false, module_update_hash, property_access, property_name,
+  ParserOptions, Resolve, RuntimeCondition, RuntimeGlobalRenderMode, RuntimeGlobals, RuntimeSpec,
+  SideEffectsStateArtifact, SourceType, URLStaticMode, UsageState, UsedName, UsedNameItem,
+  escape_identifier, fast_set, filter_runtime, find_target, get_runtime_key,
+  impl_source_map_config, merge_runtime_condition, merge_runtime_condition_non_false,
+  module_update_hash, property_access, property_name,
   render_make_deferred_namespace_mode_from_exports_type,
   reserved_names::RESERVED_NAMES_ATOM_SET,
   subtract_runtime_condition, to_identifier_with_escaped, to_normal_comment,
@@ -2526,7 +2527,14 @@ impl ConcatenatedModule {
         .module_by_identifier(&module_id)
         .unwrap_or_else(|| panic!("should have module {module_id}"));
 
-      let mut runtime_template = compilation.runtime_template.create_module_code_template();
+      let render_mode = if compilation.options.experiments.runtime_requirements_proxy {
+        RuntimeGlobalRenderMode::ModuleProxy
+      } else {
+        RuntimeGlobalRenderMode::RequireProperty
+      };
+      let mut runtime_template = compilation
+        .runtime_template
+        .create_module_code_template(render_mode);
       let mut code_generation_context = ModuleCodeGenerationContext {
         compilation,
         runtime,

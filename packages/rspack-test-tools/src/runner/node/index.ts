@@ -203,7 +203,12 @@ export class NodeRunner implements ITestRunner {
       __TEST_SOURCE_PATH__: this._options.source,
       __TEST_DIST_PATH__: this._options.dist,
       __MODE__: this._options.compilerOptions.mode,
-      __SNAPSHOT__: path.join(this._options.source, '__snapshot__'),
+      __SNAPSHOT__: path.join(
+        this._options.source,
+        process.env.RSPACK_TEST_RUNTIME_REQUIREMENTS_PROXY
+          ? '__runtime_proxy_snapshot__'
+          : '__snapshot__',
+      ),
       Worker: createFakeWorker(this._options.env, {
         outputDirectory: this._options.dist,
       }),

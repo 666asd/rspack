@@ -147,7 +147,7 @@ export interface ExecuteModuleArgument {
 }
 
 export interface ExecuteModuleContext {
-  [key: string]: (id: string) => any;
+  [key: string]: any;
 }
 
 export interface KnownNormalizedStatsOptions {

@@ -108,6 +108,11 @@ impl CodeGenerationExportsFinalNames {
   }
 }
 
+#[derive(Clone, Debug, Default)]
+pub struct CodeGenerationRuntimeRequirementsWrite {
+  pub runtime_requirements: RuntimeGlobals,
+}
+
 #[derive(Debug, Default, Clone)]
 pub struct CodeGenerationData {
   inner: anymap::Map<dyn CloneAny + Send + Sync>,

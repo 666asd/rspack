@@ -92,7 +92,14 @@ impl RuntimeModule for EmbedFederationRuntimeModule {
 
     // Generate module execution code for each federation runtime dependency
     let mut module_executions = String::with_capacity(federation_runtime_modules.len() * 64);
-    let mut runtime_template = compilation.runtime_template.create_module_code_template();
+    let render_mode = if compilation.options.experiments.runtime_requirements_proxy {
+      rspack_core::RuntimeGlobalRenderMode::LexicalRuntime
+    } else {
+      rspack_core::RuntimeGlobalRenderMode::RequireProperty
+    };
+    let mut runtime_template = compilation
+      .runtime_template
+      .create_module_code_template(render_mode);
 
     for dep_id in federation_runtime_modules {
       let module_str = runtime_template.module_raw(compilation, &dep_id, "", false);

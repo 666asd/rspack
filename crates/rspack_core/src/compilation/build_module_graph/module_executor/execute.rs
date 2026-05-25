@@ -4,6 +4,7 @@ use itertools::Itertools;
 use rspack_collections::{Identifier, IdentifierSet};
 use rspack_error::Error;
 use rspack_paths::ArcPathSet;
+use rspack_sources::{RawStringSource, SourceExt};
 use rustc_hash::{FxHashMap as HashMap, FxHashSet};
 use tokio::sync::oneshot::Sender;
 
@@ -11,7 +12,8 @@ use super::context::{ExecutorTaskContext, ImportModuleMeta};
 use crate::{
   Chunk, ChunkGraph, ChunkKind, CodeGenerationDataAssetInfo, CodeGenerationDataFilename,
   CodeGenerationResult, CompilationAsset, CompilationAssets, EntryOptions, Entrypoint,
-  FactorizeInfo, ModuleCodeGenerationContext, ModuleType, PublicPath, RuntimeSpec, SourceType,
+  FactorizeInfo, ModuleType, PublicPath, RuntimeGlobalRenderMode, RuntimeModuleGenerateContext,
+  RuntimeSpec, SourceType,
   compilation::{
     code_generation::code_generation_modules,
     create_module_hashes::create_module_hashes,
@@ -326,24 +328,28 @@ impl Task<ExecutorTaskContext> for ExecuteTask {
         .get(runtime_id)
         .expect("runtime module exist");
 
-      let mut runtime_template = compilation.runtime_template.create_module_code_template();
-      let mut code_generation_context = ModuleCodeGenerationContext {
-        compilation: &compilation,
-        runtime: None,
-        concatenation_scope: None,
-        runtime_template: &mut runtime_template,
+      let runtime_module_source = if let Some(custom_source) = runtime_module.get_custom_source() {
+        RawStringSource::from(custom_source).boxed()
+      } else {
+        let render_mode = if compilation.options.experiments.runtime_requirements_proxy {
+          RuntimeGlobalRenderMode::ModuleProxy
+        } else {
+          RuntimeGlobalRenderMode::RequireProperty
+        };
+        let runtime_template = compilation
+          .runtime_template
+          .create_runtime_code_template(render_mode);
+        let context = RuntimeModuleGenerateContext {
+          compilation: &compilation,
+          runtime_template: &runtime_template,
+        };
+        RawStringSource::from(runtime_module.generate(&context).await?).boxed()
       };
-
-      let result = runtime_module
-        .code_generation(&mut code_generation_context)
-        .await?;
-      #[allow(clippy::unwrap_used)]
-      let runtime_module_source = result.get(&SourceType::Runtime).unwrap();
       runtime_module_size.insert(
         runtime_module.identifier(),
         runtime_module_source.size() as f64,
       );
-      let result = CodeGenerationResult::default().with_javascript(runtime_module_source.clone());
+      let result = CodeGenerationResult::default().with_javascript(runtime_module_source);
 
       compilation.code_generation_results.insert(
         *runtime_id,

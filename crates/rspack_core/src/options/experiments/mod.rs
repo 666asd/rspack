@@ -5,5 +5,6 @@
 pub struct Experiments {
   pub css: bool,
   pub defer_import: bool,
+  pub runtime_requirements_proxy: bool,
   pub pure_functions: bool,
 }

@@ -6,8 +6,8 @@ use rspack_core::{
   CompilationId, CompilationParams, CompilationRenderManifest, CompilerCompilation,
   ConstDependencyTemplate, DependencyType, IgnoreErrorModuleFactory, ManifestAssetType,
   ModuleGraph, ModuleType, ParserAndGenerator, PathData, Plugin, RenderManifestEntry,
-  RuntimeGlobals, RuntimeModule, RuntimeRequirementsDependencyTemplate, SelfModuleFactory,
-  SourceType, get_js_chunk_filename_template,
+  RuntimeGlobalRenderMode, RuntimeGlobals, RuntimeModule, RuntimeRequirementsDependencyTemplate,
+  SelfModuleFactory, SourceType, get_js_chunk_filename_template,
   rspack_sources::{BoxSource, CachedSource, SourceExt},
 };
 use rspack_error::{Diagnostic, Result};
@@ -557,7 +557,14 @@ async fn render_manifest(
     .build_chunk_graph_artifact
     .chunk_by_ukey
     .expect_get(chunk_ukey);
-  let runtime_template = compilation.runtime_template.create_runtime_code_template();
+  let render_mode = if compilation.options.experiments.runtime_requirements_proxy {
+    RuntimeGlobalRenderMode::ModuleProxy
+  } else {
+    RuntimeGlobalRenderMode::RequireProperty
+  };
+  let runtime_template = compilation
+    .runtime_template
+    .create_runtime_code_template(render_mode);
   let is_hot_update = matches!(chunk.kind(), ChunkKind::HotUpdate);
   let is_main_chunk = chunk.groups().iter().any(|group_ukey| {
     let group = compilation

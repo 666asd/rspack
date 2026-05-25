@@ -271,7 +271,12 @@ export function checkSnapshot(
       ? snapshot
       : path.resolve(
           context.getSource(),
-          path.join('__snapshots__', `${snapshot}${total > 1 ? `-${i}` : ''}`),
+          path.join(
+            process.env.RSPACK_TEST_RUNTIME_REQUIREMENTS_PROXY
+              ? '__runtime_proxy_snapshots__'
+              : '__snapshots__',
+            `${snapshot}${total > 1 ? `-${i}` : ''}`,
+          ),
         );
 
     env.expect(content).toMatchFileSnapshotSync(snapshotPath);

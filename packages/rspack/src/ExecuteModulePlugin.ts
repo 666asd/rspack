@@ -22,7 +22,7 @@ export default class ExecuteModulePlugin {
 
           try {
             const fn = vm.runInThisContext(
-              `(function(module, ${renderRuntimeVariables(RuntimeVariable.Module, compiler.options)}, ${renderRuntimeVariables(RuntimeVariable.Exports, compiler.options)}, exports, ${renderRuntimeVariables(RuntimeVariable.Require, compiler.options)}) {\n${code}\n})`,
+              `(function(module, ${renderRuntimeVariables(RuntimeVariable.Module, compiler.options)}, ${renderRuntimeVariables(RuntimeVariable.Exports, compiler.options)}, exports, ${renderRuntimeVariables(RuntimeVariable.Require, compiler.options)}, __rspack_runtime) {\n${code}\n})`,
               {
                 filename: moduleObject.id,
               },
@@ -40,6 +40,7 @@ export default class ExecuteModulePlugin {
                   compiler.options,
                 )
               ],
+              context.__rspack_runtime,
             );
           } catch (e: any) {
             const err = e instanceof Error ? e : new Error(e);

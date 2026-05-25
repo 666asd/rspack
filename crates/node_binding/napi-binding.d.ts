@@ -2240,6 +2240,7 @@ export interface RawExperiments {
   useInputFileSystem?: false | Array<RegExp>
   css?: boolean
   deferImport: boolean
+  runtimeRequirementsProxy: boolean
   pureFunctions: boolean
 }
 

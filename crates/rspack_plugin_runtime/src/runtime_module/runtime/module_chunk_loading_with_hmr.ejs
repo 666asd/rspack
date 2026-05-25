@@ -3,8 +3,10 @@
       // start update chunk loading
       var url = <%- PUBLIC_PATH %> + <%- GET_CHUNK_UPDATE_SCRIPT_FILENAME %>(chunkId);
       var onResolve = <%- basicFunction("obj") %> {
-        var updatedModules = obj.<%- _modules %>;
-        var updatedRuntime = obj.__rspack_esm_runtime;
+        var updatedModules = obj.<%- VAR_MODULES %>;
+        var updatedRuntime = obj.<%- VAR_ESM_RUNTIME %>;
+        <% if (_with_runtime_proxy) { %>if (typeof obj.<%- VAR_ESM_RUNTIME_PROXY %> === "function") obj.<%- VAR_ESM_RUNTIME_PROXY %>(<%- VAR_RUNTIME_PROXY %>);
+        <% } %>
         if (updatedRuntime) currentUpdateRuntime.push(updatedRuntime);
         for (var moduleId in updatedModules) {
           if ((<%- HAS_OWN_PROPERTY %>)(updatedModules, moduleId)) {

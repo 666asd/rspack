@@ -238,7 +238,10 @@ export const createCompilationHooksRegisters: CreatePartialRegisters<
                       codeGenerationResult: new CodeGenerationResult(result),
                       moduleObject,
                     },
-                    { [RuntimeGlobals.require]: moduleRequireFn },
+                    {
+                      [RuntimeGlobals.require]: moduleRequireFn,
+                      __rspack_runtime: runtimeProxy,
+                    },
                   ),
                 'Compilation.hooks.executeModule',
               );
@@ -259,7 +262,7 @@ export const createCompilationHooksRegisters: CreatePartialRegisters<
                   '',
                 )
               ] = []);
-
+            const runtimeProxy = moduleRequireFn;
             for (const runtimeModule of runtimeModules) {
               moduleRequireFn(runtimeModule);
             }

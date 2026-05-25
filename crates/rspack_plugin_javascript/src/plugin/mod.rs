@@ -30,8 +30,8 @@ use rspack_collections::{Identifier, IdentifierDashMap, IdentifierLinkedMap, Ide
 use rspack_core::{
   ChunkGraph, ChunkGroupUkey, ChunkInitFragments, ChunkRenderContext, ChunkUkey,
   CodeGenerationDataTopLevelDeclarations, Compilation, CompilationId, ConcatenatedModuleIdent,
-  ExportsArgument, IdentCollector, Module, RuntimeCodeTemplate, RuntimeGlobals, RuntimeVariable,
-  SourceType,
+  ExportsArgument, IdentCollector, Module, RuntimeCodeTemplate, RuntimeGlobalRenderMode,
+  RuntimeGlobals, RuntimeVariable, SourceType,
   concatenated_module::find_new_name,
   render_init_fragments,
   reserved_names::RESERVED_NAMES_ATOM_SET,
@@ -54,7 +54,8 @@ use swc_core::{
 use tokio::sync::RwLock;
 
 use crate::runtime::{
-  render_chunk_modules, render_module, render_runtime_modules, stringify_array,
+  has_runtime_proxy_support, render_chunk_modules, render_module, render_runtime_modules,
+  render_runtime_proxy_bootstrap_initializers, render_runtime_proxy_declarations, stringify_array,
 };
 
 #[cfg_attr(allocative, allocative::root)]
@@ -338,13 +339,36 @@ function {}(moduleId) {{
           r#"// The require scope
 var {} = {{}};
 "#,
-          runtime_template.render_runtime_globals(&RuntimeGlobals::REQUIRE)
+          runtime_template.render_runtime_variable(&RuntimeVariable::Require)
         )
         .into(),
       );
     }
 
-    if module_factories || runtime_requirements.contains(RuntimeGlobals::MODULE_FACTORIES_ADD_ONLY)
+    if compilation.options.experiments.runtime_requirements_proxy
+      && compilation
+        .build_chunk_graph_artifact
+        .chunk_graph
+        .has_chunk_runtime_modules(chunk_ukey)
+      && has_runtime_proxy_support(compilation, chunk_ukey)
+    {
+      let declaration = if compilation.options.output.environment.supports_const() {
+        "let"
+      } else {
+        "var"
+      };
+      header.push(
+        format!(
+          "{declaration} {} = {{}};",
+          runtime_template.render_runtime_variable(&RuntimeVariable::RuntimeProxy)
+        )
+        .into(),
+      );
+    }
+
+    if !compilation.options.experiments.runtime_requirements_proxy
+      && (module_factories
+        || runtime_requirements.contains(RuntimeGlobals::MODULE_FACTORIES_ADD_ONLY))
     {
       header.push(
         format!(
@@ -359,7 +383,9 @@ var {} = {{}};
       );
     }
 
-    if runtime_requirements.contains(RuntimeGlobals::MODULE_CACHE) {
+    if !compilation.options.experiments.runtime_requirements_proxy
+      && runtime_requirements.contains(RuntimeGlobals::MODULE_CACHE)
+    {
       header.push(
         format!(
           r#"// expose the module cache
@@ -372,7 +398,7 @@ var {} = {{}};
       );
     }
 
-    if intercept_module_execution {
+    if !compilation.options.experiments.runtime_requirements_proxy && intercept_module_execution {
       header.push(
         format!(
           r#"// expose the module execution interceptor
@@ -791,6 +817,15 @@ var {} = {{}};
       .has_chunk_runtime_modules(chunk_ukey)
     {
       sources.add(render_runtime_modules(compilation, chunk_ukey, runtime_template).await?);
+    } else if let Some(declarations) =
+      render_runtime_proxy_declarations(compilation, chunk_ukey, runtime_template)
+    {
+      sources.add(declarations);
+      if let Some(initializers) =
+        render_runtime_proxy_bootstrap_initializers(compilation, chunk_ukey, runtime_template)
+      {
+        sources.add(initializers);
+      }
     }
     if let Some(inlined_modules) = inlined_modules {
       let last_entry_module = inlined_modules
@@ -1465,7 +1500,14 @@ var {} = {{}};
     compilation: &Compilation,
     hasher: &mut RspackHash,
   ) -> Result<()> {
-    let runtime_template = compilation.runtime_template.create_runtime_code_template();
+    let render_mode = if compilation.options.experiments.runtime_requirements_proxy {
+      RuntimeGlobalRenderMode::ModuleProxy
+    } else {
+      RuntimeGlobalRenderMode::RequireProperty
+    };
+    let runtime_template = compilation
+      .runtime_template
+      .create_runtime_code_template(render_mode);
     // sample hash use content
     let RenderBootstrapResult {
       header,

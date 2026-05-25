@@ -1,4 +1,7 @@
-use rspack_core::{ConstDependency, ModuleArgument, RuntimeGlobals, RuntimeRequirementsDependency};
+use rspack_core::{
+  ConstDependency, ModuleArgument, RuntimeGlobals, RuntimeRequirementsDependency,
+  runtime_globals_from_property_name,
+};
 use rspack_error::{Error, Severity};
 use rspack_util::SpanExt;
 use swc_core::{
@@ -93,6 +96,27 @@ fn get_typeof_evaluate_of_api(sym: &str) -> Option<&str> {
     API_RSC_MANIFEST => Some("object"),
     _ => None,
   }
+}
+
+fn api_runtime_global(sym: &str) -> Option<RuntimeGlobals> {
+  Some(match sym {
+    API_HASH => RuntimeGlobals::GET_FULL_HASH,
+    API_PUBLIC_PATH => RuntimeGlobals::PUBLIC_PATH,
+    API_MODULES => RuntimeGlobals::MODULE_FACTORIES,
+    API_CHUNK_LOAD => RuntimeGlobals::ENSURE_CHUNK,
+    API_BASE_URI => RuntimeGlobals::BASE_URI,
+    API_SYSTEM_CONTEXT => RuntimeGlobals::SYSTEM_CONTEXT,
+    API_SHARE_SCOPES => RuntimeGlobals::SHARE_SCOPE_MAP,
+    API_INIT_SHARING => RuntimeGlobals::INITIALIZE_SHARING,
+    API_NONCE => RuntimeGlobals::SCRIPT_NONCE,
+    API_CHUNK_NAME => RuntimeGlobals::CHUNK_NAME,
+    API_RUNTIME_ID => RuntimeGlobals::RUNTIME_ID,
+    API_GET_SCRIPT_FILENAME => RuntimeGlobals::GET_CHUNK_SCRIPT_FILENAME,
+    API_VERSION => RuntimeGlobals::RSPACK_VERSION,
+    API_UNIQUE_ID => RuntimeGlobals::RSPACK_UNIQUE_ID,
+    API_RSC_MANIFEST => RuntimeGlobals::RSC_MANIFEST,
+    _ => return None,
+  })
 }
 
 #[rspack_macros::implemented_javascript_parser_hooks]
@@ -339,6 +363,38 @@ impl JavascriptParserPlugin for APIPlugin {
       return Some(true);
     }
 
+    None
+  }
+
+  fn assign(
+    &self,
+    parser: &mut JavascriptParser,
+    _expr: &swc_core::ecma::ast::AssignExpr,
+    for_name: &str,
+  ) -> Option<bool> {
+    if let Some(runtime_global) = api_runtime_global(for_name) {
+      parser.add_presentational_dependency(Box::new(RuntimeRequirementsDependency::write(
+        runtime_global,
+      )));
+    }
+    None
+  }
+
+  fn assign_member_chain(
+    &self,
+    parser: &mut JavascriptParser,
+    _expr: &swc_core::ecma::ast::AssignExpr,
+    members: &[swc_core::atoms::Atom],
+    for_name: &str,
+  ) -> Option<bool> {
+    if for_name == API_REQUIRE
+      && let [member] = members
+      && let Some(runtime_global) = runtime_globals_from_property_name(member.as_ref())
+    {
+      parser.add_presentational_dependency(Box::new(RuntimeRequirementsDependency::write(
+        runtime_global,
+      )));
+    }
     None
   }
 

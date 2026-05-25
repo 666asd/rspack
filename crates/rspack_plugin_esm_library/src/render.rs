@@ -223,7 +223,9 @@ impl EsmLibraryPlugin {
         decl_source.add(RawStringSource::from(format!(
           "{}({{\n",
           EsmRegisterModuleRuntimeModule::runtime_id(
-            &compilation.runtime_template.create_runtime_code_template()
+            &compilation
+              .runtime_template
+              .create_runtime_code_template(rspack_core::RuntimeGlobalRenderMode::RequireProperty,)
           )
         )));
         decl_source.add(decl_inner);
@@ -874,6 +876,13 @@ function {}(moduleId) {{
 var {} = {{}};
 "#,
         runtime_template.render_runtime_globals(&RuntimeGlobals::REQUIRE)
+      )));
+    }
+
+    if compilation.options.experiments.runtime_requirements_proxy {
+      source.add(RawStringSource::from(format!(
+        "var {} = {{}};\n",
+        runtime_template.render_runtime_variable(&RuntimeVariable::RuntimeProxy)
       )));
     }
 

@@ -51,6 +51,10 @@ export function createHotProcessor(
       if (incremental) {
         options.incremental ??= 'advance-silent';
       }
+      if (process.env.RSPACK_TEST_RUNTIME_REQUIREMENTS_PROXY) {
+        options.experiments ??= {};
+        options.experiments.runtimeRequirementsProxy = true;
+      }
       compiler.setOptions(options);
     },
     compiler: async (context: ITestContext) => {

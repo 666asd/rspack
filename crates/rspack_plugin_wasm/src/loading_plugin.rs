@@ -33,7 +33,14 @@ async fn fetch_compile_async_wasm_plugin_runtime_requirements_in_tree(
     return Ok(None);
   }
 
-  let runtime_template = compilation.runtime_template.create_runtime_code_template();
+  let render_mode = if compilation.options.experiments.runtime_requirements_proxy {
+    rspack_core::RuntimeGlobalRenderMode::LexicalRuntime
+  } else {
+    rspack_core::RuntimeGlobalRenderMode::RequireProperty
+  };
+  let runtime_template = compilation
+    .runtime_template
+    .create_runtime_code_template(render_mode);
   runtime_requirements_mut.insert(RuntimeGlobals::PUBLIC_PATH);
   runtime_modules_to_add.push((
     *chunk_ukey,

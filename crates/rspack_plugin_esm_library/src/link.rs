@@ -629,7 +629,14 @@ impl EsmLibraryPlugin {
           changed = true;
 
           let module_info = concate_modules_map[module_info_id].as_concatenated();
-          let mut runtime_template = compilation.runtime_template.create_module_code_template();
+          let render_mode = if compilation.options.experiments.runtime_requirements_proxy {
+            rspack_core::RuntimeGlobalRenderMode::ModuleProxy
+          } else {
+            rspack_core::RuntimeGlobalRenderMode::RequireProperty
+          };
+          let mut runtime_template = compilation
+            .runtime_template
+            .create_module_code_template(render_mode);
 
           let module_graph = compilation.get_module_graph();
           let box_module = module_graph
@@ -1363,7 +1370,14 @@ var {} = {{}};
     orig_concate_modules_map: &mut IdentifierIndexMap<ModuleInfo>,
     external_module_init_fragments: &mut IdentifierMap<ChunkInitFragments>,
   ) -> Result<()> {
-    let runtime_template = compilation.runtime_template.create_runtime_code_template();
+    let render_mode = if compilation.options.experiments.runtime_requirements_proxy {
+      rspack_core::RuntimeGlobalRenderMode::LexicalRuntime
+    } else {
+      rspack_core::RuntimeGlobalRenderMode::RequireProperty
+    };
+    let runtime_template = compilation
+      .runtime_template
+      .create_runtime_code_template(render_mode);
     let mut outputs = FxHashMap::<ChunkUkey, String>::default();
     let module_keys: Vec<ModuleIdentifier> = orig_concate_modules_map.keys().copied().collect();
     for m in &module_keys {
@@ -2489,7 +2503,14 @@ var {} = {{}};
         let info = &concate_modules_map[m];
         let runtime_requirements = info.get_runtime_requirements();
         if !runtime_requirements.is_empty() && runtime_chunk != *chunk {
-          let runtime_template = compilation.runtime_template.create_runtime_code_template();
+          let render_mode = if compilation.options.experiments.runtime_requirements_proxy {
+            rspack_core::RuntimeGlobalRenderMode::LexicalRuntime
+          } else {
+            rspack_core::RuntimeGlobalRenderMode::RequireProperty
+          };
+          let runtime_template = compilation
+            .runtime_template
+            .create_runtime_code_template(render_mode);
           let require_symbol: Atom = runtime_template
             .render_runtime_globals(&RuntimeGlobals::REQUIRE)
             .into();

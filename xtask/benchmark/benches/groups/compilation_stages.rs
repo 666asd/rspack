@@ -17,8 +17,8 @@ use rspack_core::{
   CompilationAsset, CompilationAssets, Compiler, CreateChunkAssetsPass, CreateHashPass,
   CreateModuleAssetsPass, CreateModuleHashesPass, DEFAULT_DELIMITER, LogType, MangleExportsOption,
   Mode, ModuleCodeGenerationContext, ModuleIdsArtifact, Optimization, OptimizeCodeGenerationPass,
-  OutputOptions, ProcessAssetsPass, RuntimeRequirementsPass, SideEffectsOptimizeArtifact,
-  SourceType, UsedExportsOption, build_chunk_graph,
+  OutputOptions, ProcessAssetsPass, RuntimeGlobalRenderMode, RuntimeRequirementsPass,
+  SideEffectsOptimizeArtifact, SourceType, UsedExportsOption, build_chunk_graph,
   build_module_graph::{build_module_graph_pass, finish_build_module_graph},
   cache::Cache,
   incremental::IncrementalOptions,
@@ -1748,7 +1748,9 @@ async fn compute_concatenated_module_codegen(
     let module = module_graph
       .module_by_identifier(&job.module)
       .expect("should have concatenated module");
-    let mut runtime_template = compilation.runtime_template.create_module_code_template();
+    let mut runtime_template = compilation
+      .runtime_template
+      .create_module_code_template(RuntimeGlobalRenderMode::RequireProperty);
     let mut code_generation_context = ModuleCodeGenerationContext {
       compilation,
       runtime: Some(&job.runtime),

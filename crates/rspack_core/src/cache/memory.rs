@@ -172,7 +172,7 @@ impl Cache for MemoryCache {
     }
   }
 
-  // CHUNKS_RUNTIME_REQUIREMENTS: cgc_runtime_requirements_artifact
+  // CHUNKS_RUNTIME_REQUIREMENTS: cgc_runtime_requirements_artifact, runtime_proxy_metadata_artifact
   async fn before_chunks_runtime_requirements(&mut self, compilation: &mut Compilation) {
     if let Some(old_compilation) = self.old_compilation.as_mut() {
       let incremental = &compilation.incremental;
@@ -180,6 +180,11 @@ impl Cache for MemoryCache {
         incremental,
         &mut compilation.cgc_runtime_requirements_artifact,
         &mut old_compilation.cgc_runtime_requirements_artifact,
+      );
+      recover_artifact(
+        incremental,
+        &mut compilation.runtime_proxy_metadata_artifact,
+        &mut old_compilation.runtime_proxy_metadata_artifact,
       );
     }
   }

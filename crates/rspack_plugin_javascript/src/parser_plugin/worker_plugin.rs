@@ -6,6 +6,7 @@ use std::{
 use itertools::Itertools;
 use rspack_core::{
   AsyncDependenciesBlock, ConstDependency, DependencyRange, EntryOptions, GroupOptions,
+  RuntimeGlobals, RuntimeRequirementsDependency,
 };
 use rspack_hash::RspackHash;
 use rspack_util::SpanExt;
@@ -122,6 +123,9 @@ fn add_dependencies(
   })));
 
   parser.add_block(Box::new(block));
+  parser.add_presentational_dependency(Box::new(RuntimeRequirementsDependency::add_only(
+    RuntimeGlobals::BASE_URI,
+  )));
 
   if parser.compiler_options.output.trusted_types.is_some() {
     parser.add_dependency(Box::new(CreateScriptUrlDependency::new(

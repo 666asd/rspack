@@ -2,7 +2,8 @@ use async_trait::async_trait;
 
 use super::*;
 use crate::{
-  ModuleCodeGenerationContext, cache::Cache, compilation::pass::PassExt, logger::Logger,
+  ModuleCodeGenerationContext, RuntimeGlobalRenderMode, cache::Cache, compilation::pass::PassExt,
+  logger::Logger,
 };
 
 pub struct CodeGenerationPass;
@@ -179,7 +180,14 @@ pub(crate) async fn code_generation_modules(
         let (codegen_res, from_cache) = this
           .code_generate_cache_artifact
           .use_cache(&job, || async {
-            let mut runtime_template = this.runtime_template.create_module_code_template();
+            let render_mode = if this.options.experiments.runtime_requirements_proxy {
+              RuntimeGlobalRenderMode::ModuleProxy
+            } else {
+              RuntimeGlobalRenderMode::RequireProperty
+            };
+            let mut runtime_template = this
+              .runtime_template
+              .create_module_code_template(render_mode);
             let mut code_generation_context = ModuleCodeGenerationContext {
               compilation: this,
               runtime: Some(&job.runtime),

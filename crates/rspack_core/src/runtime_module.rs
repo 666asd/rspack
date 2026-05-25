@@ -4,7 +4,9 @@ use async_trait::async_trait;
 use rspack_cacheable::cacheable;
 use rspack_collections::Identifier;
 
-use crate::{ChunkUkey, Compilation, Module, RuntimeCodeTemplate, RuntimeGlobals};
+use crate::{
+  ChunkUkey, Compilation, Module, RuntimeCodeTemplate, RuntimeGlobalRenderMode, RuntimeGlobals,
+};
 
 pub struct RuntimeModuleGenerateContext<'a> {
   pub compilation: &'a Compilation,
@@ -39,7 +41,14 @@ pub trait RuntimeModule:
     if let Some(custom_source) = self.get_custom_source() {
       Ok(custom_source)
     } else {
-      let runtime_template = compilation.runtime_template.create_runtime_code_template();
+      let render_mode = if compilation.options.experiments.runtime_requirements_proxy {
+        RuntimeGlobalRenderMode::LexicalRuntime
+      } else {
+        RuntimeGlobalRenderMode::RequireProperty
+      };
+      let runtime_template = compilation
+        .runtime_template
+        .create_runtime_code_template(render_mode);
       let context = RuntimeModuleGenerateContext {
         compilation,
         runtime_template: &runtime_template,

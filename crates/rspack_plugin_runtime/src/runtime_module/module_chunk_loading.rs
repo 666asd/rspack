@@ -3,7 +3,7 @@ use std::{ptr::NonNull, sync::LazyLock};
 use rspack_core::{
   BooleanMatcher, Chunk, ChunkGroupOrderKey, Compilation, RuntimeCodeTemplate, RuntimeGlobals,
   RuntimeModule, RuntimeModuleGenerateContext, RuntimeModuleStage, RuntimeTemplate,
-  RuntimeVariable, compile_boolean_matcher, impl_runtime_module,
+  compile_boolean_matcher, impl_runtime_module,
 };
 use rspack_plugin_javascript::impl_plugin_for_js_plugin::chunk_has_js;
 
@@ -283,12 +283,11 @@ impl RuntimeModule for ModuleChunkLoadingRuntimeModule {
       let raw_source = runtime_template.render(
         &self.template(TemplateId::Raw),
         Some(serde_json::json!({
-          "_modules": runtime_template.render_runtime_variable(&RuntimeVariable::Modules),
           "_with_on_chunk_load": with_on_chunk_load,
         })),
       )?;
 
-      source.push_str(&raw_source);
+      source.push_str(raw_source.trim_end_matches('\n'));
     } else {
       source.push_str("// no install chunk");
     }
@@ -433,7 +432,6 @@ impl RuntimeModule for ModuleChunkLoadingRuntimeModule {
         runtime_template.render(
           &self.template(TemplateId::WithHMR),
           Some(serde_json::json!({
-            "_modules": runtime_template.render_runtime_variable(&RuntimeVariable::Modules),
             "_import_function_name": import_function_name,
           })),
         )?

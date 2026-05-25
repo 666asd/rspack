@@ -2994,6 +2994,13 @@ export type Experiments = {
    */
   deferImport?: boolean;
   /**
+   * Render module runtime helper reads through a runtime chunk proxy.
+   *
+   * @experimental
+   * @default false
+   */
+  runtimeRequirementsProxy?: boolean;
+  /**
    * Enable pure-function-based side-effects analysis.
    * @default false
    */

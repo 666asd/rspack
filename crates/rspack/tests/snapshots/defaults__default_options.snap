@@ -1705,6 +1705,7 @@ CompilerOptions {
     experiments: Experiments {
         css: false,
         defer_import: false,
+        runtime_requirements_proxy: false,
         pure_functions: false,
     },
     incremental: IncrementalOptions {

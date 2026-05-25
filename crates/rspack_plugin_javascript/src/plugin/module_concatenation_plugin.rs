@@ -10,7 +10,8 @@ use rspack_core::{
   DependencyType, ExportProvided, ExportsInfoArtifact, ExtendedReferencedExport, GetTargetResult,
   ImportedByDeferModulesArtifact, LibIdentOptions, Logger, ModuleGraph, ModuleGraphCacheArtifact,
   ModuleGraphConnection, ModuleGraphModule, ModuleIdentifier, OptimizationBailoutItem, Plugin,
-  ProvidedExports, RuntimeCondition, RuntimeSpec, SideEffectsStateArtifact, SourceType,
+  ProvidedExports, RuntimeCondition, RuntimeGlobalRenderMode, RuntimeSpec,
+  SideEffectsStateArtifact, SourceType,
   concatenated_module::{
     ConcatenatedInnerModule, ConcatenatedModule, RootModuleContext, is_esm_dep_like,
   },
@@ -1435,7 +1436,9 @@ async fn create_concatenated_module(
         plugin_driver: compilation.plugin_driver.clone(),
         compiler_options: compilation.options.clone(),
         fs: compilation.input_filesystem.clone(),
-        runtime_template: compilation.runtime_template.create_module_code_template(),
+        runtime_template: compilation
+          .runtime_template
+          .create_module_code_template(RuntimeGlobalRenderMode::RequireProperty),
       },
       Some(compilation),
     )
