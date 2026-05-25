@@ -1,3 +1,4 @@
+mod define_property_getters_compat;
 mod dynamic_import_origin_dependency;
 mod esm_import_dependency;
 mod import_dependency;

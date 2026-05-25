@@ -4844,17 +4844,20 @@ dependencies = [
 name = "rspack_plugin_rstest"
 version = "0.100.4"
 dependencies = [
+ "async-trait",
  "camino",
  "regex",
  "rspack_cacheable",
  "rspack_collections",
  "rspack_core",
  "rspack_error",
+ "rspack_hash",
  "rspack_hook",
  "rspack_plugin_javascript",
  "rspack_util",
  "rustc-hash",
  "swc_core",
+ "tokio",
  "tracing",
 ]
 

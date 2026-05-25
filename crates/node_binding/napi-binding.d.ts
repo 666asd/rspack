@@ -2933,6 +2933,7 @@ export interface RawRstestPluginOptions {
   manualMockRoot: string
   preserveNewUrl?: Array<string>
   globals?: boolean
+  definePropertyGettersCompat?: boolean
 injectDynamicImportOrigin?: boolean | { functionName?: string }
 }
 

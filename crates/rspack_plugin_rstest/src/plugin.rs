@@ -7,11 +7,12 @@ use camino::{Utf8Path, Utf8PathBuf};
 use regex::Regex;
 use rspack_collections::IdentifierSet;
 use rspack_core::{
-  Compilation, CompilationOptimizeDependencies, CompilationParams, CompilationProcessAssets,
+  ChunkUkey, Compilation, CompilationAdditionalTreeRuntimeRequirements,
+  CompilationOptimizeDependencies, CompilationParams, CompilationProcessAssets,
   CompilerCompilation, DependencyType, ExportsInfoArtifact, FactoryMeta, ModuleFactoryCreateData,
   ModuleType, NormalModuleFactoryBeforeResolve, NormalModuleFactoryParser, ParserAndGenerator,
-  ParserOptions, Plugin, ResolveOptionsWithDependencyType, ResolveResult,
-  SideEffectsOptimizeArtifact,
+  ParserOptions, Plugin, ResolveOptionsWithDependencyType, ResolveResult, RuntimeGlobals,
+  RuntimeModule, RuntimeModuleExt, SideEffectsOptimizeArtifact,
   build_module_graph::BuildModuleGraphArtifact,
   module_declared_side_effect_free,
   rspack_sources::{BoxSource, ReplaceSource, SourceExt},
@@ -29,6 +30,7 @@ static RSTEST_FLAG_RE: LazyLock<Regex> = LazyLock::new(|| {
 });
 
 use crate::{
+  define_property_getters_compat::DefinePropertyGettersCompatRuntimeModule,
   dynamic_import_origin_dependency::RstestDynamicImportOriginDependencyTemplate,
   esm_import_dependency::{
     RstestESMImportSideEffectDependencyTemplate, RstestESMImportSpecifierDependencyTemplate,
@@ -49,6 +51,7 @@ pub struct RstestPluginOptions {
   pub manual_mock_root: String,
   pub preserve_new_url: Vec<String>,
   pub globals: bool,
+  pub define_property_getters_compat: bool,
   pub inject_dynamic_import_origin: Option<RstestDynamicImportOriginOptions>,
 }
 
@@ -445,6 +448,25 @@ async fn optimize_dependencies(
   Ok(None)
 }
 
+#[plugin_hook(CompilationAdditionalTreeRuntimeRequirements for RstestPlugin)]
+async fn additional_tree_runtime_requirements(
+  &self,
+  compilation: &Compilation,
+  _chunk_ukey: &ChunkUkey,
+  runtime_requirements: &mut RuntimeGlobals,
+  runtime_modules: &mut Vec<Box<dyn RuntimeModule>>,
+) -> Result<()> {
+  if !self.options.define_property_getters_compat {
+    return Ok(());
+  }
+
+  runtime_requirements.insert(RuntimeGlobals::DEFINE_PROPERTY_GETTERS);
+  runtime_modules
+    .push(DefinePropertyGettersCompatRuntimeModule::new(&compilation.runtime_template).boxed());
+
+  Ok(())
+}
+
 impl Plugin for RstestPlugin {
   fn name(&self) -> &'static str {
     "rstest"
@@ -491,6 +513,11 @@ impl Plugin for RstestPlugin {
       .compilation_hooks
       .optimize_dependencies
       .tap(optimize_dependencies::new(self));
+
+    ctx
+      .compilation_hooks
+      .additional_tree_runtime_requirements
+      .tap(additional_tree_runtime_requirements::new(self));
 
     if self.options.hoist_mock_module {
       ctx
