@@ -31,21 +31,23 @@ impl RuntimeModule for DefinePropertyGettersCompatRuntimeModule {
       .render_runtime_globals(&RuntimeGlobals::DEFINE_PROPERTY_GETTERS);
 
     Ok(format!(
-      r#"{require}.rstest_define_property_getters = {define_property_getters};
-{define_property_getters} = function(exports, definition) {{
-	// Rstest injected runtime code may still call d(exports, {{ key: getter }}),
-	// while Rspack's optimized runtime expects d(exports, [key, getter]).
-	if(definition && typeof definition === "object" && !Array.isArray(definition)) {{
-		var normalizedDefinition = [];
-		for(var key in definition) {{
-			if({require}.o(definition, key)) {{
-				normalizedDefinition.push(key, definition[key]);
+      r#"if(!{require}.rstest_define_property_getters) {{
+	{require}.rstest_define_property_getters = {define_property_getters};
+	{define_property_getters} = function(exports, definition) {{
+		// Rstest injected runtime code may still call d(exports, {{ key: getter }}),
+		// while Rspack's optimized runtime expects d(exports, [key, getter]).
+		if(definition && typeof definition === "object" && !Array.isArray(definition)) {{
+			var normalizedDefinition = [];
+			for(var key in definition) {{
+				if({require}.o(definition, key)) {{
+					normalizedDefinition.push(key, definition[key]);
+				}}
 			}}
+			definition = normalizedDefinition;
 		}}
-		definition = normalizedDefinition;
-	}}
-	return {require}.rstest_define_property_getters(exports, definition);
-}};"#
+		return {require}.rstest_define_property_getters(exports, definition);
+	}};
+}}"#
     ))
   }
 

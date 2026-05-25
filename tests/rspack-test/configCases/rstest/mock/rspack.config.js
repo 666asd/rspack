@@ -92,7 +92,10 @@ __webpack_require__.rstest_mock = (id, modFactory) => {
             [key]: () => res[key],
           });
         }
-        if (!res.__esModule && !('default' in res)) {
+        if (
+          !res?.__esModule &&
+          !(res != null && (typeof res === 'object' || typeof res === 'function') && 'default' in res)
+        ) {
           __webpack_require__.d(__webpack_exports__, {
             default: () => res,
           });
