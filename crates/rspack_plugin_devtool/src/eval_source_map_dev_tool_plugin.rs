@@ -112,27 +112,30 @@ async fn render_module_content(
     .code_generation_results
     .get_hash(&module.identifier(), Some(chunk.runtime()))
     .expect("should have codegen results hash in process assets");
-  let condition_object = AssetConditionsObject {
-    test: self.test.as_ref(),
-    include: self.include.as_ref(),
-    exclude: self.exclude.as_ref(),
-  };
 
-  if module
-    .as_normal_module()
-    .is_some_and(|m| !match_object(&condition_object, m.resource_resolved_data().resource()))
-  {
-    return Ok(());
-  }
+  if self.test.is_some() || self.include.is_some() || self.exclude.is_some() {
+    let condition_object = AssetConditionsObject {
+      test: self.test.as_ref(),
+      include: self.include.as_ref(),
+      exclude: self.exclude.as_ref(),
+    };
 
-  if module.as_concatenated_module().is_some_and(|c| {
-    let mg = compilation.get_module_graph();
-    let root_id = c.get_root();
-    mg.module_by_identifier(&root_id)
-      .and_then(|m| m.as_normal_module())
+    if module
+      .as_normal_module()
       .is_some_and(|m| !match_object(&condition_object, m.resource_resolved_data().resource()))
-  }) {
-    return Ok(());
+    {
+      return Ok(());
+    }
+
+    if module.as_concatenated_module().is_some_and(|c| {
+      let mg = compilation.get_module_graph();
+      let root_id = c.get_root();
+      mg.module_by_identifier(&root_id)
+        .and_then(|m| m.as_normal_module())
+        .is_some_and(|m| !match_object(&condition_object, m.resource_resolved_data().resource()))
+    }) {
+      return Ok(());
+    }
   }
 
   let origin_source = render_source.source.clone();

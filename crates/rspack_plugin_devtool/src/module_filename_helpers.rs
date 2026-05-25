@@ -15,6 +15,13 @@ use sugar_path::SugarPath;
 
 use crate::{ModuleFilenameTemplateFn, ModuleFilenameTemplateFnCtx, SourceReference};
 
+const DEFAULT_MODULE_FILENAME_TEMPLATE: &str = "webpack://[namespace]/[resourcePath]";
+const DEFAULT_MODULE_FILENAME_TEMPLATE_KEBAB: &str = "webpack://[namespace]/[resource-path]";
+const DEFAULT_FALLBACK_MODULE_FILENAME_TEMPLATE: &str =
+  "webpack://[namespace]/[resourcePath]?[hash]";
+const DEFAULT_FALLBACK_MODULE_FILENAME_TEMPLATE_KEBAB: &str =
+  "webpack://[namespace]/[resource-path]?[hash]";
+
 fn get_before<'a>(s: &'a str, token: &str) -> &'a str {
   match s.rfind(token) {
     Some(idx) => &s[..idx],
@@ -216,6 +223,34 @@ impl ModuleFilenameHelpers {
     namespace: &str,
     unresolved_source_map_path: Option<&Utf8Path>,
   ) -> String {
+    if matches!(
+      module_filename_template,
+      DEFAULT_MODULE_FILENAME_TEMPLATE | DEFAULT_MODULE_FILENAME_TEMPLATE_KEBAB
+    ) {
+      let ctx = ModuleFilenameHelpers::create_module_filename_template_string_ctx(
+        source_reference,
+        compilation,
+        output_options,
+        namespace,
+        unresolved_source_map_path,
+      );
+      return render_default_module_filename(&ctx, false);
+    }
+
+    if matches!(
+      module_filename_template,
+      DEFAULT_FALLBACK_MODULE_FILENAME_TEMPLATE | DEFAULT_FALLBACK_MODULE_FILENAME_TEMPLATE_KEBAB
+    ) {
+      let ctx = ModuleFilenameHelpers::create_module_filename_template_string_ctx(
+        source_reference,
+        compilation,
+        output_options,
+        namespace,
+        unresolved_source_map_path,
+      );
+      return render_default_module_filename(&ctx, true);
+    }
+
     let ctx = ModuleFilenameHelpers::create_module_filename_template_string_ctx(
       source_reference,
       compilation,
@@ -231,25 +266,23 @@ impl ModuleFilenameHelpers {
   where
     F: FnMut(String, usize, usize) -> String,
   {
-    let mut count_map: HashMap<String, Vec<usize>> = HashMap::default();
-    let mut pos_map: HashMap<String, usize> = HashMap::default();
+    let mut count_map: HashMap<String, (usize, usize)> = HashMap::default();
 
-    for (idx, item) in filenames.iter().enumerate() {
-      count_map.entry(item.clone()).or_default().push(idx);
-      pos_map.entry(item.clone()).or_insert(0);
+    for item in &filenames {
+      count_map
+        .entry(item.clone())
+        .and_modify(|(count, _)| *count += 1)
+        .or_insert((1, 0));
     }
 
     filenames
       .into_iter()
       .enumerate()
       .map(|(i, item)| {
-        let count = count_map
-          .get(&item)
+        let (count, pos) = count_map
+          .get_mut(&item)
           .expect("should have a count entry in count_map");
-        if count.len() > 1 {
-          let pos = pos_map
-            .get_mut(&item)
-            .expect("should have a position entry in pos_map");
+        if *count > 1 {
           let result = fn_replace(item, i, *pos);
           *pos += 1;
           result
@@ -277,6 +310,30 @@ impl ModuleFilenameHelpers {
       identifier: Default::default(),
     }
   }
+}
+
+fn render_default_module_filename(
+  ctx: &ModuleFilenameTemplateStringCtx<'_>,
+  with_hash: bool,
+) -> String {
+  let namespace = ctx.namespace();
+  let resource_path = ctx.resource_path();
+  let mut filename = String::with_capacity(
+    "webpack://".len()
+      + namespace.len()
+      + "/".len()
+      + resource_path.len()
+      + if with_hash { "?".len() + 4 } else { 0 },
+  );
+  filename.push_str("webpack://");
+  filename.push_str(namespace);
+  filename.push('/');
+  filename.push_str(resource_path);
+  if with_hash {
+    filename.push('?');
+    filename.push_str(&ctx.hash());
+  }
+  filename
 }
 
 struct ModuleFilenameTemplateStringCtx<'a> {
