@@ -125,35 +125,43 @@ impl ScopeInfoDB {
       .unwrap_or_else(|| panic!("{id:#?} should exist"))
   }
 
+  fn normalize_variable_info_id(id: VariableInfoId) -> Option<VariableInfoId> {
+    if id == VariableInfoId::tombstone() || id == VariableInfoId::undefined() {
+      None
+    } else {
+      Some(id)
+    }
+  }
+
   pub fn get(&mut self, id: ScopeInfoId, key: &Atom) -> Option<VariableInfoId> {
     let definitions = self.expect_get_scope(id);
     if let Some(&top_value) = definitions.map.get(key) {
-      if top_value == VariableInfoId::tombstone() || top_value == VariableInfoId::undefined() {
-        None
-      } else {
-        Some(top_value)
-      }
-    } else if let Some(parent) = definitions.parent {
-      let mut current = Some(parent);
-      while let Some(current_id) = current {
-        let scope = self.expect_get_scope(current_id);
-        if let Some(&value) = scope.map.get(key) {
-          if value == VariableInfoId::tombstone() || value == VariableInfoId::undefined() {
-            return None;
-          } else {
-            return Some(value);
-          }
-        }
-        current = scope.parent;
-      }
-      let definitions = self.expect_get_mut_scope(id);
-      definitions
-        .map
-        .insert(key.clone(), VariableInfoId::tombstone());
-      None
-    } else {
-      None
+      return Self::normalize_variable_info_id(top_value);
     }
+
+    let mut current = definitions.parent;
+    if current.is_none() {
+      return None;
+    }
+
+    while let Some(current_id) = current {
+      let scope = self.expect_get_scope(current_id);
+      if let Some(&value) = scope.map.get(key) {
+        let result = Self::normalize_variable_info_id(value);
+        self.expect_get_mut_scope(id).map.insert(
+          key.clone(),
+          result.unwrap_or_else(VariableInfoId::tombstone),
+        );
+        return result;
+      }
+      current = scope.parent;
+    }
+
+    self
+      .expect_get_mut_scope(id)
+      .map
+      .insert(key.clone(), VariableInfoId::tombstone());
+    None
   }
 
   pub fn set(&mut self, id: ScopeInfoId, key: Atom, variable_info_id: VariableInfoId) {
@@ -311,5 +319,42 @@ impl ScopeInfo {
       .iter()
       .filter(|&(_, &info_id)| info_id != VariableInfoId::tombstone())
       .map(|(name, info_id)| (name.as_str(), info_id))
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn get_caches_inherited_variable_on_current_scope() {
+    let mut db = ScopeInfoDB::new();
+    let root = db.create();
+    let child = db.create_child(root);
+    let name = Atom::from("value");
+    let value = VariableInfo::create(&mut db, root, None, VariableInfoFlags::NORMAL, None);
+    db.set(root, name.clone(), value);
+
+    assert!(!db.expect_get_scope(child).map.contains_key(&name));
+    assert_eq!(db.get(child, &name), Some(value));
+    assert_eq!(db.expect_get_scope(child).map.get(&name), Some(&value));
+  }
+
+  #[test]
+  fn get_caches_inherited_tombstone_on_current_scope() {
+    let mut db = ScopeInfoDB::new();
+    let root = db.create();
+    let child = db.create_child(root);
+    let grandchild = db.create_child(child);
+    let name = Atom::from("value");
+    let value = VariableInfo::create(&mut db, root, None, VariableInfoFlags::NORMAL, None);
+    db.set(root, name.clone(), value);
+    db.delete(child, &name);
+
+    assert_eq!(db.get(grandchild, &name), None);
+    assert_eq!(
+      db.expect_get_scope(grandchild).map.get(&name),
+      Some(&VariableInfoId::tombstone())
+    );
   }
 }
