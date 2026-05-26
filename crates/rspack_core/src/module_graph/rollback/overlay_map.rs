@@ -115,8 +115,8 @@ where
     if self.overlay.is_some() {
       let overlay = self.overlay();
       overlay.insert(key.clone(), OverlayValue::Tombstone);
-    } else {
-      self.base.remove(key);
+    } else if self.base.contains_key(key) {
+      panic!("cannot remove from OverlayMap base map without a checkpoint");
     }
   }
 
@@ -238,6 +238,18 @@ mod tests {
 
     assert_eq!(map.get(&"a".to_string()), Some(&1));
     assert_eq!(map.get(&"b".to_string()), Some(&2));
+  }
+
+  #[test]
+  #[should_panic(expected = "cannot remove from OverlayMap base map")]
+  fn remove_existing_base_value_without_overlay_panics() {
+    let mut map = OverlayMap::new(
+      [("a".to_string(), 1)]
+        .into_iter()
+        .collect::<HashMap<_, _>>(),
+    );
+
+    map.remove(&"a".to_string());
   }
 
   #[test]
