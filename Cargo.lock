@@ -6368,7 +6368,6 @@ dependencies = [
  "indexmap",
  "once_cell",
  "par-core",
- "par-iter",
  "phf",
  "rustc-hash",
  "serde",
