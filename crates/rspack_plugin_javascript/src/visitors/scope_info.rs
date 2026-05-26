@@ -74,7 +74,7 @@ impl ScopeInfoDB {
     let info = ScopeInfo {
       is_strict,
       parent,
-      map: Default::default(),
+      map: FxHashMap::with_capacity_and_hasher(8, Default::default()),
     };
     self.map.insert(info)
   }

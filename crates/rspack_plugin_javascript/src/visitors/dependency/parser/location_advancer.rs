@@ -16,6 +16,15 @@ impl DependencyLocationAdvancer {
     Self::default()
   }
 
+  #[inline]
+  fn utf16_len(segment: &str) -> usize {
+    if segment.is_ascii() {
+      segment.len()
+    } else {
+      segment.encode_utf16().count()
+    }
+  }
+
   /// Advance a source position from one byte offset to another, counting newlines and UTF-16 columns.
   /// Optimized with ASCII fast-paths and SIMD reverse searching.
   fn advance_pos(
@@ -41,10 +50,10 @@ impl DependencyLocationAdvancer {
         .line
         .checked_add(u32::try_from(newline_count).ok()?)?;
       let after_newline = &segment[last_idx + 1..];
-      let column = u32::try_from(after_newline.encode_utf16().count() + 1).ok()?; // 1-based column
+      let column = u32::try_from(Self::utf16_len(after_newline) + 1).ok()?; // 1-based column
       Some(SourcePosition { line, column })
     } else {
-      let column_advance = u32::try_from(segment.encode_utf16().count()).ok()?;
+      let column_advance = u32::try_from(Self::utf16_len(segment)).ok()?;
       Some(SourcePosition {
         line: from_pos.line,
         column: from_pos.column.checked_add(column_advance)?,
