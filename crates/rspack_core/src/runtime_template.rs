@@ -12,7 +12,7 @@ use rspack_collections::{Identifier, IdentifierSet};
 use rspack_dojang::{Context, Dojang, FunctionContainer, Operand};
 use rspack_error::{Error, Result, ToStringResultToRspackResultExt, error};
 use rspack_util::{fx_hash::FxIndexSet, json_stringify};
-use rustc_hash::FxHashSet as HashSet;
+use rustc_hash::{FxHashMap, FxHashSet as HashSet};
 use serde_json::{Map, Value, json};
 use swc_core::atoms::Atom;
 
@@ -501,6 +501,7 @@ pub fn get_outgoing_async_modules(
 pub struct ModuleCodeTemplate {
   compiler_options: Arc<CompilerOptions>,
   runtime_requirements: RuntimeGlobals,
+  module_id_expr_cache: FxHashMap<(String, ModuleId), String>,
 }
 
 impl ModuleCodeTemplate {
@@ -508,6 +509,7 @@ impl ModuleCodeTemplate {
     Self {
       compiler_options,
       runtime_requirements: RuntimeGlobals::default(),
+      module_id_expr_cache: Default::default(),
     }
   }
 
@@ -801,20 +803,21 @@ impl ModuleCodeTemplate {
       self.compiler_options.output.pathinfo,
       PathInfo::Bool(true) | PathInfo::String(_)
     );
-    let content = if used_pathinfo {
-      vec![
-        comment_options.message,
-        comment_options.request,
-        comment_options.chunk_name,
-      ]
-    } else {
-      vec![comment_options.message, comment_options.chunk_name]
+
+    let mut content = String::new();
+    for item in [
+      comment_options.message,
+      used_pathinfo.then_some(comment_options.request).flatten(),
+      comment_options.chunk_name,
+    ]
+    .into_iter()
+    .flatten()
+    {
+      if !content.is_empty() {
+        content.push_str(" | ");
+      }
+      content.push_str(&contextify(self.compiler_options.context.as_path(), item));
     }
-    .iter()
-    .filter_map(|&item| item)
-    .map(|item| contextify(self.compiler_options.context.as_path(), item))
-    .collect::<Vec<_>>()
-    .join(" | ");
 
     if content.is_empty() {
       return String::new();
@@ -852,15 +855,31 @@ impl ModuleCodeTemplate {
     }
   }
 
-  pub fn module_id_expr(&self, request: &str, module_id: &ModuleId) -> String {
-    format!(
-      "{}{}",
-      self.comment(CommentOptions {
-        request: Some(request),
-        ..Default::default()
-      }),
-      json_stringify(module_id)
-    )
+  pub fn module_id_expr(&mut self, request: &str, module_id: &ModuleId) -> String {
+    let key = (request.to_owned(), module_id.clone());
+    if let Some(value) = self.module_id_expr_cache.get(&key) {
+      return value.clone();
+    }
+
+    if !matches!(
+      self.compiler_options.output.pathinfo,
+      PathInfo::Bool(true) | PathInfo::String(_)
+    ) {
+      let value = json_stringify(module_id);
+      self.module_id_expr_cache.insert(key, value.clone());
+      return value;
+    }
+
+    let comment = self.comment(CommentOptions {
+      request: Some(request),
+      ..Default::default()
+    });
+    let id = json_stringify(module_id);
+    let mut result = String::with_capacity(comment.len() + id.len());
+    result.push_str(&comment);
+    result.push_str(&id);
+    self.module_id_expr_cache.insert(key, result.clone());
+    result
   }
 
   pub fn weak_error(&self, request: &str) -> String {
@@ -916,7 +935,7 @@ impl ModuleCodeTemplate {
   }
 
   pub fn module_id(
-    &self,
+    &mut self,
     compilation: &Compilation,
     id: &DependencyId,
     request: &str,

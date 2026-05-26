@@ -6,7 +6,7 @@ use rspack_core::{
   ChunkInitFragments, ChunkUkey, Compilation, CompilationAdditionalModuleRuntimeRequirements,
   CompilationParams, CompilerCompilation, Filename, Module, ModuleIdentifier, PathData, Plugin,
   RuntimeCodeTemplate, RuntimeGlobals,
-  rspack_sources::{BoxSource, RawStringSource, Source, SourceExt},
+  rspack_sources::{BoxSource, RawStringSource, Source, SourceExt, SourceValue},
 };
 use rspack_error::Result;
 use rspack_hash::RspackHash;
@@ -143,35 +143,52 @@ async fn render_module_content(
     }
   };
   let source = {
-    let source = &origin_source.source().into_string_lossy();
-    let footer = format!(
-      "\n{}",
-      &self.source_url_comment.cow_replace(
-        "[url]",
-        encode_uri(&str)
-          .cow_replace("%2F", "/")
-          .cow_replace("%20", "_")
-          .cow_replace("%5E", "^")
-          .cow_replace("%5C", "\\")
-          .trim_start_matches('/')
-      )
+    let source = match origin_source.source() {
+      SourceValue::String(source) => source,
+      SourceValue::Buffer(source) => match source {
+        Cow::Borrowed(source) => String::from_utf8_lossy(source),
+        Cow::Owned(source) => match String::from_utf8(source) {
+          Ok(source) => Cow::Owned(source),
+          Err(error) => Cow::Owned(String::from_utf8_lossy(&error.into_bytes()).into_owned()),
+        },
+      },
+    };
+    let source_url = self.source_url_comment.cow_replace(
+      "[url]",
+      encode_uri(&str)
+        .cow_replace("%2F", "/")
+        .cow_replace("%20", "_")
+        .cow_replace("%5E", "^")
+        .cow_replace("%5C", "\\")
+        .trim_start_matches('/'),
     );
+    let mut footer = String::with_capacity(source_url.len() + 1);
+    footer.push('\n');
+    footer.push_str(&source_url);
 
-    let module_content =
-      simd_json::to_string(&format!("{{{source}{footer}\n}}")).expect("failed to parse string");
-    RawStringSource::from(format!(
-      "eval({});",
-      if compilation.options.output.trusted_types.is_some() {
-        format!(
-          "{}({})",
-          runtime_template.render_runtime_globals(&RuntimeGlobals::CREATE_SCRIPT),
-          module_content
-        )
-      } else {
-        module_content
-      }
-    ))
-    .boxed()
+    let mut wrapped_source = String::with_capacity(source.len() + footer.len() + 3);
+    wrapped_source.push('{');
+    wrapped_source.push_str(&source);
+    wrapped_source.push_str(&footer);
+    wrapped_source.push_str("\n}");
+
+    let module_content = simd_json::to_string(&wrapped_source).expect("failed to parse string");
+    let eval_content = if compilation.options.output.trusted_types.is_some() {
+      let create_script = runtime_template.render_runtime_globals(&RuntimeGlobals::CREATE_SCRIPT);
+      let mut eval_content = String::with_capacity(create_script.len() + module_content.len() + 2);
+      eval_content.push_str(&create_script);
+      eval_content.push('(');
+      eval_content.push_str(&module_content);
+      eval_content.push(')');
+      eval_content
+    } else {
+      module_content
+    };
+    let mut source = String::with_capacity(eval_content.len() + 7);
+    source.push_str("eval(");
+    source.push_str(&eval_content);
+    source.push_str(");");
+    RawStringSource::from(source).boxed()
   };
 
   self.cache.insert(origin_source, source.clone());

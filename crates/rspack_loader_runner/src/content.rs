@@ -34,7 +34,10 @@ impl Content {
   pub fn into_string_lossy(self) -> String {
     match self {
       Content::String(s) => s,
-      Content::Buffer(b) => String::from_utf8_lossy_owned(b),
+      Content::Buffer(b) => match String::from_utf8(b) {
+        Ok(s) => s,
+        Err(error) => String::from_utf8_lossy(&error.into_bytes()).into_owned(),
+      },
     }
   }
 

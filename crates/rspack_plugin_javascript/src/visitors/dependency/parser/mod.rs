@@ -397,6 +397,7 @@ pub struct JavascriptParser<'parser> {
   pub(crate) location_advancer: DependencyLocationAdvancer,
   pub(crate) collecting_dependencies_for_block: Option<usize>,
   pub(crate) dependency_branch_guards: Vec<DependencyBranchGuard>,
+  last_variable_info_lookup: Option<(ScopeInfoId, Atom, Option<VariableInfoId>)>,
 }
 
 impl<'parser> JavascriptParser<'parser> {
@@ -587,6 +588,7 @@ impl<'parser> JavascriptParser<'parser> {
       location_advancer: DependencyLocationAdvancer::new(),
       collecting_dependencies_for_block: None,
       dependency_branch_guards: Vec::new(),
+      last_variable_info_lookup: None,
     }
   }
 
@@ -765,7 +767,19 @@ impl<'parser> JavascriptParser<'parser> {
   }
 
   pub fn get_variable_info(&mut self, name: &Atom) -> Option<&VariableInfo> {
-    let id = self.definitions_db.get(self.definitions, name)?;
+    if let Some((scope, cached_name, cached_id)) = &self.last_variable_info_lookup
+      && *scope == self.definitions
+      && cached_name == name
+    {
+      return match cached_id {
+        Some(id) => Some(self.definitions_db.expect_get_variable(*id)),
+        None => None,
+      };
+    }
+
+    let id = self.definitions_db.get(self.definitions, name);
+    self.last_variable_info_lookup = Some((self.definitions, name.clone(), id));
+    let id = id?;
     Some(self.definitions_db.expect_get_variable(id))
   }
 
@@ -868,10 +882,12 @@ impl<'parser> JavascriptParser<'parser> {
       VariableInfoFlags::NORMAL,
       None,
     );
+    self.last_variable_info_lookup = None;
     self.definitions_db.set(definitions, name, info);
   }
 
   pub fn set_variable(&mut self, name: Atom, variable: ExportedVariableInfo) {
+    self.last_variable_info_lookup = None;
     let scope_id = self.definitions;
     match variable {
       ExportedVariableInfo::Name(variable) => {
@@ -895,6 +911,7 @@ impl<'parser> JavascriptParser<'parser> {
   }
 
   fn undefined_variable(&mut self, name: &Atom) {
+    self.last_variable_info_lookup = None;
     self.definitions_db.delete(self.definitions, name)
   }
 
@@ -967,6 +984,7 @@ impl<'parser> JavascriptParser<'parser> {
         tag_info,
       )
     };
+    self.last_variable_info_lookup = None;
     self.definitions_db.set(self.definitions, name, new_info);
   }
 

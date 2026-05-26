@@ -12,10 +12,10 @@ use swc_core::{
     IdentName, IfStmt, JSXAttr, JSXAttrOrSpread, JSXAttrValue, JSXElement, JSXElementChild,
     JSXElementName, JSXExpr, JSXExprContainer, JSXFragment, JSXMemberExpr, JSXNamespacedName,
     JSXObject, KeyValueProp, LabeledStmt, Lit, MemberExpr, MemberProp, MetaPropExpr, ModuleDecl,
-    ModuleItem, NewExpr, ObjectLit, ObjectPat, ObjectPatProp, OptCall, OptChainExpr, Param, Pat,
-    Prop, PropName, PropOrSpread, RestPat, ReturnStmt, SeqExpr, SetterProp, SimpleAssignTarget,
-    Stmt, SwitchCase, SwitchStmt, TaggedTpl, ThisExpr, ThrowStmt, Tpl, TryStmt, UnaryExpr, UnaryOp,
-    UpdateExpr, VarDeclOrExpr, WhileStmt, WithStmt, YieldExpr,
+    ModuleItem, NewExpr, ObjectLit, ObjectPat, ObjectPatProp, OptCall, OptChainBase, OptChainExpr,
+    Param, Pat, Prop, PropName, PropOrSpread, RestPat, ReturnStmt, SeqExpr, SetterProp,
+    SimpleAssignTarget, Stmt, SwitchCase, SwitchStmt, TaggedTpl, ThisExpr, ThrowStmt, Tpl, TryStmt,
+    UnaryExpr, UnaryOp, UpdateExpr, VarDeclOrExpr, WhileStmt, WithStmt, YieldExpr,
   },
 };
 
@@ -52,6 +52,20 @@ enum ImportedBooleanConditionTemplate {
     Box<ImportedBooleanConditionTemplate>,
     Box<ImportedBooleanConditionTemplate>,
   ),
+}
+
+fn member_expression_root_is_await(mut expr: &MemberExpr) -> bool {
+  loop {
+    match expr.obj.as_ref() {
+      Expr::Await(_) => return true,
+      Expr::Member(member) => expr = member,
+      Expr::OptChain(opt_chain) => match opt_chain.base.as_ref() {
+        OptChainBase::Member(member) => expr = member,
+        _ => return false,
+      },
+      _ => return false,
+    }
+  }
 }
 
 impl ImportedBooleanConditionTemplate {
@@ -1043,6 +1057,16 @@ impl JavascriptParser<'_> {
 
   fn walk_member_expression(&mut self, expr: &MemberExpr) {
     let drive = self.plugin_drive.clone();
+
+    // (await import(...)).a.b
+    if let Some((call, members)) = self.extract_await_import_member(expr)
+      && drive
+        .import_call(self, call, None, Some((&members, false)))
+        .unwrap_or_default()
+    {
+      return;
+    }
+
     if let Some(expr_info) =
       self.get_member_expression_info(ExprRef::Member(expr), AllowedMemberTypes::all())
     {
@@ -1102,17 +1126,6 @@ impl JavascriptParser<'_> {
           return;
         }
       }
-    }
-
-    // (await import(...)).a.b
-    if let Some((call, members)) = self.extract_await_import_member(expr)
-      && self
-        .plugin_drive
-        .clone()
-        .import_call(self, call, None, Some((&members, false)))
-        .unwrap_or_default()
-    {
-      return;
     }
 
     self.member_expr_in_optional_chain = false;
@@ -1468,6 +1481,10 @@ impl JavascriptParser<'_> {
     &mut self,
     expr: &'a MemberExpr,
   ) -> Option<(&'a CallExpr, AtomMembers)> {
+    if !member_expression_root_is_await(expr) {
+      return None;
+    }
+
     let ExtractedMemberExpressionChainData {
       object,
       mut members,
@@ -1543,6 +1560,13 @@ impl JavascriptParser<'_> {
   }
 
   fn get_rename_identifier(&mut self, expr: &Expr) -> Option<Atom> {
+    if !matches!(
+      expr,
+      Expr::Ident(_) | Expr::This(_) | Expr::Member(_) | Expr::OptChain(_)
+    ) {
+      return None;
+    }
+
     let result = self.evaluate_expression(expr);
     result.is_identifier().then(|| result.identifier().clone())
   }
