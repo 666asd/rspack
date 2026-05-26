@@ -41,11 +41,14 @@ impl RealDependencyLocation {
   /// - line is 1-based in bytes
   /// - column is 0-based in bytes
   /// - length in bytes
+  /// - `ascii_only`: when `true`, skips UTF-16 counting and uses byte lengths directly.
+  ///   The caller must guarantee the relevant source is ASCII-only.
   pub fn from_byte_location(
     source: &str,
     line: u32,
     column: u32,
     length: Option<u32>,
+    ascii_only: bool,
   ) -> Option<Self> {
     if line == 0 {
       return None;
@@ -80,9 +83,14 @@ impl RealDependencyLocation {
     }
 
     // 3. Calculate the UTF-16 length of the start column.
-    // This avoids the overhead of constructing the surrogate pair iterator and only performs numerical accumulation.
-    let start_line_slice = source.get(line_start_offset..start_byte)?;
-    let start_utf16_col = start_line_slice.encode_utf16().count() + 1; // 1-based
+    // For ASCII-only source, UTF-16 code units equal bytes, so we can skip encode_utf16.
+    let ascii_fast_path = ascii_only || source.is_ascii();
+    let start_utf16_col = if ascii_fast_path {
+      column as usize + 1 // 1-based
+    } else {
+      let start_line_slice = source.get(line_start_offset..start_byte)?;
+      start_line_slice.encode_utf16().count() + 1 // 1-based
+    };
 
     let start = SourcePosition {
       line,
@@ -106,12 +114,20 @@ impl RealDependencyLocation {
       let end_line = line.checked_add(newlines_in_span as u32)?;
 
       let end_column = if newlines_in_span == 0 {
-        start_utf16_col + span_slice.encode_utf16().count()
+        if ascii_fast_path {
+          start_utf16_col + span_slice.len()
+        } else {
+          start_utf16_col + span_slice.encode_utf16().count()
+        }
       } else {
         #[allow(clippy::unwrap_used)]
         let last_newline_pos = span_slice.rfind('\n').unwrap();
         let text_after_last_newline = &span_slice[last_newline_pos + 1..];
-        text_after_last_newline.encode_utf16().count() + 1 // 1-based
+        if ascii_fast_path {
+          text_after_last_newline.len() + 1 // 1-based
+        } else {
+          text_after_last_newline.encode_utf16().count() + 1 // 1-based
+        }
       };
 
       Some(SourcePosition {
@@ -190,8 +206,9 @@ impl DependencyLocation {
     line: u32,
     column: u32,
     length: Option<u32>,
+    ascii_only: bool,
   ) -> Option<Self> {
-    RealDependencyLocation::from_byte_location(source, line, column, length)
+    RealDependencyLocation::from_byte_location(source, line, column, length, ascii_only)
       .map(DependencyLocation::Real)
   }
 }
@@ -215,7 +232,7 @@ mod tests {
     let source = "hello world\nfoo bar baz";
 
     // Test basic ASCII string, first line
-    let loc = RealDependencyLocation::from_byte_location(source, 1, 6, Some(5));
+    let loc = RealDependencyLocation::from_byte_location(source, 1, 6, Some(5), false);
     assert!(loc.is_some());
     let loc = loc.unwrap();
     assert_eq!(loc.start.line, 1);
@@ -229,7 +246,7 @@ mod tests {
     let source = "hello world\nfoo bar baz";
 
     // Test second line
-    let loc = RealDependencyLocation::from_byte_location(source, 2, 4, Some(3));
+    let loc = RealDependencyLocation::from_byte_location(source, 2, 4, Some(3), false);
     assert!(loc.is_some());
     let loc = loc.unwrap();
     assert_eq!(loc.start.line, 2);
@@ -246,7 +263,7 @@ mod tests {
     let source = "你好世界abc";
 
     // Start at byte 0, length 6 (first two characters "你好")
-    let loc = RealDependencyLocation::from_byte_location(source, 1, 0, Some(6));
+    let loc = RealDependencyLocation::from_byte_location(source, 1, 0, Some(6), false);
     assert!(loc.is_some());
     let loc = loc.unwrap();
     assert_eq!(loc.start.line, 1);
@@ -262,7 +279,7 @@ mod tests {
     let source = "hello😀world";
 
     // Start at "😀", byte offset 5, length 4
-    let loc = RealDependencyLocation::from_byte_location(source, 1, 5, Some(4));
+    let loc = RealDependencyLocation::from_byte_location(source, 1, 5, Some(4), false);
     assert!(loc.is_some());
     let loc = loc.unwrap();
     assert_eq!(loc.start.line, 1);
@@ -276,7 +293,7 @@ mod tests {
     let source = "hello world";
 
     // Test without length (end is None)
-    let loc = RealDependencyLocation::from_byte_location(source, 1, 0, None);
+    let loc = RealDependencyLocation::from_byte_location(source, 1, 0, None, false);
     assert!(loc.is_some());
     let loc = loc.unwrap();
     assert_eq!(loc.start.line, 1);
@@ -285,11 +302,28 @@ mod tests {
   }
 
   #[test]
+  fn test_from_byte_location_ascii_only_fast_path() {
+    let source = "hello world\nfoo bar baz";
+
+    let with_hint =
+      RealDependencyLocation::from_byte_location(source, 1, 6, Some(5), true).unwrap();
+    let with_detect =
+      RealDependencyLocation::from_byte_location(source, 1, 6, Some(5), false).unwrap();
+
+    assert_eq!(with_hint.start.line, with_detect.start.line);
+    assert_eq!(with_hint.start.column, with_detect.start.column);
+    assert_eq!(
+      with_hint.end.as_ref().map(|p| (p.line, p.column)),
+      with_detect.end.as_ref().map(|p| (p.line, p.column))
+    );
+  }
+
+  #[test]
   fn test_from_byte_location_invalid_line() {
     let source = "hello world";
 
     // Test with line 0 (invalid)
-    let loc = RealDependencyLocation::from_byte_location(source, 0, 0, None);
+    let loc = RealDependencyLocation::from_byte_location(source, 0, 0, None, false);
     assert!(loc.is_none());
   }
 
@@ -298,7 +332,7 @@ mod tests {
     let source = "hello world\nfoo bar";
 
     // Test with line number that doesn't exist
-    let loc = RealDependencyLocation::from_byte_location(source, 10, 0, None);
+    let loc = RealDependencyLocation::from_byte_location(source, 10, 0, None, false);
     assert!(loc.is_none());
   }
 
@@ -307,7 +341,7 @@ mod tests {
     let source = "hello";
 
     // Test with column beyond line length
-    let loc = RealDependencyLocation::from_byte_location(source, 1, 100, None);
+    let loc = RealDependencyLocation::from_byte_location(source, 1, 100, None, false);
     assert!(loc.is_none());
   }
 
@@ -316,7 +350,7 @@ mod tests {
     let source = "hello\n\nworld";
 
     // Test empty line (line 2)
-    let loc = RealDependencyLocation::from_byte_location(source, 2, 0, None);
+    let loc = RealDependencyLocation::from_byte_location(source, 2, 0, None, false);
     assert!(loc.is_some());
     let loc = loc.unwrap();
     assert_eq!(loc.start.line, 2);
@@ -328,7 +362,7 @@ mod tests {
     let source = "hello world";
 
     // Test with length that exceeds the line
-    let loc = RealDependencyLocation::from_byte_location(source, 1, 6, Some(100));
+    let loc = RealDependencyLocation::from_byte_location(source, 1, 6, Some(100), false);
     assert!(loc.is_some());
     let loc = loc.unwrap();
     assert_eq!(loc.start.line, 1);
@@ -343,7 +377,7 @@ mod tests {
     let source = "abc你好😀xyz\nline2\nline3";
 
     // Start at "😀" (byte offset: 3 + 6 = 9), length 4
-    let loc = RealDependencyLocation::from_byte_location(source, 1, 9, Some(4));
+    let loc = RealDependencyLocation::from_byte_location(source, 1, 9, Some(4), false);
     assert!(loc.is_some());
     let loc = loc.unwrap();
     assert_eq!(loc.start.line, 1);
@@ -359,7 +393,7 @@ mod tests {
     let source = "hello world\nfoo bar baz\nend";
 
     // Start at "world" (byte 6 on line 1), length 18 (to "end" on line 3)
-    let loc = RealDependencyLocation::from_byte_location(source, 1, 6, Some(18));
+    let loc = RealDependencyLocation::from_byte_location(source, 1, 6, Some(18), false);
     assert!(loc.is_some());
     let loc = loc.unwrap();
     assert_eq!(loc.start.line, 1);
@@ -375,7 +409,7 @@ mod tests {
 
     // Start at byte 2 on line 1 ("c"), length 10
     // "c\ndefg\nhi" = 1 + 1 + 4 + 1 + 2 = 9 bytes, so 10 includes "j"
-    let loc = RealDependencyLocation::from_byte_location(source, 1, 2, Some(10));
+    let loc = RealDependencyLocation::from_byte_location(source, 1, 2, Some(10), false);
     assert!(loc.is_some());
     let loc = loc.unwrap();
     assert_eq!(loc.start.line, 1);
@@ -391,7 +425,7 @@ mod tests {
 
     // Start at byte 0 on line 1, length 12
     // "你好\n世界" = 6 + 1 + 6 = 13 bytes, so 12 doesn't include the last character
-    let loc = RealDependencyLocation::from_byte_location(source, 1, 0, Some(13));
+    let loc = RealDependencyLocation::from_byte_location(source, 1, 0, Some(13), false);
     assert!(loc.is_some());
     let loc = loc.unwrap();
     assert_eq!(loc.start.line, 1);
@@ -406,7 +440,7 @@ mod tests {
     let source = "hello\nworld";
 
     // Start at byte 0, length 5 (exactly "hello")
-    let loc = RealDependencyLocation::from_byte_location(source, 1, 0, Some(5));
+    let loc = RealDependencyLocation::from_byte_location(source, 1, 0, Some(5), false);
     assert!(loc.is_some());
     let loc = loc.unwrap();
     assert_eq!(loc.start.line, 1);
@@ -421,7 +455,7 @@ mod tests {
     let source = "hello\nworld";
 
     // Start at byte 0, length 6 (includes newline)
-    let loc = RealDependencyLocation::from_byte_location(source, 1, 0, Some(6));
+    let loc = RealDependencyLocation::from_byte_location(source, 1, 0, Some(6), false);
     assert!(loc.is_some());
     let loc = loc.unwrap();
     assert_eq!(loc.start.line, 1);

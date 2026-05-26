@@ -55,6 +55,7 @@ pub fn format_diagnostic(diagnostic: JsDiagnostic) -> Result<External<Diagnostic
       location.line,
       location.column,
       Some(location.length),
+      source_code.is_ascii(),
     );
     let offset = byte_line_column_to_offset(
         source_code,
