@@ -1562,7 +1562,12 @@ impl JavascriptParser<'_> {
   fn get_rename_identifier(&mut self, expr: &Expr) -> Option<Atom> {
     if !matches!(
       expr,
-      Expr::Ident(_) | Expr::This(_) | Expr::Member(_) | Expr::OptChain(_)
+      Expr::Ident(_)
+        | Expr::This(_)
+        | Expr::Member(_)
+        | Expr::OptChain(_)
+        | Expr::Cond(_)
+        | Expr::Bin(_)
     ) {
       return None;
     }
