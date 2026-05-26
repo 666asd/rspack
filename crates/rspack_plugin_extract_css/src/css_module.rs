@@ -167,12 +167,14 @@ impl Module for CssModule {
   }
 
   async fn build(
-    mut self: Box<Self>,
+    self: Box<Self>,
     build_context: BuildContext,
     _compilation: Option<&Compilation>,
   ) -> Result<BuildResult> {
-    self.build_info.hash = Some(self.compute_hash(&build_context.compiler_options));
+    let mut build_info = build_context.build_info;
+    build_info.hash = Some(self.compute_hash(&build_context.compiler_options));
     Ok(BuildResult {
+      build_info,
       module: BoxModule::new(self),
       dependencies: vec![],
       blocks: vec![],
@@ -195,7 +197,12 @@ impl Module for CssModule {
   ) -> Result<RspackHashDigest> {
     let mut hasher = RspackHash::from(&compilation.options.output);
     module_update_hash(self, &mut hasher, compilation, runtime);
-    self.build_info.hash.dyn_hash(&mut hasher);
+    let identifier = self.identifier();
+    compilation
+      .get_module_graph()
+      .build_info(&identifier)
+      .hash
+      .dyn_hash(&mut hasher);
     Ok(hasher.digest(&compilation.options.output.hash_digest))
   }
 

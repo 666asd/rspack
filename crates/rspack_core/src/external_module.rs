@@ -1072,7 +1072,8 @@ impl Module for ExternalModule {
     build_context: BuildContext,
     _: Option<&Compilation>,
   ) -> Result<BuildResult> {
-    self.build_info.module = build_context.compiler_options.output.module;
+    let mut build_info = build_context.build_info;
+    build_info.module = build_context.compiler_options.output.module;
     let resolved_external_type = self.resolve_external_type();
     let request = match &self.request {
       ExternalRequest::Single(request) => Some(request),
@@ -1083,7 +1084,7 @@ impl Module for ExternalModule {
 
     #[allow(clippy::collapsible_match)]
     match resolved_external_type {
-      "this" => self.build_info.strict = false,
+      "this" => build_info.strict = false,
       "system" => {
         if !request.is_some_and(|r| r.has_rest()) {
           exports_type = BuildMetaExportsType::Namespace;
@@ -1091,7 +1092,7 @@ impl Module for ExternalModule {
         }
       }
       "module" => {
-        if self.build_info.module {
+        if build_info.module {
           if !request.is_some_and(|r| r.has_rest()) {
             exports_type = BuildMetaExportsType::Namespace;
             can_mangle = true;
@@ -1116,6 +1117,7 @@ impl Module for ExternalModule {
     }
     self.build_meta.exports_type = exports_type;
     Ok(BuildResult {
+      build_info,
       module: BoxModule::new(self),
       dependencies: vec![Box::new(StaticExportsDependency::new(
         StaticExportsSpec::True,

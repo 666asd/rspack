@@ -3,6 +3,8 @@ use std::{
   borrow::Cow,
   fmt::{Debug, Display, Formatter},
   hash::Hash,
+  mem::ManuallyDrop,
+  ops::{Deref, DerefMut},
   sync::Arc,
 };
 
@@ -41,7 +43,69 @@ use crate::{
   value_cache_versions::ValueCacheVersions,
 };
 
+#[derive(Debug)]
+pub struct BuildInfoBox(ManuallyDrop<Box<BuildInfo>>);
+
+impl BuildInfoBox {
+  pub fn new(build_info: Box<BuildInfo>) -> Self {
+    Self(ManuallyDrop::new(build_info))
+  }
+
+  pub fn into_inner(self) -> Box<BuildInfo> {
+    let mut this = ManuallyDrop::new(self);
+    unsafe { ManuallyDrop::take(&mut this.0) }
+  }
+}
+
+impl Default for BuildInfoBox {
+  fn default() -> Self {
+    Self::new(Box::default())
+  }
+}
+
+impl From<Box<BuildInfo>> for BuildInfoBox {
+  fn from(build_info: Box<BuildInfo>) -> Self {
+    Self::new(build_info)
+  }
+}
+
+impl AsRef<BuildInfo> for BuildInfoBox {
+  fn as_ref(&self) -> &BuildInfo {
+    &self.0
+  }
+}
+
+impl AsMut<BuildInfo> for BuildInfoBox {
+  fn as_mut(&mut self) -> &mut BuildInfo {
+    &mut self.0
+  }
+}
+
+impl Deref for BuildInfoBox {
+  type Target = BuildInfo;
+
+  fn deref(&self) -> &Self::Target {
+    self.as_ref()
+  }
+}
+
+impl DerefMut for BuildInfoBox {
+  fn deref_mut(&mut self) -> &mut Self::Target {
+    self.as_mut()
+  }
+}
+
+impl Drop for BuildInfoBox {
+  #[inline(never)]
+  fn drop(&mut self) {
+    unsafe {
+      ManuallyDrop::drop(&mut self.0);
+    }
+  }
+}
+
 pub struct BuildContext {
+  pub build_info: BuildInfoBox,
   pub compiler_id: CompilerId,
   pub compilation_id: CompilationId,
   pub compiler_options: Arc<CompilerOptions>,
@@ -304,6 +368,7 @@ pub struct BuildMeta {
 #[derive(Debug)]
 pub struct BuildResult {
   pub module: BoxModule,
+  pub build_info: BuildInfoBox,
   /// Whether the result is cacheable, i.e shared between builds.
   pub dependencies: Vec<BoxDependency>,
   pub blocks: Vec<Box<AsyncDependenciesBlock>>,
@@ -369,20 +434,20 @@ pub trait Module:
 
   fn set_factory_meta(&mut self, factory_meta: FactoryMeta);
 
-  fn build_info(&self) -> &BuildInfo;
-
-  fn build_info_mut(&mut self) -> &mut BuildInfo;
-
   fn build_meta(&self) -> &BuildMeta;
 
   fn build_meta_mut(&mut self) -> &mut BuildMeta;
 
-  fn get_exports_argument(&self) -> ExportsArgument {
-    self.build_info().exports_argument
+  fn take_build_info(&mut self) -> Box<BuildInfo> {
+    Box::default()
   }
 
-  fn get_module_argument(&self) -> ModuleArgument {
-    self.build_info().module_argument
+  fn get_exports_argument(&self, module_graph: &ModuleGraph) -> ExportsArgument {
+    module_graph.build_info(&self.identifier()).exports_argument
+  }
+
+  fn get_module_argument(&self, module_graph: &ModuleGraph) -> ModuleArgument {
+    module_graph.build_info(&self.identifier()).module_argument
   }
 
   fn get_exports_type(
@@ -495,8 +560,7 @@ pub trait Module:
     ConnectionState::Active(true)
   }
 
-  fn need_build(&self, value_cache_version: &ValueCacheVersions) -> bool {
-    let build_info = self.build_info();
+  fn need_build(&self, build_info: &BuildInfo, value_cache_version: &ValueCacheVersions) -> bool {
     !build_info.cacheable
       || value_cache_version.has_diff(&build_info.value_dependencies)
       || self.diagnostics().iter().any(|item| item.is_error())
@@ -744,20 +808,16 @@ macro_rules! impl_module_meta_info {
       self.factory_meta = Some(v);
     }
 
-    fn build_info(&self) -> &$crate::BuildInfo {
-      &self.build_info
-    }
-
-    fn build_info_mut(&mut self) -> &mut $crate::BuildInfo {
-      &mut self.build_info
-    }
-
     fn build_meta(&self) -> &$crate::BuildMeta {
       &self.build_meta
     }
 
     fn build_meta_mut(&mut self) -> &mut $crate::BuildMeta {
       &mut self.build_meta
+    }
+
+    fn take_build_info(&mut self) -> Box<$crate::BuildInfo> {
+      Box::new(std::mem::take(&mut self.build_info))
     }
   };
 }
@@ -916,14 +976,6 @@ mod test {
         }
 
         fn factory_meta(&self) -> Option<&crate::FactoryMeta> {
-          unreachable!()
-        }
-
-        fn build_info(&self) -> &crate::BuildInfo {
-          unreachable!()
-        }
-
-        fn build_info_mut(&mut self) -> &mut crate::BuildInfo {
           unreachable!()
         }
 

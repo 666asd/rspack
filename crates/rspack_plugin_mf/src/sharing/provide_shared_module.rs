@@ -152,10 +152,11 @@ impl Module for ProvideSharedModule {
   }
 
   async fn build(
-    mut self: Box<Self>,
-    _build_context: BuildContext,
+    self: Box<Self>,
+    build_context: BuildContext,
     _: Option<&Compilation>,
   ) -> Result<BuildResult> {
+    let build_info = build_context.build_info;
     let mut blocks = vec![];
     let mut dependencies = vec![];
     let dep = Box::new(ProvideForSharedDependency::new(self.request.clone()));
@@ -167,6 +168,7 @@ impl Module for ProvideSharedModule {
     }
 
     Ok(BuildResult {
+      build_info,
       module: BoxModule::new(self),
       dependencies,
       blocks,

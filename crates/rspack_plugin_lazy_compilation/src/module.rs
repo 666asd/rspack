@@ -148,7 +148,7 @@ impl Module for LazyCompilationProxyModule {
     self.lib_ident.as_ref().map(|s| Cow::Borrowed(s.as_str()))
   }
 
-  fn need_build(&self, value_cache_versions: &ValueCacheVersions) -> bool {
+  fn need_build(&self, _build_info: &BuildInfo, value_cache_versions: &ValueCacheVersions) -> bool {
     if self.need_build {
       return true;
     }
@@ -164,10 +164,11 @@ impl Module for LazyCompilationProxyModule {
   }
 
   async fn build(
-    mut self: Box<Self>,
-    _build_context: BuildContext,
+    self: Box<Self>,
+    build_context: BuildContext,
     _compilation: Option<&Compilation>,
   ) -> Result<BuildResult> {
+    let build_info = build_context.build_info;
     let client_dep = CommonJsRequireDependency::new(
       self.client.clone(),
       DependencyRange::new(0, 0),
@@ -194,6 +195,7 @@ impl Module for LazyCompilationProxyModule {
     }
 
     Ok(BuildResult {
+      build_info,
       module: BoxModule::new(self),
       dependencies,
       blocks,

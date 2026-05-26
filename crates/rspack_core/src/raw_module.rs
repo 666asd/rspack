@@ -170,10 +170,11 @@ impl Module for RawModule {
 
   async fn build(
     self: Box<Self>,
-    _build_context: BuildContext,
+    build_context: BuildContext,
     _compilation: Option<&Compilation>,
   ) -> Result<BuildResult> {
     Ok(BuildResult {
+      build_info: build_context.build_info,
       module: BoxModule::new(self),
       dependencies: vec![],
       blocks: vec![],

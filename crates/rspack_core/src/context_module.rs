@@ -1373,9 +1373,10 @@ impl Module for ContextModule {
 
   async fn build(
     mut self: Box<Self>,
-    _build_context: BuildContext,
+    build_context: BuildContext,
     _: Option<&Compilation>,
   ) -> Result<BuildResult> {
+    let mut build_info = build_context.build_info;
     let resolve_dependencies = &self.resolve_dependencies;
     let context_element_dependencies = resolve_dependencies(self.options.clone()).await?;
 
@@ -1463,10 +1464,11 @@ impl Module for ContextModule {
     if !self.options.resource.as_str().is_empty() {
       let mut context_dependencies: ArcPathSet = Default::default();
       context_dependencies.insert(self.options.resource.as_std_path().into());
-      self.build_info.context_dependencies = context_dependencies;
+      build_info.context_dependencies = context_dependencies;
     }
 
     Ok(BuildResult {
+      build_info,
       module: BoxModule::new(self),
       dependencies,
       blocks,
