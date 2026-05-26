@@ -78,8 +78,9 @@ impl NormalModule {
             query,
             fragment,
           } = parse_resource(&val).expect("Should parse resource");
-          *module.match_resource_mut() =
-            Some(ResourceData::new_with_path(val, path, query, fragment));
+          module.set_match_resource(Some(ResourceData::new_with_path(
+            val, path, query, fragment,
+          )));
         }
         Either::B(_) => {}
       }

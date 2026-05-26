@@ -117,7 +117,7 @@ pub struct NormalModule {
   /// Affiliated parser and generator to the module type
   parser_and_generator: Box<dyn ParserAndGenerator>,
   /// Resource matched with inline match resource, (`!=!` syntax)
-  match_resource: Option<ResourceData>,
+  match_resource: Option<Box<ResourceData>>,
   /// Resource data (path, query, fragment etc.)
   resource_data: Arc<ResourceData>,
   /// Loaders for the module
@@ -140,14 +140,14 @@ pub struct NormalModule {
   #[allow(unused)]
   debug_id: usize,
   #[cacheable(with=As<SourceSizeCacheSerde>)]
-  cached_source_sizes: SourceSizeCache,
+  cached_source_sizes: Box<SourceSizeCache>,
   diagnostics: Vec<Diagnostic>,
 
   code_generation_dependencies: Option<Vec<BoxModuleDependency>>,
   presentational_dependencies: Option<Vec<BoxDependencyTemplate>>,
 
   factory_meta: Option<FactoryMeta>,
-  build_info: BuildInfo,
+  build_info: Box<BuildInfo>,
   build_meta: BuildMeta,
   parsed: bool,
 
@@ -203,7 +203,7 @@ impl NormalModule {
       parser_and_generator,
       parser_options,
       generator_options,
-      match_resource,
+      match_resource: match_resource.map(Box::new),
       resource_data,
       resolve_options,
       loaders,
@@ -211,12 +211,12 @@ impl NormalModule {
       debug_id: DEBUG_ID.fetch_add(1, Ordering::Relaxed),
       extract_source_map,
 
-      cached_source_sizes: SourceSizeCache::default(),
+      cached_source_sizes: Box::default(),
       diagnostics: Default::default(),
       code_generation_dependencies: None,
       presentational_dependencies: None,
       factory_meta: None,
-      build_info: Default::default(),
+      build_info: Box::default(),
       build_meta: Default::default(),
       parsed: false,
       source_map_kind: SourceMapKind::empty(),
@@ -228,11 +228,11 @@ impl NormalModule {
   }
 
   pub fn match_resource(&self) -> Option<&ResourceData> {
-    self.match_resource.as_ref()
+    self.match_resource.as_deref()
   }
 
-  pub fn match_resource_mut(&mut self) -> &mut Option<ResourceData> {
-    &mut self.match_resource
+  pub fn set_match_resource(&mut self, match_resource: Option<ResourceData>) {
+    self.match_resource = match_resource.map(Box::new);
   }
 
   pub fn resource_resolved_data(&self) -> &Arc<ResourceData> {
@@ -564,14 +564,14 @@ impl Module for NormalModule {
         module_type: &self.module_type,
         module_layer: self.layer.as_ref(),
         module_user_request: &self.user_request,
-        module_match_resource: self.match_resource.as_ref(),
+        module_match_resource: self.match_resource.as_deref(),
         module_source_map_kind: self.source_map_kind,
         loaders: &self.loaders,
         resource_data: &self.resource_data,
         compiler_options: &build_context.compiler_options,
         additional_data: loader_result.additional_data,
         factory_meta: self.factory_meta.as_ref(),
-        build_info: &mut self.build_info,
+        build_info: self.build_info.as_mut(),
         build_meta: &mut self.build_meta,
         parse_meta: loader_result.parse_meta,
         runtime_template: &build_context.runtime_template,
@@ -825,11 +825,11 @@ impl Module for NormalModule {
   }
 
   fn build_info(&self) -> &BuildInfo {
-    &self.build_info
+    self.build_info.as_ref()
   }
 
   fn build_info_mut(&mut self) -> &mut BuildInfo {
-    &mut self.build_info
+    self.build_info.as_mut()
   }
 
   fn build_meta(&self) -> &BuildMeta {

@@ -127,3 +127,17 @@ impl AsConverter<SourceSizeCache> for SourceSizeCacheSerde {
     })
   }
 }
+
+impl AsConverter<Box<SourceSizeCache>> for SourceSizeCacheSerde {
+  #[allow(clippy::borrowed_box)]
+  fn serialize(
+    data: &Box<SourceSizeCache>,
+    guard: &rspack_cacheable::ContextGuard,
+  ) -> Result<Self> {
+    <Self as AsConverter<SourceSizeCache>>::serialize(data.as_ref(), guard)
+  }
+
+  fn deserialize(self, guard: &rspack_cacheable::ContextGuard) -> Result<Box<SourceSizeCache>> {
+    <Self as AsConverter<SourceSizeCache>>::deserialize(self, guard).map(Box::new)
+  }
+}
