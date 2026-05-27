@@ -83,7 +83,7 @@ regex               = { version = "1.12.3", default-features = false, features =
 regex-syntax        = { version = "0.8.10", default-features = false, features = ["std"] }
 regress             = { version = "0.10.5", default-features = false, features = ["pattern"] }
 rspack_resolver     = { version = "=0.9.1", default-features = false, features = ["package_json_raw_json_api", "yarn_pnp"] }
-rspack_sources      = { version = "=0.4.23", default-features = false, features = ["rspack_cacheable"] }
+rspack_sources      = { git = "https://github.com/rstackjs/rspack-sources.git", rev = "f86ace1d6929f225a0cb7c51022e97c9596ab6e0", default-features = false, features = ["rspack_cacheable"] }
 rustc-hash          = { version = "2.1.2", default-features = false }
 ryu-js              = { version = "1.0.2", default-features = false }
 scopeguard          = { version = "1.2.0", default-features = false }
