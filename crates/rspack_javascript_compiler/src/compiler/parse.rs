@@ -171,16 +171,18 @@ fn parse_with_lexer(
     }
   };
 
-  // TODO: add stacker to avoid stack overflow
-  #[cfg(all(debug_assertions, not(target_family = "wasm")))]
+  // SWC's recursive-descent parser can blow the default thread stack on
+  // sufficiently deep source. `stacker` grows the stack on demand and has
+  // near-zero overhead on the common path, so apply it for release too —
+  // not only debug builds. WASM has no stacker support.
+  #[cfg(not(target_family = "wasm"))]
   {
-    // Adjust stack to avoid stack overflow.
     stacker::maybe_grow(
       2 * 1024 * 1024, /* 2mb */
       4 * 1024 * 1024, /* 4mb */
       inner,
     )
   }
-  #[cfg(any(not(debug_assertions), target_family = "wasm"))]
+  #[cfg(target_family = "wasm")]
   inner()
 }

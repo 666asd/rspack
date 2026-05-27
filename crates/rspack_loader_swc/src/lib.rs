@@ -293,16 +293,18 @@ impl Loader<RunnerContext> for SwcLoader {
   async fn run(&self, loader_context: &mut LoaderContext<RunnerContext>) -> Result<()> {
     #[allow(unused_mut)]
     let mut inner = || self.loader_impl(loader_context);
-    #[cfg(all(debug_assertions, not(target_family = "wasm")))]
+    // SWC's transform pipeline is deeply recursive; grow the stack on demand
+    // so release builds don't crash on attacker-deep input. WASM omitted
+    // because `stacker` has no support there.
+    #[cfg(not(target_family = "wasm"))]
     {
-      // Adjust stack to avoid stack overflow.
       stacker::maybe_grow(
         2 * 1024 * 1024, /* 2mb */
         4 * 1024 * 1024, /* 4mb */
         inner,
       )
     }
-    #[cfg(any(not(debug_assertions), target_family = "wasm"))]
+    #[cfg(target_family = "wasm")]
     inner()
   }
 }
