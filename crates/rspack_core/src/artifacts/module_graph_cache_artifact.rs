@@ -131,16 +131,18 @@ impl ModuleGraphCacheArtifactInner {
     &self,
     key: ConcatenatedModuleEntriesCacheKey,
     f: F,
-  ) -> Vec<ConcatenationEntry> {
+  ) -> Arc<[ConcatenationEntry]> {
     if !self.freezed.load(Ordering::Acquire) {
-      return f();
+      return f().into();
     }
 
     match self.concatenated_module_entries.get(&key) {
       Some(value) => value,
       None => {
-        let value = f();
-        self.concatenated_module_entries.set(key, value.clone());
+        let value: Arc<[ConcatenationEntry]> = f().into();
+        self
+          .concatenated_module_entries
+          .set(key, Arc::clone(&value));
         value
       }
     }
@@ -193,6 +195,8 @@ pub(super) mod module_graph_hash {
   }
 }
 pub(super) mod concatenated_module_entries {
+  use std::sync::Arc;
+
   use rspack_util::fx_hash::FxDashMap;
 
   use super::*;
@@ -202,7 +206,7 @@ pub(super) mod concatenated_module_entries {
 
   #[derive(Debug, Default)]
   pub struct ConcatenatedModuleEntriesCache {
-    cache: FxDashMap<ConcatenatedModuleEntriesCacheKey, Vec<ConcatenationEntry>>,
+    cache: FxDashMap<ConcatenatedModuleEntriesCacheKey, Arc<[ConcatenationEntry]>>,
   }
 
   impl ConcatenatedModuleEntriesCache {
@@ -210,11 +214,14 @@ pub(super) mod concatenated_module_entries {
       self.cache.clear();
     }
 
-    pub fn get(&self, key: &ConcatenatedModuleEntriesCacheKey) -> Option<Vec<ConcatenationEntry>> {
-      self.cache.get(key).map(|v| v.value().clone())
+    pub fn get(
+      &self,
+      key: &ConcatenatedModuleEntriesCacheKey,
+    ) -> Option<Arc<[ConcatenationEntry]>> {
+      self.cache.get(key).map(|v| Arc::clone(v.value()))
     }
 
-    pub fn set(&self, key: ConcatenatedModuleEntriesCacheKey, value: Vec<ConcatenationEntry>) {
+    pub fn set(&self, key: ConcatenatedModuleEntriesCacheKey, value: Arc<[ConcatenationEntry]>) {
       self.cache.insert(key, value);
     }
   }

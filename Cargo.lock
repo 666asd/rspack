@@ -3835,6 +3835,7 @@ dependencies = [
  "scopeguard",
  "serde",
  "serde_json",
+ "smallvec",
  "sugar_path",
  "swc_core",
  "swc_experimental_ecma_ast",

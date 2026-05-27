@@ -28,6 +28,7 @@ use rspack_util::{
   swc::join_atom,
 };
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
+use smallvec::SmallVec;
 use swc_core::{
   atoms::Atom,
   common::{Spanned, SyntaxContext, comments::SingleThreadedComments},
@@ -313,7 +314,7 @@ pub struct ConcatenatedModuleInfo {
   pub global_scope_ident: Vec<ConcatenatedModuleIdent>,
   pub idents: Vec<ConcatenatedModuleIdent>,
   pub all_used_names: HashSet<Atom>,
-  pub binding_to_ref: FxIndexMap<(Atom, SyntaxContext), Vec<ConcatenatedModuleIdent>>,
+  pub binding_to_ref: FxIndexMap<(Atom, SyntaxContext), SmallVec<[ConcatenatedModuleIdent; 1]>>,
 
   pub public_path_auto_replacement: Option<bool>,
   pub static_url_replacement: bool,
@@ -401,7 +402,8 @@ impl ExternalModuleInfo {
 
 #[derive(Debug, Clone)]
 struct ConcatenatedImport {
-  connection: Arc<ModuleGraphConnection>,
+  module: ModuleIdentifier,
+  dependency: DependencyId,
   runtime_condition: RuntimeCondition,
   non_defer_access: NonDeferAccess,
 }
@@ -2032,7 +2034,7 @@ impl Module for ConcatenatedModule {
     );
 
     let hashes = rspack_parallel::scope::<_, Result<_>>(|token| {
-      concatenation_entries.into_iter().for_each(|job| {
+      concatenation_entries.iter().cloned().for_each(|job| {
         let s = unsafe { token.used((job, compilation, generation_runtime)) };
 
         s.spawn(|(job, compilation, generation_runtime)| async move {
@@ -2165,11 +2167,11 @@ impl ConcatenatedModule {
     );
     let mut list = vec![];
     let mut map = IdentifierIndexMap::default();
-    for (i, concatenation_entry) in ordered_concatenation_list.into_iter().enumerate() {
+    for (i, concatenation_entry) in ordered_concatenation_list.iter().enumerate() {
       let module_id = concatenation_entry.module(mg);
       map
         .entry(module_id)
-        .or_insert_with(|| match &concatenation_entry {
+        .or_insert_with(|| match concatenation_entry {
           ConcatenationEntry::Concatenated(_) => {
             ModuleInfo::Concatenated(Box::new(ConcatenatedModuleInfo {
               index: i,
@@ -2188,7 +2190,7 @@ impl ConcatenatedModule {
           non_defer_access: NonDeferAccess(true),
         },
         ConcatenationEntry::External(e) => MergedConcatenatedImport {
-          runtime_condition: e.runtime_condition,
+          runtime_condition: e.runtime_condition.clone(),
           non_defer_access: e.non_defer_access,
         },
       };
@@ -2204,7 +2206,7 @@ impl ConcatenatedModule {
     mg_cache: &ModuleGraphCacheArtifact,
     side_effects_state_artifact: &SideEffectsStateArtifact,
     exports_info_artifact: &ExportsInfoArtifact,
-  ) -> Vec<ConcatenationEntry> {
+  ) -> Arc<[ConcatenationEntry]> {
     let artifacts = ConcatenationArtifacts {
       mg_cache,
       side_effects_state_artifact,
@@ -2268,7 +2270,7 @@ impl ConcatenatedModule {
     list: &mut Vec<ConcatenationEntry>,
     imports_map: &IdentifierMap<Vec<ConcatenatedImport>>,
   ) {
-    let module = import.connection.module_identifier();
+    let module = &import.module;
     if let Some(existing) = exists_entry.get(module)
       && existing.runtime_condition == RuntimeCondition::Boolean(true)
       && existing.non_defer_access == NonDeferAccess(true)
@@ -2361,7 +2363,7 @@ impl ConcatenatedModule {
         return;
       }
       list.push(ConcatenationEntry::External(ConcatenationEntryExternal {
-        dependency: import.connection.dependency_id,
+        dependency: import.dependency,
         runtime_condition: reduced_runtime_condition,
         non_defer_access: reduced_non_defer_access,
       }));
@@ -2496,7 +2498,8 @@ impl ConcatenatedModule {
         }
         indexmap::map::Entry::Vacant(vac) => {
           vac.insert(ConcatenatedImport {
-            connection: Arc::new(reference.connection.clone()),
+            module: *module,
+            dependency: reference.connection.dependency_id,
             runtime_condition,
             non_defer_access,
           });
@@ -2607,8 +2610,10 @@ impl ConcatenatedModule {
       all_used_names.reserve(ids.len());
       module_info.idents.reserve(ids.len());
       module_info.global_scope_ident.reserve(ids.len());
-      let mut binding_to_ref: FxIndexMap<(Atom, SyntaxContext), Vec<ConcatenatedModuleIdent>> =
-        FxIndexMap::default();
+      let mut binding_to_ref: FxIndexMap<
+        (Atom, SyntaxContext),
+        SmallVec<[ConcatenatedModuleIdent; 1]>,
+      > = FxIndexMap::default();
       binding_to_ref.reserve(ids.len());
 
       for ident in ids {

@@ -189,62 +189,51 @@ impl ModuleConcatenationPlugin {
     artifacts: &ModuleGraphArtifacts,
     mi: ModuleIdentifier,
     runtime: Option<&RuntimeSpec>,
-    imports_cache: &mut RuntimeIdentifierCache<IdentifierIndexSet>,
+    imports_cache: &mut RuntimeIdentifierCache<Arc<IdentifierIndexSet>>,
     module_cache: &IdentifierMap<NoRuntimeModuleCache>,
-  ) -> IdentifierIndexSet {
+  ) -> Arc<IdentifierIndexSet> {
     if let Some(set) = imports_cache.get(&mi, runtime) {
-      return set.clone();
+      return Arc::clone(set);
     }
 
     let cached = module_cache.get(&mi).expect("should have module");
 
     let mut set =
       IdentifierIndexSet::with_capacity_and_hasher(cached.connections.len(), Default::default());
-    for (con, (has_imported_names, cached_active)) in &cached.connections {
-      if set.contains(con.module_identifier()) {
+    for con in &cached.connections {
+      if set.contains(&con.target) {
         continue;
       }
 
       let is_target_active = if let Some(runtime) = runtime {
         if cached.runtime == *runtime {
           // runtime is same, use cached value
-          *cached_active
-        } else if *cached_active && cached.runtime.is_subset(runtime) {
+          con.target_active_in_own_runtime
+        } else if con.target_active_in_own_runtime && cached.runtime.is_subset(runtime) {
           // cached runtime is subset and active, means it is also active in current runtime
           true
-        } else if !*cached_active && cached.runtime.is_superset(runtime) {
+        } else if !con.target_active_in_own_runtime && cached.runtime.is_superset(runtime) {
           // cached runtime is superset and inactive, means it is also inactive in current runtime
           false
         } else {
           // can't determine, need to check
-          con.is_target_active(
-            mg,
-            Some(runtime),
-            artifacts.mg_cache,
-            artifacts.side_effects_state_artifact,
-            artifacts.exports_info_artifact,
-          )
+          is_connection_target_active_by_id(mg, con.dependency_id, Some(runtime), artifacts)
         }
       } else {
         // no runtime, need to check
-        con.is_target_active(
-          mg,
-          None,
-          artifacts.mg_cache,
-          artifacts.side_effects_state_artifact,
-          artifacts.exports_info_artifact,
-        )
+        is_connection_target_active_by_id(mg, con.dependency_id, None, artifacts)
       };
 
       if !is_target_active {
         continue;
       }
-      if *has_imported_names || cached.provided_names {
-        set.insert(*con.module_identifier());
+      if con.has_imported_names || cached.provided_names {
+        set.insert(con.target);
       }
     }
 
-    imports_cache.insert(mi, runtime, set.clone());
+    let set = Arc::new(set);
+    imports_cache.insert(mi, runtime, Arc::clone(&set));
     set
   }
 
@@ -258,10 +247,10 @@ impl ModuleConcatenationPlugin {
     possible_modules: &IdentifierSet,
     candidates: &mut IdentifierSet,
     failure_cache: &mut IdentifierMap<Warning>,
-    success_cache: &mut RuntimeIdentifierCache<Vec<ModuleIdentifier>>,
+    success_cache: &mut RuntimeIdentifierCache<Arc<[ModuleIdentifier]>>,
     avoid_mutate_on_failure: bool,
     statistics: &mut Statistics,
-    imports_cache: &mut RuntimeIdentifierCache<IdentifierIndexSet>,
+    imports_cache: &mut RuntimeIdentifierCache<Arc<IdentifierIndexSet>>,
     module_cache: &IdentifierMap<NoRuntimeModuleCache>,
   ) -> Option<Warning> {
     statistics
@@ -297,7 +286,7 @@ impl ModuleConcatenationPlugin {
 
     let incoming_modules = if let Some(incomings) = success_cache.get(module_id, runtime) {
       statistics.cache_hit += 1;
-      incomings.clone()
+      Arc::clone(incomings)
     } else {
       let module_readable_identifier = get_cached_readable_identifier(
         module_id,
@@ -356,7 +345,6 @@ impl ModuleConcatenationPlugin {
 
       let NoRuntimeModuleCache {
         incomings,
-        active_incomings,
         runtime: cached_module_runtime,
         ..
       } = module_cache
@@ -369,7 +357,6 @@ impl ModuleConcatenationPlugin {
             is_connection_active_in_runtime(
               connection,
               runtime,
-              active_incomings,
               cached_module_runtime,
               module_graph,
               &module_graph_artifacts,
@@ -437,7 +424,6 @@ impl ModuleConcatenationPlugin {
             is_connection_active_in_runtime(
               connection,
               runtime,
-              active_incomings,
               cached_module_runtime,
               module_graph,
               &module_graph_artifacts,
@@ -496,10 +482,7 @@ impl ModuleConcatenationPlugin {
         Default::default(),
       );
       for (origin_module, connections) in incoming_connections_from_modules.iter() {
-        let has_non_esm_connections = connections.iter().any(|connection| {
-          let dep = module_graph.dependency_by_id(&connection.dependency_id);
-          !is_esm_dep_like(dep)
-        });
+        let has_non_esm_connections = connections.iter().any(|connection| !connection.is_esm_like);
 
         if has_non_esm_connections {
           non_esm_connections.insert(*origin_module, connections);
@@ -553,14 +536,11 @@ impl ModuleConcatenationPlugin {
           let mut current_runtime_condition = RuntimeCondition::Boolean(false);
           for connection in connections {
             let runtime_condition = filter_runtime(Some(runtime), |runtime| {
-              connection.is_target_active(
+              is_connection_target_active_by_id(
                 module_graph,
+                connection.dependency_id,
                 runtime,
-                module_graph_cache,
-                &compilation
-                  .build_module_graph_artifact
-                  .side_effects_state_artifact,
-                &compilation.exports_info_artifact,
+                &module_graph_artifacts,
               )
             });
 
@@ -622,7 +602,8 @@ impl ModuleConcatenationPlugin {
       }
 
       incoming_modules.sort();
-      success_cache.insert(*module_id, runtime, incoming_modules.clone());
+      let incoming_modules: Arc<[ModuleIdentifier]> = incoming_modules.into();
+      success_cache.insert(*module_id, runtime, Arc::clone(&incoming_modules));
       incoming_modules
     };
 
@@ -634,7 +615,7 @@ impl ModuleConcatenationPlugin {
 
     config.add(*module_id);
 
-    for origin_module in &incoming_modules {
+    for origin_module in incoming_modules.iter() {
       if let Some(problem) = Self::try_to_add(
         compilation,
         config,
@@ -666,8 +647,10 @@ impl ModuleConcatenationPlugin {
       runtime,
       imports_cache,
       module_cache,
-    ) {
-      candidates.insert(imp);
+    )
+    .iter()
+    {
+      candidates.insert(*imp);
     }
     statistics.added += 1;
     None
@@ -886,7 +869,7 @@ impl ModuleConcatenationPlugin {
     let start = logger.time("find modules to concatenate");
     let mut concat_configurations: Vec<ConcatConfiguration> = Vec::new();
     let mut used_as_inner: IdentifierSet = IdentifierSet::default();
-    let mut imports_cache = RuntimeIdentifierCache::<IdentifierIndexSet>::default();
+    let mut imports_cache = RuntimeIdentifierCache::<Arc<IdentifierIndexSet>>::default();
 
     let module_graph = compilation.get_module_graph();
     let module_graph_cache = &compilation.module_graph_cache_artifact;
@@ -944,24 +927,23 @@ impl ModuleConcatenationPlugin {
               None,
             );
 
-            Some((
-              con.clone(),
-              (
-                imported_names.iter().all(|item| match item {
-                  ExtendedReferencedExport::Array(arr) => !arr.is_empty(),
-                  ExtendedReferencedExport::Export(export) => !export.name.is_empty(),
-                }),
-                con.is_target_active(
-                  module_graph,
-                  Some(&runtime),
-                  module_graph_cache,
-                  &compilation
-                    .build_module_graph_artifact
-                    .side_effects_state_artifact,
-                  &compilation.exports_info_artifact,
-                ),
+            Some(CachedOutgoingConnection {
+              dependency_id: con.dependency_id,
+              target: *con.module_identifier(),
+              has_imported_names: imported_names.iter().all(|item| match item {
+                ExtendedReferencedExport::Array(arr) => !arr.is_empty(),
+                ExtendedReferencedExport::Export(export) => !export.name.is_empty(),
+              }),
+              target_active_in_own_runtime: con.is_target_active(
+                module_graph,
+                Some(&runtime),
+                module_graph_cache,
+                &compilation
+                  .build_module_graph_artifact
+                  .side_effects_state_artifact,
+                &compilation.exports_info_artifact,
               ),
-            ))
+            })
           })
           .collect::<Vec<_>>();
 
@@ -972,41 +954,43 @@ impl ModuleConcatenationPlugin {
         let incomings = IncomingConnections {
           from_non_modules: incoming_connections_from_non_modules
             .into_iter()
-            .cloned()
+            .map(|connection| {
+              CachedIncomingConnection::new(
+                connection,
+                module_graph,
+                Some(&runtime),
+                module_graph_cache,
+                &compilation
+                  .build_module_graph_artifact
+                  .side_effects_state_artifact,
+                &compilation.exports_info_artifact,
+              )
+            })
             .collect(),
           from_modules: incoming_connections_from_modules
             .into_iter()
             .map(|(origin_module, connections)| {
-              (origin_module, connections.into_iter().cloned().collect())
+              (
+                origin_module,
+                connections
+                  .into_iter()
+                  .map(|connection| {
+                    CachedIncomingConnection::new(
+                      connection,
+                      module_graph,
+                      Some(&runtime),
+                      module_graph_cache,
+                      &compilation
+                        .build_module_graph_artifact
+                        .side_effects_state_artifact,
+                      &compilation.exports_info_artifact,
+                    )
+                  })
+                  .collect(),
+              )
             })
             .collect(),
         };
-        let incoming_connections_len = incomings.from_non_modules.len()
-          + incomings
-            .from_modules
-            .values()
-            .map(std::vec::Vec::len)
-            .sum::<usize>();
-        let mut active_incomings =
-          HashMap::with_capacity_and_hasher(incoming_connections_len, Default::default());
-        for connection in incomings
-          .from_non_modules
-          .iter()
-          .chain(incomings.from_modules.values().flatten())
-        {
-          active_incomings.insert(
-            connection.dependency_id,
-            connection.is_active(
-              module_graph,
-              Some(&runtime),
-              module_graph_cache,
-              &compilation
-                .build_module_graph_artifact
-                .side_effects_state_artifact,
-              &compilation.exports_info_artifact,
-            ),
-          );
-        }
         let number_of_chunks = compilation
           .build_chunk_graph_artifact
           .chunk_graph
@@ -1018,7 +1002,6 @@ impl ModuleConcatenationPlugin {
             provided_names,
             connections,
             incomings,
-            active_incomings,
             number_of_chunks,
           },
         )
@@ -1077,8 +1060,8 @@ impl ModuleConcatenationPlugin {
           &modules_without_runtime_cache,
         )
       };
-      for import in imports {
-        candidates.push_back(import);
+      for import in imports.iter() {
+        candidates.push_back(*import);
       }
 
       let mut import_candidates = IdentifierSet::default();
@@ -1334,17 +1317,55 @@ struct Statistics {
 
 #[derive(Debug, Default)]
 struct IncomingConnections {
-  from_non_modules: Vec<ModuleGraphConnection>,
-  from_modules: IdentifierMap<Vec<ModuleGraphConnection>>,
+  from_non_modules: Vec<CachedIncomingConnection>,
+  from_modules: IdentifierMap<Vec<CachedIncomingConnection>>,
+}
+
+#[derive(Debug)]
+struct CachedOutgoingConnection {
+  dependency_id: DependencyId,
+  target: ModuleIdentifier,
+  has_imported_names: bool,
+  target_active_in_own_runtime: bool,
+}
+
+#[derive(Debug)]
+struct CachedIncomingConnection {
+  dependency_id: DependencyId,
+  active_in_own_runtime: bool,
+  is_esm_like: bool,
+}
+
+impl CachedIncomingConnection {
+  fn new(
+    connection: &ModuleGraphConnection,
+    module_graph: &ModuleGraph,
+    runtime: Option<&RuntimeSpec>,
+    module_graph_cache: &ModuleGraphCacheArtifact,
+    side_effects_state_artifact: &SideEffectsStateArtifact,
+    exports_info_artifact: &ExportsInfoArtifact,
+  ) -> Self {
+    let dep = module_graph.dependency_by_id(&connection.dependency_id);
+    Self {
+      dependency_id: connection.dependency_id,
+      active_in_own_runtime: connection.is_active(
+        module_graph,
+        runtime,
+        module_graph_cache,
+        side_effects_state_artifact,
+        exports_info_artifact,
+      ),
+      is_esm_like: is_esm_dep_like(dep),
+    }
+  }
 }
 
 #[derive(Debug)]
 pub struct NoRuntimeModuleCache {
   runtime: RuntimeSpec,
   provided_names: bool,
-  connections: Vec<(ModuleGraphConnection, (bool, bool))>,
+  connections: Vec<CachedOutgoingConnection>,
   incomings: IncomingConnections,
-  active_incomings: HashMap<DependencyId, bool>,
   number_of_chunks: usize,
 }
 
@@ -1617,31 +1638,57 @@ fn add_concatenated_module(
 }
 
 fn is_connection_active_in_runtime(
-  connection: &ModuleGraphConnection,
+  connection: &CachedIncomingConnection,
   runtime: Option<&RuntimeSpec>,
-  cached_active_incomings: &HashMap<DependencyId, bool>,
   cached_runtime: &RuntimeSpec,
   mg: &ModuleGraph,
   artifacts: &ModuleGraphArtifacts,
 ) -> bool {
-  if let (Some(cached_active), Some(runtime)) = (
-    cached_active_incomings.get(&connection.dependency_id),
-    runtime,
-  ) {
+  if let Some(runtime) = runtime {
     if runtime == cached_runtime {
-      return *cached_active;
+      return connection.active_in_own_runtime;
     }
 
-    if *cached_active && cached_runtime.is_subset(runtime) {
+    if connection.active_in_own_runtime && cached_runtime.is_subset(runtime) {
       return true;
     }
 
-    if !*cached_active && cached_runtime.is_superset(runtime) {
+    if !connection.active_in_own_runtime && cached_runtime.is_superset(runtime) {
       return false;
     }
   }
 
+  is_connection_active_by_id(mg, connection.dependency_id, runtime, artifacts)
+}
+
+fn is_connection_active_by_id(
+  mg: &ModuleGraph,
+  dependency_id: DependencyId,
+  runtime: Option<&RuntimeSpec>,
+  artifacts: &ModuleGraphArtifacts,
+) -> bool {
+  let connection = mg
+    .connection_by_dependency_id(&dependency_id)
+    .expect("should have connection");
   connection.is_active(
+    mg,
+    runtime,
+    artifacts.mg_cache,
+    artifacts.side_effects_state_artifact,
+    artifacts.exports_info_artifact,
+  )
+}
+
+fn is_connection_target_active_by_id(
+  mg: &ModuleGraph,
+  dependency_id: DependencyId,
+  runtime: Option<&RuntimeSpec>,
+  artifacts: &ModuleGraphArtifacts,
+) -> bool {
+  let connection = mg
+    .connection_by_dependency_id(&dependency_id)
+    .expect("should have connection");
+  connection.is_target_active(
     mg,
     runtime,
     artifacts.mg_cache,
