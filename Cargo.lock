@@ -3567,10 +3567,12 @@ version = "0.100.4"
 dependencies = [
  "anyhow",
  "async-trait",
+ "backtrace",
  "cow-utils",
  "derive_more",
  "futures",
  "heck",
+ "libc",
  "napi",
  "napi-derive",
  "once_cell",

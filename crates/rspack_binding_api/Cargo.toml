@@ -45,6 +45,7 @@ rspack_watcher            = { workspace = true }
 rspack_workspace          = { workspace = true }
 
 async-trait             = { workspace = true }
+backtrace               = "0.3"
 cow-utils               = { workspace = true }
 rspack_tracing          = { workspace = true }
 rspack_tracing_perfetto = { workspace = true, optional = true }
@@ -129,6 +130,11 @@ parking_lot = { version = "=0.12.5", features = ["nightly"] }
 [target.'cfg(not(target_family = "wasm"))'.dependencies]
 rspack_tracing = { workspace = true }
 sftrace-setup  = { workspace = true, optional = true }
+
+# Used by native_crash to install sigaction / sigaltstack and write to fd 2
+# from inside the signal handler.
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
 
 [build-dependencies]
 rspack_binding_build = { workspace = true }

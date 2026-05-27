@@ -78,6 +78,7 @@ mod module;
 mod module_graph;
 mod module_graph_connection;
 mod modules;
+mod native_crash;
 mod native_watcher;
 mod normal_module_factory;
 mod options;
@@ -526,6 +527,7 @@ napi::ctor::declarative::ctor! {
     }
 
     panic::install_panic_handler();
+    native_crash::install_native_crash_handler();
     // control the number of blocking threads, similar as https://github.com/tokio-rs/tokio/blob/946401c345d672d357693740bc51f77bc678c5c4/tokio/src/loom/std/mod.rs#L93
     const ENV_BLOCKING_THREADS: &str = "RSPACK_BLOCKING_THREADS";
     // reduce default blocking threads on macOS cause macOS holds IORWLock on every file open
@@ -599,6 +601,7 @@ fn rspack_module_exports(exports: Object, env: Env) -> Result<()> {
   #[cfg(target_family = "wasm")]
   {
     panic::install_panic_handler();
+    native_crash::install_native_crash_handler();
     let rt = tokio::runtime::Builder::new_multi_thread()
       .max_blocking_threads(1)
       .enable_all()
