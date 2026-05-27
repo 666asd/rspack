@@ -31,6 +31,7 @@ const base = (name) => ({
   entry: './index',
   output: {
     filename: `${name}-[name].js`,
+    compareBeforeEmit: false,
   },
   module: {
     rules: [
