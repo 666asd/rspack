@@ -192,7 +192,7 @@ impl DependencyTemplate for DynamicImportDependencyTemplate {
       a. if refModule is scope hoisted
         const { a, b } = await Promise.resolve().then(() => ({ a: __MODULE_REF_A, b: __MODULE_REF_B }));
       b. if refModule is not scope hoisted
-        const { a, b } = await Promise.resolve().then(() => __webpack_require__(./refModule));
+        const { a, b } = await Promise.resolve().then(() => __rspack_require(./refModule));
 
     2. if refModule is in other chunks
       a. if refModule is scope hoisted and exports NOT renamed
@@ -200,7 +200,7 @@ impl DependencyTemplate for DynamicImportDependencyTemplate {
       b. if refModule is scope hoisted and exports renamed (or namespace access)
         const { a, b } = await import('./ref-chunk').then(m => m.__ns_name);
       c. if refModule is not scope hoisted
-        const { a, b } = await import('./ref-chunk').then(() => __webpack_require__(./refModule));
+        const { a, b } = await import('./ref-chunk').then(() => __rspack_require(./refModule));
     */
     let already_in_chunk = ref_chunk_ukey == orig_chunk;
     let ref_chunk = code_generatable_context

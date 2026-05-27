@@ -1664,8 +1664,8 @@ var {} = {{}};
   }
 
   /**
-  add __webpack_require__ call to current chunk at top level,
-  if `from` is specified, the __webpack_require__ will be rendered
+  add __rspack_require call to current chunk at top level,
+  if `from` is specified, the __rspack_require will be rendered
   as the `from` module renders.
   */
   pub(crate) fn add_require<'a>(
