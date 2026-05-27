@@ -10,7 +10,7 @@ use rustc_hash::FxHashMap;
 use swc_core::{
   common::Spanned,
   ecma::{
-    ast::{BlockStmtOrExpr, CallExpr, Callee, Expr, Lit, Pat},
+    ast::{BlockStmtOrExpr, Callee, Expr, Lit, Pat},
     utils::ExprExt,
   },
 };
@@ -113,7 +113,7 @@ impl AMDDefineDependencyParserPlugin {
   fn process_array(
     &self,
     parser: &mut JavascriptParser,
-    call_expr: &CallExpr,
+    call_expr: crate::parser_plugin::CallExprRef<'_>,
     param: &BasicEvaluatedExpression,
     identifiers: &mut FxHashMap<usize, Atom>, // param index => "require" | "module" | "exports"
     named_module: &Option<Atom>,
@@ -168,7 +168,7 @@ impl AMDDefineDependencyParserPlugin {
   fn process_item(
     &self,
     parser: &mut JavascriptParser,
-    call_expr: &CallExpr,
+    call_expr: crate::parser_plugin::CallExprRef<'_>,
     param: &BasicEvaluatedExpression,
     named_module: &Option<Atom>,
   ) -> Option<bool> {
@@ -236,7 +236,7 @@ impl AMDDefineDependencyParserPlugin {
   fn process_context(
     &self,
     parser: &mut JavascriptParser,
-    call_expr: &CallExpr,
+    call_expr: crate::parser_plugin::CallExprRef<'_>,
     param: &BasicEvaluatedExpression,
   ) -> Option<bool> {
     let call_span = call_expr.span();
@@ -265,7 +265,7 @@ impl AMDDefineDependencyParserPlugin {
   fn process_call_define(
     &self,
     parser: &mut JavascriptParser,
-    call_expr: &CallExpr,
+    call_expr: crate::parser_plugin::CallExprRef<'_>,
   ) -> Option<bool> {
     let mut array: Option<&Expr> = None;
     let mut func: Option<&Expr> = None;
@@ -586,7 +586,7 @@ impl JavascriptParserPlugin for AMDDefineDependencyParserPlugin {
   fn call(
     &self,
     parser: &mut JavascriptParser,
-    call_expr: &CallExpr,
+    call_expr: crate::parser_plugin::CallExprRef<'_>,
     for_name: &str,
   ) -> Option<bool> {
     if for_name == "define" {

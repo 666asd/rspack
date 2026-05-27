@@ -2,7 +2,7 @@ use rspack_core::{BoxDependency, DependencyRange};
 use rspack_util::SpanExt;
 use swc_core::{
   common::{Span, Spanned},
-  ecma::{ast::CallExpr, atoms::Atom},
+  ecma::atoms::Atom,
 };
 
 use crate::{
@@ -20,7 +20,7 @@ type CreateDependency = fn(Atom, DependencyRange) -> BoxDependency;
 
 fn extract_deps(
   parser: &mut JavascriptParser,
-  call_expr: &CallExpr,
+  call_expr: crate::parser_plugin::CallExprRef<'_>,
   create_dependency: CreateDependency,
 ) -> Vec<BoxDependency> {
   let mut dependencies: Vec<BoxDependency> = vec![];
@@ -63,7 +63,7 @@ impl JavascriptParser<'_> {
 
   fn create_accept_handler(
     &mut self,
-    call_expr: &CallExpr,
+    call_expr: crate::parser_plugin::CallExprRef<'_>,
     create_dependency: CreateDependency,
   ) -> Option<bool> {
     self.build_info.module_concatenation_bailout = Some(String::from("Hot Module Replacement"));
@@ -97,13 +97,13 @@ impl JavascriptParser<'_> {
       }
       return Some(true);
     }
-    self.walk_expr_or_spread(&call_expr.args);
+    self.walk_expr_or_spread(call_expr.args);
     Some(true)
   }
 
   fn create_decline_handler(
     &mut self,
-    call_expr: &CallExpr,
+    call_expr: crate::parser_plugin::CallExprRef<'_>,
     create_dependency: CreateDependency,
   ) -> Option<bool> {
     self.build_info.module_concatenation_bailout = Some(String::from("Hot Module Replacement"));
@@ -171,7 +171,7 @@ impl JavascriptParserPlugin for ModuleHotReplacementParserPlugin {
   fn call(
     &self,
     parser: &mut JavascriptParser,
-    call_expr: &swc_core::ecma::ast::CallExpr,
+    call_expr: crate::parser_plugin::CallExprRef<'_>,
     for_name: &str,
   ) -> Option<bool> {
     if for_name == expr_name::MODULE_HOT_ACCEPT {
@@ -239,7 +239,7 @@ impl JavascriptParserPlugin for ImportMetaHotReplacementParserPlugin {
   fn call(
     &self,
     parser: &mut JavascriptParser,
-    call_expr: &swc_core::ecma::ast::CallExpr,
+    call_expr: crate::parser_plugin::CallExprRef<'_>,
     for_name: &str,
   ) -> Option<bool> {
     if for_name == expr_name::IMPORT_META_HOT_ACCEPT {

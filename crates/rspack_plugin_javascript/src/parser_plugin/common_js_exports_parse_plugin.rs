@@ -4,7 +4,7 @@ use swc_core::{
   atoms::Atom,
   common::{Span, Spanned},
   ecma::ast::{
-    AssignExpr, CallExpr, Expr, ExprOrSpread, Ident, Lit, MemberExpr, ObjectLit, Prop, PropName,
+    AssignExpr, Expr, ExprOrSpread, Ident, Lit, MemberExpr, ObjectLit, Prop, PropName,
     PropOrSpread, UnaryExpr, UnaryOp,
   },
 };
@@ -234,7 +234,7 @@ fn handle_access_export(
   remaining: &[Atom],
   remaining_optionals: &[bool],
   base: ExportsBase,
-  call_args: Option<&Vec<ExprOrSpread>>,
+  call_args: Option<&[ExprOrSpread]>,
 ) -> Option<bool> {
   if parser.is_esm {
     return None;
@@ -305,7 +305,7 @@ impl JavascriptParserPlugin for CommonJsExportsParserPlugin {
   fn call(
     &self,
     parser: &mut JavascriptParser,
-    call_expr: &CallExpr,
+    call_expr: crate::parser_plugin::CallExprRef<'_>,
     for_name: &str,
   ) -> Option<bool> {
     if self.should_skip_handler(parser) {
@@ -494,7 +494,7 @@ impl JavascriptParserPlugin for CommonJsExportsParserPlugin {
   fn call_member_chain(
     &self,
     parser: &mut JavascriptParser,
-    expr: &CallExpr,
+    expr: crate::parser_plugin::CallExprRef<'_>,
     for_name: &str,
     members: &[Atom],
     members_optionals: &[bool],
@@ -512,7 +512,7 @@ impl JavascriptParserPlugin for CommonJsExportsParserPlugin {
         members,
         members_optionals,
         ExportsBase::Exports,
-        Some(&expr.args),
+        Some(expr.args),
       );
     }
 
@@ -524,7 +524,7 @@ impl JavascriptParserPlugin for CommonJsExportsParserPlugin {
         &members[1..],
         &members_optionals[1..],
         ExportsBase::ModuleExports,
-        Some(&expr.args),
+        Some(expr.args),
       );
     }
 
@@ -536,7 +536,7 @@ impl JavascriptParserPlugin for CommonJsExportsParserPlugin {
         members,
         members_optionals,
         ExportsBase::This,
-        Some(&expr.args),
+        Some(expr.args),
       );
     }
 

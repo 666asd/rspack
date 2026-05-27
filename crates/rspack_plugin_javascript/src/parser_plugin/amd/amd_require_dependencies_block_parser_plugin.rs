@@ -10,7 +10,7 @@ use rspack_error::{Error, Severity};
 use rspack_util::{SpanExt, atom::Atom};
 use swc_core::{
   common::Spanned,
-  ecma::ast::{BlockStmtOrExpr, CallExpr, ExprOrSpread, Pat},
+  ecma::ast::{BlockStmtOrExpr, ExprOrSpread, Pat},
 };
 
 use crate::{
@@ -44,7 +44,7 @@ impl JavascriptParserPlugin for AMDRequireDependenciesBlockParserPlugin {
   fn call(
     &self,
     parser: &mut JavascriptParser,
-    call_expr: &CallExpr,
+    call_expr: crate::parser_plugin::CallExprRef<'_>,
     for_name: &str,
   ) -> Option<bool> {
     if for_name == "require" {
@@ -60,7 +60,7 @@ impl AMDRequireDependenciesBlockParserPlugin {
     &self,
     parser: &mut JavascriptParser,
     block_deps: &mut Vec<BoxDependency>,
-    call_expr: &CallExpr,
+    call_expr: crate::parser_plugin::CallExprRef<'_>,
     param: &BasicEvaluatedExpression,
   ) -> Option<bool> {
     if param.is_array() {
@@ -103,7 +103,7 @@ impl AMDRequireDependenciesBlockParserPlugin {
     &self,
     parser: &mut JavascriptParser,
     block_deps: &mut Vec<BoxDependency>,
-    call_expr: &CallExpr,
+    call_expr: crate::parser_plugin::CallExprRef<'_>,
     param: &BasicEvaluatedExpression,
   ) -> Option<bool> {
     if param.is_conditional() {
@@ -166,7 +166,7 @@ impl AMDRequireDependenciesBlockParserPlugin {
     &self,
     parser: &mut JavascriptParser,
     block_deps: &mut Vec<BoxDependency>,
-    call_expr: &CallExpr,
+    call_expr: crate::parser_plugin::CallExprRef<'_>,
     param: &BasicEvaluatedExpression,
   ) -> Option<bool> {
     let call_span = call_expr.span();
@@ -273,7 +273,7 @@ impl AMDRequireDependenciesBlockParserPlugin {
   fn process_call_require(
     &self,
     parser: &mut JavascriptParser,
-    call_expr: &CallExpr,
+    call_expr: crate::parser_plugin::CallExprRef<'_>,
   ) -> Option<bool> {
     if call_expr.args.is_empty() {
       return None;

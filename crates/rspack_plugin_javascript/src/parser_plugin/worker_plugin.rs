@@ -13,7 +13,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use swc_core::{
   atoms::Atom,
   common::{Span, Spanned},
-  ecma::ast::{CallExpr, ExprOrSpread, Ident, NewExpr, VarDeclarator},
+  ecma::ast::{ExprOrSpread, Ident, NewExpr, VarDeclarator},
 };
 use url::Url;
 
@@ -393,7 +393,7 @@ impl JavascriptParserPlugin for WorkerPlugin {
   fn call_member_chain(
     &self,
     parser: &mut JavascriptParser,
-    call_expr: &CallExpr,
+    call_expr: crate::parser_plugin::CallExprRef<'_>,
     for_name: &str,
     members: &[Atom],
     _members_optionals: &[bool],
@@ -409,7 +409,7 @@ impl JavascriptParserPlugin for WorkerPlugin {
     if let Some(value) = self.inner.pattern_syntax.get(data.key.as_str())
       && value.contains(&members.iter().map(|id| id.as_str()).join("."))
     {
-      return handle_worker(parser, &call_expr.args, call_expr.span).map(
+      return handle_worker(parser, call_expr.args, call_expr.span).map(
         |(parsed_path, parsed_options, first_arg, need_new_url)| {
           add_dependencies(
             parser,
@@ -435,7 +435,7 @@ impl JavascriptParserPlugin for WorkerPlugin {
   fn call(
     &self,
     parser: &mut JavascriptParser,
-    call_expr: &CallExpr,
+    call_expr: crate::parser_plugin::CallExprRef<'_>,
     for_name: &str,
   ) -> Option<bool> {
     if for_name == ESM_SPECIFIER_TAG {
@@ -449,7 +449,7 @@ impl JavascriptParserPlugin for WorkerPlugin {
         .from_call_syntax
         .contains(&(ids, settings.source.to_string()))
       {
-        return handle_worker(parser, &call_expr.args, call_expr.span).map(
+        return handle_worker(parser, call_expr.args, call_expr.span).map(
           |(parsed_path, parsed_options, first_arg, need_new_url)| {
             add_dependencies(
               parser,
@@ -474,7 +474,7 @@ impl JavascriptParserPlugin for WorkerPlugin {
     if !self.inner.call_syntax.contains(for_name) {
       return None;
     }
-    handle_worker(parser, &call_expr.args, call_expr.span).map(
+    handle_worker(parser, call_expr.args, call_expr.span).map(
       |(parsed_path, parsed_options, first_arg, need_new_url)| {
         add_dependencies(
           parser,

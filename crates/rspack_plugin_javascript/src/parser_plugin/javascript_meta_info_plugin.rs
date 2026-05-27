@@ -14,7 +14,7 @@ impl JavascriptParserPlugin for JavascriptMetaInfoPlugin {
   fn call(
     &self,
     parser: &mut JavascriptParser,
-    _expr: &swc_core::ecma::ast::CallExpr,
+    _expr: crate::parser_plugin::CallExprRef<'_>,
     for_name: &str,
   ) -> Option<bool> {
     if for_name == "eval" {

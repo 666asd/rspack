@@ -2,12 +2,14 @@ use swc_core::{
   atoms::Atom,
   common::Span,
   ecma::ast::{
-    AssignExpr, BinExpr, CallExpr, Callee, ClassMember, CondExpr, Expr, IfStmt, MemberExpr,
-    OptChainExpr, UnaryExpr, UnaryOp, VarDeclarator,
+    AssignExpr, BinExpr, CallExpr, ClassMember, CondExpr, Expr, IfStmt, MemberExpr, OptChainExpr,
+    UnaryExpr, UnaryOp, VarDeclarator,
   },
 };
 
-use super::{BoxJavascriptParserPlugin, JavascriptParserPlugin, JavascriptParserPluginHook};
+use super::{
+  BoxJavascriptParserPlugin, CallExprRef, JavascriptParserPlugin, JavascriptParserPluginHook,
+};
 use crate::{
   parser_plugin::r#const::is_logic_op,
   utils::eval::BasicEvaluatedExpression,
@@ -162,7 +164,7 @@ impl JavascriptParserPlugin for JavaScriptParserPluginDrive {
     None
   }
 
-  fn call(&self, parser: &mut JavascriptParser, expr: &CallExpr, name: &str) -> Option<bool> {
+  fn call(&self, parser: &mut JavascriptParser, expr: CallExprRef<'_>, name: &str) -> Option<bool> {
     for plugin in self.plugins_for(JavascriptParserPluginHook::Call) {
       let res = plugin.call(parser, expr, name);
       // `SyncBailHook`
@@ -218,13 +220,13 @@ impl JavascriptParserPlugin for JavaScriptParserPluginDrive {
   fn call_member_chain(
     &self,
     parser: &mut JavascriptParser,
-    expr: &CallExpr,
+    expr: CallExprRef<'_>,
     for_name: &str,
     members: &[Atom],
     members_optionals: &[bool],
     member_ranges: &[Span],
   ) -> Option<bool> {
-    assert!(matches!(expr.callee, Callee::Expr(_)));
+    assert!(expr.callee().is_expr());
     for plugin in self.plugins_for(JavascriptParserPluginHook::CallMemberChain) {
       let res = plugin.call_member_chain(
         parser,
@@ -284,7 +286,7 @@ impl JavascriptParserPlugin for JavaScriptParserPluginDrive {
   fn call_member_chain_of_call_member_chain(
     &self,
     parser: &mut JavascriptParser,
-    call_expr: &CallExpr,
+    call_expr: CallExprRef<'_>,
     callee_members: &[Atom],
     inner_call_expr: &CallExpr,
     members: &[Atom],
@@ -710,7 +712,7 @@ impl JavascriptParserPlugin for JavaScriptParserPluginDrive {
     &self,
     parser: &mut JavascriptParser,
     expr: &CallExpr,
-    import_then: Option<&CallExpr>,
+    import_then: Option<CallExprRef<'_>>,
     members: Option<(&[Atom], bool /* is_call */)>,
   ) -> Option<bool> {
     assert!(expr.callee.is_import());

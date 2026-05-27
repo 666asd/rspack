@@ -8,8 +8,7 @@ use swc_core::{
   atoms::Atom,
   common::{Span, Spanned},
   ecma::ast::{
-    AssignExpr, CallExpr, Callee, Expr, ExprOrSpread, Ident, MemberExpr, NewExpr, UnaryExpr,
-    VarDeclarator,
+    AssignExpr, CallExpr, Expr, ExprOrSpread, Ident, MemberExpr, NewExpr, UnaryExpr, VarDeclarator,
   },
 };
 
@@ -120,7 +119,7 @@ fn tag_commonjs_require_referenced(
 fn create_commonjs_require_context_dependency(
   parser: &mut JavascriptParser,
   param: &BasicEvaluatedExpression,
-  call_expr: &CallExpr,
+  call_expr: crate::parser_plugin::CallExprRef<'_>,
   arg_expr: &Expr,
   referenced_specifiers: Option<Vec<ReferencedSpecifier>>,
 ) -> CommonJsRequireContextDependency {
@@ -214,21 +213,21 @@ pub(crate) fn is_require_call_expr(parser: &mut JavascriptParser, call: &CallExp
 }
 
 enum CallOrNewExpr<'a> {
-  Call(&'a CallExpr),
+  Call(crate::parser_plugin::CallExprRef<'a>),
   New(&'a NewExpr),
 }
 
 impl CallOrNewExpr<'_> {
   pub fn callee(&self) -> Option<&Expr> {
     match self {
-      CallOrNewExpr::Call(call_expr) => call_expr.callee.as_expr().map(|e| &**e),
+      CallOrNewExpr::Call(call_expr) => call_expr.callee.as_expr(),
       CallOrNewExpr::New(new_expr) => Some(&new_expr.callee),
     }
   }
 
   pub fn args(&self) -> Option<&[ExprOrSpread]> {
     match self {
-      CallOrNewExpr::Call(call_expr) => Some(&call_expr.args),
+      CallOrNewExpr::Call(call_expr) => Some(call_expr.args),
       CallOrNewExpr::New(new_expr) => new_expr.args.as_deref(),
     }
   }
@@ -258,12 +257,15 @@ impl CommonJsImportsParserPlugin {
       .unwrap_or_default()
   }
 
-  fn should_process_resolve(parser: &mut JavascriptParser, call_expr: &CallExpr) -> bool {
-    let Callee::Expr(expr) = &call_expr.callee else {
+  fn should_process_resolve(
+    parser: &mut JavascriptParser,
+    call_expr: crate::parser_plugin::CallExprRef<'_>,
+  ) -> bool {
+    let Some(expr) = call_expr.callee.as_expr() else {
       return false;
     };
 
-    let Expr::Member(member_expr) = expr.as_ref() else {
+    let Expr::Member(member_expr) = expr else {
       return false;
     };
 
@@ -278,7 +280,12 @@ impl CommonJsImportsParserPlugin {
     true
   }
 
-  fn process_resolve(&self, parser: &mut JavascriptParser, call_expr: &CallExpr, weak: bool) {
+  fn process_resolve(
+    &self,
+    parser: &mut JavascriptParser,
+    call_expr: crate::parser_plugin::CallExprRef<'_>,
+    weak: bool,
+  ) {
     if call_expr.args.len() != 1 {
       return;
     }
@@ -432,7 +439,7 @@ impl CommonJsImportsParserPlugin {
   fn process_require_context(
     &self,
     parser: &mut JavascriptParser,
-    call_expr: &CallExpr,
+    call_expr: crate::parser_plugin::CallExprRef<'_>,
     param: &BasicEvaluatedExpression,
   ) -> Option<bool> {
     let Some(argument_expr) = &call_expr.args.first().map(|expr| expr.expr.as_ref()) else {
@@ -707,7 +714,7 @@ impl JavascriptParserPlugin for CommonJsImportsParserPlugin {
   fn call_member_chain(
     &self,
     parser: &mut JavascriptParser,
-    expr: &CallExpr,
+    expr: crate::parser_plugin::CallExprRef<'_>,
     for_name: &str,
     members: &[Atom],
     members_optionals: &[bool],
@@ -733,7 +740,7 @@ impl JavascriptParserPlugin for CommonJsImportsParserPlugin {
           .unwrap_or(false)
           && !direct_import,
       );
-    parser.walk_expr_or_spread(&expr.args);
+    parser.walk_expr_or_spread(expr.args);
     Some(true)
   }
 
@@ -840,7 +847,7 @@ impl JavascriptParserPlugin for CommonJsImportsParserPlugin {
   fn call(
     &self,
     parser: &mut JavascriptParser,
-    call_expr: &CallExpr,
+    call_expr: crate::parser_plugin::CallExprRef<'_>,
     for_name: &str,
   ) -> Option<bool> {
     if for_name == expr_name::REQUIRE || for_name == expr_name::MODULE_REQUIRE {
@@ -902,7 +909,7 @@ impl JavascriptParserPlugin for CommonJsImportsParserPlugin {
   fn call_member_chain_of_call_member_chain(
     &self,
     parser: &mut JavascriptParser,
-    call_expr: &CallExpr,
+    call_expr: crate::parser_plugin::CallExprRef<'_>,
     callee_members: &[Atom],
     inner_call_expr: &CallExpr,
     members: &[Atom],
@@ -916,7 +923,7 @@ impl JavascriptParserPlugin for CommonJsImportsParserPlugin {
       && let Some(dep) = self.chain_handler(parser, member, inner_call_expr, members, true)
     {
       parser.add_dependency(Box::new(dep));
-      parser.walk_expr_or_spread(&call_expr.args);
+      parser.walk_expr_or_spread(call_expr.args);
       return Some(true);
     }
     None

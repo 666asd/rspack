@@ -2,7 +2,7 @@ use rspack_core::{ConstDependency, RuntimeGlobals, RuntimeRequirementsDependency
 use rspack_util::SpanExt;
 use swc_core::{
   common::Spanned,
-  ecma::ast::{CallExpr, Expr, MemberExpr, UnaryExpr},
+  ecma::ast::{Expr, MemberExpr, UnaryExpr},
 };
 
 use crate::{
@@ -23,7 +23,7 @@ impl JavascriptParserPlugin for AMDParserPlugin {
   fn call(
     &self,
     parser: &mut JavascriptParser,
-    call_expr: &CallExpr,
+    call_expr: crate::parser_plugin::CallExprRef<'_>,
     for_name: &str,
   ) -> Option<bool> {
     if for_name == "require.config" || for_name == "requirejs.config" {

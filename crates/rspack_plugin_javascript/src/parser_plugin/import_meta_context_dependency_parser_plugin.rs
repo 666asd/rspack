@@ -11,7 +11,7 @@ use sugar_path::SugarPath;
 use swc_core::{
   atoms::Atom,
   common::Spanned,
-  ecma::ast::{CallExpr, Expr, Lit, PropName},
+  ecma::ast::{Expr, Lit, PropName},
 };
 
 use super::JavascriptParserPlugin;
@@ -278,7 +278,7 @@ fn glob_patterns_are_recursive(
 }
 
 fn create_import_meta_context_dependency(
-  node: &CallExpr,
+  node: crate::parser_plugin::CallExprRef<'_>,
   parser: &mut JavascriptParser,
 ) -> Option<ImportMetaContextDependency> {
   assert!(node.callee.is_expr());
@@ -336,7 +336,7 @@ fn create_import_meta_context_dependency(
 }
 
 fn create_import_meta_glob_dependency(
-  node: &CallExpr,
+  node: crate::parser_plugin::CallExprRef<'_>,
   parser: &mut JavascriptParser,
 ) -> Option<ImportMetaContextDependency> {
   assert!(node.callee.is_expr());
@@ -451,7 +451,7 @@ impl JavascriptParserPlugin for ImportMetaContextDependencyParserPlugin {
   fn call(
     &self,
     parser: &mut JavascriptParser,
-    expr: &swc_core::ecma::ast::CallExpr,
+    expr: crate::parser_plugin::CallExprRef<'_>,
     for_name: &str,
   ) -> Option<bool> {
     if expr.args.is_empty() || expr.args.len() > 2 {

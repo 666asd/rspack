@@ -26,7 +26,7 @@ use super::{
 };
 use crate::{
   dependency::{DependencyBranchGuard, ESMImportSpecifierDependency, ESMImportedBooleanGuardNode},
-  parser_plugin::{JavascriptParserPlugin, is_logic_op},
+  parser_plugin::{CallExprRef, JavascriptParserPlugin, is_logic_op},
   visitors::{
     AtomMembers, ExportedVariableInfo, ExprRef, VariableDeclaration,
     dependency::parser::ExtractedMemberExpressionChainData, get_non_optional_part,
@@ -1157,14 +1157,7 @@ impl JavascriptParser<'_> {
   }
 
   fn walk_opt_call(&mut self, expr: &OptCall) {
-    // TODO: remove clone
-    self.walk_call_expression(&CallExpr {
-      ctxt: expr.ctxt,
-      span: expr.span,
-      callee: Callee::Expr(expr.callee.clone()),
-      args: expr.args.clone(),
-      type_args: None,
-    })
+    self.walk_call_expression_callee(&expr.callee, &expr.args, expr.into())
   }
 
   /// Walk IIFE function
@@ -1295,154 +1288,9 @@ impl JavascriptParser<'_> {
   }
 
   fn walk_call_expression(&mut self, expr: &CallExpr) {
-    fn is_simple_function(params: &[Param]) -> bool {
-      params.iter().all(|p| matches!(p.pat, Pat::Ident(_)))
-    }
-
-    // FIXME: should align to webpack
     match &expr.callee {
       Callee::Expr(callee) => {
-        if let Expr::Member(member_expr) = &**callee
-          && let Expr::Fn(fn_expr) = &*member_expr.obj
-          && let MemberProp::Ident(ident) = &member_expr.prop
-          && (ident.sym == "call" || ident.sym == "bind")
-          && !expr.args.is_empty()
-          && is_simple_function(&fn_expr.function.params)
-        {
-          // (function(…) { }).call(…)
-          let mut params = expr.args.iter().map(|arg| &*arg.expr);
-          let this = params.next();
-          self._walk_iife(&member_expr.obj, params, this)
-        } else if let Expr::Member(member_expr) = &**callee
-          && let Expr::Fn(fn_expr) = &*member_expr.obj
-          && let MemberProp::Ident(ident) = &member_expr.prop
-          && (ident.sym == "call" || ident.sym == "bind")
-          && !expr.args.is_empty()
-          && is_simple_function(&fn_expr.function.params)
-        {
-          // (function(…) { }.call(…))
-          let mut params = expr.args.iter().map(|arg| &*arg.expr);
-          let this = params.next();
-          self._walk_iife(&member_expr.obj, params, this)
-        } else if let Expr::Fn(fn_expr) = &**callee
-          && is_simple_function(&fn_expr.function.params)
-        {
-          // (function(…) { })(…)
-          self._walk_iife(callee, expr.args.iter().map(|arg| &*arg.expr), None)
-        } else if let Expr::Fn(fn_expr) = &**callee
-          && is_simple_function(&fn_expr.function.params)
-        {
-          // ((…) => { }(…))
-          self._walk_iife(callee, expr.args.iter().map(|arg| &*arg.expr), None)
-        } else if let Expr::Arrow(arrow_expr) = &**callee
-          && arrow_expr.params.iter().all(|p| p.as_ident().is_some())
-        {
-          // (function(…) { }(…))
-          self._walk_iife(callee, expr.args.iter().map(|arg| &*arg.expr), None)
-        } else {
-          if let Expr::Member(member) = &**callee {
-            if let Some(MemberExpressionInfo::Call(expr_info)) = self.get_member_expression_info(
-              ExprRef::Member(member),
-              AllowedMemberTypes::CallExpression,
-            ) && expr_info
-              .root_info
-              .call_hooks_name(self, |this, for_name| {
-                this
-                  .plugin_drive
-                  .clone()
-                  .call_member_chain_of_call_member_chain(
-                    this,
-                    expr,
-                    &expr_info.callee_members,
-                    expr_info.call,
-                    &expr_info.members,
-                    &expr_info.member_ranges,
-                    for_name,
-                  )
-              })
-              .unwrap_or_default()
-            {
-              return;
-            }
-            // import(...).then(...)
-            if let Some(call) = member.obj.as_call()
-              && call.callee.is_import()
-              && let Some(prop) = member.prop.as_ident()
-              && prop.sym == "then"
-              && self
-                .plugin_drive
-                .clone()
-                .import_call(self, call, Some(expr), None)
-                .unwrap_or_default()
-            {
-              return;
-            }
-            // (await import(...)).a.b()
-            if let Some((call, members)) = self.extract_await_import_member(member)
-              && self
-                .plugin_drive
-                .clone()
-                .import_call(self, call, None, Some((&members, true)))
-                .unwrap_or_default()
-            {
-              self.walk_expr_or_spread(&expr.args);
-              return;
-            }
-          }
-          let evaluated_callee = self.evaluate_expression(callee);
-          if evaluated_callee.is_identifier() {
-            let members = evaluated_callee
-              .members()
-              .map_or_else(|| Cow::Owned(Vec::new()), Cow::Borrowed);
-            let members_optionals = evaluated_callee.members_optionals().map_or_else(
-              || Cow::Owned(members.iter().map(|_| false).collect::<Vec<_>>()),
-              Cow::Borrowed,
-            );
-            let member_ranges = evaluated_callee
-              .member_ranges()
-              .map_or_else(|| Cow::Owned(Vec::new()), Cow::Borrowed);
-            let drive = self.plugin_drive.clone();
-            if evaluated_callee
-              .root_info()
-              .call_hooks_name(self, |parser, for_name| {
-                drive.call_member_chain(
-                  parser,
-                  expr,
-                  for_name,
-                  &members,
-                  &members_optionals,
-                  &member_ranges,
-                )
-              })
-              .unwrap_or_default()
-            {
-              /* result1 */
-              return;
-            }
-
-            if drive
-              .call(self, expr, evaluated_callee.identifier())
-              .unwrap_or_default()
-            {
-              /* result2 */
-              return;
-            }
-          }
-
-          if let Some(member) = callee.as_member() {
-            self.walk_expression(&member.obj);
-            if let Some(computed) = member.prop.as_computed() {
-              self.walk_expression(&computed.expr);
-            }
-          } else if let Some(member) = callee.as_super_prop() {
-            if let Some(computed) = member.prop.as_computed() {
-              self.walk_expression(&computed.expr);
-            }
-          } else {
-            self.walk_expression(callee);
-          }
-          self.walk_expr_or_spread(&expr.args);
-        }
+        self.walk_call_expression_callee(callee, &expr.args, expr.into());
       }
       Callee::Import(_) => {
         // In webpack this is walkImportExpression, import() is a ImportExpression instead of CallExpression with Callee::Import
@@ -1461,6 +1309,159 @@ impl JavascriptParser<'_> {
         // Do nothing about super, same as webpack
         self.walk_expr_or_spread(&expr.args);
       }
+    }
+  }
+
+  fn walk_call_expression_callee(
+    &mut self,
+    callee: &Expr,
+    args: &[ExprOrSpread],
+    expr: CallExprRef<'_>,
+  ) {
+    fn is_simple_function(params: &[Param]) -> bool {
+      params.iter().all(|p| matches!(p.pat, Pat::Ident(_)))
+    }
+
+    // FIXME: should align to webpack
+    if let Expr::Member(member_expr) = callee
+      && let Expr::Fn(fn_expr) = &*member_expr.obj
+      && let MemberProp::Ident(ident) = &member_expr.prop
+      && (ident.sym == "call" || ident.sym == "bind")
+      && !args.is_empty()
+      && is_simple_function(&fn_expr.function.params)
+    {
+      // (function(…) { }).call(…)
+      let mut params = args.iter().map(|arg| &*arg.expr);
+      let this = params.next();
+      self._walk_iife(&member_expr.obj, params, this)
+    } else if let Expr::Member(member_expr) = callee
+      && let Expr::Fn(fn_expr) = &*member_expr.obj
+      && let MemberProp::Ident(ident) = &member_expr.prop
+      && (ident.sym == "call" || ident.sym == "bind")
+      && !args.is_empty()
+      && is_simple_function(&fn_expr.function.params)
+    {
+      // (function(…) { }.call(…))
+      let mut params = args.iter().map(|arg| &*arg.expr);
+      let this = params.next();
+      self._walk_iife(&member_expr.obj, params, this)
+    } else if let Expr::Fn(fn_expr) = callee
+      && is_simple_function(&fn_expr.function.params)
+    {
+      // (function(…) { })(…)
+      self._walk_iife(callee, args.iter().map(|arg| &*arg.expr), None)
+    } else if let Expr::Fn(fn_expr) = callee
+      && is_simple_function(&fn_expr.function.params)
+    {
+      // ((…) => { }(…))
+      self._walk_iife(callee, args.iter().map(|arg| &*arg.expr), None)
+    } else if let Expr::Arrow(arrow_expr) = callee
+      && arrow_expr.params.iter().all(|p| p.as_ident().is_some())
+    {
+      // (function(…) { }(…))
+      self._walk_iife(callee, args.iter().map(|arg| &*arg.expr), None)
+    } else {
+      if let Expr::Member(member) = callee {
+        if let Some(MemberExpressionInfo::Call(expr_info)) = self
+          .get_member_expression_info(ExprRef::Member(member), AllowedMemberTypes::CallExpression)
+          && expr_info
+            .root_info
+            .call_hooks_name(self, |this, for_name| {
+              this
+                .plugin_drive
+                .clone()
+                .call_member_chain_of_call_member_chain(
+                  this,
+                  expr,
+                  &expr_info.callee_members,
+                  expr_info.call,
+                  &expr_info.members,
+                  &expr_info.member_ranges,
+                  for_name,
+                )
+            })
+            .unwrap_or_default()
+        {
+          return;
+        }
+        // import(...).then(...)
+        if let Some(call) = member.obj.as_call()
+          && call.callee.is_import()
+          && let Some(prop) = member.prop.as_ident()
+          && prop.sym == "then"
+          && self
+            .plugin_drive
+            .clone()
+            .import_call(self, call, Some(expr), None)
+            .unwrap_or_default()
+        {
+          return;
+        }
+        // (await import(...)).a.b()
+        if let Some((call, members)) = self.extract_await_import_member(member)
+          && self
+            .plugin_drive
+            .clone()
+            .import_call(self, call, None, Some((&members, true)))
+            .unwrap_or_default()
+        {
+          self.walk_expr_or_spread(args);
+          return;
+        }
+      }
+      let evaluated_callee = self.evaluate_expression(callee);
+      if evaluated_callee.is_identifier() {
+        let members = evaluated_callee
+          .members()
+          .map_or_else(|| Cow::Owned(Vec::new()), Cow::Borrowed);
+        let members_optionals = evaluated_callee.members_optionals().map_or_else(
+          || Cow::Owned(members.iter().map(|_| false).collect::<Vec<_>>()),
+          Cow::Borrowed,
+        );
+        let member_ranges = evaluated_callee
+          .member_ranges()
+          .map_or_else(|| Cow::Owned(Vec::new()), Cow::Borrowed);
+        let drive = self.plugin_drive.clone();
+        if evaluated_callee
+          .root_info()
+          .call_hooks_name(self, |parser, for_name| {
+            drive.call_member_chain(
+              parser,
+              expr,
+              for_name,
+              &members,
+              &members_optionals,
+              &member_ranges,
+            )
+          })
+          .unwrap_or_default()
+        {
+          /* result1 */
+          return;
+        }
+
+        if drive
+          .call(self, expr, evaluated_callee.identifier())
+          .unwrap_or_default()
+        {
+          /* result2 */
+          return;
+        }
+      }
+
+      if let Some(member) = callee.as_member() {
+        self.walk_expression(&member.obj);
+        if let Some(computed) = member.prop.as_computed() {
+          self.walk_expression(&computed.expr);
+        }
+      } else if let Some(member) = callee.as_super_prop() {
+        if let Some(computed) = member.prop.as_computed() {
+          self.walk_expression(&computed.expr);
+        }
+      } else {
+        self.walk_expression(callee);
+      }
+      self.walk_expr_or_spread(args);
     }
   }
 

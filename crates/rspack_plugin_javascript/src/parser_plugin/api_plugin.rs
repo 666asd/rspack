@@ -3,7 +3,7 @@ use rspack_error::{Error, Severity};
 use rspack_util::SpanExt;
 use swc_core::{
   common::{Span, Spanned},
-  ecma::ast::{CallExpr, Ident, Pat, UnaryExpr},
+  ecma::ast::{Ident, Pat, UnaryExpr},
 };
 
 use crate::{
@@ -387,7 +387,7 @@ impl JavascriptParserPlugin for APIPlugin {
   fn call(
     &self,
     parser: &mut JavascriptParser,
-    call_expr: &CallExpr,
+    call_expr: crate::parser_plugin::CallExprRef<'_>,
     for_name: &str,
   ) -> Option<bool> {
     if for_name == "require.config"

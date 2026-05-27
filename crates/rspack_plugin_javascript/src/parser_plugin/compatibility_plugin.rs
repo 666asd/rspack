@@ -1,10 +1,6 @@
 use rspack_core::{BoxDependencyTemplate, ConstDependency, ContextDependency, DependencyRange};
 use rspack_util::{SpanExt, itoa};
-use swc_core::{
-  atoms::Atom,
-  common::Spanned,
-  ecma::ast::{CallExpr, VarDeclarator},
-};
+use swc_core::{atoms::Atom, common::Spanned, ecma::ast::VarDeclarator};
 
 use super::JavascriptParserPlugin;
 use crate::{
@@ -28,7 +24,7 @@ impl CompatibilityPlugin {
   pub fn browserify_require_handler(
     &self,
     parser: &mut JavascriptParser,
-    expr: &CallExpr,
+    expr: crate::parser_plugin::CallExprRef<'_>,
   ) -> Option<bool> {
     if expr.args.len() != 2 {
       return None;
@@ -241,7 +237,7 @@ impl JavascriptParserPlugin for CompatibilityPlugin {
   fn call(
     &self,
     parser: &mut JavascriptParser,
-    expr: &swc_core::ecma::ast::CallExpr,
+    expr: crate::parser_plugin::CallExprRef<'_>,
     for_name: &str,
   ) -> Option<bool> {
     if for_name == expr_name::REQUIRE {

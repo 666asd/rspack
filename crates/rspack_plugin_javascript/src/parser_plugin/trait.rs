@@ -1,12 +1,127 @@
 use swc_core::{
   atoms::Atom,
-  common::Span,
+  common::{Span, Spanned, SyntaxContext},
   ecma::ast::{
-    AssignExpr, AwaitExpr, BinExpr, CallExpr, ClassMember, CondExpr, Expr, ForOfStmt, Ident,
-    IfStmt, ImportDecl, MemberExpr, ModuleDecl, NewExpr, OptChainExpr, Program, ThisExpr,
-    UnaryExpr, VarDeclarator,
+    AssignExpr, AwaitExpr, BinExpr, CallExpr, Callee, ClassMember, CondExpr, Expr, ExprOrSpread,
+    ForOfStmt, Ident, IfStmt, Import, ImportDecl, MemberExpr, ModuleDecl, NewExpr, OptCall,
+    OptChainExpr, Program, Super, ThisExpr, UnaryExpr, VarDeclarator,
   },
 };
+
+#[derive(Clone, Copy)]
+pub enum CallCalleeRef<'a> {
+  Expr(&'a Expr),
+  Super(&'a Super),
+  Import(&'a Import),
+}
+
+impl<'a> CallCalleeRef<'a> {
+  pub fn as_expr(&self) -> Option<&'a Expr> {
+    match self {
+      Self::Expr(expr) => Some(expr),
+      Self::Super(_) | Self::Import(_) => None,
+    }
+  }
+
+  pub fn is_expr(&self) -> bool {
+    matches!(self, Self::Expr(_))
+  }
+
+  pub fn is_import(&self) -> bool {
+    matches!(self, Self::Import(_))
+  }
+
+  pub fn span(&self) -> Span {
+    match self {
+      Self::Expr(expr) => expr.span(),
+      Self::Super(super_) => super_.span,
+      Self::Import(import) => import.span,
+    }
+  }
+}
+
+impl Spanned for CallCalleeRef<'_> {
+  fn span(&self) -> Span {
+    match self {
+      Self::Expr(expr) => expr.span(),
+      Self::Super(super_) => super_.span,
+      Self::Import(import) => import.span,
+    }
+  }
+}
+
+#[derive(Clone, Copy)]
+pub struct CallExprRef<'a> {
+  pub callee: CallCalleeRef<'a>,
+  pub args: &'a [ExprOrSpread],
+  pub span: Span,
+  pub ctxt: SyntaxContext,
+  call_expr: Option<&'a CallExpr>,
+  opt_call: Option<&'a OptCall>,
+}
+
+impl<'a> CallExprRef<'a> {
+  pub fn callee(&self) -> CallCalleeRef<'a> {
+    self.callee
+  }
+
+  pub fn args(&self) -> &'a [ExprOrSpread] {
+    self.args
+  }
+
+  pub fn span(&self) -> Span {
+    self.span
+  }
+
+  pub fn ctxt(&self) -> SyntaxContext {
+    self.ctxt
+  }
+
+  pub fn as_call_expr(&self) -> Option<&'a CallExpr> {
+    self.call_expr
+  }
+
+  pub fn as_opt_call(&self) -> Option<&'a OptCall> {
+    self.opt_call
+  }
+}
+
+impl Spanned for CallExprRef<'_> {
+  fn span(&self) -> Span {
+    self.span
+  }
+}
+
+impl<'a> From<&'a CallExpr> for CallExprRef<'a> {
+  fn from(value: &'a CallExpr) -> Self {
+    let callee = match &value.callee {
+      Callee::Expr(expr) => CallCalleeRef::Expr(expr),
+      Callee::Super(super_) => CallCalleeRef::Super(super_),
+      Callee::Import(import) => CallCalleeRef::Import(import),
+    };
+    Self {
+      callee,
+      args: &value.args,
+      span: value.span,
+      ctxt: value.ctxt,
+      call_expr: Some(value),
+      opt_call: None,
+    }
+  }
+}
+
+impl<'a> From<&'a OptCall> for CallExprRef<'a> {
+  fn from(value: &'a OptCall) -> Self {
+    Self {
+      callee: CallCalleeRef::Expr(&value.callee),
+      args: &value.args,
+      span: value.span,
+      ctxt: value.ctxt,
+      call_expr: None,
+      opt_call: Some(value),
+    }
+  }
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
@@ -356,7 +471,7 @@ Please annotate your `impl JavascriptParserPlugin for ...` block with `#[rspack_
   fn call(
     &self,
     _parser: &mut JavascriptParser,
-    _expr: &CallExpr,
+    _expr: CallExprRef<'_>,
     _for_name: &str,
   ) -> Option<bool> {
     None
@@ -365,7 +480,7 @@ Please annotate your `impl JavascriptParserPlugin for ...` block with `#[rspack_
   fn call_member_chain(
     &self,
     _parser: &mut JavascriptParser,
-    _expr: &CallExpr,
+    _expr: CallExprRef<'_>,
     _for_name: &str,
     _members: &[Atom],
     _members_optionals: &[bool],
@@ -422,7 +537,7 @@ Please annotate your `impl JavascriptParserPlugin for ...` block with `#[rspack_
   fn call_member_chain_of_call_member_chain(
     &self,
     _parser: &mut JavascriptParser,
-    _call_expr: &CallExpr,
+    _call_expr: CallExprRef<'_>,
     _callee_members: &[Atom],
     _inner_call_expr: &CallExpr,
     _members: &[Atom],
@@ -554,7 +669,7 @@ Please annotate your `impl JavascriptParserPlugin for ...` block with `#[rspack_
     &self,
     _parser: &mut JavascriptParser,
     _expr: &CallExpr,
-    _import_then: Option<&CallExpr>,
+    _import_then: Option<CallExprRef<'_>>,
     _members: Option<(&[Atom], bool)>,
   ) -> Option<bool> {
     None

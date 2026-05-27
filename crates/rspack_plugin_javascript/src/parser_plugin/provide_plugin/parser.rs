@@ -70,12 +70,12 @@ impl JavascriptParserPlugin for ProvideParserPlugin {
   fn call(
     &self,
     parser: &mut JavascriptParser,
-    expr: &swc_core::ecma::ast::CallExpr,
+    expr: crate::parser_plugin::CallExprRef<'_>,
     for_name: &str,
   ) -> Option<bool> {
     if self.add_provide_dep(for_name, expr.callee.span(), parser) {
       // FIXME: webpack use `walk_expression` here
-      parser.walk_expr_or_spread(&expr.args);
+      parser.walk_expr_or_spread(expr.args);
       return Some(true);
     }
     None

@@ -8,7 +8,7 @@ use rspack_core::{
 use rspack_util::SpanExt;
 use swc_core::{
   common::Spanned,
-  ecma::ast::{ArrowExpr, BlockStmtOrExpr, CallExpr, Expr, FnExpr, UnaryExpr},
+  ecma::ast::{ArrowExpr, BlockStmtOrExpr, Expr, FnExpr, UnaryExpr},
 };
 
 use super::JavascriptParserPlugin;
@@ -52,7 +52,12 @@ impl JavascriptParserPlugin for RequireEnsureDependenciesBlockParserPlugin {
     })
   }
 
-  fn call(&self, parser: &mut JavascriptParser, expr: &CallExpr, for_name: &str) -> Option<bool> {
+  fn call(
+    &self,
+    parser: &mut JavascriptParser,
+    expr: crate::parser_plugin::CallExprRef<'_>,
+    for_name: &str,
+  ) -> Option<bool> {
     if for_name != "require.ensure" {
       return None;
     }

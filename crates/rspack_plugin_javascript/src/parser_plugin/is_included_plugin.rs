@@ -1,9 +1,6 @@
 use rspack_core::ConstDependency;
 use rspack_util::SpanExt;
-use swc_core::{
-  common::Spanned,
-  ecma::ast::{CallExpr, UnaryExpr},
-};
+use swc_core::{common::Spanned, ecma::ast::UnaryExpr};
 
 use super::JavascriptParserPlugin;
 use crate::{dependency::IsIncludeDependency, visitors::JavascriptParser};
@@ -14,7 +11,12 @@ pub struct IsIncludedPlugin;
 
 #[rspack_macros::implemented_javascript_parser_hooks]
 impl JavascriptParserPlugin for IsIncludedPlugin {
-  fn call(&self, parser: &mut JavascriptParser, expr: &CallExpr, name: &str) -> Option<bool> {
+  fn call(
+    &self,
+    parser: &mut JavascriptParser,
+    expr: crate::parser_plugin::CallExprRef<'_>,
+    name: &str,
+  ) -> Option<bool> {
     if name != IS_INCLUDED || expr.args.len() != 1 || expr.args[0].spread.is_some() {
       return None;
     }

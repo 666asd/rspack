@@ -125,7 +125,7 @@ impl JavascriptParserPlugin for ESMDetectionParserPlugin {
   fn call(
     &self,
     parser: &mut JavascriptParser,
-    _expr: &swc_core::ecma::ast::CallExpr,
+    _expr: crate::parser_plugin::CallExprRef<'_>,
     for_name: &str,
   ) -> Option<bool> {
     (parser.is_esm && is_non_esm_identifier(for_name)).then_some(true)

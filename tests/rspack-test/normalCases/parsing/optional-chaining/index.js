@@ -25,3 +25,7 @@ it("should evaluate optional chaining as a part of statement", () => {
 		expect(module.hot).toBe(undefined);
 	}
 });
+
+it("should collect dependencies in optional calls", () => {
+	expect(require?.("./optional-require")).toBe("optional require");
+});

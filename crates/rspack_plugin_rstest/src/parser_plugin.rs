@@ -15,7 +15,7 @@ use rspack_plugin_javascript::{
 use rspack_util::{SpanExt, atom::Atom, json_stringify_str, swc::get_swc_comments};
 use swc_core::{
   common::{Span, Spanned},
-  ecma::ast::{CallExpr, Callee, Ident, MemberExpr, UnaryExpr},
+  ecma::ast::{CallExpr, Ident, MemberExpr, UnaryExpr},
 };
 
 static RSTEST_MOCK_FIRST_ARG_TAG: &str = "strip the import call from the first arg of mock series";
@@ -80,7 +80,7 @@ impl RstestParserPlugin {
   fn process_require_actual(
     &self,
     parser: &mut JavascriptParser,
-    call_expr: &CallExpr,
+    call_expr: rspack_plugin_javascript::CallExprRef<'_>,
   ) -> Option<bool> {
     match call_expr.args.len() {
       1 => {
@@ -134,7 +134,7 @@ impl RstestParserPlugin {
   fn process_import_actual(
     &self,
     parser: &mut JavascriptParser,
-    call_expr: &CallExpr,
+    call_expr: rspack_plugin_javascript::CallExprRef<'_>,
   ) -> Option<bool> {
     match call_expr.args.len() {
       1 => {
@@ -713,7 +713,7 @@ impl JavascriptParserPlugin for RstestParserPlugin {
     &self,
     parser: &mut JavascriptParser,
     call_expr: &CallExpr,
-    import_then: Option<&CallExpr>,
+    import_then: Option<rspack_plugin_javascript::CallExprRef<'_>>,
     _members: Option<(&[Atom], bool)>,
   ) -> Option<bool> {
     let first_arg = self.handle_mock_first_arg(parser, call_expr);
@@ -782,7 +782,7 @@ impl JavascriptParserPlugin for RstestParserPlugin {
       // dropped from the dependency graph.
       parser.walk_expr_or_spread(&call_expr.args);
       if let Some(import_then) = import_then {
-        parser.walk_expr_or_spread(&import_then.args);
+        parser.walk_expr_or_spread(import_then.args);
       }
 
       return Some(true);
@@ -794,7 +794,7 @@ impl JavascriptParserPlugin for RstestParserPlugin {
   fn call_member_chain(
     &self,
     parser: &mut JavascriptParser,
-    call_expr: &CallExpr,
+    call_expr: rspack_plugin_javascript::CallExprRef<'_>,
     for_name: &str,
     members: &[Atom],
     _members_optionals: &[bool],
@@ -805,7 +805,7 @@ impl JavascriptParserPlugin for RstestParserPlugin {
     // 1. Global variables: rs.importActual() or rstest.importActual()
     // 2. ESM imports: import { rs } from '@rstest/core'; rs.importActual()
     if members.len() == 1
-      && let Callee::Expr(callee) = &call_expr.callee
+      && let Some(callee) = call_expr.callee.as_expr()
       && let Some(member_expr) = callee.as_member()
       && let Some(ident) = member_expr.obj.as_ident()
     {

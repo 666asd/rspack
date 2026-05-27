@@ -94,7 +94,7 @@ impl ImportMetaPlugin {
   fn process_import_meta_resolve(
     &self,
     parser: &mut JavascriptParser,
-    call_expr: &swc_core::ecma::ast::CallExpr,
+    call_expr: crate::parser_plugin::CallExprRef<'_>,
   ) {
     if call_expr.args.len() != 1 {
       return;
@@ -495,7 +495,7 @@ impl JavascriptParserPlugin for ImportMetaPlugin {
   fn call(
     &self,
     parser: &mut JavascriptParser,
-    call_expr: &swc_core::ecma::ast::CallExpr,
+    call_expr: crate::parser_plugin::CallExprRef<'_>,
     for_name: &str,
   ) -> Option<bool> {
     if parser.javascript_options.import_meta_resolve == Some(true)

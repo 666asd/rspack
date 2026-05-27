@@ -5,7 +5,7 @@ use rspack_core::{
 use swc_core::{
   atoms::Atom,
   common::{Span, Spanned},
-  ecma::ast::{BinExpr, BinaryOp, Callee, Expr, Ident, ImportDecl},
+  ecma::ast::{BinExpr, BinaryOp, Expr, Ident, ImportDecl},
 };
 
 use super::{
@@ -247,13 +247,13 @@ impl JavascriptParserPlugin for ESMImportDependencyParserPlugin {
   fn call_member_chain(
     &self,
     parser: &mut JavascriptParser,
-    call_expr: &swc_core::ecma::ast::CallExpr,
+    call_expr: crate::parser_plugin::CallExprRef<'_>,
     for_name: &str,
     members: &[Atom],
     members_optionals: &[bool],
     _member_ranges: &[Span],
   ) -> Option<bool> {
-    let Callee::Expr(callee) = &call_expr.callee else {
+    let Some(callee) = call_expr.callee.as_expr() else {
       unreachable!()
     };
     if for_name != ESM_SPECIFIER_TAG {
@@ -310,7 +310,7 @@ impl JavascriptParserPlugin for ESMImportDependencyParserPlugin {
       InnerGraphUsageOperation::ESMImportSpecifier(dep_idx),
     );
 
-    parser.walk_expr_or_spread(&call_expr.args);
+    parser.walk_expr_or_spread(call_expr.args);
     Some(true)
   }
 

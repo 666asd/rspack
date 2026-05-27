@@ -231,7 +231,7 @@ impl JavascriptParserPlugin for ImportParserPlugin {
   fn call_member_chain(
     &self,
     parser: &mut JavascriptParser,
-    expr: &CallExpr,
+    expr: crate::parser_plugin::CallExprRef<'_>,
     for_name: &str,
     members: &[Atom],
     members_optionals: &[bool],
@@ -257,7 +257,7 @@ impl JavascriptParserPlugin for ImportParserPlugin {
           .unwrap_or(false)
           && !direct_import,
       );
-    parser.walk_expr_or_spread(&expr.args);
+    parser.walk_expr_or_spread(expr.args);
     Some(true)
   }
 
@@ -265,7 +265,7 @@ impl JavascriptParserPlugin for ImportParserPlugin {
     &self,
     parser: &mut JavascriptParser,
     node: &CallExpr,
-    import_then: Option<&CallExpr>,
+    import_then: Option<crate::parser_plugin::CallExprRef<'_>>,
     referenced_in_members: Option<(&[Atom], bool)>,
   ) -> Option<bool> {
     // Skip unreachable dynamic imports that are placed after a terminating
@@ -518,7 +518,7 @@ impl JavascriptParserPlugin for ImportParserPlugin {
         walk_import_then_fulfilled_callback(parser, node, &import_then.args[0].expr, ns_obj);
         parser.walk_expr_or_spread(&import_then.args[1..]);
       } else {
-        parser.walk_expr_or_spread(&import_then.args);
+        parser.walk_expr_or_spread(import_then.args);
       }
     }
 
@@ -597,7 +597,9 @@ fn get_attributes_from_call_expr(node: &CallExpr) -> Option<ImportAttributes> {
     .map(get_attributes)
 }
 
-fn get_fulfilled_callback_namespace_obj(import_then: &CallExpr) -> Option<&Pat> {
+fn get_fulfilled_callback_namespace_obj<'a>(
+  import_then: crate::parser_plugin::CallExprRef<'a>,
+) -> Option<&'a Pat> {
   let fulfilled_callback = import_then.args.first()?;
   if fulfilled_callback.spread.is_some() {
     return None;
