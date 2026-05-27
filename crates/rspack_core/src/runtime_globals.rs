@@ -649,28 +649,48 @@ pub fn runtime_variable_to_template_name(runtime_variable: &RuntimeVariable) -> 
 }
 
 /// Renders a named runtime variable.
-///
-/// For example, `RuntimeVariable::Require` always renders to
-/// `__webpack_require__`, while `RuntimeVariable::Runtime` renders to
-/// `__rspack_runtime`.
 pub fn runtime_variable_to_string(
   runtime_variable: &RuntimeVariable,
   compiler_options: &CompilerOptions,
 ) -> String {
-  match (*runtime_variable, compiler_options.mode.is_production()) {
+  let use_rspack_runtime_variables = compiler_options
+    .experiments
+    .runtime_mode
+    .is_runtime_requirements_proxy_enabled();
+  match (*runtime_variable, use_rspack_runtime_variables) {
     (RuntimeVariable::Runtime, _) => "__rspack_runtime".to_string(),
     (RuntimeVariable::InstallRuntime, _) => "__rspack_install_runtime".to_string(),
     (RuntimeVariable::EsmRuntime, _) => "__rspack_esm_runtime".to_string(),
     (RuntimeVariable::EsmInstallRuntime, _) => "__rspack_esm_install_runtime".to_string(),
-    (RuntimeVariable::Require, _) => "__webpack_require__".to_string(),
     (RuntimeVariable::EsmId, _) => "__rspack_esm_id".to_string(),
     (RuntimeVariable::EsmIds, _) => "__rspack_esm_ids".to_string(),
-    (RuntimeVariable::Modules, _) => "__webpack_modules__".to_string(),
-    (RuntimeVariable::ModuleCache, _) => "__webpack_module_cache__".to_string(),
-    (RuntimeVariable::Exports, _) => "__webpack_exports__".to_string(),
-    (RuntimeVariable::Module, _) => "__webpack_module__".to_string(),
-    (RuntimeVariable::StartupExec, _) => "__webpack_exec__".to_string(),
+    (RuntimeVariable::Require, false) => "__webpack_require__".to_string(),
+    (RuntimeVariable::Modules, false) => "__webpack_modules__".to_string(),
+    (RuntimeVariable::ModuleCache, false) => "__webpack_module_cache__".to_string(),
+    (RuntimeVariable::Exports, false) => "__webpack_exports__".to_string(),
+    (RuntimeVariable::Module, false) => "__webpack_module__".to_string(),
+    (RuntimeVariable::StartupExec, false) => "__webpack_exec__".to_string(),
+    (RuntimeVariable::Require, true) => "__rspack_require".to_string(),
+    (RuntimeVariable::Modules, true) => "__rspack_modules".to_string(),
+    (RuntimeVariable::ModuleCache, true) => "__rspack_module_cache".to_string(),
+    (RuntimeVariable::Exports, true) => "__rspack_exports".to_string(),
+    (RuntimeVariable::Module, true) => "__rspack_module".to_string(),
+    (RuntimeVariable::StartupExec, true) => "__rspack_exec".to_string(),
   }
+}
+
+pub fn runtime_variable_to_webpack_alias(
+  runtime_variable: &RuntimeVariable,
+) -> Option<&'static str> {
+  Some(match runtime_variable {
+    RuntimeVariable::Require => "__webpack_require__",
+    RuntimeVariable::Modules => "__webpack_modules__",
+    RuntimeVariable::ModuleCache => "__webpack_module_cache__",
+    RuntimeVariable::Exports => "__webpack_exports__",
+    RuntimeVariable::Module => "__webpack_module__",
+    RuntimeVariable::StartupExec => "__webpack_exec__",
+    _ => return None,
+  })
 }
 
 type RuntimeGlobalMap = (

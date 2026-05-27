@@ -7,6 +7,7 @@ use rspack_core::{
   get_undo_path,
   rspack_sources::{BoxSource, ConcatSource, RawStringSource, ReplaceSource, Source, SourceExt},
   runtime_globals_property_name, runtime_globals_to_lexical_variable,
+  runtime_variable_to_webpack_alias,
 };
 use rspack_error::{Result, ToStringResultToRspackResultExt};
 use rspack_util::json_stringify_str;
@@ -245,6 +246,43 @@ pub async fn render_module(
       }
       if module.build_info().strict && !all_strict {
         container_sources.add(RawStringSource::from_static("\"use strict\";\n"));
+      }
+      if compilation
+        .options
+        .experiments
+        .runtime_mode
+        .is_runtime_variables_webpack_compat_enabled()
+      {
+        let mut aliases = Vec::new();
+        if need_module {
+          let module_argument =
+            runtime_template.render_module_argument(module.get_module_argument());
+          if module_argument == runtime_template.render_runtime_variable(&RuntimeVariable::Module)
+            && let Some(alias) = runtime_variable_to_webpack_alias(&RuntimeVariable::Module)
+          {
+            aliases.push(format!("var {alias} = {module_argument};"));
+          }
+        }
+        if need_exports {
+          let exports_argument =
+            runtime_template.render_exports_argument(module.get_exports_argument());
+          if exports_argument == runtime_template.render_runtime_variable(&RuntimeVariable::Exports)
+            && let Some(alias) = runtime_variable_to_webpack_alias(&RuntimeVariable::Exports)
+          {
+            aliases.push(format!("var {alias} = {exports_argument};"));
+          }
+        }
+        if need_require
+          && let Some(alias) = runtime_variable_to_webpack_alias(&RuntimeVariable::Require)
+        {
+          aliases.push(format!(
+            "var {alias} = {};",
+            runtime_template.render_runtime_globals(&RuntimeGlobals::REQUIRE)
+          ));
+        }
+        if !aliases.is_empty() {
+          container_sources.add(RawStringSource::from(format!("{}\n", aliases.join("\n"))));
+        }
       }
       container_sources.add(render_source.source);
 

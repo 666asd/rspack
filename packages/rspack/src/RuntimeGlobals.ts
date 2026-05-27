@@ -482,17 +482,17 @@ export function renderRuntimeVariables(
 ): string {
   switch (variable) {
     case RuntimeVariable.Require:
-      return '__webpack_require__';
+      return '__rspack_require';
     case RuntimeVariable.Modules:
-      return '__webpack_modules__';
+      return '__rspack_modules';
     case RuntimeVariable.ModuleCache:
-      return '__webpack_module_cache__';
+      return '__rspack_module_cache';
     case RuntimeVariable.Module:
-      return '__webpack_module__';
+      return '__rspack_module';
     case RuntimeVariable.Exports:
-      return '__webpack_exports__';
+      return '__rspack_exports';
     case RuntimeVariable.StartupExec:
-      return '__webpack_exec__';
+      return '__rspack_exec';
   }
 }
 

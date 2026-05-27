@@ -36,7 +36,7 @@ use rspack_core::{
   render_init_fragments,
   reserved_names::RESERVED_NAMES_ATOM_SET,
   rspack_sources::{BoxSource, ConcatSource, RawStringSource, ReplaceSource, Source, SourceExt},
-  split_readable_identifier,
+  runtime_variable_to_webpack_alias, split_readable_identifier,
 };
 use rspack_error::{Result, ToStringResultToRspackResultExt};
 use rspack_hash::{RspackHash, RspackHashDigest};
@@ -57,6 +57,64 @@ use crate::runtime::{
   has_runtime_proxy_support, render_chunk_modules, render_module, render_runtime_modules,
   render_runtime_proxy_bootstrap_initializers, render_runtime_proxy_declarations, stringify_array,
 };
+
+fn render_runtime_variable_webpack_alias(
+  compilation: &Compilation,
+  runtime_template: &RuntimeCodeTemplate<'_>,
+  runtime_variable: &RuntimeVariable,
+) -> Option<String> {
+  if !compilation
+    .options
+    .experiments
+    .runtime_mode
+    .is_runtime_variables_webpack_compat_enabled()
+  {
+    return None;
+  }
+
+  let alias = runtime_variable_to_webpack_alias(runtime_variable)?;
+  let runtime_variable = runtime_template.render_runtime_variable(runtime_variable);
+  Some(format!("var {alias} = {runtime_variable};\n"))
+}
+
+fn render_runtime_variable_declaration(
+  compilation: &Compilation,
+  runtime_template: &RuntimeCodeTemplate<'_>,
+  runtime_variable: &RuntimeVariable,
+  value: &str,
+) -> String {
+  let name = runtime_template.render_runtime_variable(runtime_variable);
+  if compilation
+    .options
+    .experiments
+    .runtime_mode
+    .is_runtime_variables_webpack_compat_enabled()
+    && let Some(alias) = runtime_variable_to_webpack_alias(runtime_variable)
+  {
+    return format!("var {alias}, {name} = {alias} = {value};\n");
+  }
+
+  format!("var {name} = {value};\n")
+}
+
+fn render_runtime_variable_declaration_prefix(
+  compilation: &Compilation,
+  runtime_template: &RuntimeCodeTemplate<'_>,
+  runtime_variable: &RuntimeVariable,
+) -> String {
+  let name = runtime_template.render_runtime_variable(runtime_variable);
+  if compilation
+    .options
+    .experiments
+    .runtime_mode
+    .is_runtime_variables_webpack_compat_enabled()
+    && let Some(alias) = runtime_variable_to_webpack_alias(runtime_variable)
+  {
+    return format!("var {alias}, {name} = {alias} = ");
+  }
+
+  format!("var {name} = ")
+}
 
 #[cfg_attr(allocative, allocative::root)]
 static COMPILATION_HOOKS_MAP: LazyLock<
@@ -290,10 +348,13 @@ var module = ({}[moduleId] = {{"#,
     if use_require || module_cache {
       header.push(
         format!(
-          r#"// The module cache
-var {} = {{}};
-"#,
-          runtime_template.render_runtime_variable(&RuntimeVariable::ModuleCache)
+          "// The module cache\n{}",
+          render_runtime_variable_declaration(
+            compilation,
+            runtime_template,
+            &RuntimeVariable::ModuleCache,
+            "{}"
+          )
         )
         .into(),
       );
@@ -333,13 +394,25 @@ function {}(moduleId) {{
 "#
         .into(),
       );
+      if let Some(alias) = render_runtime_variable_webpack_alias(
+        compilation,
+        runtime_template,
+        &RuntimeVariable::Require,
+      ) {
+        header.push(alias.into());
+      }
     } else if require_scope_used {
       header.push(
         format!(
           r#"// The require scope
-var {} = {{}};
+{}
 "#,
-          runtime_template.render_runtime_variable(&RuntimeVariable::Require)
+          render_runtime_variable_declaration(
+            compilation,
+            runtime_template,
+            &RuntimeVariable::Require,
+            "{}"
+          )
         )
         .into(),
       );
@@ -557,9 +630,10 @@ var {} = {{}};
               format!(
                 "{}{}(undefined, {}, {});",
                 if i + 1 == entries.len() {
-                  format!(
-                    "var {} = ",
-                    runtime_template.render_runtime_globals(&RuntimeGlobals::EXPORTS)
+                  render_runtime_variable_declaration_prefix(
+                    compilation,
+                    runtime_template,
+                    &RuntimeVariable::Exports,
                   )
                 } else {
                   String::new()
@@ -575,9 +649,10 @@ var {} = {{}};
               format!(
                 "{}{}({module_id_expr});",
                 if i + 1 == entries.len() {
-                  format!(
-                    "var {} = ",
-                    runtime_template.render_runtime_globals(&RuntimeGlobals::EXPORTS)
+                  render_runtime_variable_declaration_prefix(
+                    compilation,
+                    runtime_template,
+                    &RuntimeVariable::Exports,
                   )
                 } else {
                   String::new()
@@ -590,10 +665,15 @@ var {} = {{}};
             let should_exec = i + 1 == entries.len();
             if should_exec {
               buf2.push(
-                format!(
-                  "var {} = {{}}",
-                  runtime_template.render_runtime_globals(&RuntimeGlobals::EXPORTS)
+                render_runtime_variable_declaration(
+                  compilation,
+                  runtime_template,
+                  &RuntimeVariable::Exports,
+                  "{}",
                 )
+                .trim_end_matches('\n')
+                .trim_end_matches(';')
+                .to_string()
                 .into(),
               );
             }
@@ -699,8 +779,12 @@ var {} = {{}};
       startup.push("// run startup".into());
       startup.push(
         format!(
-          "var {} = {}();",
-          runtime_template.render_runtime_variable(&RuntimeVariable::Exports),
+          "{}{}();",
+          render_runtime_variable_declaration_prefix(
+            compilation,
+            runtime_template,
+            &RuntimeVariable::Exports
+          ),
           runtime_template.render_runtime_globals(&RuntimeGlobals::STARTUP)
         )
         .into(),
@@ -816,10 +900,13 @@ var {} = {{}};
         } else {
           RawStringSource::from_static("{}").boxed()
         };
-      sources.add(RawStringSource::from(format!(
-        "var {} = (",
-        runtime_template.render_runtime_variable(&RuntimeVariable::Modules)
-      )));
+      sources.add(RawStringSource::from(
+        render_runtime_variable_declaration_prefix(
+          compilation,
+          runtime_template,
+          &RuntimeVariable::Modules,
+        ) + "(",
+      ));
       sources.add(chunk_modules_source);
       sources.add(RawStringSource::from_static(");\n"));
     }
@@ -853,9 +940,11 @@ var {} = {{}};
       let mut startup_sources = ConcatSource::default();
 
       if runtime_requirements.contains(RuntimeGlobals::EXPORTS) {
-        startup_sources.add(RawStringSource::from(format!(
-          "var {} = {{}};\n",
-          runtime_template.render_runtime_globals(&RuntimeGlobals::EXPORTS)
+        startup_sources.add(RawStringSource::from(render_runtime_variable_declaration(
+          compilation,
+          runtime_template,
+          &RuntimeVariable::Exports,
+          "{}",
         )));
       }
 
@@ -956,9 +1045,19 @@ var {} = {{}};
         if exports {
           let exports_argument = runtime_template.render_exports_argument(exports_argument);
           if m_identifier != last_entry_module {
-            startup_sources.add(RawStringSource::from(format!(
-              "var {exports_argument} = {{}};\n"
-            )));
+            let declaration = if exports_argument
+              == runtime_template.render_runtime_variable(&RuntimeVariable::Exports)
+            {
+              render_runtime_variable_declaration(
+                compilation,
+                runtime_template,
+                &RuntimeVariable::Exports,
+                "{}",
+              )
+            } else {
+              format!("var {exports_argument} = {{}};\n")
+            };
+            startup_sources.add(RawStringSource::from(declaration));
           } else if !rspack_exports_argument {
             startup_sources.add(RawStringSource::from(format!(
               "var {exports_argument} = {};\n",

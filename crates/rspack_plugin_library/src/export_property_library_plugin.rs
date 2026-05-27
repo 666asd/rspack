@@ -77,7 +77,7 @@ async fn render_startup(
   chunk_ukey: &ChunkUkey,
   _module: &ModuleIdentifier,
   render_source: &mut RenderSource,
-  _runtime_template: &RuntimeCodeTemplate<'_>,
+  runtime_template: &RuntimeCodeTemplate<'_>,
 ) -> Result<()> {
   let Some(options) = self.get_options_for_chunk(compilation, chunk_ukey) else {
     return Ok(());
@@ -85,9 +85,10 @@ async fn render_startup(
   if let Some(export) = options.export {
     let mut s = ConcatSource::default();
     s.add(render_source.source.clone());
+    let exports = runtime_template.render_runtime_globals(&rspack_core::RuntimeGlobals::EXPORTS);
     s.add(RawStringSource::from(format!(
-      "__webpack_exports__ = __webpack_exports__{};",
-      property_access(export, 0)
+      "{exports} = {exports}{};",
+      property_access(export, 0),
     )));
     render_source.source = s.boxed();
     return Ok(());

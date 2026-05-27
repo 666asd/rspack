@@ -23,6 +23,14 @@ impl RuntimeOutputMode {
     !matches!(self, Self::Webpack)
   }
 
+  pub fn is_runtime_variables_webpack_compat_enabled(self) -> bool {
+    matches!(self, Self::Compatibility | Self::CompatibilityWarning)
+  }
+
+  pub fn is_webpack_runtime_variables_available(self) -> bool {
+    !matches!(self, Self::Rspack)
+  }
+
   pub fn as_str(self) -> &'static str {
     match self {
       Self::Webpack => "webpack",
