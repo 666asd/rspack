@@ -1,3 +1,23 @@
 body {
 	color: green;
 }
+
+.stable-related-assets-size-a {
+	color: #123456;
+	background: linear-gradient(90deg, #123456, #abcdef);
+}
+
+.stable-related-assets-size-b {
+	color: #654321;
+	background: linear-gradient(90deg, #654321, #fedcba);
+}
+
+.stable-related-assets-size-c {
+	color: #345678;
+	background: linear-gradient(90deg, #345678, #cdefab);
+}
+
+.stable-related-assets-size-d {
+	color: #876543;
+	background: linear-gradient(90deg, #876543, #badcfe);
+}
