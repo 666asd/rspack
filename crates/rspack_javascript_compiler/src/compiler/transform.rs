@@ -5,7 +5,13 @@
  * Author Donny/강동윤
  * Copyright (c)
  */
-use std::{cell::RefCell, fs::File, path::PathBuf, rc::Rc, sync::Arc};
+use std::{
+  cell::RefCell,
+  fs::File,
+  path::{Path, PathBuf},
+  rc::Rc,
+  sync::Arc,
+};
 
 use anyhow::{Context, bail};
 use indoc::formatdoc;
@@ -73,12 +79,49 @@ impl JavaScriptCompiler {
     P: Pass + 'a,
     S: Into<String>,
   {
+    let filename_path = filename.as_deref().and_then(|filename| match filename {
+      FileName::Real(path) => Some(path.as_path()),
+      _ => None,
+    });
+
+    self.transform_with_filename_path(
+      source,
+      filename.clone(),
+      filename_path,
+      comments,
+      options,
+      module_source_map_kind,
+      inspect_parsed_ast,
+      before_pass,
+    )
+  }
+
+  /// Transforms source while using a separate path for path-sensitive SWC behavior.
+  ///
+  /// This allows callers to keep `SourceFile::name` as `FileName::Custom` while still
+  /// preserving extension-based syntax inference and external source-map resolution.
+  #[allow(clippy::too_many_arguments)]
+  pub fn transform_with_filename_path<'a, S, P>(
+    &self,
+    source: S,
+    filename: Option<Arc<FileName>>,
+    filename_path: Option<&'a Path>,
+    comments: std::rc::Rc<SingleThreadedComments>,
+    options: SwcOptions,
+    module_source_map_kind: Option<SourceMapKind>,
+    inspect_parsed_ast: impl FnOnce(&Program, Mark),
+    before_pass: impl FnOnce(&Program) -> P + 'a,
+  ) -> Result<TransformOutput>
+  where
+    P: Pass + 'a,
+    S: Into<String>,
+  {
     let fm = self.cm.new_source_file(
       filename.unwrap_or_else(|| Arc::new(FileName::Anon)),
       source.into(),
     );
     let javascript_transformer =
-      JavaScriptTransformer::new(self.cm.clone(), fm, comments, self, options)?;
+      JavaScriptTransformer::new(self.cm.clone(), fm, filename_path, comments, self, options)?;
 
     javascript_transformer.transform(inspect_parsed_ast, before_pass, module_source_map_kind)
   }
@@ -259,6 +302,7 @@ impl Visit for DtsReferenceCollector {
 struct JavaScriptTransformer<'a> {
   cm: Arc<SourceMap>,
   fm: Arc<SourceFile>,
+  filename_path: Option<&'a Path>,
   comments: std::rc::Rc<SingleThreadedComments>,
   options: SwcOptions,
   javascript_compiler: &'a JavaScriptCompiler,
@@ -272,6 +316,7 @@ impl<'a> JavaScriptTransformer<'a> {
   pub fn new(
     cm: Arc<SourceMap>,
     fm: Arc<SourceFile>,
+    filename_path: Option<&'a Path>,
     comments: std::rc::Rc<SingleThreadedComments>,
     compiler: &'a JavaScriptCompiler,
     mut options: SwcOptions,
@@ -283,7 +328,7 @@ impl<'a> JavaScriptTransformer<'a> {
       options.unresolved_mark = Some(unresolved_mark);
     });
 
-    let config = get_swc_config_from_file(&fm.name);
+    let config = get_swc_config_from_file(filename_path);
     let helpers = GLOBALS.set(&compiler.globals, || {
       let mut external_helpers = options.config.jsc.external_helpers;
       external_helpers.merge(config.jsc.external_helpers);
@@ -293,6 +338,7 @@ impl<'a> JavaScriptTransformer<'a> {
     Ok(Self {
       cm,
       fm,
+      filename_path,
       javascript_compiler: compiler,
       options,
       helpers,
@@ -516,7 +562,6 @@ impl<'a> JavaScriptTransformer<'a> {
     input_src_map: &InputSourceMap,
   ) -> Result<Option<sourcemap::SourceMap>, anyhow::Error> {
     let fm = &self.fm;
-    let name = &self.fm.name;
     let read_inline_sourcemap =
       |data_url: Option<&str>| -> Result<Option<sourcemap::SourceMap>, anyhow::Error> {
         match data_url {
@@ -549,71 +594,69 @@ impl<'a> JavaScriptTransformer<'a> {
 
     let read_file_sourcemap =
       |data_url: Option<&str>| -> Result<Option<sourcemap::SourceMap>, anyhow::Error> {
-        match name.as_ref() {
-          FileName::Real(filename) => {
-            let dir = match filename.parent() {
-              Some(v) => v,
-              None => {
-                bail!("unexpected: root directory is given as a input file")
+        let Some(filename) = self.filename_path else {
+          return Ok(None);
+        };
+        let dir = match filename.parent() {
+          Some(v) => v,
+          None => {
+            bail!("unexpected: root directory is given as a input file")
+          }
+        };
+
+        let map_path = match data_url {
+          Some(data_url) => {
+            let mut map_path = dir.join(data_url);
+            if !map_path.exists() {
+              // Old behavior. This check would prevent
+              // regressions.
+              // Perhaps it shouldn't be supported. Sometimes
+              // developers don't want to expose their source
+              // code.
+              // Map files are for internal troubleshooting
+              // convenience.
+              map_path = PathBuf::from(format!("{}.map", filename.display()));
+              if !map_path.exists() {
+                bail!(
+                  "failed to find input source map file {:?} in \
+                                              {:?} file",
+                  map_path.display(),
+                  filename.display()
+                )
               }
-            };
+            }
 
-            let map_path = match data_url {
-              Some(data_url) => {
-                let mut map_path = dir.join(data_url);
-                if !map_path.exists() {
-                  // Old behavior. This check would prevent
-                  // regressions.
-                  // Perhaps it shouldn't be supported. Sometimes
-                  // developers don't want to expose their source
-                  // code.
-                  // Map files are for internal troubleshooting
-                  // convenience.
-                  map_path = PathBuf::from(format!("{}.map", filename.display()));
-                  if !map_path.exists() {
-                    bail!(
-                      "failed to find input source map file {:?} in \
-                                                  {:?} file",
-                      map_path.display(),
-                      filename.display()
-                    )
-                  }
-                }
-
-                Some(map_path)
-              }
-              None => {
-                // Old behavior.
-                let map_path = PathBuf::from(format!("{}.map", filename.display()));
-                if map_path.exists() {
-                  Some(map_path)
-                } else {
-                  None
-                }
-              }
-            };
-
-            match map_path {
-              Some(map_path) => {
-                let path = map_path.display().to_string();
-                let file = File::open(&path);
-
-                // Old behavior.
-                let file = file?;
-
-                Ok(Some(sourcemap::SourceMap::from_reader(file).with_context(
-                  || {
-                    format!(
-                      "failed to read input source map
-                                  from file at {path}"
-                    )
-                  },
-                )?))
-              }
-              None => Ok(None),
+            Some(map_path)
+          }
+          None => {
+            // Old behavior.
+            let map_path = PathBuf::from(format!("{}.map", filename.display()));
+            if map_path.exists() {
+              Some(map_path)
+            } else {
+              None
             }
           }
-          _ => Ok(None),
+        };
+
+        match map_path {
+          Some(map_path) => {
+            let path = map_path.display().to_string();
+            let file = File::open(&path);
+
+            // Old behavior.
+            let file = file?;
+
+            Ok(Some(sourcemap::SourceMap::from_reader(file).with_context(
+              || {
+                format!(
+                  "failed to read input source map
+                              from file at {path}"
+                )
+              },
+            )?))
+          }
+          None => Ok(None),
         }
       };
 
@@ -658,16 +701,8 @@ impl<'a> JavaScriptTransformer<'a> {
   }
 }
 
-fn get_swc_config_from_file(filename: &FileName) -> Config {
-  let filename_path = match filename {
-    FileName::Real(p) => Some(p.as_path()),
-    _ => return Config::default(),
-  };
-
-  let filename_ext = match filename_path {
-    Some(p) => p.extension().and_then(|ext| ext.to_str()),
-    None => return Config::default(),
-  };
+fn get_swc_config_from_file(filename_path: Option<&Path>) -> Config {
+  let filename_ext = filename_path.and_then(|p| p.extension()?.to_str());
 
   let mut config = Config::default();
   match filename_ext {

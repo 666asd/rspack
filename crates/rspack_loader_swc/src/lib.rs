@@ -65,6 +65,8 @@ impl SwcLoader {
       .map(|p| p.to_path_buf())
       .unwrap_or_default();
     loader_context.context.module.build_info_mut().isolated_dts = None;
+    let filename = resource_path.as_str().to_string();
+
     let Some(content) = loader_context.take_content() else {
       return Ok(());
     };
@@ -99,8 +101,8 @@ impl SwcLoader {
       } else {
         swc_options.config.input_source_map = Some(InputSourceMap::Bool(false));
       }
-      swc_options.filename = resource_path.as_str().to_string();
-      swc_options.source_file_name = Some(resource_path.as_str().to_string());
+      swc_options.filename = filename.clone();
+      swc_options.source_file_name = Some(filename.clone());
 
       if swc_options.config.jsc.target.is_some() && swc_options.config.env.is_some() {
         loader_context.emit_diagnostic(Diagnostic::warn(
@@ -123,7 +125,7 @@ impl SwcLoader {
     };
 
     let javascript_compiler = JavaScriptCompiler::new();
-    let filename = Arc::new(FileName::Real(resource_path.clone().into_std_path_buf()));
+    let filename = Arc::new(FileName::Custom(filename));
     let comments = Rc::new(SingleThreadedComments::default());
 
     let source = content.into_string_lossy();
@@ -151,9 +153,10 @@ impl SwcLoader {
       code,
       mut map,
       diagnostics,
-    } = javascript_compiler.transform(
+    } = javascript_compiler.transform_with_filename_path(
       source,
       Some(filename.clone()),
+      Some(resource_path.as_std_path()),
       comments.clone(),
       swc_options,
       Some(loader_context.context.source_map_kind),
