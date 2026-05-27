@@ -173,7 +173,7 @@ async fn render_chunk(
     compilation,
     chunk_ukey,
     runtime_template,
-    &runtime_template.render_runtime_variable(&RuntimeVariable::EsmRuntimeProxy),
+    &runtime_template.render_runtime_variable(&RuntimeVariable::EsmInstallRuntime),
   ) {
     sources.add(runtime_proxy);
   }

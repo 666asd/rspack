@@ -8,7 +8,7 @@ function loadUpdateChunk(chunkId, updatedModulesList) {
               if (updatedModulesList) updatedModulesList.push(moduleId);
           }
       }
-<% if (_with_runtime_proxy) { %>      if (runtimeProxyInstaller) runtimeProxyInstaller(<%- VAR_RUNTIME_PROXY %>);
+<% if (_with_runtime_proxy) { %>      if (runtimeProxyInstaller) runtimeProxyInstaller(<%- VAR_RUNTIME %>);
 <% } %>      if (runtime) currentUpdateRuntime.push(runtime);
       success = true;
   };

@@ -40,7 +40,7 @@ function loadUpdateChunk(chunkId, updatedModulesList) {
 			if (currentUpdatedModulesList) currentUpdatedModulesList.push(moduleId);
 		}
 	}
-<% if (_with_runtime_proxy) { %>	if (runtimeProxyInstaller) runtimeProxyInstaller(<%- VAR_RUNTIME_PROXY %>);
+<% if (_with_runtime_proxy) { %>	if (runtimeProxyInstaller) runtimeProxyInstaller(<%- VAR_RUNTIME %>);
 <% } %>	if (runtime) currentUpdateRuntime.push(runtime);
 	if (waitingUpdateResolves[chunkId]) {
 		waitingUpdateResolves[chunkId]();

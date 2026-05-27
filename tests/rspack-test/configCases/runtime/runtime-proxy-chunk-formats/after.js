@@ -18,13 +18,15 @@ const commonjsAsync = fs.readFileSync(
 	path.resolve(__dirname, "dist", "728.commonjs.js"),
 	"utf-8"
 );
-expect(commonjsAsync).toContain("exports.installRuntime");
+expect(commonjsAsync).toContain("exports.__rspack_install_runtime");
 expect(commonjsAsync).not.toContain("exports.__rspack_runtime");
 const commonjsRuntime = fs.readFileSync(
 	path.resolve(__dirname, "dist", "commonjs.js"),
 	"utf-8"
 );
-expect(commonjsRuntime).toContain("typeof chunk.installRuntime === \"function\"");
+expect(commonjsRuntime).toContain(
+  'typeof chunk.__rspack_install_runtime === "function"'
+);
 expect(commonjsRuntime).not.toContain("chunk.__rspack_runtime");
 
 const moduleAsync = fs.readFileSync(
@@ -40,13 +42,15 @@ const moduleRuntime = fs.readFileSync(
 	"utf-8"
 );
 expect(moduleRuntime).toContain("data.__rspack_install_runtime__");
-expect(moduleRuntime).toContain("__rspack_esm_install_runtime_modules__");
+expect(moduleRuntime).toContain("__rspack_esm_runtime");
 expect(moduleRuntime).not.toContain("__rs_er");
 
 const webRuntime = fs.readFileSync(
 	path.resolve(__dirname, "dist", "web.js"),
 	"utf-8"
 );
-expect(webRuntime).toContain("chunkIds, moreModules, runtime, installRuntime");
-expect(webRuntime).toContain("typeof installRuntime === \"function\"");
+expect(webRuntime).toContain(
+  "chunkIds, moreModules, runtime, __rspack_install_runtime"
+);
+expect(webRuntime).toContain('typeof __rspack_install_runtime === "function"');
 expect(webRuntime).not.toContain("data.length > 3");

@@ -99,7 +99,7 @@ fn render_runtime_globals_by_mode(
     {
       format!(
         "{}{}",
-        runtime_variable_to_string(&RuntimeVariable::RuntimeProxy, compiler_options),
+        runtime_variable_to_string(&RuntimeVariable::Runtime, compiler_options),
         render_runtime_proxy_property_access(runtime_globals)
       )
     }
@@ -1575,7 +1575,7 @@ impl<'a> RuntimeCodeTemplate<'a> {
 
   /// Renders a runtime variable with this runtime template's compiler options.
   ///
-  /// For example, `RuntimeVariable::RuntimeProxy` renders as `__rspack_runtime`.
+  /// For example, `RuntimeVariable::Runtime` renders as `__rspack_runtime`.
   pub fn render_runtime_variable(&self, runtime_variable: &RuntimeVariable) -> String {
     runtime_variable_to_string(runtime_variable, &self.compiler_options)
   }
@@ -1609,12 +1609,12 @@ impl<'a> RuntimeCodeTemplate<'a> {
   fn runtime_variables_for_render(&self) -> Map<String, Value> {
     [
       RuntimeVariable::Require,
-      RuntimeVariable::RuntimeProxy,
-      RuntimeVariable::ExternalRuntimeProxy,
+      RuntimeVariable::Runtime,
+      RuntimeVariable::InstallRuntime,
       RuntimeVariable::EsmId,
       RuntimeVariable::EsmIds,
       RuntimeVariable::EsmRuntime,
-      RuntimeVariable::EsmRuntimeProxy,
+      RuntimeVariable::EsmInstallRuntime,
       RuntimeVariable::Modules,
       RuntimeVariable::ModuleCache,
       RuntimeVariable::Module,

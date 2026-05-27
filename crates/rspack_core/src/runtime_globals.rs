@@ -615,15 +615,15 @@ pub fn renderable_require_scope_runtime_globals(runtime_globals: RuntimeGlobals)
 pub enum RuntimeVariable {
   Require,
   /// The runtime chunk local proxy object captured by module factories.
-  RuntimeProxy,
+  Runtime,
   /// The non-ESM async chunk payload field that installs the parent runtime
   /// proxy into the loaded chunk.
-  ExternalRuntimeProxy,
+  InstallRuntime,
   EsmId,
   EsmIds,
   EsmRuntime,
   /// The ESM async chunk export that installs the parent runtime proxy.
-  EsmRuntimeProxy,
+  EsmInstallRuntime,
   Modules,
   ModuleCache,
   Module,
@@ -634,12 +634,12 @@ pub enum RuntimeVariable {
 pub fn runtime_variable_to_template_name(runtime_variable: &RuntimeVariable) -> &'static str {
   match runtime_variable {
     RuntimeVariable::Require => "VAR_REQUIRE",
-    RuntimeVariable::RuntimeProxy => "VAR_RUNTIME_PROXY",
-    RuntimeVariable::ExternalRuntimeProxy => "VAR_EXTERNAL_RUNTIME_PROXY",
+    RuntimeVariable::Runtime => "VAR_RUNTIME",
+    RuntimeVariable::InstallRuntime => "VAR_INSTALL_RUNTIME",
     RuntimeVariable::EsmId => "VAR_ESM_ID",
     RuntimeVariable::EsmIds => "VAR_ESM_IDS",
     RuntimeVariable::EsmRuntime => "VAR_ESM_RUNTIME",
-    RuntimeVariable::EsmRuntimeProxy => "VAR_ESM_RUNTIME_PROXY",
+    RuntimeVariable::EsmInstallRuntime => "VAR_ESM_INSTALL_RUNTIME",
     RuntimeVariable::Modules => "VAR_MODULES",
     RuntimeVariable::ModuleCache => "VAR_MODULE_CACHE",
     RuntimeVariable::Module => "VAR_MODULE",
@@ -651,17 +651,17 @@ pub fn runtime_variable_to_template_name(runtime_variable: &RuntimeVariable) -> 
 /// Renders a named runtime variable.
 ///
 /// For example, `RuntimeVariable::Require` always renders to
-/// `__webpack_require__`, while `RuntimeVariable::RuntimeProxy` renders to
+/// `__webpack_require__`, while `RuntimeVariable::Runtime` renders to
 /// `__rspack_runtime`.
 pub fn runtime_variable_to_string(
   runtime_variable: &RuntimeVariable,
   compiler_options: &CompilerOptions,
 ) -> String {
   match (*runtime_variable, compiler_options.mode.is_production()) {
-    (RuntimeVariable::RuntimeProxy, _) => "__rspack_runtime".to_string(),
-    (RuntimeVariable::ExternalRuntimeProxy, _) => "installRuntime".to_string(),
-    (RuntimeVariable::EsmRuntime, _) => "__rspack_esm_install_runtime_modules__".to_string(),
-    (RuntimeVariable::EsmRuntimeProxy, _) => "__rspack_install_runtime__".to_string(),
+    (RuntimeVariable::Runtime, _) => "__rspack_runtime".to_string(),
+    (RuntimeVariable::InstallRuntime, _) => "__rspack_install_runtime".to_string(),
+    (RuntimeVariable::EsmRuntime, _) => "__rspack_esm_runtime".to_string(),
+    (RuntimeVariable::EsmInstallRuntime, _) => "__rspack_install_runtime__".to_string(),
     (RuntimeVariable::Require, _) => "__webpack_require__".to_string(),
     (RuntimeVariable::EsmId, _) => "__rspack_esm_id".to_string(),
     (RuntimeVariable::EsmIds, _) => "__rspack_esm_ids".to_string(),

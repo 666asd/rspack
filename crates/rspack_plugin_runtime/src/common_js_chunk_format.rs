@@ -154,7 +154,7 @@ async fn render_chunk(
     runtime_template,
     &format!(
       "exports.{}",
-      runtime_template.render_runtime_variable(&RuntimeVariable::ExternalRuntimeProxy)
+      runtime_template.render_runtime_variable(&RuntimeVariable::InstallRuntime)
     ),
   ) {
     sources.add(runtime_proxy);

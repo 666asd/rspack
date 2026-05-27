@@ -1,7 +1,7 @@
 var installChunk = <%- basicFunction("chunk") %> {
   var moreModules = chunk.modules, chunkIds = chunk.ids,
     runtime = chunk.runtime;
-  <% if (_with_runtime_proxy) { %>if (typeof chunk.<%- VAR_EXTERNAL_RUNTIME_PROXY %> === "function") chunk.<%- VAR_EXTERNAL_RUNTIME_PROXY %>(<%- VAR_RUNTIME_PROXY %>);
+  <% if (_with_runtime_proxy) { %>if (typeof chunk.<%- VAR_INSTALL_RUNTIME %> === "function") chunk.<%- VAR_INSTALL_RUNTIME %>(<%- VAR_RUNTIME %>);
   <% } %>for (var moduleId in moreModules) {
     if (<%- HAS_OWN_PROPERTY %>(moreModules, moduleId)) {
       <%- MODULE_FACTORIES %>[moduleId] = moreModules[moduleId];

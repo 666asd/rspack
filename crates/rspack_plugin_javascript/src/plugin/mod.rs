@@ -360,7 +360,7 @@ var {} = {{}};
       header.push(
         format!(
           "{declaration} {} = {{}};",
-          runtime_template.render_runtime_variable(&RuntimeVariable::RuntimeProxy)
+          runtime_template.render_runtime_variable(&RuntimeVariable::Runtime)
         )
         .into(),
       );

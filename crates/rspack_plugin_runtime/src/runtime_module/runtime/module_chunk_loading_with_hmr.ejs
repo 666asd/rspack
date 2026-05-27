@@ -5,7 +5,7 @@
       var onResolve = <%- basicFunction("obj") %> {
         var updatedModules = obj.<%- VAR_MODULES %>;
         var updatedRuntime = obj.<%- VAR_ESM_RUNTIME %>;
-        <% if (_with_runtime_proxy) { %>if (typeof obj.<%- VAR_ESM_RUNTIME_PROXY %> === "function") obj.<%- VAR_ESM_RUNTIME_PROXY %>(<%- VAR_RUNTIME_PROXY %>);
+        <% if (_with_runtime_proxy) { %>if (typeof obj.<%- VAR_ESM_INSTALL_RUNTIME %> === "function") obj.<%- VAR_ESM_INSTALL_RUNTIME %>(<%- VAR_RUNTIME %>);
         <% } %>
         if (updatedRuntime) currentUpdateRuntime.push(updatedRuntime);
         for (var moduleId in updatedModules) {

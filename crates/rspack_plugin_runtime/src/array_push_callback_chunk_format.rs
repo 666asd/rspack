@@ -155,7 +155,7 @@ async fn render_chunk(
       );
     }
     if wrap_runtime_proxy_scope {
-      let runtime_proxy = runtime_template.render_runtime_variable(&RuntimeVariable::RuntimeProxy);
+      let runtime_proxy = runtime_template.render_runtime_variable(&RuntimeVariable::Runtime);
       let set_runtime_proxy = if compilation
         .options
         .output
@@ -250,7 +250,7 @@ async fn render_chunk(
       if !has_runtime_payload {
         source.add(RawStringSource::from_static(",null"));
       }
-      let runtime_proxy = runtime_template.render_runtime_variable(&RuntimeVariable::RuntimeProxy);
+      let runtime_proxy = runtime_template.render_runtime_variable(&RuntimeVariable::Runtime);
       let set_runtime_proxy = if compilation
         .options
         .output

@@ -372,7 +372,7 @@ async fn render_runtime_modules_impl(
   declare_runtime_proxy: bool,
 ) -> Result<BoxSource> {
   let mut sources = ConcatSource::default();
-  let runtime_proxy = _runtime_template.render_runtime_variable(&RuntimeVariable::RuntimeProxy);
+  let runtime_proxy = _runtime_template.render_runtime_variable(&RuntimeVariable::Runtime);
   let use_private_runtime_proxy_scope = include_proxy_declarations
     && declare_runtime_proxy
     && has_runtime_proxy_support(compilation, chunk_ukey);
@@ -570,7 +570,7 @@ pub fn render_runtime_proxy_declarations(
     return None;
   }
 
-  let runtime_proxy = runtime_template.render_runtime_variable(&RuntimeVariable::RuntimeProxy);
+  let runtime_proxy = runtime_template.render_runtime_variable(&RuntimeVariable::Runtime);
   let extra_declarators = (!metadata.proxy_fields().is_empty()
     || !metadata.write_bridge_fields.is_empty())
   .then(|| format!("{runtime_proxy} = {{}}"));
@@ -596,7 +596,7 @@ pub fn render_runtime_proxy_outer_declarations(
     return None;
   }
 
-  let runtime_proxy = runtime_template.render_runtime_variable(&RuntimeVariable::RuntimeProxy);
+  let runtime_proxy = runtime_template.render_runtime_variable(&RuntimeVariable::Runtime);
   let source = render_runtime_proxy_variable_declarations(
     compilation,
     RuntimeGlobals::default(),
@@ -835,7 +835,7 @@ pub fn render_runtime_proxy_external_module_proxy(
     return None;
   }
 
-  let runtime_proxy = runtime_template.render_runtime_variable(&RuntimeVariable::RuntimeProxy);
+  let runtime_proxy = runtime_template.render_runtime_variable(&RuntimeVariable::Runtime);
   let declaration = runtime_proxy_bridge_declaration(compilation);
   let set_proxy = if compilation
     .options
@@ -870,7 +870,7 @@ pub fn render_runtime_proxy_external_module_proxy_export(
     return None;
   }
 
-  let runtime_proxy = runtime_template.render_runtime_variable(&RuntimeVariable::RuntimeProxy);
+  let runtime_proxy = runtime_template.render_runtime_variable(&RuntimeVariable::Runtime);
   let declaration = runtime_proxy_bridge_declaration(compilation);
   let set_proxy = if compilation
     .options
