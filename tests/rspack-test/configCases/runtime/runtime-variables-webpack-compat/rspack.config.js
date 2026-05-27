@@ -1,3 +1,5 @@
+const { DefinePlugin } = require('@rspack/core');
+
 /** @type {import("@rspack/core").Configuration[]} */
 module.exports = [
   {
@@ -13,6 +15,11 @@ module.exports = [
       filename: 'compat.js',
       iife: false,
     },
+    plugins: [
+      new DefinePlugin({
+        DEFINED_DEP: '__rspack_require(16)',
+      }),
+    ],
   },
   {
     experiments: {
@@ -27,5 +34,10 @@ module.exports = [
       filename: 'rspack-only.js',
       iife: false,
     },
+    plugins: [
+      new DefinePlugin({
+        DEFINED_DEP: '__rspack_require(16)',
+      }),
+    ],
   },
 ];

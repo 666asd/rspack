@@ -3706,8 +3706,7 @@ mod tests {
   fn module_external_var_init_fragment_claims_top_level_decl() {
     let init_fragments: ChunkInitFragments = vec![Box::new(
       rspack_core::NormalInitFragment::new(
-        "/* provided dependency */ var provided_identifier = __webpack_require__(\"./dep\");\n"
-          .into(),
+        "/* provided dependency */ var provided_identifier = __rspack_require(\"./dep\");\n".into(),
         rspack_core::InitFragmentStage::StageProvides,
         1,
         InitFragmentKey::ModuleExternal("provided provided_identifier".into()),
