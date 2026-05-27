@@ -1,26 +1,31 @@
 ```js title=main.js
 (self["rspackChunk"] = self["rspackChunk"] || []).push([["main"], {
-"./child/child/index.js"(__unused_rspack_module, __webpack_exports__, __webpack_require__) {
+"./child/child/index.js"(__unused_rspack_module, __rspack_exports, __rspack_require) {
 "use strict";
-__webpack_require__.r(__webpack_exports__);
-__webpack_require__.d(__webpack_exports__, {
+var __webpack_exports__ = __rspack_exports;
+var __webpack_require__ = __rspack_require;
+__rspack_require.r(__rspack_exports);
+__rspack_require.d(__rspack_exports, {
   value: () => (value)
 });
 const value = "dynamic";
 
 
 },
-"./child/index.js"(__unused_rspack_module, __webpack_exports__, __webpack_require__) {
+"./child/index.js"(__unused_rspack_module, __rspack_exports, __rspack_require) {
 "use strict";
-__webpack_require__.r(__webpack_exports__);
-__webpack_require__.d(__webpack_exports__, {
+var __webpack_exports__ = __rspack_exports;
+var __webpack_require__ = __rspack_require;
+__rspack_require.r(__rspack_exports);
+__rspack_require.d(__rspack_exports, {
   value: () => (value)
 });
 const value = "dynamic";
 
 
 },
-"./child sync recursive ^\\.\\/.*\\.js$"(module, __unused_rspack_exports, __webpack_require__) {
+"./child sync recursive ^\\.\\/.*\\.js$"(module, __unused_rspack_exports, __rspack_require) {
+var __webpack_require__ = __rspack_require;
 var map = {
   "./child/index.js": "./child/child/index.js",
   "./index.js": "./child/index.js"
@@ -29,10 +34,10 @@ var map = {
 
 function __rspack_context(req) {
   var id = __rspack_context_resolve(req);
-  return __webpack_require__(id);
+  return __rspack_require(id);
 }
 function __rspack_context_resolve(req) {
-  if(!__webpack_require__.o(map, req)) {
+  if(!__rspack_require.o(map, req)) {
     var e = new Error("Cannot find module '" + req + "'");
     e.code = 'MODULE_NOT_FOUND';
     throw e;
@@ -46,16 +51,17 @@ __rspack_context.id = "./child sync recursive ^\\.\\/.*\\.js$";
 
 
 },
-"./index.js"(__unused_rspack_module, __unused_rspack_exports, __webpack_require__) {
+"./index.js"(__unused_rspack_module, __unused_rspack_exports, __rspack_require) {
+var __webpack_require__ = __rspack_require;
 let a = "index";
-__webpack_require__("./child sync recursive ^\\.\\/.*\\.js$")(`./${a}.js`);
+__rspack_require("./child sync recursive ^\\.\\/.*\\.js$")(`./${a}.js`);
 
 
 },
 
-},function(__webpack_require__) {
-var __webpack_exec__ = function(moduleId) { return __webpack_require__(__webpack_require__.s = moduleId) }
-var __webpack_exports__ = (__webpack_exec__("./index.js"));
+},function(__rspack_require) {
+var __rspack_exec = function(moduleId) { return __rspack_require(__rspack_require.s = moduleId) }
+var __rspack_exports = (__rspack_exec("./index.js"));
 
 }
 ]);

@@ -54,10 +54,10 @@ module.exports = {
               );
               expect(esmImportSpecifier1[1]).not.toBe(esmImportSpecifier2[1]);
               const importChunkId1 = content.match(
-                /const dynamicPkgPure = await __webpack_require__\.e\(\/\* import\(\) \*\/ (?:"([^"]+)"|([0-9]+))\)/,
+                /const dynamicPkgPure = await __rspack_require\.e\(\/\* import\(\) \*\/ (?:"([^"]+)"|([0-9]+))\)/,
               );
               const importChunkId2 = content.match(
-                /const dynamicPkgStr = await __webpack_require__\.e\(\/\* import\(\) \*\/ (?:"([^"]+)"|([0-9]+))\)/,
+                /const dynamicPkgStr = await __rspack_require\.e\(\/\* import\(\) \*\/ (?:"([^"]+)"|([0-9]+))\)/,
               );
               const dynamicPkgPureChunkId =
                 importChunkId1[1] ?? importChunkId1[2];

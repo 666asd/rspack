@@ -116,6 +116,30 @@ fn render_runtime_variable_declaration_prefix(
   format!("var {name} = ")
 }
 
+fn is_runtime_variable_identifier(name: &str) -> bool {
+  matches!(
+    name,
+    "__rspack_require"
+      | "__rspack_runtime"
+      | "__rspack_install_runtime"
+      | "__rspack_esm_id"
+      | "__rspack_esm_ids"
+      | "__rspack_esm_runtime"
+      | "__rspack_install_runtime__"
+      | "__rspack_modules"
+      | "__rspack_module_cache"
+      | "__rspack_module"
+      | "__rspack_exports"
+      | "__rspack_exec"
+      | "__webpack_require__"
+      | "__webpack_modules__"
+      | "__webpack_module_cache__"
+      | "__webpack_module__"
+      | "__webpack_exports__"
+      | "__webpack_exec__"
+  )
+}
+
 #[cfg_attr(allocative, allocative::root)]
 static COMPILATION_HOOKS_MAP: LazyLock<
   SyncRwLock<FxHashMap<CompilationId, Arc<RwLock<JavascriptModulesPluginHooks>>>>,
@@ -1484,6 +1508,10 @@ function {}(moduleId) {{
           .is_empty();
 
         if ident_used {
+          if is_runtime_variable_identifier(name) {
+            continue;
+          }
+
           let context = compilation.options.context.clone();
           let readable_identifier = module.readable_identifier(&context).to_string();
           let splitted_readable_identifier = split_readable_identifier(&readable_identifier);

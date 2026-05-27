@@ -247,42 +247,38 @@ pub async fn render_module(
       if module.build_info().strict && !all_strict {
         container_sources.add(RawStringSource::from_static("\"use strict\";\n"));
       }
-      if compilation
-        .options
-        .experiments
-        .runtime_mode
-        .is_runtime_variables_webpack_compat_enabled()
-      {
-        let mut aliases = Vec::new();
-        if need_module {
-          let module_argument =
-            runtime_template.render_module_argument(module.get_module_argument());
-          if module_argument == runtime_template.render_runtime_variable(&RuntimeVariable::Module)
-            && let Some(alias) = runtime_variable_to_webpack_alias(&RuntimeVariable::Module)
-          {
-            aliases.push(format!("var {alias} = {module_argument};"));
-          }
+      let mut aliases = Vec::new();
+      if need_module {
+        let module_argument = runtime_template.render_module_argument(module.get_module_argument());
+        let module_variable = runtime_template.render_runtime_variable(&RuntimeVariable::Module);
+        let has_rspack_module_alias =
+          module_argument != module_variable && module_argument.starts_with("__nested_rspack");
+        if has_rspack_module_alias {
+          aliases.push(format!("var {module_variable} = {module_argument};"));
         }
-        if need_exports {
-          let exports_argument =
-            runtime_template.render_exports_argument(module.get_exports_argument());
-          if exports_argument == runtime_template.render_runtime_variable(&RuntimeVariable::Exports)
-            && let Some(alias) = runtime_variable_to_webpack_alias(&RuntimeVariable::Exports)
-          {
-            aliases.push(format!("var {alias} = {exports_argument};"));
-          }
-        }
-        if need_require
-          && let Some(alias) = runtime_variable_to_webpack_alias(&RuntimeVariable::Require)
+        if compilation
+          .options
+          .experiments
+          .runtime_mode
+          .is_runtime_variables_webpack_compat_enabled()
+          && (module_argument == module_variable || has_rspack_module_alias)
+          && let Some(alias) = runtime_variable_to_webpack_alias(&RuntimeVariable::Module)
         {
-          aliases.push(format!(
-            "var {alias} = {};",
-            runtime_template.render_runtime_globals(&RuntimeGlobals::REQUIRE)
-          ));
+          aliases.push(format!("var {alias} = {module_variable};"));
         }
-        if !aliases.is_empty() {
-          container_sources.add(RawStringSource::from(format!("{}\n", aliases.join("\n"))));
+      }
+      if need_exports {
+        let exports_argument =
+          runtime_template.render_exports_argument(module.get_exports_argument());
+        let exports_variable = runtime_template.render_runtime_variable(&RuntimeVariable::Exports);
+        let has_rspack_exports_alias =
+          exports_argument != exports_variable && exports_argument.starts_with("__nested_rspack");
+        if has_rspack_exports_alias {
+          aliases.push(format!("var {exports_variable} = {exports_argument};"));
         }
+      }
+      if !aliases.is_empty() {
+        container_sources.add(RawStringSource::from(format!("{}\n", aliases.join("\n"))));
       }
       container_sources.add(render_source.source);
 

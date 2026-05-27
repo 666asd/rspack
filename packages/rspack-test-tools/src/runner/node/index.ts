@@ -422,10 +422,15 @@ export class NodeRunner implements ITestRunner {
             done!();
           };
         };
-        file.content = file.content.replace(
-          'var next = __webpack_require__.x',
-          'var next = __AFTER_CHUNK_LOADED__(__webpack_require__.x)',
-        );
+        file.content = file.content
+          .replace(
+            'var next = __rspack_require.x',
+            'var next = __AFTER_CHUNK_LOADED__(__rspack_require.x)',
+          )
+          .replace(
+            'var next = __webpack_require__.x',
+            'var next = __AFTER_CHUNK_LOADED__(__webpack_require__.x)',
+          );
       }
       const args = Object.keys(currentModuleScope);
       const argValues = args.map((arg) => currentModuleScope[arg]);

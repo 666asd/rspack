@@ -1,9 +1,9 @@
 ```mjs title=main.mjs
-import { __webpack_require__ } from "./runtime.mjs";
+import { __rspack_require } from "./runtime.mjs";
 // NAMESPACE OBJECT: ./namespace.js
 var namespace_namespaceObject = {};
-__webpack_require__.r(namespace_namespaceObject);
-__webpack_require__.d(namespace_namespaceObject, { 
+__rspack_require.r(namespace_namespaceObject);
+__rspack_require.d(namespace_namespaceObject, { 
   foo: () => (foo) });
 
 
@@ -36,14 +36,14 @@ export { a, b, namespace_namespaceObject as ns1, namespace_namespaceObject as ns
 
 ```mjs title=runtime.mjs
 // The require scope
-var __webpack_require__ = {};
+var __rspack_require = {};
 
 // webpack/runtime/define_property_getters
 (() => {
-__webpack_require__.d = (exports, getters, values) => {
+__rspack_require.d = (exports, getters, values) => {
 	var define = (defs, kind) => {
 		for(var key in defs) {
-			if(__webpack_require__.o(defs, key) && !__webpack_require__.o(exports, key)) {
+			if(__rspack_require.o(defs, key) && !__rspack_require.o(exports, key)) {
 				Object.defineProperty(exports, key, { enumerable: true, [kind]: defs[key] });
 			}
 		}
@@ -54,19 +54,20 @@ __webpack_require__.d = (exports, getters, values) => {
 })();
 // webpack/runtime/has_own_property
 (() => {
-__webpack_require__.o = (obj, prop) => (Object.prototype.hasOwnProperty.call(obj, prop))
+__rspack_require.o = (obj, prop) => (Object.prototype.hasOwnProperty.call(obj, prop))
 })();
 // webpack/runtime/make_namespace_object
 (() => {
 // define __esModule on exports
-__webpack_require__.r = (exports) => {
+__rspack_require.r = (__rspack_exports) => {
 	if(typeof Symbol !== 'undefined' && Symbol.toStringTag) {
-		Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
+		Object.defineProperty(__rspack_exports, Symbol.toStringTag, { value: 'Module' });
 	}
-	Object.defineProperty(exports, '__esModule', { value: true });
+	Object.defineProperty(__rspack_exports, '__esModule', { value: true });
 };
+
 })();
 
-export { __webpack_require__ };
+export { __rspack_require };
 
 ```

@@ -1,32 +1,34 @@
 ```mjs title=main.mjs
-import { __webpack_require__ } from "./runtime.mjs";
+import { __rspack_require } from "./runtime.mjs";
 
 import * as __rspack_external_fs from "fs";
 import * as __rspack_external_path from "path";
-__webpack_require__.add({
+__rspack_require.add({
 "./lib.js"
 /*!****************!*\
   !*** ./lib.js ***!
   \****************/
-(__unused_rspack_module, __webpack_exports__, __webpack_require__) {
-__webpack_require__.r(__webpack_exports__);
-/* import */ var fs__rspack_import_0 = __webpack_require__(/*! fs */ "fs");
+(__unused_rspack_module, __rspack_exports, __rspack_require) {
+var __webpack_exports__ = __rspack_exports;
+var __webpack_require__ = __rspack_require;
+__rspack_require.r(__rspack_exports);
+/* import */ var fs__rspack_import_0 = __rspack_require(/*! fs */ "fs");
 
 /* reexport */ var __rspack_reexport = {};
 /* reexport */ for( const __rspack_import_key in fs__rspack_import_0) if(["default","lib"].indexOf(__rspack_import_key) < 0) __rspack_reexport[__rspack_import_key] =() => fs__rspack_import_0[__rspack_import_key]
-/* reexport */ __webpack_require__.d(__webpack_exports__, __rspack_reexport);
-/* import */ var _lib2__rspack_import_1 = __webpack_require__(/*! ./lib2 */ "./lib2.js");
+/* reexport */ __rspack_require.d(__rspack_exports, __rspack_reexport);
+/* import */ var _lib2__rspack_import_1 = __rspack_require(/*! ./lib2 */ "./lib2.js");
 
 /* reexport */ var __rspack_reexport = {};
 /* reexport */ for( const __rspack_import_key in _lib2__rspack_import_1) if(["default","lib"].indexOf(__rspack_import_key) < 0) __rspack_reexport[__rspack_import_key] =() => _lib2__rspack_import_1[__rspack_import_key]
-/* reexport */ __webpack_require__.d(__webpack_exports__, __rspack_reexport);
+/* reexport */ __rspack_require.d(__rspack_exports, __rspack_reexport);
 
 
 
 
 const lib = 42
 
-__webpack_require__.d(__webpack_exports__, {
+__rspack_require.d(__rspack_exports, {
 }, {
   lib: lib
 });
@@ -37,21 +39,23 @@ __webpack_require__.d(__webpack_exports__, {
 /*!*****************!*\
   !*** ./lib2.js ***!
   \*****************/
-(__unused_rspack_module, __webpack_exports__, __webpack_require__) {
-__webpack_require__.r(__webpack_exports__);
-/* import */ var path__rspack_import_0 = __webpack_require__(/*! path */ "path");
+(__unused_rspack_module, __rspack_exports, __rspack_require) {
+var __webpack_exports__ = __rspack_exports;
+var __webpack_require__ = __rspack_require;
+__rspack_require.r(__rspack_exports);
+/* import */ var path__rspack_import_0 = __rspack_require(/*! path */ "path");
 
 /* reexport */ var __rspack_reexport = {};
 /* reexport */ for( const __rspack_import_key in path__rspack_import_0) if(["default","lib2"].indexOf(__rspack_import_key) < 0) __rspack_reexport[__rspack_import_key] =() => path__rspack_import_0[__rspack_import_key]
-/* reexport */ __webpack_require__.d(__webpack_exports__, __rspack_reexport);
-/* import */ var _lib3__rspack_import_1 = __webpack_require__(/*! ./lib3 */ "./lib3.js");
+/* reexport */ __rspack_require.d(__rspack_exports, __rspack_reexport);
+/* import */ var _lib3__rspack_import_1 = __rspack_require(/*! ./lib3 */ "./lib3.js");
 
 
 
 
 const lib2 = 42
 
-__webpack_require__.d(__webpack_exports__, {
+__rspack_require.d(__rspack_exports, {
   fs: () => (/* reexport safe */ _lib3__rspack_import_1.fs),
   lib3: () => (/* reexport safe */ (/* inlined export _lib3__rspack_import_1 */42)),
   lib4: () => (/* reexport safe */ (/* inlined export _lib3__rspack_import_1 */24))
@@ -65,8 +69,10 @@ __webpack_require__.d(__webpack_exports__, {
 /*!*****************!*\
   !*** ./lib3.js ***!
   \*****************/
-(__unused_rspack_module, __webpack_exports__, __webpack_require__) {
-/* import */ var fs__rspack_import_0 = __webpack_require__(/*! fs */ "fs");
+(__unused_rspack_module, __rspack_exports, __rspack_require) {
+var __webpack_exports__ = __rspack_exports;
+var __webpack_require__ = __rspack_require;
+/* import */ var fs__rspack_import_0 = __rspack_require(/*! fs */ "fs");
 const lib3 = 42
 
 const lib_local = 24
@@ -74,7 +80,7 @@ const lib_local = 24
 
 
 
-__webpack_require__.d(__webpack_exports__, {
+__rspack_require.d(__rspack_exports, {
   fs: () => (/* reexport module object */ fs__rspack_import_0)
 });
 
@@ -115,7 +121,7 @@ it('should re-export esm correctly', async () => {
 	expect(fs.readFile).toBe(readFile)
 })
 
-const lib_0 = __webpack_require__("./lib.js");
+const lib_0 = __rspack_require("./lib.js");
 var lib_1 = lib_0.lib;
 var lib2_0 = lib_0.lib2;
 var fs_0 = lib_0.fs;
@@ -130,35 +136,35 @@ export * from "path";
 
 ```mjs title=runtime.mjs
 
-var __webpack_modules__ = {};
+var __rspack_modules = {};
 // The module cache
-var __webpack_module_cache__ = {};
+var __rspack_module_cache = {};
 // The require function
-function __webpack_require__(moduleId) {
+function __rspack_require(moduleId) {
 // Check if module is in cache
-var cachedModule = __webpack_module_cache__[moduleId];
+var cachedModule = __rspack_module_cache[moduleId];
 if (cachedModule !== undefined) {
 return cachedModule.exports;
 }
 // Create a new module (and put it into the cache)
-var module = (__webpack_module_cache__[moduleId] = {
+var module = (__rspack_module_cache[moduleId] = {
 exports: {}
 });
 // Execute the module function
-__webpack_modules__[moduleId](module, module.exports, __webpack_require__);
+__rspack_modules[moduleId](module, module.exports, __rspack_require);
 
 // Return the exports of the module
 return module.exports;
 }
-// expose the modules object (__webpack_modules__)
-__webpack_require__.m = __webpack_modules__;
+// expose the modules object (__rspack_modules)
+__rspack_require.m = __rspack_modules;
 
 // webpack/runtime/define_property_getters
 (() => {
-__webpack_require__.d = (exports, getters, values) => {
+__rspack_require.d = (exports, getters, values) => {
 	var define = (defs, kind) => {
 		for(var key in defs) {
-			if(__webpack_require__.o(defs, key) && !__webpack_require__.o(exports, key)) {
+			if(__rspack_require.o(defs, key) && !__rspack_require.o(exports, key)) {
 				Object.defineProperty(exports, key, { enumerable: true, [kind]: defs[key] });
 			}
 		}
@@ -169,24 +175,25 @@ __webpack_require__.d = (exports, getters, values) => {
 })();
 // webpack/runtime/esm_register_module
 (() => {
-__webpack_require__.add = function registerModules(modules) { Object.assign(__webpack_require__.m, modules) }
+__rspack_require.add = function registerModules(modules) { Object.assign(__rspack_require.m, modules) }
 
 })();
 // webpack/runtime/has_own_property
 (() => {
-__webpack_require__.o = (obj, prop) => (Object.prototype.hasOwnProperty.call(obj, prop))
+__rspack_require.o = (obj, prop) => (Object.prototype.hasOwnProperty.call(obj, prop))
 })();
 // webpack/runtime/make_namespace_object
 (() => {
 // define __esModule on exports
-__webpack_require__.r = (exports) => {
+__rspack_require.r = (__rspack_exports) => {
 	if(typeof Symbol !== 'undefined' && Symbol.toStringTag) {
-		Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
+		Object.defineProperty(__rspack_exports, Symbol.toStringTag, { value: 'Module' });
 	}
-	Object.defineProperty(exports, '__esModule', { value: true });
+	Object.defineProperty(__rspack_exports, '__esModule', { value: true });
 };
+
 })();
 
-export { __webpack_require__ };
+export { __rspack_require };
 
 ```

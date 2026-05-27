@@ -1,9 +1,11 @@
 ```js title=main.js
 "use strict";
 (self["rspackChunk"] = self["rspackChunk"] || []).push([["main"], {
-"./index.js"(__unused_rspack_module, __webpack_exports__, __webpack_require__) {
-__webpack_require__.r(__webpack_exports__);
-/* import */ var _images_file_svg__rspack_import_0 = __webpack_require__("./images/file.svg");
+"./index.js"(__unused_rspack_module, __rspack_exports, __rspack_require) {
+var __webpack_exports__ = __rspack_exports;
+var __webpack_require__ = __rspack_require;
+__rspack_require.r(__rspack_exports);
+/* import */ var _images_file_svg__rspack_import_0 = __rspack_require("./images/file.svg");
 
 
 const container = document.createElement("div");
@@ -40,9 +42,9 @@ module.exports = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5v
 
 },
 
-},function(__webpack_require__) {
-var __webpack_exec__ = function(moduleId) { return __webpack_require__(__webpack_require__.s = moduleId) }
-var __webpack_exports__ = (__webpack_exec__("./index.js"));
+},function(__rspack_require) {
+var __rspack_exec = function(moduleId) { return __rspack_require(__rspack_require.s = moduleId) }
+var __rspack_exports = (__rspack_exec("./index.js"));
 
 }
 ]);

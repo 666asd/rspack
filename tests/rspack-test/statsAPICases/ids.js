@@ -58,7 +58,7 @@ module.exports = {
 			      files: Array [
 			        main.js,
 			      ],
-			      hash: cb00f6f863f5faec,
+			      hash: 69981d1f166d18cf,
 			      id: 889,
 			      idHints: Array [],
 			      initial: true,

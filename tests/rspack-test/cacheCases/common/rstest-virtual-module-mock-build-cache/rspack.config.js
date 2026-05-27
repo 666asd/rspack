@@ -14,17 +14,17 @@ class RstestSimpleRuntimePlugin {
 
       generate() {
         return `
-if (typeof __webpack_require__ === 'undefined') {
+if (typeof __rspack_require === 'undefined') {
   return;
 }
 
-const originalRequire = __webpack_require__;
-__webpack_require__ = function(...args) {
+const originalRequire = __rspack_require;
+__rspack_require = function(...args) {
   try {
     return originalRequire(...args);
   } catch (e) {
     const errMsg = e.message ?? e.toString();
-    if (errMsg.includes('__webpack_modules__[moduleId] is not a function')) {
+    if (errMsg.includes('__rspack_modules[moduleId] is not a function')) {
       throw new Error(\`Cannot find module '\${args[0]}'\`);
     }
     throw e;
@@ -32,43 +32,43 @@ __webpack_require__ = function(...args) {
 };
 
 Object.keys(originalRequire).forEach(key => {
-  __webpack_require__[key] = originalRequire[key];
+  __rspack_require[key] = originalRequire[key];
 });
 
-__webpack_require__.rstest_original_modules = {};
+__rspack_require.rstest_original_modules = {};
 
-__webpack_require__.rstest_mock = (id, modFactory) => {
+__rspack_require.rstest_mock = (id, modFactory) => {
   let requiredModule = undefined;
   try {
-    requiredModule = __webpack_require__(id);
+    requiredModule = __rspack_require(id);
   } catch {}
   finally {
-    __webpack_require__.rstest_original_modules[id] = requiredModule;
+    __rspack_require.rstest_original_modules[id] = requiredModule;
   }
 
   if (typeof modFactory === 'string' || typeof modFactory === 'number') {
-    __webpack_module_cache__[id] = { exports: __webpack_require__(modFactory) };
+    __rspack_module_cache[id] = { exports: __rspack_require(modFactory) };
   } else if (typeof modFactory === 'function') {
     const finalModFactory = function(
       __unused_webpack_module,
-      __webpack_exports__,
-      __webpack_require__,
+      __rspack_exports,
+      __rspack_require,
     ) {
-      __webpack_require__.r(__webpack_exports__);
+      __rspack_require.r(__rspack_exports);
       const res = modFactory();
       for (const key in res) {
-        __webpack_require__.d(__webpack_exports__, {
+        __rspack_require.d(__rspack_exports, {
           [key]: () => res[key],
         });
       }
     };
 
-    __webpack_modules__[id] = finalModFactory;
-    delete __webpack_module_cache__[id];
+    __rspack_modules[id] = finalModFactory;
+    delete __rspack_module_cache[id];
   }
 };
 
-__webpack_require__.rstest_hoisted = fn => fn();
+__rspack_require.rstest_hoisted = fn => fn();
 `;
       }
     }

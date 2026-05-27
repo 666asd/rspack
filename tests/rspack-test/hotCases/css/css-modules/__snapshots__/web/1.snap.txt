@@ -8,8 +8,8 @@
 - Bundle: bundle.js
 - Bundle: style2_module_css.chunk.CURRENT_HASH.js
 - Manifest: main.LAST_HASH.hot-update.json, size: 48
-- Update: main.LAST_HASH.hot-update.js, size: 708
-- Update: style2_module_css.LAST_HASH.hot-update.js, size: 576
+- Update: main.LAST_HASH.hot-update.js, size: 740
+- Update: style2_module_css.LAST_HASH.hot-update.js, size: 614
 
 ## Manifest
 
@@ -35,7 +35,8 @@
 ```js
 "use strict";
 self["rspackHotUpdate"]("main", {
-"./style.module.css"(module, __unused_rspack_exports, __webpack_require__) {
+"./style.module.css"(module, __unused_rspack_exports, __rspack_require) {
+var __webpack_require__ = __rspack_require;
 var exports = {
   "class-other": "style_module_css-class-other",
 };
@@ -47,15 +48,15 @@ if (module.hot.data && module.hot.data.exports && module.hot.data.exports != str
   module.hot.accept();
 }
 module.hot.dispose(function(data) { data.exports = stringified_exports; });
-__webpack_require__.r(module.exports = exports);
+__rspack_require.r(module.exports = exports);
 
 
 },
 
-},function(__webpack_require__) {
+},function(__rspack_require) {
 // webpack/runtime/get_full_hash
 (() => {
-__webpack_require__.h = () => ("CURRENT_HASH")
+__rspack_require.h = () => ("CURRENT_HASH")
 })();
 
 }
@@ -76,7 +77,8 @@ __webpack_require__.h = () => ("CURRENT_HASH")
 ```js
 "use strict";
 self["rspackHotUpdate"]("style2_module_css", {
-"./style2.module.css"(module, __unused_rspack_exports, __webpack_require__) {
+"./style2.module.css"(module, __unused_rspack_exports, __rspack_require) {
+var __webpack_require__ = __rspack_require;
 var exports = {
   "bar": "style2_module_css-bar",
 };
@@ -88,7 +90,7 @@ if (module.hot.data && module.hot.data.exports && module.hot.data.exports != str
   module.hot.accept();
 }
 module.hot.dispose(function(data) { data.exports = stringified_exports; });
-__webpack_require__.r(module.exports = exports);
+__rspack_require.r(module.exports = exports);
 
 
 },

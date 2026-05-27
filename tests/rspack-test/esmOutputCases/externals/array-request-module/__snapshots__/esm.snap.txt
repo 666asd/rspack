@@ -1,5 +1,5 @@
 ```mjs title=main.mjs
-import { __webpack_require__ } from "./runtime.mjs";
+import { __rspack_require } from "./runtime.mjs";
 import * as __rspack_external_fs from "fs";
 
 import { createRequire as __rspack_createRequire } from "node:module";
@@ -7,7 +7,7 @@ const __rspack_createRequire_require = __rspack_createRequire(import.meta.url);
 // fs-promises
 
 
-var external_fs_promises_default = /*#__PURE__*/__webpack_require__.n(__rspack_external_fs.promises);// ./index.js
+var external_fs_promises_default = /*#__PURE__*/__rspack_require.n(__rspack_external_fs.promises);// ./index.js
 
 
 it('should support array-type module external with property access', async () => {
@@ -21,26 +21,26 @@ export {};
 
 ```mjs title=runtime.mjs
 // The require scope
-var __webpack_require__ = {};
+var __rspack_require = {};
 
 // webpack/runtime/compat_get_default_export
 (() => {
 // getDefaultExport function for compatibility with non-ESM modules
-__webpack_require__.n = (module) => {
+__rspack_require.n = (module) => {
 	var getter = module && module.__esModule ?
 		() => (module['default']) :
 		() => (module);
-	__webpack_require__.d(getter, { a: getter });
+	__rspack_require.d(getter, { a: getter });
 	return getter;
 };
 
 })();
 // webpack/runtime/define_property_getters
 (() => {
-__webpack_require__.d = (exports, getters, values) => {
+__rspack_require.d = (exports, getters, values) => {
 	var define = (defs, kind) => {
 		for(var key in defs) {
-			if(__webpack_require__.o(defs, key) && !__webpack_require__.o(exports, key)) {
+			if(__rspack_require.o(defs, key) && !__rspack_require.o(exports, key)) {
 				Object.defineProperty(exports, key, { enumerable: true, [kind]: defs[key] });
 			}
 		}
@@ -51,9 +51,9 @@ __webpack_require__.d = (exports, getters, values) => {
 })();
 // webpack/runtime/has_own_property
 (() => {
-__webpack_require__.o = (obj, prop) => (Object.prototype.hasOwnProperty.call(obj, prop))
+__rspack_require.o = (obj, prop) => (Object.prototype.hasOwnProperty.call(obj, prop))
 })();
 
-export { __webpack_require__ };
+export { __rspack_require };
 
 ```

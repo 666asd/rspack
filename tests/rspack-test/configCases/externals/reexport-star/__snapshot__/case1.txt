@@ -1,20 +1,22 @@
-import { __webpack_require__ } from "./runtime~0.mjs";
+import { __rspack_require } from "./runtime~0.mjs";
 
 import * as __rspack_external_external1_alias_bc4b12e4 from "external1-alias";
 import * as __rspack_external_external2_alias_e5239a01 from "external2-alias";
-__webpack_require__.add({
-42(__unused_rspack_module, __webpack_exports__, __webpack_require__) {
-__webpack_require__.r(__webpack_exports__);
-/* import */ var external1__rspack_import_0 = __webpack_require__(322);
+__rspack_require.add({
+42(__unused_rspack_module, __rspack_exports, __rspack_require) {
+var __webpack_exports__ = __rspack_exports;
+var __webpack_require__ = __rspack_require;
+__rspack_require.r(__rspack_exports);
+/* import */ var external1__rspack_import_0 = __rspack_require(322);
 
 /* reexport */ var __rspack_reexport = {};
 /* reexport */ for( const __rspack_import_key in external1__rspack_import_0) if(__rspack_import_key !== "default") __rspack_reexport[__rspack_import_key] =() => external1__rspack_import_0[__rspack_import_key]
-/* reexport */ __webpack_require__.d(__webpack_exports__, __rspack_reexport);
-/* import */ var external2__rspack_import_1 = __webpack_require__(101);
+/* reexport */ __rspack_require.d(__rspack_exports, __rspack_reexport);
+/* import */ var external2__rspack_import_1 = __rspack_require(101);
 
 /* reexport */ var __rspack_reexport = {};
 /* reexport */ for( const __rspack_import_key in external2__rspack_import_1) if(__rspack_import_key !== "default") __rspack_reexport[__rspack_import_key] =() => external2__rspack_import_1[__rspack_import_key]
-/* reexport */ __webpack_require__.d(__webpack_exports__, __rspack_reexport);
+/* reexport */ __rspack_require.d(__rspack_exports, __rspack_reexport);
 
 
 
@@ -33,7 +35,7 @@ module.exports = __rspack_external_external2_alias_e5239a01;
 
 },
 });
-__webpack_require__("42");
+__rspack_require("42");
 
 export * from "external1-alias";
 export * from "external2-alias";

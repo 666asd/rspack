@@ -79,10 +79,10 @@ production:
 development:
   asset development-a.js xx KiB [emitted] (name: a)
   asset development-b.js xx KiB [emitted] (name: b)
-  asset development-dw_js.js xx bytes [emitted]
-  asset development-dx_js.js xx bytes [emitted]
-  asset development-dy_js.js xx bytes [emitted]
-  asset development-dz_js.js xx bytes [emitted]
+  asset development-dw_js.js xx KiB [emitted]
+  asset development-dx_js.js xx KiB [emitted]
+  asset development-dy_js.js xx KiB [emitted]
+  asset development-dz_js.js xx KiB [emitted]
   asset development-c.js xx bytes [emitted] (name: c)
   chunk (runtime: a) development-a.js (a) xx bytes (javascript) xx KiB (runtime) [entry] [rendered]
     ./a.js xx bytes [built] [code generated]

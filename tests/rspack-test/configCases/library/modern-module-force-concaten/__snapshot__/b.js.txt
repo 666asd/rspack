@@ -1,11 +1,11 @@
-import { __webpack_require__ } from "./runtime~0.js";
+import { __rspack_require } from "./runtime~0.js";
 
-__webpack_require__.add({
+__rspack_require.add({
 917(module) {
 module.exports = 'b'
 
 },
 });
-__webpack_require__("917");
+__rspack_require("917");
 
 export {};

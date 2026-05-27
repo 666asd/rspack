@@ -15,17 +15,17 @@ class RstestSimpleRuntimePlugin {
 
       generate() {
         return `
-if (typeof __webpack_require__ === 'undefined') {
+if (typeof __rspack_require === 'undefined') {
   return;
 }
 
-const originalRequire = __webpack_require__;
-__webpack_require__ = function(...args) {
+const originalRequire = __rspack_require;
+__rspack_require = function(...args) {
   try {
     return originalRequire(...args);
   } catch (e) {
     const errMsg = e.message ?? e.toString();
-    if (errMsg.includes('__webpack_modules__[moduleId] is not a function')) {
+    if (errMsg.includes('__rspack_modules[moduleId] is not a function')) {
       throw new Error(\`Cannot find module '\${args[0]}'\`)
     }
     throw e;
@@ -33,95 +33,95 @@ __webpack_require__ = function(...args) {
 };
 
 Object.keys(originalRequire).forEach(key => {
-  __webpack_require__[key] = originalRequire[key];
+  __rspack_require[key] = originalRequire[key];
 });
 
-__webpack_require__.rstest_original_modules = {};
+__rspack_require.rstest_original_modules = {};
 
-__webpack_require__.rstest_reset_modules = () => {
-  const mockedIds = Object.keys(__webpack_require__.rstest_original_modules)
-  Object.keys(__webpack_module_cache__).forEach(id => {
+__rspack_require.rstest_reset_modules = () => {
+  const mockedIds = Object.keys(__rspack_require.rstest_original_modules)
+  Object.keys(__rspack_module_cache).forEach(id => {
     // Do not reset mocks registry.
     if (!mockedIds.includes(id)) {
-      delete __webpack_module_cache__[id];
+      delete __rspack_module_cache[id];
     }
   });
 }
 
-__webpack_require__.rstest_unmock = (id) => {
-  delete __webpack_module_cache__[id]
+__rspack_require.rstest_unmock = (id) => {
+  delete __rspack_module_cache[id]
 }
 
-__webpack_require__.rstest_require_actual = __webpack_require__.rstest_import_actual = (id) => {
-  const originalModule = __webpack_require__.rstest_original_modules[id];
+__rspack_require.rstest_require_actual = __rspack_require.rstest_import_actual = (id) => {
+  const originalModule = __rspack_require.rstest_original_modules[id];
   // Use fallback module if the module is not mocked.
-  const fallbackMod = __webpack_require__(id);
+  const fallbackMod = __rspack_require(id);
   return originalModule ? originalModule : fallbackMod;
 }
 
-__webpack_require__.rstest_exec = async (id, modFactory) => {
-  if (__webpack_module_cache__) {
-    let asyncFactory = __webpack_module_cache__[id];
+__rspack_require.rstest_exec = async (id, modFactory) => {
+  if (__rspack_module_cache) {
+    let asyncFactory = __rspack_module_cache[id];
     if (asyncFactory && asyncFactory.constructor.name === 'AsyncFunction') {
       await asyncFactory();
     }
   }
 };
 
-__webpack_require__.rstest_mock = (id, modFactory) => {
+__rspack_require.rstest_mock = (id, modFactory) => {
   let requiredModule = undefined
   try {
-    requiredModule = __webpack_require__(id);
+    requiredModule = __rspack_require(id);
   } catch {
     // TODO: non-resolved module
   } finally {
-    __webpack_require__.rstest_original_modules[id] = requiredModule;
+    __rspack_require.rstest_original_modules[id] = requiredModule;
   }
   if (typeof modFactory === 'string' || typeof modFactory === 'number') {
-    __webpack_module_cache__[id] = { exports: __webpack_require__(modFactory) };
+    __rspack_module_cache[id] = { exports: __rspack_require(modFactory) };
   } else if (typeof modFactory === 'function') {
     const finalModFactory = function (
       __unused_webpack_module,
-      __webpack_exports__,
-      __webpack_require__,
+      __rspack_exports,
+      __rspack_require,
     ) {
-      __webpack_require__.r(__webpack_exports__);
+      __rspack_require.r(__rspack_exports);
       const res = modFactory();
       for (const key in res) {
-        __webpack_require__.d(__webpack_exports__, {
+        __rspack_require.d(__rspack_exports, {
           [key]: () => res[key],
         });
       }
     };
 
-    __webpack_modules__[id] = finalModFactory;
-    delete __webpack_module_cache__[id];
+    __rspack_modules[id] = finalModFactory;
+    delete __rspack_module_cache[id];
   }
 };
 
-__webpack_require__.rstest_mock_require = __webpack_require__.rstest_mock;
+__rspack_require.rstest_mock_require = __rspack_require.rstest_mock;
 
-__webpack_require__.rstest_do_mock = (id, modFactory) => {
+__rspack_require.rstest_do_mock = (id, modFactory) => {
   let requiredModule = undefined
   try {
-    requiredModule = __webpack_require__(id);
+    requiredModule = __rspack_require(id);
   } catch {
     // TODO: non-resolved module
   } finally {
-    __webpack_require__.rstest_original_modules[id] = requiredModule;
+    __rspack_require.rstest_original_modules[id] = requiredModule;
   }
   if (typeof modFactory === 'string' || typeof modFactory === 'number') {
-    __webpack_module_cache__[id] = { exports: __webpack_require__(modFactory) };
+    __rspack_module_cache[id] = { exports: __rspack_require(modFactory) };
   } else if (typeof modFactory === 'function') {
     const exports = modFactory();
-    __webpack_require__.r(exports);
-    __webpack_module_cache__[id] = { exports, id, loaded: true };
+    __rspack_require.r(exports);
+    __rspack_module_cache[id] = { exports, id, loaded: true };
   }
 };
 
-__webpack_require__.rstest_do_mock_require = __webpack_require__.rstest_do_mock;
+__rspack_require.rstest_do_mock_require = __rspack_require.rstest_do_mock;
 
-__webpack_require__.rstest_hoisted = (fn) => {
+__rspack_require.rstest_hoisted = (fn) => {
   return fn();
 };
 `;

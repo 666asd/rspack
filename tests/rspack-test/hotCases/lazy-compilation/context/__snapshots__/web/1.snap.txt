@@ -9,8 +9,8 @@
 - Bundle: modules_demo_js_lazy-compilation-proxy.chunk.CURRENT_HASH.js
 - Bundle: modules_module_js_lazy-compilation-proxy.chunk.CURRENT_HASH.js
 - Manifest: main.LAST_HASH.hot-update.json, size: 69
-- Update: main.LAST_HASH.hot-update.js, size: 470
-- Update: modules_demo_js_lazy-compilation-proxy.LAST_HASH.hot-update.js, size: 1042
+- Update: main.LAST_HASH.hot-update.js, size: 534
+- Update: modules_demo_js_lazy-compilation-proxy.LAST_HASH.hot-update.js, size: 1071
 
 ## Manifest
 
@@ -36,9 +36,11 @@
 ```js
 "use strict";
 self["rspackHotUpdate"]("main", {
-"./generation.js"(__unused_rspack_module, __webpack_exports__, __webpack_require__) {
-__webpack_require__.r(__webpack_exports__);
-__webpack_require__.d(__webpack_exports__, {
+"./generation.js"(__unused_rspack_module, __rspack_exports, __rspack_require) {
+var __webpack_exports__ = __rspack_exports;
+var __webpack_require__ = __rspack_require;
+__rspack_require.r(__rspack_exports);
+__rspack_require.d(__rspack_exports, {
   "default": () => (__rspack_default_export)
 });
 /* export default */ const __rspack_default_export = (2);
@@ -46,10 +48,10 @@ __webpack_require__.d(__webpack_exports__, {
 
 },
 
-},function(__webpack_require__) {
+},function(__rspack_require) {
 // webpack/runtime/get_full_hash
 (() => {
-__webpack_require__.h = () => ("CURRENT_HASH")
+__rspack_require.h = () => ("CURRENT_HASH")
 })();
 
 }
@@ -69,10 +71,11 @@ __webpack_require__.h = () => ("CURRENT_HASH")
 #### Changed Content
 ```js
 self["rspackHotUpdate"]("modules_demo_js_lazy-compilation-proxy", {
-"./modules/demo.js!lazy-compilation-proxy"(module, __unused_rspack_exports, __webpack_require__) {
-var client = __webpack_require__("../../../../../../../../packages/rspack/hot/lazy-compilation-web.js?http%3A%2F%2Flocalhost%3APORT%2F_rspack%2Flazy%2Ftrigger");
+"./modules/demo.js!lazy-compilation-proxy"(module, __unused_rspack_exports, __rspack_require) {
+var __webpack_require__ = __rspack_require;
+var client = __rspack_require("../../../../../../../../packages/rspack/hot/lazy-compilation-web.js?http%3A%2F%2Flocalhost%3APORT%2F_rspack%2Flazy%2Ftrigger");
 var data = "lazy-compilation-proxy|<TEST_TOOLS_ROOT>/dist/helper/hot-update/loader.js!<TEST_ROOT>/js/temp/hot-snapshot/hotSnapshotCases-hotCases/lazy-compilation/context/modules/demo.js";
-        module.exports = __webpack_require__.e(/* import() */ "modules_demo_js").then(__webpack_require__.bind(__webpack_require__, "./modules/demo.js"));
+        module.exports = __rspack_require.e(/* import() */ "modules_demo_js").then(__rspack_require.bind(__rspack_require, "./modules/demo.js"));
         if (module.hot) {
           module.hot.accept();
           module.hot.accept("./modules/demo.js", function() { module.hot.invalidate(); });

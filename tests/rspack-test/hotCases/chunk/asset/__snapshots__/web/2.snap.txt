@@ -6,7 +6,7 @@
 ## Asset Files
 - Bundle: bundle.js
 - Manifest: main.LAST_HASH.hot-update.json, size: 28
-- Update: main.LAST_HASH.hot-update.js, size: 446
+- Update: main.LAST_HASH.hot-update.js, size: 516
 
 ## Manifest
 
@@ -32,22 +32,24 @@
 #### Changed Content
 ```js
 self["rspackHotUpdate"]("main", {
-"./file.js"(module, __unused_rspack_exports, __webpack_require__) {
-__webpack_require__("./raw.png")
+"./file.js"(module, __unused_rspack_exports, __rspack_require) {
+var __webpack_require__ = __rspack_require;
+__rspack_require("./raw.png")
 module.exports = 3;
 
 
 },
-"./raw.png"(module, __unused_rspack_exports, __webpack_require__) {
+"./raw.png"(module, __unused_rspack_exports, __rspack_require) {
 "use strict";
-module.exports = __webpack_require__.p + "98396dbfd5c74c34.png";
+var __webpack_require__ = __rspack_require;
+module.exports = __rspack_require.p + "98396dbfd5c74c34.png";
 
 },
 
-},function(__webpack_require__) {
+},function(__rspack_require) {
 // webpack/runtime/get_full_hash
 (() => {
-__webpack_require__.h = () => ("CURRENT_HASH")
+__rspack_require.h = () => ("CURRENT_HASH")
 })();
 
 }
@@ -91,7 +93,7 @@ Updated Modules:
 - ./raw.png
 
 Updated Runtime:
-- `__webpack_require__.h`
+- `__rspack_require.h`
 
 
 #### Callback

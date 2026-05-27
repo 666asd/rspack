@@ -1,7 +1,7 @@
 asset main.js xx KiB [emitted] [big] (name: main)
-asset sec.js xx bytes [emitted] (name: sec)
+asset sec.js xx KiB [emitted] (name: sec)
 Entrypoint main [big] xx KiB = main.js
-Entrypoint sec xx bytes = sec.js
+Entrypoint sec xx KiB = sec.js
 ./index.js xx bytes [built] [code generated]
 ./index2.js xx bytes [built] [code generated]
 ./a.js xx KiB [built] [code generated]

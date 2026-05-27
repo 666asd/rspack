@@ -13,14 +13,14 @@ module.exports = {
 		expect(fs.existsSync(path.join(options.output.path, "index_js.mjs"))).toBe(
 			false,
 		);
-		expect(entry).toContain('import { __webpack_require__ } from "./runtime.mjs";');
+		expect(entry).toContain('import { __rspack_require } from "./runtime.mjs";');
 		expect(entry).toContain("Promise.all");
 		expect(entry).toContain('import("node:stream")');
 		expect(entry).toContain('import("./dynamic.mjs")');
-		expect(runtime).toContain("export { __webpack_require__");
-		expect(entry).not.toContain("export { __webpack_require__");
-		expect(entry).not.toContain("as __webpack_require__");
+		expect(runtime).toContain("export { __rspack_require");
+		expect(entry).not.toContain("export { __rspack_require");
+		expect(entry).not.toContain("as __rspack_require");
 		expect(dynamic).not.toContain('from "./main.mjs"');
-		expect(dynamic).toContain('import { __webpack_require__ } from "./runtime.mjs";');
+		expect(dynamic).toContain('import { __rspack_require } from "./runtime.mjs";');
 	},
 };

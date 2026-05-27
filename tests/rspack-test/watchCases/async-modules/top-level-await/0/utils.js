@@ -3,11 +3,11 @@ function escapeRegExp(string) {
 }
 
 export function isAsyncModule(content, moduleId) {
-  const regex = new RegExp(`\\"${escapeRegExp(moduleId)}\\".*\\(.*\\).*\\{\\s([\\S\\s]*?)__webpack_require__\\.r\\(__webpack_exports__\\);`)
+  const regex = new RegExp(`\\"${escapeRegExp(moduleId)}\\".*\\(.*\\).*\\{\\s([\\S\\s]*?)__rspack_require\\.r\\(__rspack_exports\\);`)
   const result = regex.exec(content)
   try {
     const [, header] = result;
-    return header.trim().startsWith("__webpack_require__.a(")
+    return header.includes("__rspack_require.a(")
   } catch (e) {
     console.log(content, moduleId, result)
     throw e;

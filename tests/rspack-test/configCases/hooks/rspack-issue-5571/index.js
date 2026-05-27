@@ -13,5 +13,5 @@ it("should has css loading hmr runtime requirements", () => {
 	const name = "hmrC.css";
 	expect(
 		fs.readFileSync(path.join(__dirname, "./bundle0.js"), "utf-8")
-	).toContain("__webpack_require__." + name + " = ");
+	).toContain("__rspack_require." + name + " = ");
 });

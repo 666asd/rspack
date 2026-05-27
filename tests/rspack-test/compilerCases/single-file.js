@@ -11,7 +11,7 @@ module.exports = [{
 	async check({ files }) {
 		expect(Object.keys(files)).toEqual(["/main.js"]);
 		const bundle = files["/main.js"];
-		expect(bundle).toMatch("function __webpack_require__(");
+		expect(bundle).toMatch("function __rspack_require(");
 		expect(bundle).toMatch("./c.js");
 		expect(bundle).toMatch("./a.js");
 		expect(bundle).toMatch("This is a");
@@ -32,8 +32,8 @@ module.exports = [{
 	async check({ files }) {
 		expect(Object.keys(files)).toEqual(["/main.js"]);
 		const bundle = files["/main.js"];
-		expect(bundle).toMatch("function __webpack_require__(");
-		expect(bundle).toMatch("__webpack_require__(/*! ./a */");
+		expect(bundle).toMatch("function __rspack_require(");
+		expect(bundle).toMatch("__rspack_require(/*! ./a */");
 		expect(bundle).toMatch("./main1.js");
 		expect(bundle).toMatch("./a.js");
 		expect(bundle).toMatch("./b.js");

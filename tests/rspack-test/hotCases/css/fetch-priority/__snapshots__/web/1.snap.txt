@@ -7,8 +7,8 @@
 - Bundle: bundle.js
 - Bundle: style_module_css.chunk.CURRENT_HASH.js
 - Manifest: main.LAST_HASH.hot-update.json, size: 47
-- Update: main.LAST_HASH.hot-update.js, size: 181
-- Update: style_module_css.LAST_HASH.hot-update.js, size: 589
+- Update: main.LAST_HASH.hot-update.js, size: 175
+- Update: style_module_css.LAST_HASH.hot-update.js, size: 627
 
 ## Manifest
 
@@ -33,10 +33,10 @@
 #### Changed Content
 ```js
 "use strict";
-self["rspackHotUpdate"]("main", {},function(__webpack_require__) {
+self["rspackHotUpdate"]("main", {},function(__rspack_require) {
 // webpack/runtime/get_full_hash
 (() => {
-__webpack_require__.h = () => ("CURRENT_HASH")
+__rspack_require.h = () => ("CURRENT_HASH")
 })();
 
 }
@@ -57,7 +57,8 @@ __webpack_require__.h = () => ("CURRENT_HASH")
 ```js
 "use strict";
 self["rspackHotUpdate"]("style_module_css", {
-"./style.module.css"(module, __unused_rspack_exports, __webpack_require__) {
+"./style.module.css"(module, __unused_rspack_exports, __rspack_require) {
+var __webpack_require__ = __rspack_require;
 var exports = {
   "class-other": "style_module_css-class-other",
 };
@@ -69,7 +70,7 @@ if (module.hot.data && module.hot.data.exports && module.hot.data.exports != str
   module.hot.accept();
 }
 module.hot.dispose(function(data) { data.exports = stringified_exports; });
-__webpack_require__.r(module.exports = exports);
+__rspack_require.r(module.exports = exports);
 
 
 },

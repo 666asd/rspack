@@ -23,6 +23,6 @@ it("should include only one use strict per module", function () {
 	//
 	// It is only output format difference between Rspack and webpack.
 
-	expect(matches).toEqual(["var __webpack_modules__ = ({"]);
+	expect(matches).toEqual(["var __webpack_modules__, __rspack_modules = __webpack_modules__ = ({"]);
 
 });

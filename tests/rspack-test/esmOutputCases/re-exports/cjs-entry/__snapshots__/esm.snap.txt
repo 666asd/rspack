@@ -1,7 +1,7 @@
 ```mjs title=main.mjs
-import { __webpack_require__ } from "./runtime.mjs";
+import { __rspack_require } from "./runtime.mjs";
 
-__webpack_require__.add({
+__rspack_require.add({
 "./bar.js"
 /*!****************!*\
   !*** ./bar.js ***!
@@ -15,13 +15,15 @@ exports.bar = 2
 /*!****************!*\
   !*** ./foo.js ***!
   \****************/
-(__unused_rspack_module, __webpack_exports__, __webpack_require__) {
-__webpack_require__.r(__webpack_exports__);
-/* import */ var _bar__rspack_import_0 = __webpack_require__(/*! ./bar */ "./bar.js");
+(__unused_rspack_module, __rspack_exports, __rspack_require) {
+var __webpack_exports__ = __rspack_exports;
+var __webpack_require__ = __rspack_require;
+__rspack_require.r(__rspack_exports);
+/* import */ var _bar__rspack_import_0 = __rspack_require(/*! ./bar */ "./bar.js");
 const foo = 1
 
 
-__webpack_require__.d(__webpack_exports__, {
+__rspack_require.d(__rspack_exports, {
   bar: () => (/* reexport safe */ _bar__rspack_import_0.bar)
 }, {
   foo: foo
@@ -33,8 +35,9 @@ __webpack_require__.d(__webpack_exports__, {
 /*!******************!*\
   !*** ./index.js ***!
   \******************/
-(module, __unused_rspack_exports, __webpack_require__) {
-module.exports = __webpack_require__(/*! ./foo */ "./foo.js")
+(module, __unused_rspack_exports, __rspack_require) {
+var __webpack_require__ = __rspack_require;
+module.exports = __rspack_require(/*! ./foo */ "./foo.js")
 
 it('should have correct output for entry re-exports', async () => {
 	const { foo, bar } = await import(/* webpackIgnore: true */ './main.mjs');
@@ -47,7 +50,7 @@ it('should have correct output for entry re-exports', async () => {
 
 },
 });
-const index = __webpack_require__("./index.js");
+const index = __rspack_require("./index.js");
 var bar = index.bar;
 var foo = index.foo;
 
@@ -57,35 +60,35 @@ export { bar, foo };
 
 ```mjs title=runtime.mjs
 
-var __webpack_modules__ = {};
+var __rspack_modules = {};
 // The module cache
-var __webpack_module_cache__ = {};
+var __rspack_module_cache = {};
 // The require function
-function __webpack_require__(moduleId) {
+function __rspack_require(moduleId) {
 // Check if module is in cache
-var cachedModule = __webpack_module_cache__[moduleId];
+var cachedModule = __rspack_module_cache[moduleId];
 if (cachedModule !== undefined) {
 return cachedModule.exports;
 }
 // Create a new module (and put it into the cache)
-var module = (__webpack_module_cache__[moduleId] = {
+var module = (__rspack_module_cache[moduleId] = {
 exports: {}
 });
 // Execute the module function
-__webpack_modules__[moduleId](module, module.exports, __webpack_require__);
+__rspack_modules[moduleId](module, module.exports, __rspack_require);
 
 // Return the exports of the module
 return module.exports;
 }
-// expose the modules object (__webpack_modules__)
-__webpack_require__.m = __webpack_modules__;
+// expose the modules object (__rspack_modules)
+__rspack_require.m = __rspack_modules;
 
 // webpack/runtime/define_property_getters
 (() => {
-__webpack_require__.d = (exports, getters, values) => {
+__rspack_require.d = (exports, getters, values) => {
 	var define = (defs, kind) => {
 		for(var key in defs) {
-			if(__webpack_require__.o(defs, key) && !__webpack_require__.o(exports, key)) {
+			if(__rspack_require.o(defs, key) && !__rspack_require.o(exports, key)) {
 				Object.defineProperty(exports, key, { enumerable: true, [kind]: defs[key] });
 			}
 		}
@@ -96,24 +99,25 @@ __webpack_require__.d = (exports, getters, values) => {
 })();
 // webpack/runtime/esm_register_module
 (() => {
-__webpack_require__.add = function registerModules(modules) { Object.assign(__webpack_require__.m, modules) }
+__rspack_require.add = function registerModules(modules) { Object.assign(__rspack_require.m, modules) }
 
 })();
 // webpack/runtime/has_own_property
 (() => {
-__webpack_require__.o = (obj, prop) => (Object.prototype.hasOwnProperty.call(obj, prop))
+__rspack_require.o = (obj, prop) => (Object.prototype.hasOwnProperty.call(obj, prop))
 })();
 // webpack/runtime/make_namespace_object
 (() => {
 // define __esModule on exports
-__webpack_require__.r = (exports) => {
+__rspack_require.r = (__rspack_exports) => {
 	if(typeof Symbol !== 'undefined' && Symbol.toStringTag) {
-		Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
+		Object.defineProperty(__rspack_exports, Symbol.toStringTag, { value: 'Module' });
 	}
-	Object.defineProperty(exports, '__esModule', { value: true });
+	Object.defineProperty(__rspack_exports, '__esModule', { value: true });
 };
+
 })();
 
-export { __webpack_require__ };
+export { __rspack_require };
 
 ```

@@ -8,8 +8,8 @@
 - Bundle: file_js.chunk.CURRENT_HASH.js
 - Bundle: vendors-node_modules_vue_js.chunk.CURRENT_HASH.js
 - Manifest: main.LAST_HASH.hot-update.json, size: 94
-- Update: file_js.LAST_HASH.hot-update.js, size: 380
-- Update: main.LAST_HASH.hot-update.js, size: 651
+- Update: file_js.LAST_HASH.hot-update.js, size: 447
+- Update: main.LAST_HASH.hot-update.js, size: 703
 
 ## Manifest
 
@@ -35,12 +35,14 @@
 ```js
 "use strict";
 self["rspackHotUpdate"]("file_js", {
-"./file.js"(__unused_rspack_module, __webpack_exports__, __webpack_require__) {
-__webpack_require__.r(__webpack_exports__);
-__webpack_require__.d(__webpack_exports__, {
+"./file.js"(__unused_rspack_module, __rspack_exports, __rspack_require) {
+var __webpack_exports__ = __rspack_exports;
+var __webpack_require__ = __rspack_require;
+__rspack_require.r(__rspack_exports);
+__rspack_require.d(__rspack_exports, {
   Vue: () => (/* reexport safe */ vue__rspack_import_0.Vue)
 });
-/* import */ var vue__rspack_import_0 = __webpack_require__("./node_modules/vue.js");
+/* import */ var vue__rspack_import_0 = __rspack_require("./node_modules/vue.js");
 
 
 
@@ -63,22 +65,24 @@ __webpack_require__.d(__webpack_exports__, {
 ```js
 "use strict";
 self["rspackHotUpdate"]("main", {
-"./chunk.js"(__unused_rspack_module, __webpack_exports__, __webpack_require__) {
-__webpack_require__.r(__webpack_exports__);
-__webpack_require__.d(__webpack_exports__, {
+"./chunk.js"(__unused_rspack_module, __rspack_exports, __rspack_require) {
+var __webpack_exports__ = __rspack_exports;
+var __webpack_require__ = __rspack_require;
+__rspack_require.r(__rspack_exports);
+__rspack_require.d(__rspack_exports, {
   test: () => (test)
 });
 function test(count) {
-  return Promise.all(/* import() */ [__webpack_require__.e("vendors-node_modules_vue_js"), __webpack_require__.e("file_js")]).then(__webpack_require__.bind(__webpack_require__, "./file.js")).then(({ React, Vue }) => count === 0 ? React : Vue)
+  return Promise.all(/* import() */ [__rspack_require.e("vendors-node_modules_vue_js"), __rspack_require.e("file_js")]).then(__rspack_require.bind(__rspack_require, "./file.js")).then(({ React, Vue }) => count === 0 ? React : Vue)
 }
 
 
 },
 
-},function(__webpack_require__) {
+},function(__rspack_require) {
 // webpack/runtime/get_full_hash
 (() => {
-__webpack_require__.h = () => ("CURRENT_HASH")
+__rspack_require.h = () => ("CURRENT_HASH")
 })();
 
 }

@@ -6,6 +6,6 @@ const readCase = (name)=> fs.readFileSync(path.resolve(__dirname, `${name}.js`),
 const caseContent = readCase("case");
 
 it("dynamic import script externals module should be returned", function () {
-	expect(caseContent).toContain(`return __webpack_require__.t(m, 22)`)
+	expect(caseContent).toContain(`return __rspack_require.t(m, 22)`)
 
 });

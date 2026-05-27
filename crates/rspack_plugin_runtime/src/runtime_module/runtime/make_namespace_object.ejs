@@ -1,7 +1,7 @@
 // define __esModule on exports
-<%- MAKE_NAMESPACE_OBJECT %> = <%- basicFunction("exports") %> {
+<%- MAKE_NAMESPACE_OBJECT %> = <%- basicFunction("__rspack_exports") %> {
 	if(typeof Symbol !== 'undefined' && Symbol.toStringTag) {
-		Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
+		Object.defineProperty(__rspack_exports, Symbol.toStringTag, { value: 'Module' });
 	}
-	Object.defineProperty(exports, '__esModule', { value: true });
+	Object.defineProperty(__rspack_exports, '__esModule', { value: true });
 };

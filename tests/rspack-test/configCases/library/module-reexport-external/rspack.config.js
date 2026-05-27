@@ -31,7 +31,7 @@ module.exports = {
         compilation.hooks.afterProcessAssets.tap('testcase', (assets) => {
           const source = assets['test.js'].source();
           expect(source).toContain(
-            'export { __webpack_exports__value as value };',
+            'export { __rspack_exportsvalue as value };',
           );
         });
       };

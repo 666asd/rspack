@@ -28,7 +28,7 @@ it("should NOT rename require when requireAlias is false", function () {
 
 	const content = fs.readFileSync(path.join(__dirname, "./bundle0.js"), "utf-8");
 	const filename = "./file";
-	const requireName = "__webpack_require__(641)";
+	const requireName = "__rspack_require(641)";
 	const ok = "ok";
 
 	expect(content).toContain(`cjsRequire("${filename}")`);

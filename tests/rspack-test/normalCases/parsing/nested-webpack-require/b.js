@@ -2,8 +2,8 @@ const map = {
 	key: function (__webpack_require__) {
 		function d() {
 			function __webpack_require__() {}
-			it("webpack also report undefined, this maybe a bug", () => {
-				expect(require("./a.js")).toBeUndefined();
+			it("legacy __webpack_require__ shadowing should not shadow rspack require", () => {
+				expect(require("./a.js")).toBe("a");
 			});
 		}
 		function e(__webpack_require__) {}

@@ -13,7 +13,7 @@ it('should load the component from container', () => {
   });
 });
 
-it('should have correct __webpack_require__.x distribution in entry chunks', () => {
+it('should have correct __rspack_require.x distribution in entry chunks', () => {
   const distPath = __dirname;
   const isESM = distPath.includes('/module') || distPath.includes('\\module');
   const ext = isESM ? '.mjs' : '.js';
@@ -25,11 +25,11 @@ it('should have correct __webpack_require__.x distribution in entry chunks', () 
     return matches ? matches.length : 0;
   };
 
-  expect(countInFile('another.js', '__webpack_require__\\.x\\(\\)')).toBe(1);
-  expect(countInFile('main.js', '__webpack_require__\\.x\\(\\)')).toBe(1);
+  expect(countInFile('another.js', '__rspack_require\\.x\\(\\)')).toBe(1);
+  expect(countInFile('main.js', '__rspack_require\\.x\\(\\)')).toBe(1);
 });
 
-it('should have correct __webpack_require__.x distribution in runtime chunks', () => {
+it('should have correct __rspack_require.x distribution in runtime chunks', () => {
   const distPath = __dirname;
   const isESM = distPath.includes('/module') || distPath.includes('\\module');
   const ext = isESM ? '.mjs' : '.js';
@@ -41,11 +41,11 @@ it('should have correct __webpack_require__.x distribution in runtime chunks', (
     return matches ? matches.length : 0;
   };
 
-  expect(countInFile('webpack.js', '__webpack_require__\\.x\\(\\)')).toBe(0);
-  expect(countInFile('other.js', '__webpack_require__\\.x\\(\\)')).toBe(0);
+  expect(countInFile('webpack.js', '__rspack_require\\.x\\(\\)')).toBe(0);
+  expect(countInFile('other.js', '__rspack_require\\.x\\(\\)')).toBe(0);
 });
 
-it('should have correct __webpack_require__.x distribution in Module Federation container', () => {
+it('should have correct __rspack_require.x distribution in Module Federation container', () => {
   const distPath = __dirname;
   const isESM = distPath.includes('/module') || distPath.includes('\\module');
   const ext = isESM ? '.mjs' : '.js';
@@ -57,7 +57,7 @@ it('should have correct __webpack_require__.x distribution in Module Federation 
     return matches ? matches.length : 0;
   };
 
-  expect(countInFile('container.js', '__webpack_require__\\.x\\(\\)')).toBe(1);
+  expect(countInFile('container.js', '__rspack_require\\.x\\(\\)')).toBe(1);
 });
 
 it('should have correct federation runtime distribution', () => {

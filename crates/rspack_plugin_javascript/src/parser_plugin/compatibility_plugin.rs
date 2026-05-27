@@ -1,4 +1,6 @@
-use rspack_core::{BoxDependencyTemplate, ConstDependency, ContextDependency, DependencyRange};
+use rspack_core::{
+  BoxDependencyTemplate, ConstDependency, ContextDependency, DependencyRange, ExportsArgument,
+};
 use rspack_util::{SpanExt, itoa};
 use swc_core::{
   atoms::Atom,
@@ -13,6 +15,8 @@ use crate::{
 };
 
 pub const NESTED_IDENTIFIER_TAG: &str = "_identifier__nested_rspack_identifier__";
+const WEBPACK_REQUIRE: &str = "__webpack_require__";
+const WEBPACK_EXPORTS: &str = "__webpack_exports__";
 
 #[derive(Debug, Clone)]
 pub struct NestedRequireData {
@@ -72,6 +76,14 @@ impl CompatibilityPlugin {
       }),
     );
   }
+
+  fn is_active_exports_argument(&self, parser: &JavascriptParser, name: &str) -> bool {
+    name == WEBPACK_EXPORTS
+      || (!matches!(
+        parser.build_info.exports_argument,
+        ExportsArgument::RspackExports
+      ) && name == "exports")
+  }
 }
 
 #[rspack_macros::implemented_javascript_parser_hooks]
@@ -102,7 +114,9 @@ impl JavascriptParserPlugin for CompatibilityPlugin {
   ) -> Option<bool> {
     let ident = decl.name.as_ident()?;
 
-    if ident.sym.as_str() == parser.parser_runtime_requirements.require {
+    if ident.sym.as_str() == parser.parser_runtime_requirements.require
+      || ident.sym.as_str() == WEBPACK_REQUIRE
+    {
       let start = ident.span().real_lo();
       let end = ident.span().real_hi();
       self.tag_nested_require_data(
@@ -120,7 +134,7 @@ impl JavascriptParserPlugin for CompatibilityPlugin {
         end,
       );
       return Some(true);
-    } else if ident.sym.as_str() == parser.parser_runtime_requirements.exports {
+    } else if self.is_active_exports_argument(parser, ident.sym.as_str()) {
       self.tag_nested_require_data(
         parser,
         ident.sym.clone(),
@@ -141,7 +155,7 @@ impl JavascriptParserPlugin for CompatibilityPlugin {
     ident: &swc_core::ecma::ast::Ident,
     for_name: &str,
   ) -> Option<bool> {
-    if for_name == parser.parser_runtime_requirements.exports {
+    if self.is_active_exports_argument(parser, for_name) {
       self.tag_nested_require_data(
         parser,
         ident.sym.clone(),
@@ -151,7 +165,8 @@ impl JavascriptParserPlugin for CompatibilityPlugin {
         ident.span().real_hi(),
       );
       return Some(true);
-    } else if for_name == parser.parser_runtime_requirements.require {
+    } else if for_name == parser.parser_runtime_requirements.require || for_name == WEBPACK_REQUIRE
+    {
       let start = ident.span().real_lo();
       let end = ident.span().real_hi();
       self.tag_nested_require_data(
@@ -177,7 +192,9 @@ impl JavascriptParserPlugin for CompatibilityPlugin {
     let fn_decl = stmt.as_function_decl()?;
     let ident = fn_decl.ident()?;
     let name = &ident.sym;
-    if name.as_str() != parser.parser_runtime_requirements.require {
+    if name.as_str() != parser.parser_runtime_requirements.require
+      && name.as_str() != WEBPACK_REQUIRE
+    {
       None
     } else {
       self.tag_nested_require_data(

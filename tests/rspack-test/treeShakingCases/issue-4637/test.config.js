@@ -1,7 +1,7 @@
 const HELPER_ID = '"<PNPM_INNER>/@swc/helpers/esm/_create_class.js"(';
 const INDEX_ID = '"./index.js"(';
 const UTIL_ID = '"./util.js"(';
-const RUNTIME_MARKER = '},function(__webpack_require__) {';
+const RUNTIME_MARKER = '},function(__rspack_require) {';
 
 function normalizeModuleBlock(block) {
 	return block.trimEnd().replace(/,\s*$/, "");

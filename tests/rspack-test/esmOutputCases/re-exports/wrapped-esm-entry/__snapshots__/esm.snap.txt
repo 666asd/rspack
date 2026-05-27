@@ -1,20 +1,22 @@
 ```mjs title=main.mjs
-import { __webpack_require__ } from "./runtime.mjs";
+import { __rspack_require } from "./runtime.mjs";
 
 import * as __rspack_external_fs from "fs";
-__webpack_require__.add({
+__rspack_require.add({
 "./index.js"
 /*!******************!*\
   !*** ./index.js ***!
   \******************/
-(module, __webpack_exports__, __webpack_require__) {
-__webpack_require__.r(__webpack_exports__);
-/* import */ var fs__rspack_import_0 = __webpack_require__(/*! fs */ "fs");
+(module, __rspack_exports, __rspack_require) {
+var __webpack_exports__ = __rspack_exports;
+var __webpack_require__ = __rspack_require;
+__rspack_require.r(__rspack_exports);
+/* import */ var fs__rspack_import_0 = __rspack_require(/*! fs */ "fs");
 
 /* reexport */ var __rspack_reexport = {};
 /* reexport */ for( const __rspack_import_key in fs__rspack_import_0) if(["r","named","default","fs","starExports","readFile"].indexOf(__rspack_import_key) < 0) __rspack_reexport[__rspack_import_key] =() => fs__rspack_import_0[__rspack_import_key]
-/* reexport */ __webpack_require__.d(__webpack_exports__, __rspack_reexport);
-/* module decorator */ module = __webpack_require__.hmd(module);
+/* reexport */ __rspack_require.d(__rspack_exports, __rspack_reexport);
+/* module decorator */ module = __rspack_require.hmd(module);
 
 
 
@@ -38,7 +40,7 @@ it('should compile and import success', async () => {
 	expect(readFile).toBeDefined()
 })
 
-__webpack_require__.d(__webpack_exports__, {
+__rspack_require.d(__rspack_exports, {
   fs: () => (/* reexport safe */ fs__rspack_import_0["default"]),
   named: () => (/* reexport safe */ (/* inlined export _lib__rspack_import_1 */42)),
   r: () => (/* reexport safe */ fs__rspack_import_0.readFile),
@@ -59,7 +61,7 @@ module.exports = __rspack_external_fs;
 
 },
 });
-const index = __webpack_require__("./index.js");
+const index = __rspack_require("./index.js");
 var fs = index.fs;
 var named = index.named;
 var r = index.r;
@@ -73,36 +75,36 @@ export * from "fs";
 
 ```mjs title=runtime.mjs
 
-var __webpack_modules__ = {};
+var __rspack_modules = {};
 // The module cache
-var __webpack_module_cache__ = {};
+var __rspack_module_cache = {};
 // The require function
-function __webpack_require__(moduleId) {
+function __rspack_require(moduleId) {
 // Check if module is in cache
-var cachedModule = __webpack_module_cache__[moduleId];
+var cachedModule = __rspack_module_cache[moduleId];
 if (cachedModule !== undefined) {
 return cachedModule.exports;
 }
 // Create a new module (and put it into the cache)
-var module = (__webpack_module_cache__[moduleId] = {
+var module = (__rspack_module_cache[moduleId] = {
 id: moduleId,
 exports: {}
 });
 // Execute the module function
-__webpack_modules__[moduleId](module, module.exports, __webpack_require__);
+__rspack_modules[moduleId](module, module.exports, __rspack_require);
 
 // Return the exports of the module
 return module.exports;
 }
-// expose the modules object (__webpack_modules__)
-__webpack_require__.m = __webpack_modules__;
+// expose the modules object (__rspack_modules)
+__rspack_require.m = __rspack_modules;
 
 // webpack/runtime/define_property_getters
 (() => {
-__webpack_require__.d = (exports, getters, values) => {
+__rspack_require.d = (exports, getters, values) => {
 	var define = (defs, kind) => {
 		for(var key in defs) {
-			if(__webpack_require__.o(defs, key) && !__webpack_require__.o(exports, key)) {
+			if(__rspack_require.o(defs, key) && !__rspack_require.o(exports, key)) {
 				Object.defineProperty(exports, key, { enumerable: true, [kind]: defs[key] });
 			}
 		}
@@ -113,7 +115,7 @@ __webpack_require__.d = (exports, getters, values) => {
 })();
 // webpack/runtime/esm_module_decorator
 (() => {
-__webpack_require__.hmd = (module) => {
+__rspack_require.hmd = (module) => {
   module = Object.create(module);
   if (!module.children) module.children = [];
   Object.defineProperty(module, 'exports', {
@@ -127,24 +129,25 @@ __webpack_require__.hmd = (module) => {
 })();
 // webpack/runtime/esm_register_module
 (() => {
-__webpack_require__.add = function registerModules(modules) { Object.assign(__webpack_require__.m, modules) }
+__rspack_require.add = function registerModules(modules) { Object.assign(__rspack_require.m, modules) }
 
 })();
 // webpack/runtime/has_own_property
 (() => {
-__webpack_require__.o = (obj, prop) => (Object.prototype.hasOwnProperty.call(obj, prop))
+__rspack_require.o = (obj, prop) => (Object.prototype.hasOwnProperty.call(obj, prop))
 })();
 // webpack/runtime/make_namespace_object
 (() => {
 // define __esModule on exports
-__webpack_require__.r = (exports) => {
+__rspack_require.r = (__rspack_exports) => {
 	if(typeof Symbol !== 'undefined' && Symbol.toStringTag) {
-		Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
+		Object.defineProperty(__rspack_exports, Symbol.toStringTag, { value: 'Module' });
 	}
-	Object.defineProperty(exports, '__esModule', { value: true });
+	Object.defineProperty(__rspack_exports, '__esModule', { value: true });
 };
+
 })();
 
-export { __webpack_require__ };
+export { __rspack_require };
 
 ```

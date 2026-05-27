@@ -79,7 +79,7 @@ module.exports = {
 			        main.js,
 			      ],
 			      filteredModules: undefined,
-			      hash: cdb99ed02c08ea23,
+			      hash: 72fbfafcbf669fd6,
 			      id: 889,
 			      idHints: Array [],
 			      initial: true,
@@ -437,7 +437,7 @@ module.exports = {
 			      size: 192,
 			      sizes: Object {
 			        javascript: 192,
-			        runtime: 705,
+			        runtime: 718,
 			      },
 			      type: chunk,
 			    },
@@ -467,7 +467,7 @@ module.exports = {
 			  errorsCount: 0,
 			  filteredAssets: undefined,
 			  filteredModules: undefined,
-			  hash: 8231f20d8ffb8e3d,
+			  hash: ed4060050112931a,
 			  modules: Array [
 			    Object {
 			      assets: Array [],
@@ -1106,9 +1106,9 @@ module.exports = {
 			      preOrderIndex: undefined,
 			      providedExports: Array [],
 			      reasons: Array [],
-			      size: 343,
+			      size: 334,
 			      sizes: Object {
-			        runtime: 343,
+			        runtime: 334,
 			      },
 			      type: module,
 			      usedExports: null,
@@ -1148,9 +1148,9 @@ module.exports = {
 			      preOrderIndex: undefined,
 			      providedExports: Array [],
 			      reasons: Array [],
-			      size: 88,
+			      size: 85,
 			      sizes: Object {
-			        runtime: 88,
+			        runtime: 85,
 			      },
 			      type: module,
 			      usedExports: null,
@@ -1190,9 +1190,9 @@ module.exports = {
 			      preOrderIndex: undefined,
 			      providedExports: Array [],
 			      reasons: Array [],
-			      size: 274,
+			      size: 299,
 			      sizes: Object {
-			        runtime: 274,
+			        runtime: 299,
 			      },
 			      type: module,
 			      usedExports: null,
@@ -1237,7 +1237,7 @@ module.exports = {
 		})).toMatchInlineSnapshot(`
 			asset main.js 444 bytes [emitted] (name: main)
 			orphan modules 192 bytes [orphan] 4 modules
-			runtime modules 705 bytes 3 modules
+			runtime modules 718 bytes 3 modules
 			./fixtures/esm/abc.js + 3 modules 192 bytes [code generated]
 			  [no exports]
 			  [no exports used]

@@ -6,7 +6,7 @@
 ## Asset Files
 - Bundle: bundle.js
 - Bundle: chunk1_js.chunk.CURRENT_HASH.js
-- Update: main.LAST_HASH.hot-update.js, size: 18383
+- Update: main.LAST_HASH.hot-update.js, size: 18306
 
 ## Manifest
 
@@ -27,9 +27,11 @@
 ```js
 "use strict";
 self["rspackHotUpdate"]("main", {
-"./module.js"(__unused_rspack_module, __webpack_exports__, __webpack_require__) {
-__webpack_require__.r(__webpack_exports__);
-__webpack_require__.d(__webpack_exports__, {
+"./module.js"(__unused_rspack_module, __rspack_exports, __rspack_require) {
+var __webpack_exports__ = __rspack_exports;
+var __webpack_require__ = __rspack_require;
+__rspack_require.r(__rspack_exports);
+__rspack_require.d(__rspack_exports, {
   "default": () => (__rspack_default_export)
 });
 /* export default */ const __rspack_default_export = (42);
@@ -37,10 +39,10 @@ __webpack_require__.d(__webpack_exports__, {
 
 },
 
-},function(__webpack_require__) {
+},function(__rspack_require) {
 // webpack/runtime/get_full_hash
 (() => {
-__webpack_require__.h = () => ("CURRENT_HASH")
+__rspack_require.h = () => ("CURRENT_HASH")
 })();
 // webpack/runtime/jsonp_chunk_loading
 (() => {
@@ -48,11 +50,11 @@ __webpack_require__.h = () => ("CURRENT_HASH")
       // object to store loaded and loading chunks
       // undefined = chunk not loaded, null = chunk preloaded/prefetched
       // [resolve, reject, Promise] = chunk loading, 0 = chunk loaded
-      var installedChunks = __webpack_require__.hmrS_jsonp = __webpack_require__.hmrS_jsonp || {"main": 0,};
+      var installedChunks = __rspack_require.hmrS_jsonp = __rspack_require.hmrS_jsonp || {"main": 0,};
       
-        __webpack_require__.f.j = function (chunkId, promises) {
+        __rspack_require.f.j = function (chunkId, promises) {
           // JSONP chunk loading for javascript
-var installedChunkData = __webpack_require__.o(installedChunks, chunkId)
+var installedChunkData = __rspack_require.o(installedChunks, chunkId)
 	? installedChunks[chunkId]
 	: undefined;
 if (installedChunkData !== 0) {
@@ -68,11 +70,11 @@ if (installedChunkData !== 0) {
 			promises.push((installedChunkData[2] = promise));
 
 			// start chunk loading
-			var url = __webpack_require__.p + __webpack_require__.u(chunkId);
+			var url = __rspack_require.p + __rspack_require.u(chunkId);
 			// create error before stack unwound to get useful stacktrace later
 			var error = new Error();
 			var loadingEnded = function (event) {
-				if (__webpack_require__.o(installedChunks, chunkId)) {
+				if (__rspack_require.o(installedChunks, chunkId)) {
 					installedChunkData = installedChunks[chunkId];
 					if (installedChunkData !== 0) installedChunks[chunkId] = undefined;
 					if (installedChunkData) {
@@ -94,7 +96,7 @@ if (installedChunkData !== 0) {
 					}
 				}
 			};
-			__webpack_require__.l(url, loadingEnded, "chunk-" + chunkId, chunkId);
+			__rspack_require.l(url, loadingEnded, "chunk-" + chunkId, chunkId);
 		} 
 	}
 }
@@ -107,7 +109,7 @@ function loadUpdateChunk(chunkId, updatedModulesList) {
 	return new Promise((resolve, reject) => {
 		waitingUpdateResolves[chunkId] = resolve;
 		// start update chunk loading
-		var url = __webpack_require__.p + __webpack_require__.hu(chunkId);
+		var url = __rspack_require.p + __rspack_require.hu(chunkId);
 		// create error before stack unwound to get useful stacktrace later
 		var error = new Error();
 		var loadingEnded = (event) => {
@@ -130,13 +132,13 @@ function loadUpdateChunk(chunkId, updatedModulesList) {
 				reject(error);
 			}
 		};
-		__webpack_require__.l(url, loadingEnded);
+		__rspack_require.l(url, loadingEnded);
 	});
 }
 
 self["rspackHotUpdate"] = (chunkId, moreModules, runtime) => {
 	for (var moduleId in moreModules) {
-		if (__webpack_require__.o(moreModules, moduleId)) {
+		if (__rspack_require.o(moreModules, moduleId)) {
 			currentUpdate[moduleId] = moreModules[moduleId];
 			if (currentUpdatedModulesList) currentUpdatedModulesList.push(moduleId);
 		}
@@ -152,7 +154,7 @@ var currentUpdate;
 var currentUpdateRemovedChunks;
 var currentUpdateRuntime;
 function applyHandler(options) {
-	if (__webpack_require__.f) delete __webpack_require__.f.jsonpHmr;
+	if (__rspack_require.f) delete __rspack_require.f.jsonpHmr;
 	currentUpdateChunks = undefined;
 	function getAffectedModuleEffects(updateModuleId) {
 		var outdatedModules = [updateModuleId];
@@ -167,7 +169,7 @@ function applyHandler(options) {
 			var queueItem = queue.pop();
 			var moduleId = queueItem.id;
 			var chain = queueItem.chain;
-			var module = __webpack_require__.c[moduleId];
+			var module = __rspack_require.c[moduleId];
 			if (
 				!module ||
 				(module.hot._selfAccepted && !module.hot._selfInvalidated)
@@ -193,7 +195,7 @@ function applyHandler(options) {
 
 			for (var i = 0; i < module.parents.length; i++) {
 				var parentId = module.parents[i];
-				var parent = __webpack_require__.c[parentId];
+				var parent = __rspack_require.c[parentId];
 				if (!parent) {
 					continue;
 				}
@@ -251,7 +253,7 @@ function applyHandler(options) {
 	};
 
 	for (var moduleId in currentUpdate) {
-		if (__webpack_require__.o(currentUpdate, moduleId)) {
+		if (__rspack_require.o(currentUpdate, moduleId)) {
 			var newModuleFactory = currentUpdate[moduleId];
 			var result = newModuleFactory ? getAffectedModuleEffects(moduleId) : {
 				type: "disposed",
@@ -310,7 +312,7 @@ function applyHandler(options) {
 				appliedUpdate[moduleId] = newModuleFactory;
 				addAllToSet(outdatedModules, result.outdatedModules);
 				for (moduleId in result.outdatedDependencies) {
-					if (__webpack_require__.o(result.outdatedDependencies, moduleId)) {
+					if (__rspack_require.o(result.outdatedDependencies, moduleId)) {
 						if (!outdatedDependencies[moduleId])
 							outdatedDependencies[moduleId] = [];
 						addAllToSet(
@@ -331,7 +333,7 @@ function applyHandler(options) {
 	var outdatedSelfAcceptedModules = [];
 	for (var j = 0; j < outdatedModules.length; j++) {
 		var outdatedModuleId = outdatedModules[j];
-		var module = __webpack_require__.c[outdatedModuleId];
+		var module = __rspack_require.c[outdatedModuleId];
 		if (
 			module &&
 			(module.hot._selfAccepted || module.hot._main) &&
@@ -366,7 +368,7 @@ function applyHandler(options) {
 			var queue = outdatedModules.slice();
 			while (queue.length > 0) {
 				var moduleId = queue.pop();
-				var module = __webpack_require__.c[moduleId];
+				var module = __rspack_require.c[moduleId];
 				if (!module) continue;
 
 				var data = {};
@@ -381,16 +383,16 @@ function applyHandler(options) {
 				for (j = 0; j < disposeHandlers.length; j++) {
 					disposeHandlers[j].call(null, data);
 				}
-				__webpack_require__.hmrD[moduleId] = data;
+				__rspack_require.hmrD[moduleId] = data;
 
 				module.hot.active = false;
 
-				delete __webpack_require__.c[moduleId];
+				delete __rspack_require.c[moduleId];
 
 				delete outdatedDependencies[moduleId];
 
 				for (j = 0; j < module.children.length; j++) {
-					var child = __webpack_require__.c[module.children[j]];
+					var child = __rspack_require.c[module.children[j]];
 					if (!child) continue;
 					idx = child.parents.indexOf(moduleId);
 					if (idx >= 0) {
@@ -401,8 +403,8 @@ function applyHandler(options) {
 
 			var dependency;
 			for (var outdatedModuleId in outdatedDependencies) {
-				if (__webpack_require__.o(outdatedDependencies, outdatedModuleId)) {
-					module = __webpack_require__.c[outdatedModuleId];
+				if (__rspack_require.o(outdatedDependencies, outdatedModuleId)) {
+					module = __rspack_require.c[outdatedModuleId];
 					if (module) {
 						moduleOutdatedDependencies = outdatedDependencies[outdatedModuleId];
 						for (j = 0; j < moduleOutdatedDependencies.length; j++) {
@@ -417,8 +419,8 @@ function applyHandler(options) {
 		apply: function (reportError) {
 			// insert new code
 			for (var updateModuleId in appliedUpdate) {
-				if (__webpack_require__.o(appliedUpdate, updateModuleId)) {
-					__webpack_require__.m[updateModuleId] = appliedUpdate[updateModuleId];
+				if (__rspack_require.o(appliedUpdate, updateModuleId)) {
+					__rspack_require.m[updateModuleId] = appliedUpdate[updateModuleId];
 					
 					if (self.__HMR_UPDATED_RUNTIME__) {
 						self.__HMR_UPDATED_RUNTIME__.javascript.updatedModules.push(updateModuleId);
@@ -430,10 +432,10 @@ function applyHandler(options) {
 			// run new runtime modules
 			for (var i = 0; i < currentUpdateRuntime.length; i++) {
 				
-				currentUpdateRuntime[i](new Proxy(__webpack_require__, {
+				currentUpdateRuntime[i](new Proxy(__rspack_require, {
 					set(target, prop, value, receiver) {
 						if (self.__HMR_UPDATED_RUNTIME__) {
-							self.__HMR_UPDATED_RUNTIME__.javascript.updatedRuntime.push(`__webpack_require__.${prop}`);
+							self.__HMR_UPDATED_RUNTIME__.javascript.updatedRuntime.push(`__rspack_require.${prop}`);
 						}
 						return Reflect.set(target, prop, value, receiver);
 					}
@@ -443,8 +445,8 @@ function applyHandler(options) {
 
 			// call accept handlers
 			for (var outdatedModuleId in outdatedDependencies) {
-				if (__webpack_require__.o(outdatedDependencies, outdatedModuleId)) {
-					var module = __webpack_require__.c[outdatedModuleId];
+				if (__rspack_require.o(outdatedDependencies, outdatedModuleId)) {
+					var module = __rspack_require.c[outdatedModuleId];
 					if (module) {
 						moduleOutdatedDependencies = outdatedDependencies[outdatedModuleId];
 						var callbacks = [];
@@ -521,7 +523,7 @@ function applyHandler(options) {
 						try {
 							item.errorHandler(err, {
 								moduleId: moduleId,
-								module: __webpack_require__.c[moduleId]
+								module: __rspack_require.c[moduleId]
 							});
 						} catch (err1) {
 							if (options.onErrored) {
@@ -557,19 +559,19 @@ function applyHandler(options) {
 	};
 }
 
-__webpack_require__.hmrI.jsonp = function (moduleId, applyHandlers) {
+__rspack_require.hmrI.jsonp = function (moduleId, applyHandlers) {
 	if (!currentUpdate) {
 		currentUpdate = {};
 		currentUpdateRuntime = [];
 		currentUpdateRemovedChunks = [];
 		applyHandlers.push(applyHandler);
 	}
-	if (!__webpack_require__.o(currentUpdate, moduleId)) {
-		currentUpdate[moduleId] = __webpack_require__.m[moduleId];
+	if (!__rspack_require.o(currentUpdate, moduleId)) {
+		currentUpdate[moduleId] = __rspack_require.m[moduleId];
 	}
 };
 
-__webpack_require__.hmrC.jsonp = function (
+__rspack_require.hmrC.jsonp = function (
 	chunkIds,
 	removedChunks,
 	removedModules,
@@ -587,7 +589,7 @@ __webpack_require__.hmrC.jsonp = function (
 	currentUpdateRuntime = [];
 	chunkIds.forEach(function (chunkId) {
 		if (
-			__webpack_require__.o(installedChunks, chunkId) &&
+			__rspack_require.o(installedChunks, chunkId) &&
 			installedChunks[chunkId] !== undefined
 		) {
 			promises.push(loadUpdateChunk(chunkId, updatedModulesList));
@@ -596,11 +598,11 @@ __webpack_require__.hmrC.jsonp = function (
 			currentUpdateChunks[chunkId] = false;
 		}
 	});
-	if (__webpack_require__.f) {
-		__webpack_require__.f.jsonpHmr = function (chunkId, promises) {
+	if (__rspack_require.f) {
+		__rspack_require.f.jsonpHmr = function (chunkId, promises) {
 			if (
 				currentUpdateChunks &&
-				__webpack_require__.o(currentUpdateChunks, chunkId) &&
+				__rspack_require.o(currentUpdateChunks, chunkId) &&
 				!currentUpdateChunks[chunkId]
 			) {
 				promises.push(loadUpdateChunk(chunkId));
@@ -609,10 +611,10 @@ __webpack_require__.hmrC.jsonp = function (
 		};
 	}
 };
-__webpack_require__.hmrM = () => {
+__rspack_require.hmrM = () => {
 	if (typeof fetch === "undefined")
 		throw new Error("No browser support: need fetch API");
-	return fetch(__webpack_require__.p + __webpack_require__.hmrF()).then(
+	return fetch(__rspack_require.p + __rspack_require.hmrF()).then(
 		(response) => {
 			if (response.status === 404) return; // no update available
 			if (!response.ok)
@@ -632,17 +634,17 @@ var __rspack_jsonp = (parentChunkLoadingFunction, data) => {
 	var moduleId, chunkId, i = 0;
 	if (chunkIds.some((id) => (installedChunks[id] !== 0))) {
 		for (moduleId in moreModules) {
-			if (__webpack_require__.o(moreModules, moduleId)) {
-				__webpack_require__.m[moduleId] = moreModules[moduleId];
+			if (__rspack_require.o(moreModules, moduleId)) {
+				__rspack_require.m[moduleId] = moreModules[moduleId];
 			}
 		}
-		if (runtime) var result = runtime(__webpack_require__);
+		if (runtime) var result = runtime(__rspack_require);
 	}
 	if (parentChunkLoadingFunction) parentChunkLoadingFunction(data);
 	for (; i < chunkIds.length; i++) {
 		chunkId = chunkIds[i];
 		if (
-			__webpack_require__.o(installedChunks, chunkId) &&
+			__rspack_require.o(installedChunks, chunkId) &&
 			installedChunks[chunkId]
 		) {
 			installedChunks[chunkId][0]();

@@ -7,7 +7,7 @@
 ## Asset Files
 - Bundle: bundle.js
 - Manifest: main.LAST_HASH.hot-update.json, size: 36
-- Update: main.LAST_HASH.hot-update.js, size: 774
+- Update: main.LAST_HASH.hot-update.js, size: 905
 
 ## Manifest
 
@@ -34,28 +34,32 @@
 ```js
 "use strict";
 self["rspackHotUpdate"]("main", {
-"./a.js"(module, __webpack_exports__, __webpack_require__) {
-__webpack_require__.r(__webpack_exports__);
-__webpack_require__.d(__webpack_exports__, {
+"./a.js"(module, __rspack_exports, __rspack_require) {
+var __webpack_exports__ = __rspack_exports;
+var __webpack_require__ = __rspack_require;
+__rspack_require.r(__rspack_exports);
+__rspack_require.d(__rspack_exports, {
   "default": () => (__rspack_default_export)
 });
 /* export default */ const __rspack_default_export = (module.id);
 
 },
-"./module.js"(__unused_rspack_module, __webpack_exports__, __webpack_require__) {
-__webpack_require__.r(__webpack_exports__);
-__webpack_require__.d(__webpack_exports__, {
+"./module.js"(__unused_rspack_module, __rspack_exports, __rspack_require) {
+var __webpack_exports__ = __rspack_exports;
+var __webpack_require__ = __rspack_require;
+__rspack_require.r(__rspack_exports);
+__rspack_require.d(__rspack_exports, {
   "default": () => (/* reexport safe */ _a__rspack_import_0["default"])
 });
-/* import */ var _a__rspack_import_0 = __webpack_require__("./a.js");
+/* import */ var _a__rspack_import_0 = __rspack_require("./a.js");
 
 
 },
 
-},function(__webpack_require__) {
+},function(__rspack_require) {
 // webpack/runtime/get_full_hash
 (() => {
-__webpack_require__.h = () => ("CURRENT_HASH")
+__rspack_require.h = () => ("CURRENT_HASH")
 })();
 
 }
@@ -101,7 +105,7 @@ Updated Modules:
 - ./module.js
 
 Updated Runtime:
-- `__webpack_require__.h`
+- `__rspack_require.h`
 
 
 #### Callback
