@@ -2031,6 +2031,22 @@ impl Module for ConcatenatedModule {
       &compilation.exports_info_artifact,
     );
 
+    enum RuntimeHashItem {
+      Digest(RspackHashDigest),
+      ModuleId(String),
+      None,
+    }
+
+    impl RuntimeHashItem {
+      fn dyn_hash(&self, hasher: &mut dyn Hasher) {
+        match self {
+          Self::Digest(digest) => Some(digest.encoded()).dyn_hash(hasher),
+          Self::ModuleId(id) => Some(id.as_str()).dyn_hash(hasher),
+          Self::None => Option::<&str>::None.dyn_hash(hasher),
+        }
+      }
+    }
+
     let hashes = rspack_parallel::scope::<_, Result<_>>(|token| {
       concatenation_entries.into_iter().for_each(|job| {
         let s = unsafe { token.used((job, compilation, generation_runtime)) };
@@ -2044,14 +2060,16 @@ impl Module for ConcatenatedModule {
                 .expect("should have module")
                 .get_runtime_hash(compilation, generation_runtime)
                 .await?;
-              Ok(Some(digest.encoded().to_string()))
+              Ok(RuntimeHashItem::Digest(digest))
             }
             ConcatenationEntry::External(e) => Ok(
               ChunkGraph::get_module_id(
                 &compilation.module_ids_artifact,
                 e.module(compilation.get_module_graph()),
               )
-              .map(|id| id.to_string()),
+              .map_or(RuntimeHashItem::None, |id| {
+                RuntimeHashItem::ModuleId(id.to_string())
+              }),
             ),
           }
         })
