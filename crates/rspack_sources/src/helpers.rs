@@ -10,7 +10,7 @@ use rustc_hash::FxHashMap as HashMap;
 use crate::{
   MapOptions, SourceMap,
   decoder::MappingsDecoder,
-  encoder::create_encoder,
+  encoder::{create_encoder, create_encoder_with_capacity},
   linear_map::LinearMap,
   object_pool::ObjectPool,
   source::{Mapping, OriginalLocation},
@@ -23,7 +23,10 @@ pub fn get_map<'a>(
   chunks: &'a dyn Chunks,
   options: &MapOptions,
 ) -> Option<SourceMap> {
-  let mut mappings_encoder = create_encoder(options.columns);
+  let mut mappings_encoder = create_encoder_with_capacity(
+    options.columns,
+    if options.columns { 16 * 1024 } else { 4096 },
+  );
   let mut sources: Vec<String> = Vec::new();
   let mut sources_content: Vec<Arc<str>> = Vec::new();
   let mut names: Vec<String> = Vec::new();
@@ -1311,59 +1314,6 @@ pub fn stream_chunks_of_combined_source_map<'a>(
       name_index_value_mapping.borrow_mut().insert(i, name);
     },
   )
-}
-
-pub fn stream_and_get_source_and_map<'a>(
-  options: &MapOptions,
-  object_pool: &'a ObjectPool,
-  chunks: &'a dyn Chunks,
-  on_chunk: OnChunk<'_, 'a>,
-  on_source: OnSource<'_, 'a>,
-  on_name: OnName<'_, 'a>,
-) -> (GeneratedInfo, Option<SourceMap>) {
-  let mut mappings_encoder = create_encoder(options.columns);
-  let mut sources: Vec<String> = Vec::new();
-  let mut sources_content: Vec<Arc<str>> = Vec::new();
-  let mut names: Vec<String> = Vec::new();
-
-  let generated_info = chunks.stream(
-    object_pool,
-    options,
-    &mut |chunk, mapping| {
-      mappings_encoder.encode(&mapping);
-      on_chunk(chunk, mapping);
-    },
-    &mut |source_index, source, source_content| {
-      let source_index2 = source_index as usize;
-      while sources.len() <= source_index2 {
-        sources.push("".into());
-      }
-      sources[source_index2] = source.to_string();
-      if let Some(source_content) = source_content {
-        while sources_content.len() <= source_index2 {
-          sources_content.push("".into());
-        }
-        sources_content[source_index2] = source_content.clone();
-      }
-      on_source(source_index, source, source_content);
-    },
-    &mut |name_index, name| {
-      let name_index2 = name_index as usize;
-      while names.len() <= name_index2 {
-        names.push("".into());
-      }
-      names[name_index2] = name.to_string();
-      on_name(name_index, name);
-    },
-  );
-
-  let mappings = mappings_encoder.drain();
-  let map = if mappings.is_empty() {
-    None
-  } else {
-    Some(SourceMap::new(mappings, sources, sources_content, names))
-  };
-  (generated_info, map)
 }
 
 #[cfg(test)]

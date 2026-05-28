@@ -9,8 +9,8 @@ use rustc_hash::FxHasher;
 use crate::{
   BoxSource, MapOptions, RawBufferSource, Source, SourceExt, SourceMap,
   helpers::{
-    Chunks, GeneratedInfo, StreamChunks, TextSpan, stream_and_get_source_and_map,
-    stream_chunks_of_raw_source, stream_chunks_of_source_map,
+    Chunks, GeneratedInfo, StreamChunks, TextSpan, stream_chunks_of_raw_source,
+    stream_chunks_of_source_map,
   },
   object_pool::ObjectPool,
   source::SourceValue,
@@ -238,16 +238,12 @@ impl Chunks for CachedSourceChunks<'_> {
         }
       }
       None => {
-        let (generated_info, map) = stream_and_get_source_and_map(
-          options,
-          object_pool,
-          self.chunks.as_ref(),
-          on_chunk,
-          on_source,
-          on_name,
-        );
-        cell.get_or_init(|| map);
-        generated_info
+        // Streaming only needs to forward chunks and mapping events. Building
+        // and storing a child SourceMap here would encode the same mappings
+        // again before the parent source map encoder consumes them.
+        self
+          .chunks
+          .stream(object_pool, options, on_chunk, on_source, on_name)
       }
     }
   }

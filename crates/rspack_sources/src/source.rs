@@ -559,8 +559,10 @@ impl SourceMap {
       size += ignore_list.len() * 6;
     }
 
-    // Add 10% safety margin to handle edge cases (escaping, larger numbers, etc.)
-    size + size / 10
+    // Add a safety margin to handle escaping-heavy sourcesContent and larger
+    // numeric fields. Underestimating here forces simd_json's output buffer to
+    // grow while serializing large source maps.
+    size + size / 4
   }
 
   /// Generate source map to a json string.

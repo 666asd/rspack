@@ -4,6 +4,20 @@ use rspack_paths::{Utf8Path, Utf8PathBuf};
 
 use crate::{Error, FileMetadata, FilePermissions, Result};
 
+#[inline]
+fn string_from_utf8(data: Vec<u8>) -> Result<String> {
+  if simdutf8::basic::from_utf8(&data).is_ok() {
+    #[allow(unsafe_code)]
+    // SAFETY: simdutf8 validated the buffer as UTF-8 above.
+    Ok(unsafe { String::from_utf8_unchecked(data) })
+  } else {
+    Err(Error::Io(std::io::Error::new(
+      std::io::ErrorKind::InvalidData,
+      "stream did not contain valid UTF-8",
+    )))
+  }
+}
+
 #[async_trait::async_trait]
 pub trait ReadableFileSystem: Debug + Send + Sync {
   /// See [std::fs::read]
@@ -13,22 +27,12 @@ pub trait ReadableFileSystem: Debug + Send + Sync {
   // See [std::fs::read_to_string]
   async fn read_to_string(&self, path: &Utf8Path) -> Result<String> {
     let data = self.read(path).await?;
-    String::from_utf8(data).map_err(|_| {
-      Error::Io(std::io::Error::new(
-        std::io::ErrorKind::InvalidData,
-        "stream did not contain valid UTF-8",
-      ))
-    })
+    string_from_utf8(data)
   }
 
   fn read_to_string_sync(&self, path: &Utf8Path) -> Result<String> {
     let data = self.read_sync(path)?;
-    String::from_utf8(data).map_err(|_| {
-      Error::Io(std::io::Error::new(
-        std::io::ErrorKind::InvalidData,
-        "stream did not contain valid UTF-8",
-      ))
-    })
+    string_from_utf8(data)
   }
 
   /// See [std::fs::metadata]

@@ -20,9 +20,13 @@ pub trait IntermediateFileSystemExtras: Debug + Send + Sync {
 #[async_trait::async_trait]
 pub trait ReadStream: Debug + Sync + Send {
   async fn read_line(&mut self) -> Result<String> {
-    match String::from_utf8(self.read_until(b'\n').await?) {
-      Ok(s) => Ok(s),
-      Err(_) => Err(Error::Io(std::io::Error::other("invalid utf8 line"))),
+    let data = self.read_until(b'\n').await?;
+    if simdutf8::basic::from_utf8(&data).is_ok() {
+      #[allow(unsafe_code)]
+      // SAFETY: simdutf8 validated the buffer as UTF-8 above.
+      Ok(unsafe { String::from_utf8_unchecked(data) })
+    } else {
+      Err(Error::Io(std::io::Error::other("invalid utf8 line")))
     }
   }
   async fn read(&mut self, length: usize) -> Result<Vec<u8>>;

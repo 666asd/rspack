@@ -132,12 +132,17 @@ impl Chunks for OriginalSourceChunks<'_> {
     _on_name: crate::helpers::OnName<'_, 'b>,
   ) -> GeneratedInfo {
     on_source(0, Cow::Borrowed(&self.0.name), Some(&self.0.value));
-    let source = TextSpan::new(self.0.value.as_ref());
+    let value = self.0.value.as_ref();
+    let source = if options.columns {
+      TextSpan::with_known(value, value.is_ascii())
+    } else {
+      TextSpan::new(value)
+    };
     if options.columns {
       // With column info we need to read all lines and split them
       let mut line = 1;
       let mut column = 0;
-      for token in split_into_potential_tokens(self.0.value.as_ref()) {
+      for token in split_into_potential_tokens(value) {
         let is_end_of_line = token.ends_with("\n");
         if is_end_of_line && token.len() == 1 {
           if !options.final_source {
@@ -152,7 +157,11 @@ impl Chunks for OriginalSourceChunks<'_> {
           }
         } else {
           on_chunk(
-            (!options.final_source).then_some(source.subspan(token)),
+            if options.final_source {
+              None
+            } else {
+              Some(source.subspan(token))
+            },
             Mapping {
               generated_line: line,
               generated_column: column,
@@ -221,7 +230,11 @@ impl Chunks for OriginalSourceChunks<'_> {
       let mut last_line = None;
       for l in split_into_lines(self.0.value.as_ref()) {
         on_chunk(
-          (!options.final_source).then_some(source.subspan(l)),
+          if options.final_source {
+            None
+          } else {
+            Some(source.subspan(l))
+          },
           Mapping {
             generated_line: line,
             generated_column: 0,

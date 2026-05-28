@@ -524,7 +524,47 @@ impl std::fmt::Debug for ReplaceSource {
 
 enum SourceContent<'object_pool> {
   Raw(Arc<str>),
+  AsciiLines(AsciiSourceContentLines),
   Lines(SourceContentLines<'object_pool>),
+}
+
+struct AsciiSourceContentLines {
+  text: Arc<str>,
+  line_starts: Vec<usize>,
+}
+
+impl AsciiSourceContentLines {
+  fn new(text: Arc<str>) -> Self {
+    debug_assert!(text.is_ascii());
+    let mut line_starts = Vec::new();
+    line_starts.push(0);
+    for newline in memchr::memchr_iter(b'\n', text.as_bytes()) {
+      let next_line_start = newline + 1;
+      if next_line_start < text.len() {
+        line_starts.push(next_line_start);
+      }
+    }
+    Self { text, line_starts }
+  }
+
+  #[inline]
+  fn check_content_at_position(&self, line: u32, column: u32, expected: &str) -> bool {
+    let Some(line_index) = line.checked_sub(1).map(|line| line as usize) else {
+      return false;
+    };
+    let Some(line_start) = self.line_starts.get(line_index).copied() else {
+      return false;
+    };
+    let line_end = self
+      .line_starts
+      .get(line_index + 1)
+      .copied()
+      .unwrap_or(self.text.len());
+    self
+      .text
+      .get(line_start.saturating_add(column as usize)..line_end)
+      .is_some_and(|line| line.starts_with(expected))
+  }
 }
 
 fn check_content_at_position(
@@ -646,10 +686,20 @@ impl Chunks for ReplaceSourceChunks<'_> {
         {
           match source_content {
             SourceContent::Raw(source) => {
-              let lines = SourceContentLines::new(object_pool, source.clone());
-              let matched = check_content_at_position(&lines, line, column, expected_chunk);
-              *source_content = SourceContent::Lines(lines);
-              matched
+              if source.is_ascii() {
+                let lines = AsciiSourceContentLines::new(source.clone());
+                let matched = lines.check_content_at_position(line, column, expected_chunk);
+                *source_content = SourceContent::AsciiLines(lines);
+                matched
+              } else {
+                let lines = SourceContentLines::new(object_pool, source.clone());
+                let matched = check_content_at_position(&lines, line, column, expected_chunk);
+                *source_content = SourceContent::Lines(lines);
+                matched
+              }
+            }
+            SourceContent::AsciiLines(lines) => {
+              lines.check_content_at_position(line, column, expected_chunk)
             }
             SourceContent::Lines(lines) => {
               check_content_at_position(lines, line, column, expected_chunk)
