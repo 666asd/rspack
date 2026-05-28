@@ -125,7 +125,7 @@ fn is_runtime_variable_identifier(name: &str) -> bool {
       | "__rspack_esm_id"
       | "__rspack_esm_ids"
       | "__rspack_esm_runtime"
-      | "__rspack_install_runtime__"
+      | "__rspack_esm_install_runtime"
       | "__rspack_modules"
       | "__rspack_module_cache"
       | "__rspack_module"
