@@ -3,7 +3,6 @@
 (self["rspackChunk"] = self["rspackChunk"] || []).push([["main"], {
 "./Layout.js"(__unused_rspack_module, __rspack_exports, __rspack_require) {
 var __webpack_exports__ = __rspack_exports;
-var __webpack_require__ = __rspack_require;
 __rspack_require.d(__rspack_exports, {
   defaults: () => (defaults)
 });
@@ -15,7 +14,6 @@ const defaults = {
 },
 "./export.js"(__unused_rspack_module, __rspack_exports, __rspack_require) {
 var __webpack_exports__ = __rspack_exports;
-var __webpack_require__ = __rspack_require;
 __rspack_require.d(__rspack_exports, {
   Something: () => (Something)
 });
@@ -30,7 +28,6 @@ var Something = 333;
 
 },
 "./index.js"(__unused_rspack_module, __unused_rspack___rspack_exports, __rspack_require) {
-var __webpack_require__ = __rspack_require;
 /* import */ var _export__rspack_import_0 = __rspack_require("./export.js");
 
 

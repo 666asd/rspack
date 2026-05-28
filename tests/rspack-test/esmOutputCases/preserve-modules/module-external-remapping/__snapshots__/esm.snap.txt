@@ -54,7 +54,6 @@ __rspack_require.add({
   !*** external "node:events" ***!
   \******************************/
 (module, __unused_rspack_exports, __rspack_require) {
-var __webpack_require__ = __rspack_require;
 var __rspack_create_module_external_namespace_node_events_0a6aefe7 = (y) => {
 var x = {};
 __rspack_require.d(x, y);
@@ -150,7 +149,6 @@ __rspack_require.add({
   \************************/
 (module, __rspack_exports, __rspack_require) {
 var __webpack_exports__ = __rspack_exports;
-var __webpack_require__ = __rspack_require;
 /* import */ var node_events__rspack_import_0 = __rspack_require(/*! node:events */ "node:events?df85");
 /* module decorator */ module = __rspack_require.hmd(module);
 

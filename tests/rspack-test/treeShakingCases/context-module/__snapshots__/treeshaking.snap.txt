@@ -3,7 +3,6 @@
 "./child/child/index.js"(__unused_rspack_module, __rspack_exports, __rspack_require) {
 "use strict";
 var __webpack_exports__ = __rspack_exports;
-var __webpack_require__ = __rspack_require;
 __rspack_require.r(__rspack_exports);
 __rspack_require.d(__rspack_exports, {
   value: () => (value)
@@ -15,7 +14,6 @@ const value = "dynamic";
 "./child/index.js"(__unused_rspack_module, __rspack_exports, __rspack_require) {
 "use strict";
 var __webpack_exports__ = __rspack_exports;
-var __webpack_require__ = __rspack_require;
 __rspack_require.r(__rspack_exports);
 __rspack_require.d(__rspack_exports, {
   value: () => (value)
@@ -25,7 +23,6 @@ const value = "dynamic";
 
 },
 "./child sync recursive ^\\.\\/.*\\.js$"(module, __unused_rspack_exports, __rspack_require) {
-var __webpack_require__ = __rspack_require;
 var map = {
   "./child/index.js": "./child/child/index.js",
   "./index.js": "./child/index.js"
@@ -52,7 +49,6 @@ __rspack_context.id = "./child sync recursive ^\\.\\/.*\\.js$";
 
 },
 "./index.js"(__unused_rspack_module, __unused_rspack_exports, __rspack_require) {
-var __webpack_require__ = __rspack_require;
 let a = "index";
 __rspack_require("./child sync recursive ^\\.\\/.*\\.js$")(`./${a}.js`);
 

@@ -11,19 +11,16 @@ __rspack_external_externals0.v;
 
 },
 "./entry.js"(module, __unused_rspack_exports, __rspack_require) {
-var __webpack_require__ = __rspack_require;
 module.exports.entry1 = __rspack_require("./entry1.js")
 module.exports.entry2 = __rspack_require("./entry2.js")
 
 },
 "./entry1.js"(module, __unused_rspack_exports, __rspack_require) {
-var __webpack_require__ = __rspack_require;
 module.exports = __rspack_require("./foo.js")
 module.exports.name = "entry1"
 
 },
 "./entry2.js"(module, __unused_rspack_exports, __rspack_require) {
-var __webpack_require__ = __rspack_require;
 module.exports = __rspack_require("./bar.js")
 module.exports.name = "entry2"
 

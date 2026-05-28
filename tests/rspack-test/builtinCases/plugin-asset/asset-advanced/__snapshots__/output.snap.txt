@@ -3,7 +3,6 @@
 (self["rspackChunk"] = self["rspackChunk"] || []).push([["main"], {
 "./index.js"(__unused_rspack_module, __rspack_exports, __rspack_require) {
 var __webpack_exports__ = __rspack_exports;
-var __webpack_require__ = __rspack_require;
 __rspack_require.r(__rspack_exports);
 /* import */ var _images_file_svg__rspack_import_0 = __rspack_require("./images/file.svg");
 

@@ -23,7 +23,6 @@ console.log("b");
 ```js title=main.js
 (self["rspackChunk"] = self["rspackChunk"] || []).push([["main"], {
 "./index.js"(__unused_rspack_module, __unused_rspack_exports, __rspack_require) {
-var __webpack_require__ = __rspack_require;
 console.log("hello, world");
 __rspack_require.e(/* import() */ "a_js").then(__rspack_require.t.bind(__rspack_require, "./a.js", 23));
 __rspack_require.e(/* import() */ "b_js").then(__rspack_require.t.bind(__rspack_require, "./b.js", 23));

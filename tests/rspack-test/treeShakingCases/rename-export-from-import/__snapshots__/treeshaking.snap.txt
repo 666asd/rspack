@@ -3,7 +3,6 @@
 (self["rspackChunk"] = self["rspackChunk"] || []).push([["main"], {
 "./app.js"(__unused_rspack_module, __rspack_exports, __rspack_require) {
 var __webpack_exports__ = __rspack_exports;
-var __webpack_require__ = __rspack_require;
 __rspack_require.d(__rspack_exports, {
   q: () => (/* reexport safe */ _lib__rspack_import_0.question)
 });
@@ -15,7 +14,6 @@ __rspack_require.d(__rspack_exports, {
 
 },
 "./index.js"(__unused_rspack_module, __unused_rspack___rspack_exports, __rspack_require) {
-var __webpack_require__ = __rspack_require;
 /* import */ var _app__rspack_import_0 = __rspack_require("./app.js");
 
 _app__rspack_import_0.q;
@@ -24,7 +22,6 @@ _app__rspack_import_0.q;
 },
 "./lib.js"(__unused_rspack_module, __rspack_exports, __rspack_require) {
 var __webpack_exports__ = __rspack_exports;
-var __webpack_require__ = __rspack_require;
 __rspack_require.d(__rspack_exports, {
   question: () => (question)
 });

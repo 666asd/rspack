@@ -3,7 +3,6 @@
 "./import-module.js"(__unused_rspack_module, __rspack_exports, __rspack_require) {
 "use strict";
 var __webpack_exports__ = __rspack_exports;
-var __webpack_require__ = __rspack_require;
 __rspack_require.r(__rspack_exports);
 /* import */ var _module__rspack_import_0 = __rspack_require("./module.js");
 
@@ -14,7 +13,6 @@ expect(_module__rspack_import_0.ok2).toBe(true);
 
 },
 "./index.js"(__unused_rspack_module, __unused_rspack_exports, __rspack_require) {
-var __webpack_require__ = __rspack_require;
 it("should not threat globals as pure", () => {
 	__rspack_require("./import-module.js");
 });
@@ -24,7 +22,6 @@ it("should not threat globals as pure", () => {
 "./module.js"(__unused_rspack_module, __rspack_exports, __rspack_require) {
 "use strict";
 var __webpack_exports__ = __rspack_exports;
-var __webpack_require__ = __rspack_require;
 __rspack_require.d(__rspack_exports, {
   ok: () => (ok),
   ok2: () => (ok2)

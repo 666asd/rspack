@@ -48,7 +48,6 @@
 (self["rspackChunk"] = self["rspackChunk"] || []).push([["main"], {
 "./index.js"(__unused_rspack_module, __rspack_exports, __rspack_require) {
 var __webpack_exports__ = __rspack_exports;
-var __webpack_require__ = __rspack_require;
 __rspack_require.r(__rspack_exports);
 /* import */ var _style_module_css__rspack_import_0 = __rspack_require("./style.module.css");
 
@@ -56,7 +55,6 @@ __rspack_require.r(__rspack_exports);
 
 },
 "./b.module.css"(module, __unused_rspack_exports, __rspack_require) {
-var __webpack_require__ = __rspack_require;
 var exports = {
   "b-1": "./_b.module_./_b-1--/__770815d283e5419e<770",
   "b": "./_b.module_./_b--/__770815d283e5419e<770" + " " + "./_b.module_./_b-1--/__770815d283e5419e<770",
@@ -67,7 +65,6 @@ __rspack_require.r(module.exports = exports);
 
 },
 "./d.module.css"(module, __unused_rspack_exports, __rspack_require) {
-var __webpack_require__ = __rspack_require;
 var exports = {
   "d-1": "./_d.module_./_d-1--/__88281ab83c534746<882",
   "d": "./_d.module_./_d--/__88281ab83c534746<882" + " " + "./_d.module_./_d-1--/__88281ab83c534746<882",
@@ -78,7 +75,6 @@ __rspack_require.r(module.exports = exports);
 
 },
 "./f.module.css"(module, __unused_rspack_exports, __rspack_require) {
-var __webpack_require__ = __rspack_require;
 var exports = {
   "f-1": "./_f.module_./_f-1--/__4abe9cc818c5f8e5<4ab",
   "f": "./_f.module_./_f--/__4abe9cc818c5f8e5<4ab" + " " + "./_f.module_./_f-1--/__4abe9cc818c5f8e5<4ab",
@@ -89,7 +85,6 @@ __rspack_require.r(module.exports = exports);
 
 },
 "./style.module.css"(module, __unused_rspack_exports, __rspack_require) {
-var __webpack_require__ = __rspack_require;
 var exports = {
   "chain2": "./_style.module_./_chain2--/__2f98424dcb9d6a7c<2f9" + " " + "e" + " " + __rspack_require("./f.module.css")["f"],
   "chain1": "./_style.module_./_chain1--/__2f98424dcb9d6a7c<2f9" + " " + "./_style.module_./_chain2--/__2f98424dcb9d6a7c<2f9" + " " + "e" + " " + __rspack_require("./f.module.css")["f"] + " " + "c" + " " + __rspack_require("./d.module.css")["d"],

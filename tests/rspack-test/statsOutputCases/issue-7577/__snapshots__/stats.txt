@@ -7,8 +7,8 @@ runtime modules xx KiB 3 modules
 Rspack x.x.x compiled successfully in X s
 
 asset b-runtime~main-ff4674a4d4a37598.js xx KiB [emitted] [immutable] (name: runtime~main)
-asset b-all-b_js-21e61f1df3528d39.js xx bytes [emitted] [immutable] (id hint: all)
 asset b-main-8680a888f1bf9eb6.js xx bytes [emitted] [immutable] (name: main)
+asset b-all-b_js-21e61f1df3528d39.js xx bytes [emitted] [immutable] (id hint: all)
 asset b-vendors-node_modules_vendor_js-e936af1c5d692780.js xx bytes [emitted] [immutable] (id hint: vendors)
 Entrypoint main xx KiB = b-runtime~main-ff4674a4d4a37598.js xx KiB b-vendors-node_modules_vendor_js-e936af1c5d692780.js xx bytes b-all-b_js-21e61f1df3528d39.js xx bytes b-main-8680a888f1bf9eb6.js xx bytes
 runtime modules xx KiB 5 modules

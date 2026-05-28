@@ -2,14 +2,12 @@
 "use strict";
 (self["rspackChunk"] = self["rspackChunk"] || []).push([["main"], {
 "./index.js"(__unused_rspack_module, __unused_rspack___rspack_exports, __rspack_require) {
-var __webpack_require__ = __rspack_require;
 /* import */ var _util_js__rspack_import_0 = __rspack_require("./util.js");
 
 
 
 },
 "./util.js"(__unused_rspack_module, __unused_rspack___rspack_exports, __rspack_require) {
-var __webpack_require__ = __rspack_require;
 /* import */ var _swc_helpers_create_class__rspack_import_0 = __rspack_require("<PNPM_INNER>/@swc/helpers/esm/_create_class.js");
 
 var ConsoleExporterWeb;
@@ -43,7 +41,6 @@ ConsoleExporterWeb = (function () {
 },
 "<PNPM_INNER>/@swc/helpers/esm/_create_class.js"(__unused_rspack_module, __rspack_exports, __rspack_require) {
 var __webpack_exports__ = __rspack_exports;
-var __webpack_require__ = __rspack_require;
 __rspack_require.d(__rspack_exports, {
   _: () => (_create_class)
 });

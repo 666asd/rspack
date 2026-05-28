@@ -8,7 +8,6 @@ __rspack_require.add({
   !*** ./cjs.js ***!
   \****************/
 (__unused_rspack_module, __unused_rspack___rspack_exports, __rspack_require) {
-var __webpack_require__ = __rspack_require;
 /* import */ var _use_other__rspack_import_0 = __rspack_require(/*! ./use-other */ "./use-other.js");
 /* import */ var _use_other__rspack_import_0_default = /*#__PURE__*/__rspack_require.n(_use_other__rspack_import_0);
 
@@ -24,7 +23,6 @@ console.log.bind((__rspack_require(/*! fs */ "fs")/* .readFile */.readFile))
   \******************/
 (module, __rspack_exports, __rspack_require) {
 var __webpack_exports__ = __rspack_exports;
-var __webpack_require__ = __rspack_require;
 __rspack_require.r(__rspack_exports);
 /* import */ var _cjs__rspack_import_0 = __rspack_require(/*! ./cjs */ "./cjs.js");
 /* module decorator */ module = __rspack_require.hmd(module);
@@ -42,7 +40,6 @@ console.log.bind(module)
   !*** ./use-other.js ***!
   \**********************/
 (__unused_rspack_module, __unused_rspack_exports, __rspack_require) {
-var __webpack_require__ = __rspack_require;
 // use export writeFile
 console.log.bind((__rspack_require(/*! fs */ "fs")/* .writeFile */.writeFile))
 

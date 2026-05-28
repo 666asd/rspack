@@ -158,7 +158,6 @@ __rspack_require.add({
   \************************/
 (module, __rspack_exports, __rspack_require) {
 var __webpack_exports__ = __rspack_exports;
-var __webpack_require__ = __rspack_require;
 /* import */ var fs__rspack_import_0 = __rspack_require(/*! fs */ "fs");
 /* import */ var fs__rspack_import_0_default = /*#__PURE__*/__rspack_require.n(fs__rspack_import_0);
 /* module decorator */ module = __rspack_require.hmd(module);

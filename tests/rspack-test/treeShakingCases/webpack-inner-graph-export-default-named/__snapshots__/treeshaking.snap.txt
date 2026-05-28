@@ -3,7 +3,6 @@
 (self["rspackChunk"] = self["rspackChunk"] || []).push([["main"], {
 "./a.js"(__unused_rspack_module, __rspack_exports, __rspack_require) {
 var __webpack_exports__ = __rspack_exports;
-var __webpack_require__ = __rspack_require;
 __rspack_require.d(__rspack_exports, {
   "default": () => (abc)
 });
@@ -17,7 +16,6 @@ function abc() {
 
 },
 "./b.js"(__unused_rspack_module, __unused_rspack___rspack_exports, __rspack_require) {
-var __webpack_require__ = __rspack_require;
 /* import */ var _dep_b__rspack_import_0 = __rspack_require("./dep.js?b");
 
 
@@ -28,7 +26,6 @@ function abc() {
 
 },
 "./c.js"(__unused_rspack_module, __unused_rspack___rspack_exports, __rspack_require) {
-var __webpack_require__ = __rspack_require;
 /* import */ var _dep_c__rspack_import_0 = __rspack_require("./dep.js?c");
 
 
@@ -42,7 +39,6 @@ abc();
 },
 "./d.js"(__unused_rspack_module, __rspack_exports, __rspack_require) {
 var __webpack_exports__ = __rspack_exports;
-var __webpack_require__ = __rspack_require;
 __rspack_require.d(__rspack_exports, {
   "default": () => (def)
 });
@@ -59,7 +55,6 @@ class def {
 },
 "./dep.js?a"(__unused_rspack_module, __rspack_exports, __rspack_require) {
 var __webpack_exports__ = __rspack_exports;
-var __webpack_require__ = __rspack_require;
 __rspack_require.d(__rspack_exports, {
   "default": () => (__rspack_default_export),
   x: () => (x)
@@ -72,7 +67,6 @@ const x = "x";
 },
 "./dep.js?b"(__unused_rspack_module, __rspack_exports, __rspack_require) {
 var __webpack_exports__ = __rspack_exports;
-var __webpack_require__ = __rspack_require;
 __rspack_require.d(__rspack_exports, {
   "default": () => (__rspack_default_export)
 });
@@ -84,7 +78,6 @@ const x = "x";
 },
 "./dep.js?c"(__unused_rspack_module, __rspack_exports, __rspack_require) {
 var __webpack_exports__ = __rspack_exports;
-var __webpack_require__ = __rspack_require;
 __rspack_require.d(__rspack_exports, {
   "default": () => (__rspack_default_export),
   x: () => (x)
@@ -97,7 +90,6 @@ const x = "x";
 },
 "./dep.js?d"(__unused_rspack_module, __rspack_exports, __rspack_require) {
 var __webpack_exports__ = __rspack_exports;
-var __webpack_require__ = __rspack_require;
 __rspack_require.d(__rspack_exports, {
   "default": () => (__rspack_default_export),
   x: () => (x)
@@ -110,7 +102,6 @@ const x = "x";
 },
 "./dep.js?e"(__unused_rspack_module, __rspack_exports, __rspack_require) {
 var __webpack_exports__ = __rspack_exports;
-var __webpack_require__ = __rspack_require;
 __rspack_require.d(__rspack_exports, {
   "default": () => (__rspack_default_export)
 });
@@ -122,7 +113,6 @@ const x = "x";
 },
 "./dep.js?f"(__unused_rspack_module, __rspack_exports, __rspack_require) {
 var __webpack_exports__ = __rspack_exports;
-var __webpack_require__ = __rspack_require;
 __rspack_require.d(__rspack_exports, {
   "default": () => (__rspack_default_export),
   x: () => (x)
@@ -134,7 +124,6 @@ const x = "x";
 
 },
 "./e.js"(__unused_rspack_module, __unused_rspack___rspack_exports, __rspack_require) {
-var __webpack_require__ = __rspack_require;
 /* import */ var _dep_e__rspack_import_0 = __rspack_require("./dep.js?e");
 
 
@@ -147,7 +136,6 @@ class def {
 
 },
 "./f.js"(__unused_rspack_module, __unused_rspack___rspack_exports, __rspack_require) {
-var __webpack_require__ = __rspack_require;
 /* import */ var _dep_f__rspack_import_0 = __rspack_require("./dep.js?f");
 
 
@@ -162,7 +150,6 @@ new def().method();
 
 },
 "./index.js"(__unused_rspack_module, __unused_rspack___rspack_exports, __rspack_require) {
-var __webpack_require__ = __rspack_require;
 /* import */ var _a__rspack_import_0 = __rspack_require("./a.js");
 /* import */ var _b__rspack_import_1 = __rspack_require("./b.js");
 /* import */ var _c__rspack_import_2 = __rspack_require("./c.js");

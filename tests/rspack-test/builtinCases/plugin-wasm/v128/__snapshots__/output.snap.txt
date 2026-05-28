@@ -3,7 +3,6 @@
 (self["rspackChunk"] = self["rspackChunk"] || []).push([["main"], {
 "./index.js"(module, __rspack_exports, __rspack_require) {
 var __webpack_exports__ = __rspack_exports;
-var __webpack_require__ = __rspack_require;
 __rspack_require.a(module, async function (__rspack_load_async_deps, __rspack_async_done) { try {
 __rspack_require.r(__rspack_exports);
 /* import */ var _v128_wasm__rspack_import_0 = __rspack_require("./v128.wasm");
@@ -17,7 +16,6 @@ __rspack_async_done();
 
 },
 "./v128.wasm"(module, exports, __rspack_require) {
-var __webpack_require__ = __rspack_require;
 module.exports = __rspack_require.v(exports, module.id, "a32782c316f3bc9b" );
 
 },

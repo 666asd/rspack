@@ -3,7 +3,6 @@
 (self["rspackChunk"] = self["rspackChunk"] || []).push([["main"], {
 "./index.js"(__unused_rspack_module, __rspack_exports, __rspack_require) {
 var __webpack_exports__ = __rspack_exports;
-var __webpack_require__ = __rspack_require;
 __rspack_require.r(__rspack_exports);
 /* import */ var _images_file_png__rspack_import_0 = __rspack_require("./images/file.png");
 /* import */ var _images_file_jpg__rspack_import_1 = __rspack_require("./images/file.jpg");
@@ -46,7 +45,6 @@ module.exports = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAASABIAAD/4QCMRXhpZgA
 
 },
 "./images/file.png"(module, __unused_rspack_exports, __rspack_require) {
-var __webpack_require__ = __rspack_require;
 module.exports = __rspack_require.p + "c560fa876f51d750.png";
 
 },

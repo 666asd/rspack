@@ -11,7 +11,6 @@ __rspack_require.add({
   !*** ./asset.js ***!
   \******************/
 (module, __unused_rspack_exports, __rspack_require) {
-var __webpack_require__ = __rspack_require;
 module.exports = __rspack_require.p + "ef46db3751d8e999.js";
 
 },

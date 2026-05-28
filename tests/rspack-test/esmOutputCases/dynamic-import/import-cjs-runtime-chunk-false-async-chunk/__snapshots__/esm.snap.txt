@@ -7,7 +7,6 @@ __rspack_require.add({
   !*** ./dynamic.js ***!
   \********************/
 (__unused_rspack_module, exports, __rspack_require) {
-var __webpack_require__ = __rspack_require;
 const shared = __rspack_require(/*! ./shared */ "./shared.js");
 
 exports.value = shared.base + 41;

@@ -1,7 +1,6 @@
 ```js title=main.js
 (self["rspackChunk"] = self["rspackChunk"] || []).push([["main"], {
 "./index.js"(__unused_rspack_module, __unused_rspack_exports, __rspack_require) {
-var __webpack_require__ = __rspack_require;
 (async function () {
 	return __rspack_require.e(/* import() */ "wasm_wasm").then(__rspack_require.bind(__rspack_require, "./module.js")).then(function (mod) {
 		if (mod.result !== 42) throw new Error("panic");
@@ -24,7 +23,6 @@ var __rspack_exports = (__rspack_exec("./index.js"));
 (self["rspackChunk"] = self["rspackChunk"] || []).push([["wasm_wasm"], {
 "./module.js"(module, __rspack_exports, __rspack_require) {
 var __webpack_exports__ = __rspack_exports;
-var __webpack_require__ = __rspack_require;
 __rspack_require.a(module, async function (__rspack_load_async_deps, __rspack_async_done) { try {
 __rspack_require.r(__rspack_exports);
 __rspack_require.d(__rspack_exports, {
@@ -47,7 +45,6 @@ __rspack_async_done();
 },
 "./module2.js"(module, __rspack_exports, __rspack_require) {
 var __webpack_exports__ = __rspack_exports;
-var __webpack_require__ = __rspack_require;
 __rspack_require.a(module, async function (__rspack_load_async_deps, __rspack_async_done) { try {
 __rspack_require.r(__rspack_exports);
 __rspack_require.d(__rspack_exports, {
@@ -66,7 +63,6 @@ __rspack_async_done();
 
 },
 "./wasm.wasm"(module, exports, __rspack_require) {
-var __webpack_require__ = __rspack_require;
 var __rspack_instantiate__ = function ([rspack_import_0, rspack_import_1]) {
 return __rspack_require.v(exports, module.id, "a6713fea1064f4d3" , {
 "./module": {

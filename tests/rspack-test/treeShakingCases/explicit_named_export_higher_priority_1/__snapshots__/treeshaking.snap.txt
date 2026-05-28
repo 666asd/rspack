@@ -8,7 +8,6 @@ const a = "bar";
 },
 "./foo.js"(__unused_rspack_module, __rspack_exports, __rspack_require) {
 var __webpack_exports__ = __rspack_exports;
-var __webpack_require__ = __rspack_require;
 __rspack_require.d(__rspack_exports, {
   a: () => (a)
 });
@@ -19,7 +18,6 @@ const a = "foo";
 
 },
 "./index.js"(__unused_rspack_module, __unused_rspack___rspack_exports, __rspack_require) {
-var __webpack_require__ = __rspack_require;
 /* import */ var _foo__rspack_import_0 = __rspack_require("./foo.js");
 
 console.log(_foo__rspack_import_0.a);

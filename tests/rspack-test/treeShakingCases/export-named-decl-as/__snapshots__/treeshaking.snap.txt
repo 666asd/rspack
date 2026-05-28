@@ -3,7 +3,6 @@
 (self["rspackChunk"] = self["rspackChunk"] || []).push([["main"], {
 "./src/answer.js"(__unused_rspack_module, __rspack_exports, __rspack_require) {
 var __webpack_exports__ = __rspack_exports;
-var __webpack_require__ = __rspack_require;
 __rspack_require.r(__rspack_exports);
 __rspack_require.d(__rspack_exports, {
   formatNumber: () => (/* reexport safe */ _plugin_formatNumber__rspack_import_0["default"])
@@ -15,7 +14,6 @@ __rspack_require.d(__rspack_exports, {
 
 },
 "./src/index.js"(__unused_rspack_module, __unused_rspack___rspack_exports, __rspack_require) {
-var __webpack_require__ = __rspack_require;
 /* import */ var _answer__rspack_import_0 = __rspack_require("./src/answer.js");
 
 console.log(_answer__rspack_import_0);
@@ -24,7 +22,6 @@ console.log(_answer__rspack_import_0);
 },
 "./src/plugin/formatNumber.js"(__unused_rspack_module, __rspack_exports, __rspack_require) {
 var __webpack_exports__ = __rspack_exports;
-var __webpack_require__ = __rspack_require;
 __rspack_require.d(__rspack_exports, {
   "default": () => (formatNumber_default)
 });

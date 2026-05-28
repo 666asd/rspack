@@ -18,7 +18,6 @@ module.exports = __rspack_external_fs;
   !*** ./cjs-consumer.cjs ***!
   \**************************/
 (__unused_rspack_module, exports, __rspack_require) {
-var __webpack_require__ = __rspack_require;
 // CJS module - will NOT be scope-hoisted, causing its fs dep
 // to go through init fragment path instead of raw_import_stmts
 const fs = __rspack_require(/*! fs */ "fs?94de")

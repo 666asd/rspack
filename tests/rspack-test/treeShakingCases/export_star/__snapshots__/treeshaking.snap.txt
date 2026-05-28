@@ -3,7 +3,6 @@
 (self["rspackChunk"] = self["rspackChunk"] || []).push([["main"], {
 "./bar.js"(__unused_rspack_module, __rspack_exports, __rspack_require) {
 var __webpack_exports__ = __rspack_exports;
-var __webpack_require__ = __rspack_require;
 __rspack_require.d(__rspack_exports, {
   b: () => (b),
   bar: () => (/* reexport module object */ _foo__rspack_import_0),
@@ -20,7 +19,6 @@ function b() {}
 },
 "./foo.js"(__unused_rspack_module, __rspack_exports, __rspack_require) {
 var __webpack_exports__ = __rspack_exports;
-var __webpack_require__ = __rspack_require;
 __rspack_require.r(__rspack_exports);
 __rspack_require.d(__rspack_exports, {
   a: () => (a),
@@ -39,7 +37,6 @@ const foo = 3;
 
 },
 "./index.js"(__unused_rspack_module, __unused_rspack___rspack_exports, __rspack_require) {
-var __webpack_require__ = __rspack_require;
 /* import */ var _foo__rspack_import_0 = __rspack_require("./foo.js");
 
 _foo__rspack_import_0.bar.a;
@@ -49,7 +46,6 @@ _foo__rspack_import_0.bar.a;
 },
 "./result.js"(__unused_rspack_module, __rspack_exports, __rspack_require) {
 var __webpack_exports__ = __rspack_exports;
-var __webpack_require__ = __rspack_require;
 __rspack_require.d(__rspack_exports, {
   c: () => (c)
 });

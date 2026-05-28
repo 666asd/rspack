@@ -17,7 +17,6 @@ exports.bar = 2
   \****************/
 (__unused_rspack_module, __rspack_exports, __rspack_require) {
 var __webpack_exports__ = __rspack_exports;
-var __webpack_require__ = __rspack_require;
 __rspack_require.r(__rspack_exports);
 /* import */ var _bar__rspack_import_0 = __rspack_require(/*! ./bar */ "./bar.js");
 const foo = 1
@@ -36,7 +35,6 @@ __rspack_require.d(__rspack_exports, {
   !*** ./index.js ***!
   \******************/
 (module, __unused_rspack_exports, __rspack_require) {
-var __webpack_require__ = __rspack_require;
 module.exports = __rspack_require(/*! ./foo */ "./foo.js")
 
 it('should have correct output for entry re-exports', async () => {

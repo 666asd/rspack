@@ -8,7 +8,6 @@ module.exports = __rspack_createRequire_require("path");
 
 },
 227(module, __unused_rspack_exports, __rspack_require) {
-var __webpack_require__ = __rspack_require;
 const path = __rspack_require(928)
 
 module.exports = path.sep

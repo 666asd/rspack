@@ -3,7 +3,6 @@
 (self["rspackChunk"] = self["rspackChunk"] || []).push([["main"], {
 "./app.js"(__unused_rspack_module, __rspack_exports, __rspack_require) {
 var __webpack_exports__ = __rspack_exports;
-var __webpack_require__ = __rspack_require;
 __rspack_require.d(__rspack_exports, {
   app: () => (app)
 });
@@ -17,7 +16,6 @@ app.prototype.result = _lib__rspack_import_0.result;
 
 },
 "./index.js"(__unused_rspack_module, __unused_rspack___rspack_exports, __rspack_require) {
-var __webpack_require__ = __rspack_require;
 /* import */ var _src_a__rspack_import_0 = __rspack_require("./src/a.js");
 
 
@@ -26,7 +24,6 @@ var __webpack_require__ = __rspack_require;
 },
 "./lib.js"(__unused_rspack_module, __rspack_exports, __rspack_require) {
 var __webpack_exports__ = __rspack_exports;
-var __webpack_require__ = __rspack_require;
 __rspack_require.d(__rspack_exports, {
   result: () => (result)
 });
@@ -37,7 +34,6 @@ const something = function () {};
 
 },
 "./src/a.js"(__unused_rspack_module, __unused_rspack___rspack_exports, __rspack_require) {
-var __webpack_require__ = __rspack_require;
 /* import */ var _app__rspack_import_0 = __rspack_require("./app.js");
 
 _app__rspack_import_0.app;

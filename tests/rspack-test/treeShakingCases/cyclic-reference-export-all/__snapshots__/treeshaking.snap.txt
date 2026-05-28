@@ -3,7 +3,6 @@
 (self["rspackChunk"] = self["rspackChunk"] || []).push([["main"], {
 "./src/App.js"(__unused_rspack_module, __rspack_exports, __rspack_require) {
 var __webpack_exports__ = __rspack_exports;
-var __webpack_require__ = __rspack_require;
 __rspack_require.d(__rspack_exports, {
   "default": () => (__rspack_default_export)
 });
@@ -22,7 +21,6 @@ const Index = () => {
 },
 "./src/containers/containers.js"(__unused_rspack_module, __rspack_exports, __rspack_require) {
 var __webpack_exports__ = __rspack_exports;
-var __webpack_require__ = __rspack_require;
 __rspack_require.d(__rspack_exports, {
   PlatformProvider: () => (/* reexport safe */ _platform_container__rspack_import_0.PlatformProvider)
 });
@@ -35,7 +33,6 @@ __rspack_require.d(__rspack_exports, {
 },
 "./src/containers/platform-container/index.js"(__unused_rspack_module, __rspack_exports, __rspack_require) {
 var __webpack_exports__ = __rspack_exports;
-var __webpack_require__ = __rspack_require;
 __rspack_require.d(__rspack_exports, {
   PlatformProvider: () => (PlatformProvider)
 });
@@ -45,7 +42,6 @@ const PlatformProvider = 1000;
 
 },
 "./src/index.js"(__unused_rspack_module, __unused_rspack___rspack_exports, __rspack_require) {
-var __webpack_require__ = __rspack_require;
 /* import */ var _App__rspack_import_0 = __rspack_require("./src/App.js");
 
 

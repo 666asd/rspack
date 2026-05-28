@@ -3,7 +3,6 @@
 (self["rspackChunk"] = self["rspackChunk"] || []).push([["main"], {
 "./bar.js"(__unused_rspack_module, __rspack_exports, __rspack_require) {
 var __webpack_exports__ = __rspack_exports;
-var __webpack_require__ = __rspack_require;
 __rspack_require.d(__rspack_exports, {
   b: () => (b)
 });
@@ -17,7 +16,6 @@ function b() {}
 
 },
 "./foo.js"(__unused_rspack_module, __unused_rspack___rspack_exports, __rspack_require) {
-var __webpack_require__ = __rspack_require;
 /* import */ var _bar_js__rspack_import_0 = __rspack_require("./bar.js");
 /* import */ var _result_js__rspack_import_1 = __rspack_require("./result.js");
 const a = 3;
@@ -28,7 +26,6 @@ const b = 3;
 
 },
 "./index.js"(__unused_rspack_module, __unused_rspack___rspack_exports, __rspack_require) {
-var __webpack_require__ = __rspack_require;
 /* import */ var _bar_js__rspack_import_0 = __rspack_require("./bar.js");
 
 
@@ -37,7 +34,6 @@ var __webpack_require__ = __rspack_require;
 
 },
 "./result.js"(__unused_rspack_module, __unused_rspack___rspack_exports, __rspack_require) {
-var __webpack_require__ = __rspack_require;
 /* import */ var _foo_js__rspack_import_0 = __rspack_require("./foo.js");
 /* import */ var _bar_js__rspack_import_1 = __rspack_require("./bar.js");
 const c = 103330;

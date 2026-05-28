@@ -2,7 +2,6 @@
 "use strict";
 (self["rspackChunk"] = self["rspackChunk"] || []).push([["main"], {
 "./index.js"(__unused_rspack_module, __unused_rspack___rspack_exports, __rspack_require) {
-var __webpack_require__ = __rspack_require;
 /* import */ var _foo__rspack_import_0 = __rspack_require("./lib.js");
 /* import */ var _foo__rspack_import_1 = __rspack_require("./selector.js");
 
@@ -13,7 +12,6 @@ _foo__rspack_import_1["default"];
 },
 "./lib.js"(__unused_rspack_module, __rspack_exports, __rspack_require) {
 var __webpack_exports__ = __rspack_exports;
-var __webpack_require__ = __rspack_require;
 __rspack_require.d(__rspack_exports, {
   "default": () => (__rspack_default_export)
 });
@@ -25,7 +23,6 @@ function Provider() {}
 },
 "./selector.js"(__unused_rspack_module, __rspack_exports, __rspack_require) {
 var __webpack_exports__ = __rspack_exports;
-var __webpack_require__ = __rspack_require;
 __rspack_require.d(__rspack_exports, {
   "default": () => (useSelector)
 });

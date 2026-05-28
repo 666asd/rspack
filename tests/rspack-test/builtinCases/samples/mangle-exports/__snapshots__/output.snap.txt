@@ -3,7 +3,6 @@
 (self["rspackChunk"] = self["rspackChunk"] || []).push([["main"], {
 "./answer.js"(__unused_rspack_module, __rspack_exports, __rspack_require) {
 var __webpack_exports__ = __rspack_exports;
-var __webpack_require__ = __rspack_require;
 __rspack_require.d(__rspack_exports, {
   Z: () => (answer)
 });
@@ -12,7 +11,6 @@ const answer = 103330;
 
 },
 "./index.js"(__unused_rspack_module, __unused_rspack___rspack_exports, __rspack_require) {
-var __webpack_require__ = __rspack_require;
 /* import */ var _lib__rspack_import_0 = __rspack_require("./lib.js");
 
 _lib__rspack_import_0/* .answer */.Z;
@@ -21,7 +19,6 @@ _lib__rspack_import_0/* .answer */.Z;
 },
 "./lib.js"(__unused_rspack_module, __rspack_exports, __rspack_require) {
 var __webpack_exports__ = __rspack_exports;
-var __webpack_require__ = __rspack_require;
 __rspack_require.d(__rspack_exports, {
   Z: () => (/* reexport safe */ _answer__rspack_import_0.Z)
 });
