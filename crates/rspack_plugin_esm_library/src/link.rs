@@ -629,7 +629,12 @@ impl EsmLibraryPlugin {
           changed = true;
 
           let module_info = concate_modules_map[module_info_id].as_concatenated();
-          let render_mode = if compilation.options.experiments.runtime_requirements_proxy {
+          let render_mode = if compilation
+            .options
+            .experiments
+            .runtime_mode
+            .is_runtime_requirements_proxy_enabled()
+          {
             rspack_core::RuntimeGlobalRenderMode::ModuleProxy
           } else {
             rspack_core::RuntimeGlobalRenderMode::RequireProperty
@@ -1370,7 +1375,12 @@ var {} = {{}};
     orig_concate_modules_map: &mut IdentifierIndexMap<ModuleInfo>,
     external_module_init_fragments: &mut IdentifierMap<ChunkInitFragments>,
   ) -> Result<()> {
-    let render_mode = if compilation.options.experiments.runtime_requirements_proxy {
+    let render_mode = if compilation
+      .options
+      .experiments
+      .runtime_mode
+      .is_runtime_requirements_proxy_enabled()
+    {
       rspack_core::RuntimeGlobalRenderMode::LexicalRuntime
     } else {
       rspack_core::RuntimeGlobalRenderMode::RequireProperty
@@ -2503,7 +2513,12 @@ var {} = {{}};
         let info = &concate_modules_map[m];
         let runtime_requirements = info.get_runtime_requirements();
         if !runtime_requirements.is_empty() && runtime_chunk != *chunk {
-          let render_mode = if compilation.options.experiments.runtime_requirements_proxy {
+          let render_mode = if compilation
+            .options
+            .experiments
+            .runtime_mode
+            .is_runtime_requirements_proxy_enabled()
+          {
             rspack_core::RuntimeGlobalRenderMode::LexicalRuntime
           } else {
             rspack_core::RuntimeGlobalRenderMode::RequireProperty

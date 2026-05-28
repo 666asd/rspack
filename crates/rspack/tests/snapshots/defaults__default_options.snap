@@ -1705,7 +1705,7 @@ CompilerOptions {
     experiments: Experiments {
         css: false,
         defer_import: false,
-        runtime_requirements_proxy: false,
+        runtime_mode: Webpack,
         pure_functions: false,
     },
     incremental: IncrementalOptions {

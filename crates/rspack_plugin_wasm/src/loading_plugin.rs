@@ -33,7 +33,12 @@ async fn fetch_compile_async_wasm_plugin_runtime_requirements_in_tree(
     return Ok(None);
   }
 
-  let render_mode = if compilation.options.experiments.runtime_requirements_proxy {
+  let render_mode = if compilation
+    .options
+    .experiments
+    .runtime_mode
+    .is_runtime_requirements_proxy_enabled()
+  {
     rspack_core::RuntimeGlobalRenderMode::LexicalRuntime
   } else {
     rspack_core::RuntimeGlobalRenderMode::RequireProperty

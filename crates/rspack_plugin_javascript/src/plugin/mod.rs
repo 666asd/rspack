@@ -345,7 +345,11 @@ var {} = {{}};
       );
     }
 
-    if compilation.options.experiments.runtime_requirements_proxy
+    if compilation
+      .options
+      .experiments
+      .runtime_mode
+      .is_runtime_requirements_proxy_enabled()
       && compilation
         .build_chunk_graph_artifact
         .chunk_graph
@@ -366,7 +370,11 @@ var {} = {{}};
       );
     }
 
-    if !compilation.options.experiments.runtime_requirements_proxy
+    if !compilation
+      .options
+      .experiments
+      .runtime_mode
+      .is_runtime_requirements_proxy_enabled()
       && (module_factories
         || runtime_requirements.contains(RuntimeGlobals::MODULE_FACTORIES_ADD_ONLY))
     {
@@ -383,7 +391,11 @@ var {} = {{}};
       );
     }
 
-    if !compilation.options.experiments.runtime_requirements_proxy
+    if !compilation
+      .options
+      .experiments
+      .runtime_mode
+      .is_runtime_requirements_proxy_enabled()
       && runtime_requirements.contains(RuntimeGlobals::MODULE_CACHE)
     {
       header.push(
@@ -398,7 +410,13 @@ var {} = {{}};
       );
     }
 
-    if !compilation.options.experiments.runtime_requirements_proxy && intercept_module_execution {
+    if !compilation
+      .options
+      .experiments
+      .runtime_mode
+      .is_runtime_requirements_proxy_enabled()
+      && intercept_module_execution
+    {
       header.push(
         format!(
           r#"// expose the module execution interceptor
@@ -1500,7 +1518,12 @@ var {} = {{}};
     compilation: &Compilation,
     hasher: &mut RspackHash,
   ) -> Result<()> {
-    let render_mode = if compilation.options.experiments.runtime_requirements_proxy {
+    let render_mode = if compilation
+      .options
+      .experiments
+      .runtime_mode
+      .is_runtime_requirements_proxy_enabled()
+    {
       RuntimeGlobalRenderMode::ModuleProxy
     } else {
       RuntimeGlobalRenderMode::RequireProperty

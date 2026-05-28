@@ -518,7 +518,12 @@ pub async fn process_chunks_runtime_requirements(
   compilation.runtime_modules = runtime_modules;
 
   compilation.runtime_proxy_metadata_artifact.clear();
-  if !compilation.options.experiments.runtime_requirements_proxy {
+  if !compilation
+    .options
+    .experiments
+    .runtime_mode
+    .is_runtime_requirements_proxy_enabled()
+  {
     logger.time_end(start);
     return Ok(());
   }

@@ -454,7 +454,12 @@ async fn render_runtime_modules_impl(
           if !(module.full_hash() || module.dependent_hash()) {
             sources.add(source.clone());
           } else {
-            let render_mode = if compilation.options.experiments.runtime_requirements_proxy {
+            let render_mode = if compilation
+              .options
+              .experiments
+              .runtime_mode
+              .is_runtime_requirements_proxy_enabled()
+            {
               RuntimeGlobalRenderMode::LexicalRuntime
             } else {
               RuntimeGlobalRenderMode::RequireProperty
@@ -522,7 +527,12 @@ async fn render_runtime_modules_impl(
 }
 
 pub fn has_runtime_proxy_support(compilation: &Compilation, chunk_ukey: &ChunkUkey) -> bool {
-  if !compilation.options.experiments.runtime_requirements_proxy {
+  if !compilation
+    .options
+    .experiments
+    .runtime_mode
+    .is_runtime_requirements_proxy_enabled()
+  {
     return false;
   }
 
@@ -558,7 +568,12 @@ pub fn render_runtime_proxy_declarations(
   chunk_ukey: &ChunkUkey,
   runtime_template: &RuntimeCodeTemplate<'_>,
 ) -> Option<BoxSource> {
-  if !compilation.options.experiments.runtime_requirements_proxy {
+  if !compilation
+    .options
+    .experiments
+    .runtime_mode
+    .is_runtime_requirements_proxy_enabled()
+  {
     return None;
   }
 
@@ -587,7 +602,12 @@ pub fn render_runtime_proxy_outer_declarations(
   chunk_ukey: &ChunkUkey,
   runtime_template: &RuntimeCodeTemplate<'_>,
 ) -> Option<BoxSource> {
-  if !compilation.options.experiments.runtime_requirements_proxy {
+  if !compilation
+    .options
+    .experiments
+    .runtime_mode
+    .is_runtime_requirements_proxy_enabled()
+  {
     return None;
   }
 
@@ -610,7 +630,12 @@ pub fn render_runtime_proxy_bootstrap_initializers(
   chunk_ukey: &ChunkUkey,
   runtime_template: &RuntimeCodeTemplate<'_>,
 ) -> Option<BoxSource> {
-  if !compilation.options.experiments.runtime_requirements_proxy {
+  if !compilation
+    .options
+    .experiments
+    .runtime_mode
+    .is_runtime_requirements_proxy_enabled()
+  {
     return None;
   }
 
@@ -740,7 +765,12 @@ pub fn render_runtime_proxy_bridge(
   _declare_runtime_proxy: bool,
   runtime_proxy: &str,
 ) -> Option<BoxSource> {
-  if !compilation.options.experiments.runtime_requirements_proxy {
+  if !compilation
+    .options
+    .experiments
+    .runtime_mode
+    .is_runtime_requirements_proxy_enabled()
+  {
     return None;
   }
 
@@ -788,7 +818,12 @@ fn render_runtime_proxy_proxy_assignments(
   chunk_ukey: &ChunkUkey,
   runtime_proxy: &str,
 ) -> Option<BoxSource> {
-  if !compilation.options.experiments.runtime_requirements_proxy {
+  if !compilation
+    .options
+    .experiments
+    .runtime_mode
+    .is_runtime_requirements_proxy_enabled()
+  {
     return None;
   }
 
@@ -826,7 +861,12 @@ pub fn render_runtime_proxy_external_module_proxy(
   runtime_template: &RuntimeCodeTemplate<'_>,
   export_expression: &str,
 ) -> Option<BoxSource> {
-  if !compilation.options.experiments.runtime_requirements_proxy {
+  if !compilation
+    .options
+    .experiments
+    .runtime_mode
+    .is_runtime_requirements_proxy_enabled()
+  {
     return None;
   }
 
@@ -861,7 +901,12 @@ pub fn render_runtime_proxy_external_module_proxy_export(
   runtime_template: &RuntimeCodeTemplate<'_>,
   export_name: &str,
 ) -> Option<BoxSource> {
-  if !compilation.options.experiments.runtime_requirements_proxy {
+  if !compilation
+    .options
+    .experiments
+    .runtime_mode
+    .is_runtime_requirements_proxy_enabled()
+  {
     return None;
   }
 

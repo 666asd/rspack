@@ -2240,7 +2240,7 @@ export interface RawExperiments {
   useInputFileSystem?: false | Array<RegExp>
   css?: boolean
   deferImport: boolean
-  runtimeRequirementsProxy: boolean
+  runtimeMode: "webpack" | "compatibility" | "compatibility-warning" | "rspack"
   pureFunctions: boolean
 }
 

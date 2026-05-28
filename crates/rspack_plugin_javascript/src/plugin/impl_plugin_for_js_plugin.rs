@@ -557,7 +557,12 @@ async fn render_manifest(
     .build_chunk_graph_artifact
     .chunk_by_ukey
     .expect_get(chunk_ukey);
-  let render_mode = if compilation.options.experiments.runtime_requirements_proxy {
+  let render_mode = if compilation
+    .options
+    .experiments
+    .runtime_mode
+    .is_runtime_requirements_proxy_enabled()
+  {
     RuntimeGlobalRenderMode::ModuleProxy
   } else {
     RuntimeGlobalRenderMode::RequireProperty

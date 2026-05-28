@@ -92,7 +92,12 @@ impl RuntimeModule for EmbedFederationRuntimeModule {
 
     // Generate module execution code for each federation runtime dependency
     let mut module_executions = String::with_capacity(federation_runtime_modules.len() * 64);
-    let render_mode = if compilation.options.experiments.runtime_requirements_proxy {
+    let render_mode = if compilation
+      .options
+      .experiments
+      .runtime_mode
+      .is_runtime_requirements_proxy_enabled()
+    {
       rspack_core::RuntimeGlobalRenderMode::LexicalRuntime
     } else {
       rspack_core::RuntimeGlobalRenderMode::RequireProperty

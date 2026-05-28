@@ -53,7 +53,7 @@ export function createHotProcessor(
       }
       if (process.env.RSPACK_TEST_RUNTIME_REQUIREMENTS_PROXY) {
         options.experiments ??= {};
-        options.experiments.runtimeRequirementsProxy = true;
+        options.experiments.runtimeMode = 'rspack';
       }
       compiler.setOptions(options);
     },

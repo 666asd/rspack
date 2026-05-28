@@ -619,7 +619,11 @@ export interface ExperimentsNormalized {
   useInputFileSystem?: false | RegExp[];
   nativeWatcher?: boolean;
   deferImport?: boolean;
-  runtimeRequirementsProxy?: boolean;
+  runtimeMode?:
+    | 'webpack'
+    | 'compatibility'
+    | 'compatibility-warning'
+    | 'rspack';
   pureFunctions?: boolean;
 }
 

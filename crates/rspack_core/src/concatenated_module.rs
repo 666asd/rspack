@@ -2527,7 +2527,12 @@ impl ConcatenatedModule {
         .module_by_identifier(&module_id)
         .unwrap_or_else(|| panic!("should have module {module_id}"));
 
-      let render_mode = if compilation.options.experiments.runtime_requirements_proxy {
+      let render_mode = if compilation
+        .options
+        .experiments
+        .runtime_mode
+        .is_runtime_requirements_proxy_enabled()
+      {
         RuntimeGlobalRenderMode::ModuleProxy
       } else {
         RuntimeGlobalRenderMode::RequireProperty

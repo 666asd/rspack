@@ -1666,7 +1666,13 @@ impl<'a> RuntimeCodeTemplate<'a> {
       .unwrap_or_else(|| unreachable!())
       .insert(
         "_with_runtime_proxy".to_string(),
-        Value::Bool(self.compiler_options.experiments.runtime_requirements_proxy),
+        Value::Bool(
+          self
+            .compiler_options
+            .experiments
+            .runtime_mode
+            .is_runtime_requirements_proxy_enabled(),
+        ),
       );
 
     if let Some(params) = params {

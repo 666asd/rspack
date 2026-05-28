@@ -1443,7 +1443,12 @@ impl CompilationRuntimeModule for CompilationRuntimeModuleTap {
     let Some(module) = runtime_modules.get(m) else {
       return Ok(());
     };
-    let render_mode = if compilation.options.experiments.runtime_requirements_proxy {
+    let render_mode = if compilation
+      .options
+      .experiments
+      .runtime_mode
+      .is_runtime_requirements_proxy_enabled()
+    {
       rspack_core::RuntimeGlobalRenderMode::LexicalRuntime
     } else {
       rspack_core::RuntimeGlobalRenderMode::RequireProperty

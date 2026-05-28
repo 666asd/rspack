@@ -28,7 +28,7 @@ class ReverseWritePlugin {
 
 module.exports = {
   experiments: {
-    runtimeRequirementsProxy: true,
+    runtimeMode: 'rspack',
   },
   plugins: [new ReverseWritePlugin()],
 };

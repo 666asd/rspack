@@ -487,7 +487,12 @@ pub async fn runtime_modules_code_generation(compilation: &mut Compilation) -> R
         let s = unsafe { token.used((compilation_ref, runtime_module_identifier, runtime_module)) };
         s.spawn(
           |(compilation, runtime_module_identifier, runtime_module)| async {
-            let render_mode = if compilation.options.experiments.runtime_requirements_proxy {
+            let render_mode = if compilation
+              .options
+              .experiments
+              .runtime_mode
+              .is_runtime_requirements_proxy_enabled()
+            {
               RuntimeGlobalRenderMode::LexicalRuntime
             } else {
               RuntimeGlobalRenderMode::RequireProperty

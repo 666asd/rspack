@@ -547,7 +547,12 @@ async fn runtime_requirement_in_tree(
   let has_hot_update = runtime_requirements.contains(RuntimeGlobals::HMR_DOWNLOAD_UPDATE_HANDLERS);
 
   if has_hot_update || runtime_requirements.contains(RuntimeGlobals::ENSURE_CHUNK_HANDLERS) {
-    let render_mode = if compilation.options.experiments.runtime_requirements_proxy {
+    let render_mode = if compilation
+      .options
+      .experiments
+      .runtime_mode
+      .is_runtime_requirements_proxy_enabled()
+    {
       rspack_core::RuntimeGlobalRenderMode::LexicalRuntime
     } else {
       rspack_core::RuntimeGlobalRenderMode::RequireProperty

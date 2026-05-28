@@ -879,7 +879,12 @@ var {} = {{}};
       )));
     }
 
-    if compilation.options.experiments.runtime_requirements_proxy {
+    if compilation
+      .options
+      .experiments
+      .runtime_mode
+      .is_runtime_requirements_proxy_enabled()
+    {
       source.add(RawStringSource::from(format!(
         "var {} = {{}};\n",
         runtime_template.render_runtime_variable(&RuntimeVariable::Runtime)

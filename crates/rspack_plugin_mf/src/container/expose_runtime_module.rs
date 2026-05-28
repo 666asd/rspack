@@ -69,7 +69,12 @@ impl RuntimeModule for ExposeRuntimeModule {
     let Some(data) = self.find_expose_data(&chunk_ukey, compilation) else {
       return Ok(String::new());
     };
-    let render_mode = if compilation.options.experiments.runtime_requirements_proxy {
+    let render_mode = if compilation
+      .options
+      .experiments
+      .runtime_mode
+      .is_runtime_requirements_proxy_enabled()
+    {
       rspack_core::RuntimeGlobalRenderMode::LexicalRuntime
     } else {
       rspack_core::RuntimeGlobalRenderMode::RequireProperty

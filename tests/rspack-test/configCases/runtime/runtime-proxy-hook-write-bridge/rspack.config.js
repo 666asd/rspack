@@ -19,7 +19,7 @@ class AddTreeRuntimeRequirementPlugin {
 module.exports = {
   mode: 'development',
   experiments: {
-    runtimeRequirementsProxy: true,
+    runtimeMode: 'rspack',
   },
   output: {
     environment: {

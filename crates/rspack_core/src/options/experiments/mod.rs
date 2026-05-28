@@ -5,6 +5,35 @@
 pub struct Experiments {
   pub css: bool,
   pub defer_import: bool,
-  pub runtime_requirements_proxy: bool,
+  pub runtime_mode: RuntimeOutputMode,
   pub pure_functions: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RuntimeOutputMode {
+  Webpack,
+  Compatibility,
+  CompatibilityWarning,
+  Rspack,
+}
+
+impl Default for RuntimeOutputMode {
+  fn default() -> Self {
+    Self::Webpack
+  }
+}
+
+impl RuntimeOutputMode {
+  pub fn is_runtime_requirements_proxy_enabled(self) -> bool {
+    !matches!(self, Self::Webpack)
+  }
+
+  pub fn as_str(self) -> &'static str {
+    match self {
+      Self::Webpack => "webpack",
+      Self::Compatibility => "compatibility",
+      Self::CompatibilityWarning => "compatibility-warning",
+      Self::Rspack => "rspack",
+    }
+  }
 }

@@ -2994,12 +2994,21 @@ export type Experiments = {
    */
   deferImport?: boolean;
   /**
-   * Render module runtime helper reads through a runtime chunk proxy.
+   * Controls runtime output compatibility.
+   *
+   * - "webpack": emit webpack-compatible runtime output.
+   * - "compatibility": emit runtime output compatible with both webpack and Rspack.
+   * - "compatibility-warning": emit compatibility output. Warning diagnostics are reserved for a later step.
+   * - "rspack": emit Rspack runtime output only.
    *
    * @experimental
-   * @default false
+   * @default "webpack"
    */
-  runtimeRequirementsProxy?: boolean;
+  runtimeMode?:
+    | 'webpack'
+    | 'compatibility'
+    | 'compatibility-warning'
+    | 'rspack';
   /**
    * Enable pure-function-based side-effects analysis.
    * @default false

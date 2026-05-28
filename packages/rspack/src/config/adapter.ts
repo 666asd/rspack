@@ -86,7 +86,7 @@ export const getRawOptions = (
   const experiments = options.experiments as Required<ExperimentsNormalized>;
   const rawExperiments = {
     ...experiments,
-    runtimeRequirementsProxy: experiments.runtimeRequirementsProxy,
+    runtimeMode: experiments.runtimeMode,
   };
   return {
     name: options.name,

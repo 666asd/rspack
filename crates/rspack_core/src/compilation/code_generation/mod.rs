@@ -180,7 +180,12 @@ pub(crate) async fn code_generation_modules(
         let (codegen_res, from_cache) = this
           .code_generate_cache_artifact
           .use_cache(&job, || async {
-            let render_mode = if this.options.experiments.runtime_requirements_proxy {
+            let render_mode = if this
+              .options
+              .experiments
+              .runtime_mode
+              .is_runtime_requirements_proxy_enabled()
+            {
               RuntimeGlobalRenderMode::ModuleProxy
             } else {
               RuntimeGlobalRenderMode::RequireProperty

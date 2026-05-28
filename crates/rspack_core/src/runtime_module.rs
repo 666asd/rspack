@@ -41,7 +41,12 @@ pub trait RuntimeModule:
     if let Some(custom_source) = self.get_custom_source() {
       Ok(custom_source)
     } else {
-      let render_mode = if compilation.options.experiments.runtime_requirements_proxy {
+      let render_mode = if compilation
+        .options
+        .experiments
+        .runtime_mode
+        .is_runtime_requirements_proxy_enabled()
+      {
         RuntimeGlobalRenderMode::LexicalRuntime
       } else {
         RuntimeGlobalRenderMode::RequireProperty

@@ -35,7 +35,7 @@ class AddRuntimeModulePlugin {
 
 module.exports = {
   experiments: {
-    runtimeRequirementsProxy: true,
+    runtimeMode: 'rspack',
   },
   plugins: [new AddRuntimeModulePlugin()],
 };

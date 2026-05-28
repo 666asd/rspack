@@ -222,7 +222,12 @@ async fn render_chunk(
     let use_startup_entrypoint = runtime_requirements.contains(RuntimeGlobals::STARTUP_ENTRYPOINT);
     let mut entry_module_ids = Vec::new();
 
-    if compilation.options.experiments.runtime_requirements_proxy {
+    if compilation
+      .options
+      .experiments
+      .runtime_mode
+      .is_runtime_requirements_proxy_enabled()
+    {
       startup_source.push(format!(
         "var {};",
         runtime_template.render_runtime_globals(&RuntimeGlobals::ENTRY_MODULE_ID)

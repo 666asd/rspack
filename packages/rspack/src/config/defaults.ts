@@ -221,7 +221,7 @@ const applyExperimentsDefaults = (experiments: ExperimentsNormalized) => {
   D(experiments, 'futureDefaults', false);
   D(experiments, 'asyncWebAssembly', true);
   D(experiments, 'deferImport', false);
-  D(experiments, 'runtimeRequirementsProxy', false);
+  D(experiments, 'runtimeMode', 'webpack');
 
   D(experiments, 'buildHttp', undefined);
   if (experiments.buildHttp && typeof experiments.buildHttp === 'object') {

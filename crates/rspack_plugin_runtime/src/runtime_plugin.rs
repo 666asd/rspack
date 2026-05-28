@@ -173,7 +173,12 @@ async fn runtime_requirements_in_tree(
 ) -> Result<Option<()>> {
   handle_scope_globals(runtime_requirements, runtime_requirements_mut);
 
-  let render_mode = if compilation.options.experiments.runtime_requirements_proxy {
+  let render_mode = if compilation
+    .options
+    .experiments
+    .runtime_mode
+    .is_runtime_requirements_proxy_enabled()
+  {
     RuntimeGlobalRenderMode::LexicalRuntime
   } else {
     RuntimeGlobalRenderMode::RequireProperty

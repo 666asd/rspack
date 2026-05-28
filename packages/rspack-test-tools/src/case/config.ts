@@ -142,7 +142,7 @@ export function overrideOptions(
   }
   if (process.env.RSPACK_TEST_RUNTIME_REQUIREMENTS_PROXY) {
     options.experiments ??= {};
-    options.experiments.runtimeRequirementsProxy = true;
+    options.experiments.runtimeMode = 'rspack';
   }
 }
 

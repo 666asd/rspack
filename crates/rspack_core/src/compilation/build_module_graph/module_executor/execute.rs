@@ -331,7 +331,12 @@ impl Task<ExecutorTaskContext> for ExecuteTask {
       let runtime_module_source = if let Some(custom_source) = runtime_module.get_custom_source() {
         RawStringSource::from(custom_source).boxed()
       } else {
-        let render_mode = if compilation.options.experiments.runtime_requirements_proxy {
+        let render_mode = if compilation
+          .options
+          .experiments
+          .runtime_mode
+          .is_runtime_requirements_proxy_enabled()
+        {
           RuntimeGlobalRenderMode::ModuleProxy
         } else {
           RuntimeGlobalRenderMode::RequireProperty

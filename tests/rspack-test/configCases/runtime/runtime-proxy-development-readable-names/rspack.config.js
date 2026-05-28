@@ -1,7 +1,7 @@
 module.exports = {
   mode: 'development',
   experiments: {
-    runtimeRequirementsProxy: true,
+    runtimeMode: 'rspack',
   },
   optimization: {
     concatenateModules: false,

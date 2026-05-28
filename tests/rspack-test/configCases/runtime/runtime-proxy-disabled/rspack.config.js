@@ -1,5 +1,5 @@
 module.exports = {
   experiments: {
-    runtimeRequirementsProxy: false,
+    runtimeMode: 'webpack',
   },
 };
