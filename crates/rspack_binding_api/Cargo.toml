@@ -15,7 +15,7 @@ allocative    = ["rspack_util/allocative", "rspack_collections/allocative", "rsp
 browser       = []
 debug_tool    = ["rspack_core/debug_tool"]
 perfetto      = ["dep:rspack_tracing_perfetto", "rspack_tracing/perfetto"]
-plugin        = ["rspack_loader_swc/plugin", "rspack_util/plugin"]
+plugin        = ["rspack_loader_swc/plugin", "rspack_util/plugin", "swc_plugin_runner"]
 sftrace-setup = ["dep:sftrace-setup", "rspack_allocator/sftrace-setup"]
 tracy-client  = ["dep:tracy-client", "rspack_allocator/tracy-client"]
 
@@ -115,6 +115,7 @@ rustc-hash                             = { workspace = true }
 serde                                  = { workspace = true }
 serde_json                             = { workspace = true }
 swc_core                               = { workspace = true, default-features = false, features = ["ecma_transforms_react"] }
+swc_plugin_runner                      = { workspace = true, optional = true }
 tokio                                  = { workspace = true, features = ["rt", "rt-multi-thread", "macros", "test-util", "tracing", "parking_lot"] }
 ustr                                   = { workspace = true }
 

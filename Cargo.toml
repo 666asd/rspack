@@ -148,8 +148,6 @@ swc_experimental_ecma_semantic = { version = "0.6.7", default-features = false }
 
 rspack_dojang = { version = "0.1.11", default-features = false }
 tracy-client  = { version = "=0.18.4", default-features = false, features = ["enable", "sampling", "demangle", "system-tracing"] }
-wasi-common   = { version = "35.0.0", default-features = false }
-wasmtime      = { version = "35.0.0", default-features = false }
 
 
 # all rspack workspace dependencies
@@ -402,27 +400,6 @@ opt-level = "s"
 opt-level = "s"
 
 [profile.release.package.oneshot]
-opt-level = "s"
-
-[profile.release.package."cranelift-codegen"]
-opt-level = "s"
-
-[profile.release.package.wasmtime]
-opt-level = "s"
-
-[profile.release.package."wasi-common"]
-opt-level = "s"
-
-[profile.release.package."cranelift-assembler-x64"]
-opt-level = "s"
-
-[profile.release.package."cranelift-frontend"]
-opt-level = "s"
-
-[profile.release.package."wasmtime-environ"]
-opt-level = "s"
-
-[profile.release.package."wasmtime-internal-cranelift"]
 opt-level = "s"
 
 [profile.release.package.notify]

@@ -48,9 +48,9 @@ fn _transform(source: String, options: String) -> napi::Result<TransformOutput> 
 
   #[cfg(feature = "plugin")]
   {
-    options.runtime_options = options.runtime_options.plugin_runtime(std::sync::Arc::new(
-      rspack_util::swc::runtime::WasmtimeRuntime,
-    ));
+    options.runtime_options = options
+      .runtime_options
+      .plugin_runtime(rspack_util::swc::runtime::plugin_runtime());
   }
 
   let compiler = JavaScriptCompiler::new();
@@ -70,7 +70,14 @@ fn _transform(source: String, options: String) -> napi::Result<TransformOutput> 
       |_| noop_pass(),
     )
     .map(TransformOutput::from)
-    .map_err(|e| napi::Error::new(napi::Status::GenericFailure, format!("{e}")))
+    .map_err(|e| {
+      let message = format!("{e}");
+      if message.is_empty() {
+        napi::Error::new(napi::Status::GenericFailure, format!("{e:?}"))
+      } else {
+        napi::Error::new(napi::Status::GenericFailure, message)
+      }
+    })
 }
 
 #[napi]

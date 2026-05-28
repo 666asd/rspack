@@ -111,12 +111,9 @@ impl SwcLoader {
 
       #[cfg(feature = "plugin")]
       {
-        swc_options.runtime_options =
-          swc_options
-            .runtime_options
-            .plugin_runtime(std::sync::Arc::new(
-              rspack_util::swc::runtime::WasmtimeRuntime,
-            ));
+        swc_options.runtime_options = swc_options
+          .runtime_options
+          .plugin_runtime(rspack_util::swc::runtime::plugin_runtime());
       }
 
       swc_options

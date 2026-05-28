@@ -63,6 +63,156 @@ const isMuslFromChildProcess = () => {
   }
 }
 
+function registerNodeWasmRuntime(binding) {
+  if (
+    typeof binding?.__registerNodeWasmRuntime !== 'function' ||
+    typeof binding?.__nodeWasmImportCall !== 'function'
+  ) {
+    return
+  }
+
+  let WASI
+  const modules = new Map()
+  const instances = new Map()
+  const debugNodeWasm = (...args) => {
+    if (process.env.RSPACK_DEBUG_NODE_WASM && process.env.RSPACK_DEBUG_NODE_WASM !== '0') {
+      console.error('[rspack:node-wasm-runtime]', ...args)
+    }
+  }
+
+  const getInstance = (instanceId) => {
+    const state = instances.get(instanceId)
+    if (!state) {
+      throw new Error(`SWC Wasm plugin instance ${instanceId} does not exist`)
+    }
+    return state
+  }
+
+  binding.__registerNodeWasmRuntime({
+    compile(moduleId, bytes) {
+      debugNodeWasm('compile', moduleId, bytes.length)
+      modules.set(moduleId, new WebAssembly.Module(bytes))
+    },
+    instantiate(instanceId, moduleId, importNames, envsJson) {
+      debugNodeWasm('instantiate:start', instanceId, moduleId, importNames.length)
+      const mod = modules.get(moduleId)
+      if (!mod) {
+        throw new Error(`SWC Wasm plugin module ${moduleId} does not exist`)
+      }
+
+      const importObject = {
+        env: Object.create(null),
+      }
+
+      for (let index = 0; index < importNames.length; index++) {
+        importObject.env[importNames[index]] = (...args) => {
+          debugNodeWasm('import', instanceId, index, importNames[index], args)
+          const results = binding.__nodeWasmImportCall(
+            instanceId,
+            index,
+            args,
+            getInstance(instanceId).memory.buffer,
+          )
+          debugNodeWasm('import:return', instanceId, index, results)
+          if (results.length === 0) {
+            return
+          }
+          if (results.length === 1) {
+            return results[0]
+          }
+          return results
+        }
+      }
+
+      const env = Object.create(null)
+      for (const [key, value] of JSON.parse(envsJson)) {
+        env[key] = value
+      }
+
+      WASI ??= require('node:wasi').WASI
+      const wasi = new WASI({
+        version: 'preview1',
+        args: [],
+        env,
+        preopens: {
+          '/cwd': process.cwd(),
+        },
+        returnOnExit: true,
+      })
+      importObject.wasi_snapshot_preview1 = wasi.wasiImport
+
+      const instance = new WebAssembly.Instance(mod, importObject)
+      debugNodeWasm('instantiate:created', instanceId)
+      const exports = instance.exports
+      const memory = exports.memory
+      const alloc = exports.__alloc
+      const free = exports.__free
+      const transform = exports.__transform_plugin_process_impl
+      const coreDiag = exports.__get_transform_plugin_core_pkg_diag
+
+      if (!(memory instanceof WebAssembly.Memory)) {
+        throw new Error('SWC Wasm plugin does not export WebAssembly.Memory as "memory"')
+      }
+      if (typeof alloc !== 'function') {
+        throw new Error('SWC Wasm plugin does not export "__alloc"')
+      }
+      if (typeof free !== 'function') {
+        throw new Error('SWC Wasm plugin does not export "__free"')
+      }
+      if (typeof transform !== 'function') {
+        throw new Error('SWC Wasm plugin does not export "__transform_plugin_process_impl"')
+      }
+      if (typeof coreDiag !== 'function') {
+        throw new Error('SWC Wasm plugin does not export "__get_transform_plugin_core_pkg_diag"')
+      }
+
+      const state = {
+        instance,
+        memory,
+        alloc,
+        free,
+        transform,
+        wasi,
+      }
+      instances.set(instanceId, state)
+      debugNodeWasm('instantiate:wasi.initialize', instanceId)
+      wasi.initialize(instance)
+      debugNodeWasm('instantiate:coreDiag', instanceId)
+      coreDiag()
+      debugNodeWasm('instantiate:done', instanceId)
+    },
+    transform(instanceId, programPtr, programLen, unresolvedMark, shouldEnableCommentsProxy) {
+      debugNodeWasm('transform', instanceId, programPtr, programLen)
+      return getInstance(instanceId).transform(
+        programPtr,
+        programLen,
+        unresolvedMark,
+        shouldEnableCommentsProxy,
+      ) >>> 0
+    },
+    alloc(instanceId, size) {
+      return getInstance(instanceId).alloc(size) >>> 0
+    },
+    free(instanceId, ptr, size) {
+      return getInstance(instanceId).free(ptr, size) >>> 0
+    },
+    read(instanceId, ptr, len) {
+      const { memory } = getInstance(instanceId)
+      return Buffer.from(new Uint8Array(memory.buffer, ptr, len))
+    },
+    write(instanceId, ptr, bytes) {
+      const { memory } = getInstance(instanceId)
+      new Uint8Array(memory.buffer, ptr, bytes.length).set(bytes)
+    },
+    dropInstance(instanceId) {
+      instances.delete(instanceId)
+    },
+    dropModule(moduleId) {
+      modules.delete(moduleId)
+    },
+  })
+}
+
 function requireNative() {
   if (process.env.NAPI_RS_NATIVE_LIBRARY_PATH) {
     try {
@@ -402,5 +552,7 @@ if (!nativeBinding) {
   }
   throw new Error(`Failed to load native binding`)
 }
+
+registerNodeWasmRuntime(nativeBinding)
 
 module.exports.default = module.exports = nativeBinding

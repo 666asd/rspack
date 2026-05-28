@@ -79,6 +79,8 @@ mod module_graph;
 mod module_graph_connection;
 mod modules;
 mod native_watcher;
+#[cfg(feature = "plugin")]
+mod node_wasm_runtime;
 mod normal_module_factory;
 mod options;
 mod panic;
