@@ -14,8 +14,9 @@ impl<'object_pool> SourceContentLines<'object_pool> {
     // and all &'static str references are only used within the lifetime of this struct.
     #[allow(unsafe_code)]
     let text_ref = unsafe { std::mem::transmute::<&str, &'static str>(text.as_ref()) };
+    let is_ascii = text_ref.is_ascii();
     let lines = split_into_lines(text_ref)
-      .map(|line| WithUtf16::new(object_pool, line))
+      .map(|line| WithUtf16::with_known(object_pool, line, is_ascii))
       .collect::<Vec<_>>();
     Self { text, lines }
   }
