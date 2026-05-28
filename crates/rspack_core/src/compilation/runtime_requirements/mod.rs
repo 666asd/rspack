@@ -556,6 +556,7 @@ pub async fn process_chunks_runtime_requirements(
           .and_then(|result_id| module_generation_result_map.get(result_id))
           .and_then(|result| result.data.get::<CodeGenerationRuntimeRequirementsWrite>())
         {
+          metadata.needs_require_bridge |= write_requirements.needs_require_bridge;
           metadata
             .write_bridge_fields
             .insert(renderable_require_scope_runtime_globals(
@@ -597,6 +598,7 @@ pub async fn process_chunks_runtime_requirements(
     }
 
     if metadata.has_custom_runtime_module {
+      metadata.needs_require_bridge = true;
       metadata
         .write_bridge_fields
         .insert(metadata.runtime_module_requirements);

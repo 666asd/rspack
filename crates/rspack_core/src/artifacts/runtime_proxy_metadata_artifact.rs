@@ -9,6 +9,7 @@ pub struct RuntimeProxyMetadata {
   pub module_proxy_requirements: RuntimeGlobals,
   pub runtime_module_requirements: RuntimeGlobals,
   pub has_custom_runtime_module: bool,
+  pub needs_require_bridge: bool,
   pub write_bridge_fields: RuntimeGlobals,
 }
 

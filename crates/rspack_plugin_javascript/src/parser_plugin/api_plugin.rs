@@ -1,19 +1,22 @@
 use rspack_core::{
-  ConstDependency, ModuleArgument, RuntimeGlobals, RuntimeRequirementsDependency,
-  runtime_globals_from_property_name,
+  ConstDependency, ModuleArgument, RuntimeGlobals, RuntimeRequirementsDependency, RuntimeVariable,
+  runtime_globals_from_property_name, runtime_variable_to_string,
 };
 use rspack_error::{Error, Severity};
 use rspack_util::SpanExt;
 use swc_core::{
+  atoms::Atom,
   common::{Span, Spanned},
-  ecma::ast::{CallExpr, Ident, Pat, UnaryExpr},
+  ecma::ast::{CallExpr, Ident, MemberExpr, MemberProp, Pat, UnaryExpr},
 };
 
 use crate::{
   dependency::{ModuleArgumentDependency, RequireMainDependency},
   parser_plugin::JavascriptParserPlugin,
   utils::eval::{self, BasicEvaluatedExpression},
-  visitors::{JavascriptParser, Statement, VariableDeclaration, create_traceable_error},
+  visitors::{
+    ExportedVariableInfo, JavascriptParser, Statement, VariableDeclaration, create_traceable_error,
+  },
 };
 
 fn expression_not_supported(
@@ -58,6 +61,16 @@ const API_GET_SCRIPT_FILENAME: &str = "__webpack_get_script_filename__";
 const API_VERSION: &str = "__rspack_version__";
 const API_UNIQUE_ID: &str = "__rspack_unique_id__";
 const API_RSC_MANIFEST: &str = "__rspack_rsc_manifest__";
+
+fn is_runtime_proxy_name(parser: &JavascriptParser, for_name: &str) -> bool {
+  parser
+    .compiler_options
+    .experiments
+    .runtime_mode
+    .is_runtime_requirements_proxy_enabled()
+    && for_name
+      == runtime_variable_to_string(&RuntimeVariable::Runtime, &parser.compiler_options).as_str()
+}
 
 pub struct APIPluginOptions {
   module: bool,
@@ -153,6 +166,16 @@ impl JavascriptParserPlugin for APIPlugin {
   ) -> Option<bool> {
     match for_name {
       API_REQUIRE => {
+        if parser
+          .compiler_options
+          .experiments
+          .runtime_mode
+          .is_runtime_requirements_proxy_enabled()
+        {
+          parser.add_presentational_dependency(Box::new(
+            RuntimeRequirementsDependency::require_bridge(),
+          ));
+        }
         parser.add_presentational_dependency(Box::new(RuntimeRequirementsDependency::new(
           ident.span.into(),
           RuntimeGlobals::REQUIRE,
@@ -322,6 +345,18 @@ impl JavascriptParserPlugin for APIPlugin {
     member_expr: &swc_core::ecma::ast::MemberExpr,
     for_name: &str,
   ) -> Option<bool> {
+    if parser
+      .compiler_options
+      .experiments
+      .runtime_mode
+      .is_runtime_requirements_proxy_enabled()
+      && for_name == API_REQUIRE
+      && matches!(member_expr.prop, MemberProp::Computed(_))
+    {
+      parser
+        .add_presentational_dependency(Box::new(RuntimeRequirementsDependency::require_bridge()));
+    }
+
     if for_name == "require.extensions"
       || for_name == "require.config"
       || for_name == "require.version"
@@ -366,14 +401,67 @@ impl JavascriptParserPlugin for APIPlugin {
     None
   }
 
+  fn member_chain(
+    &self,
+    parser: &mut JavascriptParser,
+    member_expr: &MemberExpr,
+    for_name: &str,
+    members: &[Atom],
+    _members_optionals: &[bool],
+    _member_ranges: &[Span],
+  ) -> Option<bool> {
+    if parser
+      .compiler_options
+      .experiments
+      .runtime_mode
+      .is_runtime_requirements_proxy_enabled()
+      && (for_name == API_REQUIRE || is_runtime_proxy_name(parser, for_name))
+      && let [member] = members
+      && let Some(runtime_global) = runtime_globals_from_property_name(member.as_ref())
+    {
+      parser.add_presentational_dependency(Box::new(RuntimeRequirementsDependency::new(
+        member_expr.span().into(),
+        runtime_global,
+      )));
+      return Some(true);
+    }
+    None
+  }
+
+  fn unhandled_expression_member_chain(
+    &self,
+    parser: &mut JavascriptParser,
+    root_info: &ExportedVariableInfo,
+    _expr: &MemberExpr,
+  ) -> Option<bool> {
+    if parser
+      .compiler_options
+      .experiments
+      .runtime_mode
+      .is_runtime_requirements_proxy_enabled()
+      && matches!(root_info, ExportedVariableInfo::Name(root) if root == API_REQUIRE)
+    {
+      parser
+        .add_presentational_dependency(Box::new(RuntimeRequirementsDependency::require_bridge()));
+    }
+    None
+  }
+
   fn assign(
     &self,
     parser: &mut JavascriptParser,
-    _expr: &swc_core::ecma::ast::AssignExpr,
+    expr: &swc_core::ecma::ast::AssignExpr,
     for_name: &str,
   ) -> Option<bool> {
-    if let Some(runtime_global) = api_runtime_global(for_name) {
+    if parser
+      .compiler_options
+      .experiments
+      .runtime_mode
+      .is_runtime_requirements_proxy_enabled()
+      && let Some(runtime_global) = api_runtime_global(for_name)
+    {
       parser.add_presentational_dependency(Box::new(RuntimeRequirementsDependency::write(
+        expr.left.span().into(),
         runtime_global,
       )));
     }
@@ -383,15 +471,21 @@ impl JavascriptParserPlugin for APIPlugin {
   fn assign_member_chain(
     &self,
     parser: &mut JavascriptParser,
-    _expr: &swc_core::ecma::ast::AssignExpr,
+    expr: &swc_core::ecma::ast::AssignExpr,
     members: &[swc_core::atoms::Atom],
     for_name: &str,
   ) -> Option<bool> {
-    if for_name == API_REQUIRE
+    if parser
+      .compiler_options
+      .experiments
+      .runtime_mode
+      .is_runtime_requirements_proxy_enabled()
+      && (for_name == API_REQUIRE || is_runtime_proxy_name(parser, for_name))
       && let [member] = members
       && let Some(runtime_global) = runtime_globals_from_property_name(member.as_ref())
     {
       parser.add_presentational_dependency(Box::new(RuntimeRequirementsDependency::write(
+        expr.left.span().into(),
         runtime_global,
       )));
     }

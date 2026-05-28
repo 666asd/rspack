@@ -111,6 +111,7 @@ impl CodeGenerationExportsFinalNames {
 #[derive(Clone, Debug, Default)]
 pub struct CodeGenerationRuntimeRequirementsWrite {
   pub runtime_requirements: RuntimeGlobals,
+  pub needs_require_bridge: bool,
 }
 
 #[derive(Debug, Default, Clone)]

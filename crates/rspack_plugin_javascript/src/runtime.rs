@@ -410,6 +410,7 @@ async fn render_runtime_modules_impl(
       _runtime_template,
       declare_runtime_proxy,
       proxy_variable,
+      true,
     )
   {
     sources.add(bridge);
@@ -511,6 +512,8 @@ async fn render_runtime_modules_impl(
       _runtime_template,
       declare_runtime_proxy,
       proxy_variable,
+      get_runtime_proxy_metadata(compilation, chunk_ukey)
+        .is_some_and(|metadata| metadata.needs_require_bridge),
     )
   {
     sources.add(bridge);
@@ -741,6 +744,7 @@ fn runtime_proxy_define_function(
   compilation: &Compilation,
   runtime_proxy: &str,
   require: &str,
+  include_require_bridge: bool,
 ) -> String {
   if compilation
     .options
@@ -748,12 +752,18 @@ fn runtime_proxy_define_function(
     .environment
     .supports_arrow_function()
   {
+    let require_define = include_require_bridge.then(|| {
+      format!(" Object.defineProperty({require}, item[0], {{ configurable: true, enumerable: true, get: () => {runtime_proxy}[item[0]], set: (value) => {{ {runtime_proxy}[item[0]] = value; }} }});")
+    }).unwrap_or_default();
     format!(
-      "(item) => {{ Object.defineProperty({runtime_proxy}, item[0], {{ configurable: true, enumerable: true, get: item[1], set: item[2] }}); Object.defineProperty({require}, item[0], {{ configurable: true, enumerable: true, get: () => {runtime_proxy}[item[0]], set: (value) => {{ {runtime_proxy}[item[0]] = value; }} }}); }}"
+      "(item) => {{ Object.defineProperty({runtime_proxy}, item[0], {{ configurable: true, enumerable: true, get: item[1], set: item[2] }});{require_define} }}"
     )
   } else {
+    let require_define = include_require_bridge.then(|| {
+      format!(" Object.defineProperty({require}, item[0], {{ configurable: true, enumerable: true, get: function() {{ return {runtime_proxy}[item[0]]; }}, set: function(value) {{ {runtime_proxy}[item[0]] = value; }} }});")
+    }).unwrap_or_default();
     format!(
-      "function(item) {{ Object.defineProperty({runtime_proxy}, item[0], {{ configurable: true, enumerable: true, get: item[1], set: item[2] }}); Object.defineProperty({require}, item[0], {{ configurable: true, enumerable: true, get: function() {{ return {runtime_proxy}[item[0]]; }}, set: function(value) {{ {runtime_proxy}[item[0]] = value; }} }}); }}"
+      "function(item) {{ Object.defineProperty({runtime_proxy}, item[0], {{ configurable: true, enumerable: true, get: item[1], set: item[2] }});{require_define} }}"
     )
   }
 }
@@ -764,6 +774,7 @@ pub fn render_runtime_proxy_bridge(
   runtime_template: &RuntimeCodeTemplate<'_>,
   _declare_runtime_proxy: bool,
   runtime_proxy: &str,
+  include_require_bridge: bool,
 ) -> Option<BoxSource> {
   if !compilation
     .options
@@ -775,13 +786,17 @@ pub fn render_runtime_proxy_bridge(
   }
 
   let metadata = get_runtime_proxy_metadata(compilation, chunk_ukey)?;
-  if metadata.write_bridge_fields.is_empty() {
+  let bridge_fields = if include_require_bridge {
+    metadata.write_bridge_fields.union(metadata.proxy_fields())
+  } else {
+    metadata.write_bridge_fields
+  };
+  if bridge_fields.is_empty() {
     return None;
   }
 
   let require = runtime_template.render_runtime_variable(&RuntimeVariable::Require);
-  let entries = metadata
-    .write_bridge_fields
+  let entries = bridge_fields
     .iter()
     .map(|runtime_global| {
       let key = runtime_globals_property_name(&runtime_global)
@@ -803,7 +818,8 @@ pub fn render_runtime_proxy_bridge(
     })
     .collect::<Vec<_>>();
   let declaration = runtime_proxy_bridge_declaration(compilation);
-  let define_function = runtime_proxy_define_function(compilation, runtime_proxy, &require);
+  let define_function =
+    runtime_proxy_define_function(compilation, runtime_proxy, &require, include_require_bridge);
   let source = format!(
     "{} {{ {declaration} __bridge = [{}]; {declaration} __define = {define_function}; for ({declaration} i = 0; i < __bridge.length; i++) __define(__bridge[i]); }}{};\n",
     runtime_proxy_iife_start(compilation),
