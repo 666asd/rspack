@@ -661,7 +661,7 @@ pub fn runtime_variable_to_string(
     (RuntimeVariable::Runtime, _) => "__rspack_runtime".to_string(),
     (RuntimeVariable::InstallRuntime, _) => "__rspack_install_runtime".to_string(),
     (RuntimeVariable::EsmRuntime, _) => "__rspack_esm_runtime".to_string(),
-    (RuntimeVariable::EsmInstallRuntime, _) => "__rspack_install_runtime__".to_string(),
+    (RuntimeVariable::EsmInstallRuntime, _) => "__rspack_esm_install_runtime".to_string(),
     (RuntimeVariable::Require, _) => "__webpack_require__".to_string(),
     (RuntimeVariable::EsmId, _) => "__rspack_esm_id".to_string(),
     (RuntimeVariable::EsmIds, _) => "__rspack_esm_ids".to_string(),

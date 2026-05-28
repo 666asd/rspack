@@ -33,15 +33,16 @@ const moduleAsync = fs.readFileSync(
 	path.resolve(__dirname, "dist", "728.module.js"),
 	"utf-8"
 );
-expect(moduleAsync).toContain("__rspack_install_runtime__");
-expect(moduleAsync).toContain("export const __rspack_install_runtime__");
-expect(moduleAsync).not.toContain("export let __rspack_install_runtime__");
+expect(moduleAsync).toContain("__rspack_esm_install_runtime");
+expect(moduleAsync).toContain("export const __rspack_esm_install_runtime");
+expect(moduleAsync).not.toContain("export let __rspack_esm_install_runtime");
+expect(moduleAsync).not.toContain("__rspack_install_runtime__");
 expect(moduleAsync).not.toContain("__rs_erp");
 const moduleRuntime = fs.readFileSync(
 	path.resolve(__dirname, "dist", "module.js"),
 	"utf-8"
 );
-expect(moduleRuntime).toContain("data.__rspack_install_runtime__");
+expect(moduleRuntime).toContain("data.__rspack_esm_install_runtime");
 expect(moduleRuntime).toContain("__rspack_esm_runtime");
 expect(moduleRuntime).not.toContain("__rs_er");
 
