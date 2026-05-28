@@ -544,6 +544,9 @@ napi::ctor::declarative::ctor! {
         let id = ATOMIC_ID.fetch_add(1, Ordering::SeqCst);
         format!("tokio-{id}")
       })
+      // Give every tokio worker its own sigaltstack so a stack-overflow
+      // crash on a worker can still run the native_crash handler.
+      .on_thread_start(native_crash::install_alt_stack_for_current_thread)
       .enable_all()
       .build()
       .expect("Create tokio runtime failed");

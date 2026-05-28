@@ -26,12 +26,27 @@
 //! Symbolication is *not* signal-safe and is deferred — the printed addresses
 //! can be resolved post-mortem with `atos -o rspack.<target>.node <addr>` or
 //! `addr2line`.
+//!
+//! ## Per-thread alt stacks
+//!
+//! `sigaction` is process-wide but `sigaltstack` is per-thread. The installer
+//! is therefore split into two:
+//!
+//! * [`install_native_crash_handler`] — registers the signal handlers
+//!   process-wide and seeds an alt stack for the calling thread. Call once at
+//!   module load.
+//! * [`install_alt_stack_for_current_thread`] — idempotent per-thread; call
+//!   from every worker thread (tokio / napi / rayon) so a stack-overflow
+//!   crash on a worker can still run the handler on a fresh stack.
 
 #[cfg(all(unix, not(target_family = "wasm")))]
 mod imp {
-  use std::sync::{
-    Once,
-    atomic::{AtomicBool, Ordering},
+  use std::{
+    cell::Cell,
+    sync::{
+      Once,
+      atomic::{AtomicBool, Ordering},
+    },
   };
 
   // Alt-stack size. `SIGSTKSZ` would be ideal but it's not constant on Linux.
@@ -39,32 +54,45 @@ mod imp {
   // `g0` alt-stack.
   const ALT_STACK_SIZE: usize = 64 * 1024;
 
-  // The alt stack memory; lives for the process lifetime.
-  static mut ALT_STACK: [u8; ALT_STACK_SIZE] = [0u8; ALT_STACK_SIZE];
+  // Tracks whether the current thread already installed its alt stack so
+  // repeated calls from `on_thread_start` hooks are cheap no-ops.
+  thread_local! {
+    static ALT_STACK_INSTALLED: Cell<bool> = const { Cell::new(false) };
+  }
 
   // Prevent re-entrant handler if the handler itself faults.
   static IN_HANDLER: AtomicBool = AtomicBool::new(false);
 
-  /// Install the handler. Idempotent; safe to call from any thread but should
-  /// be called once at module init.
+  /// Process-wide install: register the signal handlers once and seed an alt
+  /// stack for the calling thread. Worker threads must additionally call
+  /// [`install_alt_stack_for_current_thread`].
   pub fn install() {
     static INSTALL: Once = Once::new();
     INSTALL.call_once(|| {
-      install_alt_stack();
       install_signal(libc::SIGSEGV);
       install_signal(libc::SIGBUS);
       install_signal(libc::SIGILL);
     });
+    install_alt_stack_for_current_thread();
   }
 
-  fn install_alt_stack() {
-    // SAFETY: ALT_STACK is a fixed-size process-lifetime buffer; we're the
-    // only caller. sigaltstack with a non-null first arg + null second is a
-    // simple set with no aliasing concern.
+  /// Idempotent per-thread alt-stack installer.
+  ///
+  /// `sigaltstack` is per-thread — the kernel stores the (sp, size) pair per
+  /// task — so every worker thread needs its own buffer. We leak one Box per
+  /// thread; the buffer must outlive the thread because the kernel may dump
+  /// a backtrace there during signal delivery.
+  pub fn install_alt_stack_for_current_thread() {
+    if ALT_STACK_INSTALLED.with(|c| c.replace(true)) {
+      return;
+    }
+    // Leaked intentionally: see doc-comment above.
+    let buf: &'static mut [u8] = Box::leak(vec![0u8; ALT_STACK_SIZE].into_boxed_slice());
+    // SAFETY: `buf` is a fresh allocation we just produced; sigaltstack with
+    // a non-null first arg + null second is a simple set.
     unsafe {
       let stack = libc::stack_t {
-        #[allow(static_mut_refs)]
-        ss_sp: ALT_STACK.as_mut_ptr().cast(),
+        ss_sp: buf.as_mut_ptr().cast(),
         ss_flags: 0,
         ss_size: ALT_STACK_SIZE,
       };
@@ -222,10 +250,15 @@ mod imp {
 }
 
 #[cfg(all(unix, not(target_family = "wasm")))]
-pub use imp::install as install_native_crash_handler;
+pub use imp::{install as install_native_crash_handler, install_alt_stack_for_current_thread};
 
 #[cfg(not(all(unix, not(target_family = "wasm"))))]
 pub fn install_native_crash_handler() {
-  // Windows uses SEH and the napi-rs harness already integrates with it;
-  // WASM has no signals. Nothing to install on those targets today.
+  // Windows uses structured exception handling and the napi-rs harness
+  // already integrates with it; WASM has no signals. No-op here.
+}
+
+#[cfg(not(all(unix, not(target_family = "wasm"))))]
+pub fn install_alt_stack_for_current_thread() {
+  // No-op on Windows / WASM — see install_native_crash_handler.
 }
