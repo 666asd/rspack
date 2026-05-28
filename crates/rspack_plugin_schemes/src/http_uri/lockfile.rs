@@ -7,7 +7,7 @@ use std::{
 use async_trait::async_trait;
 use rspack_fs::WritableFileSystem;
 use rspack_paths::Utf8Path;
-use rspack_util::fx_hash::FxHashMap;
+use rspack_util::{fx_hash::FxHashMap, utf8};
 use serde::{Deserialize, Serialize};
 use tokio::sync::Mutex;
 
@@ -134,8 +134,8 @@ impl LockfileAsync for Lockfile {
       .read_file(utf8_path)
       .await
       .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, format!("{e:?}")))?;
-    let content_str =
-      String::from_utf8(content).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+    let content_str = utf8::string_from_utf8_compat(content)
+      .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
     Lockfile::parse(&content_str).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
   }
 

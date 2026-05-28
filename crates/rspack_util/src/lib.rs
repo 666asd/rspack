@@ -22,6 +22,7 @@ pub mod span;
 pub mod swc;
 pub mod test;
 pub mod tracing_preset;
+pub mod utf8;
 
 use std::{
   future::Future,

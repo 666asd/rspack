@@ -543,7 +543,7 @@ fn template_replace<'a>(s: &str, ctx: &ModuleFilenameTemplateStringCtx<'a>) -> S
                 //
                 // always utf8
                 #[allow(clippy::unwrap_used)]
-                let s = str::from_utf8(matched).unwrap();
+                let s = rspack_util::utf8::from_utf8(matched).unwrap();
                 buf.push('[');
                 buf.push_str(s);
                 buf.push(']');

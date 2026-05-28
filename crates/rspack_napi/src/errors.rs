@@ -106,5 +106,9 @@ fn try_extract_string_value_from_property<S: AsRef<str>>(
 
   let buf = unsafe { Vec::from_raw_parts(buf.as_mut_ptr() as *mut u8, copied_len, copied_len) };
 
-  Ok(String::from_utf8_lossy(&buf).into_owned())
+  Ok(
+    simdutf8::basic::from_utf8(&buf)
+      .map(str::to_owned)
+      .unwrap_or_else(|_| String::from_utf8_lossy(&buf).into_owned()),
+  )
 }

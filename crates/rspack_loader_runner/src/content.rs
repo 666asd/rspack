@@ -13,6 +13,7 @@ use rspack_cacheable::{
 };
 use rspack_error::{Error, Result, ToStringResultToRspackResultExt};
 use rspack_paths::{Utf8Path, Utf8PathBuf};
+use rspack_util::utf8;
 use rustc_hash::FxHashMap;
 
 use crate::{Scheme, get_scheme, parse_resource};
@@ -27,22 +28,14 @@ impl Content {
   pub fn try_into_string(self) -> Result<String> {
     match self {
       Content::String(s) => Ok(s),
-      Content::Buffer(b) => String::from_utf8(b).to_rspack_result(),
+      Content::Buffer(b) => utf8::string_from_utf8_compat(b).to_rspack_result(),
     }
   }
 
-  #[allow(unsafe_code)]
   pub fn into_string_lossy(self) -> String {
     match self {
       Content::String(s) => s,
-      Content::Buffer(b) => {
-        if simdutf8::basic::from_utf8(&b).is_ok() {
-          // SAFETY: simdutf8 validated the buffer as UTF-8 above.
-          unsafe { String::from_utf8_unchecked(b) }
-        } else {
-          String::from_utf8_lossy_owned(b)
-        }
-      }
+      Content::Buffer(b) => utf8::string_from_utf8_lossy(b),
     }
   }
 
@@ -101,7 +94,7 @@ impl Debug for Content {
 
     let s = match self {
       Self::String(s) => s.clone(),
-      Self::Buffer(b) => String::from_utf8_lossy(b).to_string(),
+      Self::Buffer(b) => utf8::from_utf8_lossy(b).to_string(),
     };
 
     let ty = match self {

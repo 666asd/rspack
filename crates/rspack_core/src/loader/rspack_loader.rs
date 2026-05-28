@@ -4,6 +4,7 @@ use rspack_error::{Diagnostic, Result};
 use rspack_fs::ReadableFileSystem;
 use rspack_loader_runner::{Content, LoaderContext, LoaderRunnerPlugin, ResourceData};
 use rspack_sources::SourceMap;
+use rspack_util::utf8;
 use rustc_hash::FxHashSet as HashSet;
 
 use crate::{RunnerContext, SharedPluginDriver, utils::extract_source_map};
@@ -48,10 +49,10 @@ impl LoaderRunnerPlugin for RspackLoaderRunnerPlugin {
         // Try to extract source map from the content
         let extract_result = match &content {
           Content::String(s) => extract_source_map(fs, s, resource_data.resource()).await,
-          Content::Buffer(b) => match simdutf8::basic::from_utf8(b) {
+          Content::Buffer(b) => match utf8::from_utf8(b) {
             Ok(s) => extract_source_map(fs, s, resource_data.resource()).await,
             Err(_) => {
-              extract_source_map(fs, &String::from_utf8_lossy(b), resource_data.resource()).await
+              extract_source_map(fs, &utf8::from_utf8_lossy(b), resource_data.resource()).await
             }
           },
         };

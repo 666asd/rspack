@@ -12,7 +12,7 @@ use regex::Regex;
 use rspack_fs::ReadableFileSystem;
 use rspack_paths::{AssertUtf8, Utf8Path, Utf8PathBuf};
 use rspack_sources::SourceMap;
-use rspack_util::{base64, node_path::NodePath};
+use rspack_util::{base64, node_path::NodePath, utf8};
 use rustc_hash::FxHashSet;
 
 /// Source map extractor result
@@ -90,7 +90,7 @@ fn decode_data_uri(uri: &str) -> Option<String> {
   if is_base64 {
     return base64::decode_to_vec(body)
       .ok()
-      .and_then(|bytes| String::from_utf8(bytes).ok());
+      .and_then(|bytes| utf8::string_from_utf8(bytes).ok());
   }
 
   // CSS allows to use `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg"><rect width="100%" height="100%" style="stroke: rgb(223,224,225); stroke-width: 2px; fill: none; stroke-dasharray: 6px 3px" /></svg>`

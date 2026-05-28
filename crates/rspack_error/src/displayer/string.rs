@@ -38,7 +38,11 @@ impl Display for StringDisplayer {
         writer.write_all(s.as_bytes())?;
         writer.reset()?;
       }
-      return Ok(String::from_utf8(writer.into_inner())?);
+      let bytes = writer.into_inner();
+      simdutf8::compat::from_utf8(&bytes).map_err(|e| crate::error!(e.to_string()))?;
+      // SAFETY: simdutf8 validated the buffer as UTF-8 above.
+      #[allow(unsafe_code)]
+      return Ok(unsafe { String::from_utf8_unchecked(bytes) });
     }
     Ok(diagnostic_strings.join(""))
   }

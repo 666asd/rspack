@@ -56,11 +56,20 @@ impl StateLock {
       ))
     })?;
 
-    let process_name = String::from_utf8(name_bytes).map_err(|e| {
-      Error::InvalidFormat(format!(
-        "Invalid UTF-8 in process name in '{STATE_LOCK_FILE}': {e}"
-      ))
-    })?;
+    let process_name = match simdutf8::compat::from_utf8(&name_bytes) {
+      Ok(_) => {
+        // SAFETY: simdutf8 validated the buffer as UTF-8 above.
+        #[allow(unsafe_code)]
+        unsafe {
+          String::from_utf8_unchecked(name_bytes)
+        }
+      }
+      Err(e) => {
+        return Err(Error::InvalidFormat(format!(
+          "Invalid UTF-8 in process name in '{STATE_LOCK_FILE}': {e}"
+        )));
+      }
+    };
 
     Ok(Self { pid, process_name })
   }
@@ -114,7 +123,11 @@ fn get_process_name(pid: u32) -> Option<String> {
     .ok()?;
 
   if output.status.success() {
-    let name = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    let name = simdutf8::basic::from_utf8(&output.stdout)
+      .map(str::to_owned)
+      .unwrap_or_else(|_| String::from_utf8_lossy(&output.stdout).into_owned())
+      .trim()
+      .to_string();
     if !name.is_empty() {
       return Some(name);
     }
@@ -137,7 +150,9 @@ fn get_process_name(pid: u32) -> Option<String> {
     .ok()?;
 
   if output.status.success() {
-    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stdout = simdutf8::basic::from_utf8(&output.stdout)
+      .map(std::borrow::Cow::Borrowed)
+      .unwrap_or_else(|_| String::from_utf8_lossy(&output.stdout));
     if stdout.contains(&pid.to_string()) {
       // Parse CSV output: "name","pid","session","mem"
       // Extract the process name (first field)

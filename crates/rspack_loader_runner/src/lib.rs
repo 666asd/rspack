@@ -1,5 +1,3 @@
-#![feature(string_from_utf8_lossy_owned)]
-
 mod content;
 mod context;
 mod loader;

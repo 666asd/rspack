@@ -48,7 +48,9 @@ pub async fn compare(
     let strategy2 = map2.get(key).expect("should have strategy");
 
     if strategy1 != strategy2 {
-      let path_str = String::from_utf8_lossy(key);
+      let path_str = simdutf8::basic::from_utf8(key)
+        .map(std::borrow::Cow::Borrowed)
+        .unwrap_or_else(|_| String::from_utf8_lossy(key));
       let mut error_msg = format!("Snapshot strategy mismatch for path: {path_str}\n");
       error_msg.push_str(&format!("  storage1: {strategy1:?}\n"));
       error_msg.push_str(&format!("  storage2: {strategy2:?}\n"));

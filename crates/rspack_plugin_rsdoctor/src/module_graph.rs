@@ -10,6 +10,7 @@ use rspack_core::{
 };
 use rspack_paths::Utf8PathBuf;
 use rspack_plugin_json::create_object_for_exports_info;
+use rspack_util::utf8;
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use thread_local::ThreadLocal;
 
@@ -209,7 +210,7 @@ pub fn collect_module_original_sources(
         .or_else(|| {
           let resource = Utf8PathBuf::from(resource);
           let buffer = ifs.read_sync(&resource).ok()?;
-          let content = String::from_utf8(buffer).ok()?;
+          let content = utf8::string_from_utf8(buffer).ok()?;
           Some(RsdoctorModuleOriginalSource {
             module: *module_ukey,
             size: content.len() as i32,

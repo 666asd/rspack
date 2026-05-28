@@ -33,6 +33,7 @@ tracing     = { workspace = true }
 
 [build-dependencies]
 rspack_binding_build = { workspace = true }
+simdutf8             = { workspace = true }
 
 [lints]
 workspace = true

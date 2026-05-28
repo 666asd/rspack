@@ -23,6 +23,7 @@ use rspack_core::{
 };
 use rspack_error::{Result, ToStringResultToRspackResultExt};
 use rspack_loader_runner::Identifier;
+use rspack_util::utf8;
 use tokio::sync::Mutex;
 
 pub mod config;
@@ -70,7 +71,7 @@ impl LightningCssLoader {
 
     let content_str = match &content {
       rspack_core::Content::String(s) => Cow::Borrowed(s.as_str()),
-      rspack_core::Content::Buffer(buf) => String::from_utf8_lossy(buf),
+      rspack_core::Content::Buffer(buf) => utf8::from_utf8_lossy(buf),
     };
 
     let mut parser_flags = ParserFlags::empty();

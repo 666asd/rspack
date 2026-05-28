@@ -24,7 +24,10 @@ fn sftrace_setup() {
 
     match result {
       Ok(output) if output.status.success() => {
-        let out = String::from_utf8(output.stdout).ok()?;
+        simdutf8::basic::from_utf8(&output.stdout).ok()?;
+        // SAFETY: simdutf8 validated the buffer as UTF-8 above.
+        #[allow(unsafe_code)]
+        let out = unsafe { String::from_utf8_unchecked(output.stdout) };
         let mut out = PathBuf::from(out);
         out.pop();
         Some(out)

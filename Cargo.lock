@@ -3871,7 +3871,6 @@ dependencies = [
  "scopeguard",
  "serde",
  "serde_json",
- "simdutf8",
  "smol_str",
  "sugar_path",
  "swc_core",
@@ -3907,6 +3906,7 @@ dependencies = [
  "rspack_location",
  "rspack_paths",
  "serde_json",
+ "simdutf8",
  "termcolor",
  "textwrap",
  "unicode-width 0.2.2",
@@ -4003,6 +4003,7 @@ dependencies = [
  "rspack_error",
  "rspack_hook",
  "rspack_loader_runner",
+ "rspack_util",
  "serde",
  "serde_json",
  "tokio",
@@ -4053,7 +4054,6 @@ dependencies = [
  "rspack_util",
  "rustc-hash",
  "serde_json",
- "simdutf8",
  "tokio",
  "tracing",
  "winnow",
@@ -4149,6 +4149,7 @@ dependencies = [
  "oneshot",
  "rspack_error",
  "serde_json",
+ "simdutf8",
  "tokio",
 ]
 
@@ -4168,6 +4169,7 @@ dependencies = [
  "napi-derive",
  "rspack_binding_api",
  "rspack_binding_build",
+ "simdutf8",
  "tracing",
 ]
 
@@ -5094,6 +5096,7 @@ dependencies = [
  "regress",
  "rspack_cacheable",
  "rspack_error",
+ "simdutf8",
  "swc_core",
 ]
 
@@ -5133,6 +5136,7 @@ dependencies = [
  "serde",
  "simd-json",
  "simd-utf16-len",
+ "simdutf8",
  "static_assertions",
  "twox-hash",
 ]
@@ -5150,6 +5154,7 @@ dependencies = [
  "rspack_parallel",
  "rspack_paths",
  "rustc-hash",
+ "simdutf8",
  "tokio",
 ]
 
@@ -5194,6 +5199,7 @@ dependencies = [
  "rspack_fs",
  "rspack_paths",
  "rustc-hash",
+ "simdutf8",
  "tokio",
 ]
 
@@ -5247,6 +5253,7 @@ dependencies = [
  "serde",
  "serde_json",
  "signal-hook",
+ "simdutf8",
  "sugar_path",
  "swc_config",
  "swc_core",

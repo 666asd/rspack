@@ -18,6 +18,7 @@ rspack_fs       = { workspace = true }
 rspack_parallel = { workspace = true }
 rspack_paths    = { workspace = true }
 rustc-hash      = { workspace = true }
+simdutf8        = { workspace = true }
 tokio           = { workspace = true, features = ["time"] }
 
 [lints]

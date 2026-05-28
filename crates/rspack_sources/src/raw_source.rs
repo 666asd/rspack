@@ -159,9 +159,9 @@ impl RawBufferSource {
   fn get_or_init_value_as_string(&self) -> &str {
     self
       .value_as_string
-      .get_or_init(|| match String::from_utf8_lossy(&self.value) {
-        Cow::Owned(s) => Some(s),
-        Cow::Borrowed(_) => None,
+      .get_or_init(|| match simdutf8::basic::from_utf8(&self.value) {
+        Ok(_) => None,
+        Err(_) => Some(String::from_utf8_lossy(&self.value).into_owned()),
       })
       .as_deref()
       .unwrap_or_else(|| unsafe { std::str::from_utf8_unchecked(&self.value) })

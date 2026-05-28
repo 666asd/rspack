@@ -6,6 +6,7 @@ use std::{
 use rspack_fs::{Error, FsResultToIoResultExt, ReadableFileSystem};
 use rspack_paths::AssertUtf8;
 use rspack_resolver::{FileMetadata, FileSystem as ResolverFileSystem};
+use rspack_util::utf8;
 
 #[derive(Clone)]
 pub struct BoxFS(Arc<dyn ReadableFileSystem>);
@@ -22,7 +23,8 @@ impl ResolverFileSystem for BoxFS {
   }
   async fn read_to_string(&self, path: &std::path::Path) -> std::io::Result<String> {
     match self.0.read(path.assert_utf8()).await {
-      Ok(x) => String::from_utf8(x).map_err(|err| io::Error::new(io::ErrorKind::InvalidData, err)),
+      Ok(x) => utf8::string_from_utf8_compat(x)
+        .map_err(|err| io::Error::new(io::ErrorKind::InvalidData, err)),
       Err(Error::Io(e)) => Err(e),
     }
   }

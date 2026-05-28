@@ -11,6 +11,7 @@ use rspack_plugin_html::{
   HtmlPluginBeforeAssetTagGeneration,
   tag::{HtmlPluginAttribute, HtmlPluginTag},
 };
+use rspack_util::utf8;
 use rustc_hash::FxHashMap as HashMap;
 use tokio::sync::RwLock;
 use url::Url;
@@ -273,7 +274,7 @@ async fn compute_file_integrity(
   hash_func_names: &Vec<SubresourceIntegrityHashFunction>,
 ) -> Result<String> {
   let file = fs.read_file(path).await?;
-  let content = String::from_utf8(file).to_rspack_result()?;
+  let content = utf8::string_from_utf8_compat(file).to_rspack_result()?;
   let integrity = compute_integrity(hash_func_names, &content);
   Ok(integrity)
 }

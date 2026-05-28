@@ -1473,7 +1473,7 @@ impl CompilationRuntimeModule for CompilationRuntimeModuleTap {
           module.set_custom_source(string);
         }
         napi::Either::B(buffer) => {
-          module.set_custom_source(String::from_utf8_lossy(&buffer).into_owned());
+          module.set_custom_source(rspack_util::utf8::from_utf8_lossy(&buffer).into_owned());
         }
       }
     }

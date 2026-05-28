@@ -165,11 +165,20 @@ impl Algo {
           if !bytes.iter().all(u8::is_ascii) {
             return None;
           }
-          pats.push(String::from_utf8_lossy(bytes).to_string());
+          pats.push(
+            simdutf8::basic::from_utf8(bytes)
+              .map(str::to_owned)
+              .unwrap_or_else(|_| String::from_utf8_lossy(bytes).into_owned()),
+          );
         }
       } else {
         for item in literals.iter() {
-          pats.push(String::from_utf8_lossy(item.as_bytes()).to_string());
+          let bytes = item.as_bytes();
+          pats.push(
+            simdutf8::basic::from_utf8(bytes)
+              .map(str::to_owned)
+              .unwrap_or_else(|_| String::from_utf8_lossy(bytes).into_owned()),
+          );
         }
       }
 

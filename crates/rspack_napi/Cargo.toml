@@ -12,6 +12,7 @@ napi         = { workspace = true, features = ["async", "tokio_rt", "serde-json"
 oneshot      = { workspace = true }
 rspack_error = { workspace = true }
 serde_json   = { workspace = true }
+simdutf8     = { workspace = true }
 tokio        = { workspace = true, features = ["sync"] }
 
 [lints]

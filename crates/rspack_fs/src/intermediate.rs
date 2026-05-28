@@ -1,6 +1,7 @@
 use std::fmt::Debug;
 
 use rspack_paths::Utf8Path;
+use rspack_util::utf8;
 
 use super::Result;
 use crate::{Error, WritableFileSystem};
@@ -20,7 +21,7 @@ pub trait IntermediateFileSystemExtras: Debug + Send + Sync {
 #[async_trait::async_trait]
 pub trait ReadStream: Debug + Sync + Send {
   async fn read_line(&mut self) -> Result<String> {
-    match String::from_utf8(self.read_until(b'\n').await?) {
+    match utf8::string_from_utf8(self.read_until(b'\n').await?) {
       Ok(s) => Ok(s),
       Err(_) => Err(Error::Io(std::io::Error::other("invalid utf8 line"))),
     }

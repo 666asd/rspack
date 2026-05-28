@@ -16,6 +16,7 @@ regex-syntax     = { workspace = true }
 regress          = { workspace = true, features = ["backend-pikevm", "std"] }
 rspack_cacheable = { workspace = true }
 rspack_error     = { workspace = true }
+simdutf8         = { workspace = true }
 swc_core         = { workspace = true, features = ["ecma_ast"] }
 
 [dev-dependencies]

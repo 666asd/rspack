@@ -219,7 +219,7 @@ impl HttpCache {
       return Err(anyhow::anyhow!(
         "Request failed with status: {}\n{}",
         status,
-        String::from_utf8_lossy(&response.body)
+        rspack_util::utf8::from_utf8_lossy(&response.body)
       ));
     }
 
