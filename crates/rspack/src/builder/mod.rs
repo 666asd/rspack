@@ -3115,6 +3115,9 @@ impl OutputOptionsBuilder {
       .map(|t| optimistic!(t.big_int_literal))
       .unwrap_or_default();
     environment.r#const = tp.map(|t| optimistic!(t.r#const)).unwrap_or_default();
+    environment.computed_property = tp
+      .map(|t| optimistic!(t.computed_property))
+      .unwrap_or_default();
     environment.method_shorthand = tp
       .map(|t| optimistic!(t.method_shorthand))
       .unwrap_or_default();

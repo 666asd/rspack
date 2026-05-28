@@ -2207,6 +2207,7 @@ export interface RawEntryDynamicResult {
 
 export interface RawEnvironment {
   const: boolean
+  computedProperty: boolean
   methodShorthand: boolean
   arrowFunction: boolean
   nodePrefixForCoreModules: boolean
@@ -2935,6 +2936,11 @@ export interface RawRstestPluginOptions {
   preserveNewUrl?: Array<string>
   globals?: boolean
 injectDynamicImportOrigin?: boolean | { functionName?: string }
+injectRequireResolveOrigin?: boolean | { functionName?: string }
+}
+
+export interface RawRstestRequireResolveOriginOptions {
+  functionName?: string
 }
 
 export interface RawRuleSetCondition {
