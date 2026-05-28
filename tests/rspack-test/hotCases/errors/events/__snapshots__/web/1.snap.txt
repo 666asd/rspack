@@ -12,7 +12,7 @@
 ## Asset Files
 - Bundle: bundle.js
 - Manifest: main.LAST_HASH.hot-update.json, size: 28
-- Update: main.LAST_HASH.hot-update.js, size: 2144
+- Update: main.LAST_HASH.hot-update.js, size: 2276
 
 ## Manifest
 
@@ -44,45 +44,45 @@
 ```js
 "use strict";
 self["rspackHotUpdate"]("main", {
-"./a.js"(__unused_rspack_module, __rspack_exports, __rspack_require) {
-__rspack_require.r(__rspack_exports);
-__rspack_require.d(__rspack_exports, {
+"./a.js"(__unused_rspack_module, __webpack_exports__, __webpack_require__) {
+__webpack_require__.r(__webpack_exports__);
+__webpack_require__.d(__webpack_exports__, {
   "default": () => (__rspack_default_export)
 });
 /* export default */ const __rspack_default_export = (2);
 
 
 },
-"./c.js"(__unused_rspack_module, __rspack_exports, __rspack_require) {
-__rspack_require.r(__rspack_exports);
-__rspack_require.d(__rspack_exports, {
+"./c.js"(__unused_rspack_module, __webpack_exports__, __webpack_require__) {
+__webpack_require__.r(__webpack_exports__);
+__webpack_require__.d(__webpack_exports__, {
   "default": () => (__rspack_default_export)
 });
 /* export default */ const __rspack_default_export = (2);
 
 
 },
-"./e.js"(__unused_rspack_module, __rspack_exports, __rspack_require) {
-__rspack_require.r(__rspack_exports);
-__rspack_require.d(__rspack_exports, {
+"./e.js"(__unused_rspack_module, __webpack_exports__, __webpack_require__) {
+__webpack_require__.r(__webpack_exports__);
+__webpack_require__.d(__webpack_exports__, {
   "default": () => (__rspack_default_export)
 });
 /* export default */ const __rspack_default_export = (2);
 
 
 },
-"./g.js"(__unused_rspack_module, __rspack_exports, __rspack_require) {
-__rspack_require.r(__rspack_exports);
-__rspack_require.d(__rspack_exports, {
+"./g.js"(__unused_rspack_module, __webpack_exports__, __webpack_require__) {
+__webpack_require__.r(__webpack_exports__);
+__webpack_require__.d(__webpack_exports__, {
   "default": () => (__rspack_default_export)
 });
 /* export default */ const __rspack_default_export = (2);
 
 
 },
-"./i.js"(__unused_rspack_module, __rspack_exports, __rspack_require) {
-__rspack_require.r(__rspack_exports);
-__rspack_require.d(__rspack_exports, {
+"./i.js"(__unused_rspack_module, __webpack_exports__, __webpack_require__) {
+__webpack_require__.r(__webpack_exports__);
+__webpack_require__.d(__webpack_exports__, {
   "default": () => (__rspack_default_export)
 });
 /* export default */ const __rspack_default_export = (2);
@@ -90,9 +90,9 @@ throw new Error("Error while loading module i");
 
 
 },
-"./j.js"(__unused_rspack_module, __rspack_exports, __rspack_require) {
-__rspack_require.r(__rspack_exports);
-__rspack_require.d(__rspack_exports, {
+"./j.js"(__unused_rspack_module, __webpack_exports__, __webpack_require__) {
+__webpack_require__.r(__webpack_exports__);
+__webpack_require__.d(__webpack_exports__, {
   "default": () => (__rspack_default_export)
 });
 /* export default */ const __rspack_default_export = (2);
@@ -100,9 +100,9 @@ throw new Error("Error while loading module j");
 
 
 },
-"./l.js"(__unused_rspack_module, __rspack_exports, __rspack_require) {
-__rspack_require.r(__rspack_exports);
-__rspack_require.d(__rspack_exports, {
+"./l.js"(__unused_rspack_module, __webpack_exports__, __webpack_require__) {
+__webpack_require__.r(__webpack_exports__);
+__webpack_require__.d(__webpack_exports__, {
   "default": () => (__rspack_default_export)
 });
 /* export default */ const __rspack_default_export = (2);
@@ -111,10 +111,10 @@ throw new Error("Error while loading module l");
 
 },
 
-},function(__rspack_require) {
+},function(__webpack_require__) {
 // webpack/runtime/get_full_hash
 (() => {
-__rspack_require.h = () => ("CURRENT_HASH")
+__webpack_require__.h = () => ("CURRENT_HASH")
 })();
 
 }

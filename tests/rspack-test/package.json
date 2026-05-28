@@ -11,7 +11,7 @@
     "testu": "rstest -u",
     "test:base": "rstest --project base",
     "test:hot": "rstest --project hottest",
-    "test:runtime-proxy": "RSPACK_TEST_RUNTIME_REQUIREMENTS_PROXY=true rstest --project runtimeProxy"
+    "test:runtime-proxy": "rstest --project runtimeProxy"
   },
   "devDependencies": {
     "@babel/core": "^7.29.0",

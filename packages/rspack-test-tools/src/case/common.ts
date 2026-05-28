@@ -8,6 +8,13 @@ import { checkArrayExpectation } from '../helper/legacy/checkArrayExpectation';
 import { DEBUG_SCOPES } from '../test/debug';
 import type { ITestContext, ITestEnv } from '../type';
 
+export function isRuntimeProxyCase(context: ITestContext): boolean {
+  return context
+    .getDist()
+    .split(path.sep)
+    .some((part) => part.startsWith('runtime-proxy-'));
+}
+
 export function config(
   context: ITestContext,
   name: string,
@@ -272,7 +279,7 @@ export function checkSnapshot(
       : path.resolve(
           context.getSource(),
           path.join(
-            process.env.RSPACK_TEST_RUNTIME_REQUIREMENTS_PROXY
+            isRuntimeProxyCase(context)
               ? '__runtime_proxy_snapshots__'
               : '__snapshots__',
             `${snapshot}${total > 1 ? `-${i}` : ''}`,

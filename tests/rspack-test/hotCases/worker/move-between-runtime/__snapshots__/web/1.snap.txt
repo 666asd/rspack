@@ -14,10 +14,10 @@
 - Manifest: [runtime of workerA_js].LAST_HASH.hot-update.json, size: 43
 - Manifest: [runtime of workerB_js].LAST_HASH.hot-update.json, size: 43
 - Manifest: main.LAST_HASH.hot-update.json, size: 28
-- Update: main.LAST_HASH.hot-update.js, size: 175
-- Update: shared.LAST_HASH.hot-update.js, size: 942
-- Update: workerA_js.LAST_HASH.hot-update.js, size: 799
-- Update: workerB_js.LAST_HASH.hot-update.js, size: 449
+- Update: main.LAST_HASH.hot-update.js, size: 181
+- Update: shared.LAST_HASH.hot-update.js, size: 999
+- Update: workerA_js.LAST_HASH.hot-update.js, size: 844
+- Update: workerB_js.LAST_HASH.hot-update.js, size: 473
 
 ## Manifest
 
@@ -58,10 +58,10 @@
 #### Changed Content
 ```js
 "use strict";
-self["rspackHotUpdate"]("main", {},function(__rspack_require) {
+self["rspackHotUpdate"]("main", {},function(__webpack_require__) {
 // webpack/runtime/get_full_hash
 (() => {
-__rspack_require.h = () => ("CURRENT_HASH")
+__webpack_require__.h = () => ("CURRENT_HASH")
 })();
 
 }
@@ -84,29 +84,29 @@ __rspack_require.h = () => ("CURRENT_HASH")
 ```js
 "use strict";
 self["rspackHotUpdate"]("shared", {
-"./moduleAs.js"(__unused_rspack_module, __rspack_exports, __rspack_require) {
-__rspack_require.r(__rspack_exports);
-__rspack_require.d(__rspack_exports, {
+"./moduleAs.js"(__unused_rspack_module, __webpack_exports__, __webpack_require__) {
+__webpack_require__.r(__webpack_exports__);
+__webpack_require__.d(__webpack_exports__, {
   "default": () => (__rspack_default_export)
 });
-/* import */ var _moduleS__rspack_import_0 = __rspack_require("./moduleS.js");
+/* import */ var _moduleS__rspack_import_0 = __webpack_require__("./moduleS.js");
 /* export default */ const __rspack_default_export = (1);
 
 
 
 },
-"./moduleBs.js"(__unused_rspack_module, __rspack_exports, __rspack_require) {
-__rspack_require.r(__rspack_exports);
-__rspack_require.d(__rspack_exports, {
+"./moduleBs.js"(__unused_rspack_module, __webpack_exports__, __webpack_require__) {
+__webpack_require__.r(__webpack_exports__);
+__webpack_require__.d(__webpack_exports__, {
   "default": () => (__rspack_default_export)
 });
 /* export default */ const __rspack_default_export = (1);
 
 
 },
-"./moduleS.js"(__unused_rspack_module, __rspack_exports, __rspack_require) {
-__rspack_require.r(__rspack_exports);
-__rspack_require.d(__rspack_exports, {
+"./moduleS.js"(__unused_rspack_module, __webpack_exports__, __webpack_require__) {
+__webpack_require__.r(__webpack_exports__);
+__webpack_require__.d(__webpack_exports__, {
   "default": () => (__rspack_default_export)
 });
 /* export default */ const __rspack_default_export = ("moduleS");
@@ -132,31 +132,31 @@ __rspack_require.d(__rspack_exports, {
 ```js
 "use strict";
 self["rspackHotUpdate"]("workerA_js", {
-"./module.js"(__unused_rspack_module, __rspack_exports, __rspack_require) {
-__rspack_require.r(__rspack_exports);
-__rspack_require.d(__rspack_exports, {
+"./module.js"(__unused_rspack_module, __webpack_exports__, __webpack_require__) {
+__webpack_require__.r(__webpack_exports__);
+__webpack_require__.d(__webpack_exports__, {
   "default": () => (__rspack_default_export)
 });
 /* export default */ const __rspack_default_export = ("module");
 
 
 },
-"./moduleA.js"(__unused_rspack_module, __rspack_exports, __rspack_require) {
-__rspack_require.r(__rspack_exports);
-__rspack_require.d(__rspack_exports, {
+"./moduleA.js"(__unused_rspack_module, __webpack_exports__, __webpack_require__) {
+__webpack_require__.r(__webpack_exports__);
+__webpack_require__.d(__webpack_exports__, {
   "default": () => (__rspack_default_export)
 });
-/* import */ var _module__rspack_import_0 = __rspack_require("./module.js");
+/* import */ var _module__rspack_import_0 = __webpack_require__("./module.js");
 /* export default */ const __rspack_default_export = (1);
 
 
 
 },
 
-},function(__rspack_require) {
+},function(__webpack_require__) {
 // webpack/runtime/get_full_hash
 (() => {
-__rspack_require.h = () => ("CURRENT_HASH")
+__webpack_require__.h = () => ("CURRENT_HASH")
 })();
 
 }
@@ -177,9 +177,9 @@ __rspack_require.h = () => ("CURRENT_HASH")
 ```js
 "use strict";
 self["rspackHotUpdate"]("workerB_js", {
-"./moduleB.js"(__unused_rspack_module, __rspack_exports, __rspack_require) {
-__rspack_require.r(__rspack_exports);
-__rspack_require.d(__rspack_exports, {
+"./moduleB.js"(__unused_rspack_module, __webpack_exports__, __webpack_require__) {
+__webpack_require__.r(__webpack_exports__);
+__webpack_require__.d(__webpack_exports__, {
   "default": () => (__rspack_default_export)
 });
 /* export default */ const __rspack_default_export = (1);
@@ -187,10 +187,10 @@ __rspack_require.d(__rspack_exports, {
 
 },
 
-},function(__rspack_require) {
+},function(__webpack_require__) {
 // webpack/runtime/get_full_hash
 (() => {
-__rspack_require.h = () => ("CURRENT_HASH")
+__webpack_require__.h = () => ("CURRENT_HASH")
 })();
 
 }

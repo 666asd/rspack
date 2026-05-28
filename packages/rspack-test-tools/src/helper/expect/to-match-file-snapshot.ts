@@ -34,10 +34,6 @@ function toPosixPath(filename: string) {
 }
 
 function getRuntimeProxyBaseSnapshotPath(filename: string): string | undefined {
-  if (!process.env.RSPACK_TEST_RUNTIME_REQUIREMENTS_PROXY) {
-    return;
-  }
-
   const normalized = toPosixPath(filename);
   const base = normalized
     .replace('/__runtime_proxy_snapshot__/', '/__snapshot__/')

@@ -18,6 +18,14 @@ pub const NESTED_IDENTIFIER_TAG: &str = "_identifier__nested_rspack_identifier__
 const WEBPACK_REQUIRE: &str = "__webpack_require__";
 const WEBPACK_EXPORTS: &str = "__webpack_exports__";
 
+fn nested_exports_name(start: u32, end: u32) -> String {
+  let mut start_buffer = itoa::Buffer::new();
+  let start_str = start_buffer.format(start);
+  let mut end_buffer = itoa::Buffer::new();
+  let end_str = end_buffer.format(end);
+  format!("__nested_rspack_exports_{start_str}_{end_str}__")
+}
+
 #[derive(Debug, Clone)]
 pub struct NestedRequireData {
   pub name: String,
@@ -135,13 +143,19 @@ impl JavascriptParserPlugin for CompatibilityPlugin {
       );
       return Some(true);
     } else if self.is_active_exports_argument(parser, ident.sym.as_str()) {
+      let start = ident.span().real_lo();
+      let end = ident.span().real_hi();
       self.tag_nested_require_data(
         parser,
         ident.sym.clone(),
-        "__nested_rspack_exports__".to_string(),
+        if ident.sym.as_str() == "exports" {
+          nested_exports_name(start, end)
+        } else {
+          "__nested_rspack_exports__".to_string()
+        },
         parser.in_short_hand,
-        ident.span().real_lo(),
-        ident.span().real_hi(),
+        start,
+        end,
       );
       return Some(true);
     }
@@ -156,13 +170,19 @@ impl JavascriptParserPlugin for CompatibilityPlugin {
     for_name: &str,
   ) -> Option<bool> {
     if self.is_active_exports_argument(parser, for_name) {
+      let start = ident.span().real_lo();
+      let end = ident.span().real_hi();
       self.tag_nested_require_data(
         parser,
         ident.sym.clone(),
-        "__nested_rspack_exports__".to_string(),
+        if for_name == "exports" {
+          nested_exports_name(start, end)
+        } else {
+          "__nested_rspack_exports__".to_string()
+        },
         parser.in_short_hand,
-        ident.span().real_lo(),
-        ident.span().real_hi(),
+        start,
+        end,
       );
       return Some(true);
     } else if for_name == parser.parser_runtime_requirements.require || for_name == WEBPACK_REQUIRE

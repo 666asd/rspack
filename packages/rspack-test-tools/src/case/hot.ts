@@ -17,7 +17,15 @@ import type {
   ITestProcessor,
   ITestRunner,
 } from '../type';
-import { afterExecute, build, check, compiler, config, run } from './common';
+import {
+  afterExecute,
+  build,
+  check,
+  compiler,
+  config,
+  isRuntimeProxyCase,
+  run,
+} from './common';
 import { cachedStats, type THotStepRuntimeData } from './runner';
 
 type TTarget = RspackOptions['target'];
@@ -51,7 +59,7 @@ export function createHotProcessor(
       if (incremental) {
         options.incremental ??= 'advance-silent';
       }
-      if (process.env.RSPACK_TEST_RUNTIME_REQUIREMENTS_PROXY) {
+      if (isRuntimeProxyCase(context)) {
         options.experiments ??= {};
         options.experiments.runtimeMode = 'rspack';
       }

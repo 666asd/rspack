@@ -1,22 +1,22 @@
-import { __rspack_require } from "./runtime~0.js";
+import { __webpack_require__ } from "./runtime~0.js";
 
 import { createRequire as __rspack_createRequire } from "node:module";
 const __rspack_createRequire_require = __rspack_createRequire(import.meta.url);
-__rspack_require.add({
+__webpack_require__.add({
 928(module) {
 module.exports = __rspack_createRequire_require("path");
 
 },
-227(module, __unused_rspack_exports, __rspack_require) {
-const path = __rspack_require(928)
+227(module, __unused_rspack_exports, __webpack_require__) {
+const path = __webpack_require__(928)
 
 module.exports = path.sep
 
 
 },
 });
-const bar = __rspack_require("227");
-var bar_default = /*#__PURE__*/__rspack_require.n(bar);
+const bar = __webpack_require__("227");
+var bar_default = /*#__PURE__*/__webpack_require__.n(bar);
 
 
 

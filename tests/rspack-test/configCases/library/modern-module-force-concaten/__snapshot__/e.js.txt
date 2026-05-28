@@ -1,13 +1,13 @@
-import { __rspack_require } from "./runtime~0.js";
+import { __webpack_require__ } from "./runtime~0.js";
 
-__rspack_require.add({
+__webpack_require__.add({
 100(module) {
 module.exports = 'bar'
 
 },
 });
-const bar = __rspack_require("100");
-var bar_default = /*#__PURE__*/__rspack_require.n(bar);
+const bar = __webpack_require__("100");
+var bar_default = /*#__PURE__*/__webpack_require__.n(bar);
 var bar_default_0 = bar_default();
 
 

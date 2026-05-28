@@ -6,7 +6,7 @@
 ## Asset Files
 - Bundle: bundle.js
 - Manifest: main.LAST_HASH.hot-update.json, size: 28
-- Update: main.LAST_HASH.hot-update.js, size: 1115
+- Update: main.LAST_HASH.hot-update.js, size: 1148
 
 ## Manifest
 
@@ -33,9 +33,9 @@
 ```js
 "use strict";
 self["rspackHotUpdate"]("main", {
-"./a.js"(module, __rspack_exports, __rspack_require) {
-__rspack_require.r(__rspack_exports);
-__rspack_require.d(__rspack_exports, {
+"./a.js"(module, __webpack_exports__, __webpack_require__) {
+__webpack_require__.r(__webpack_exports__);
+__webpack_require__.d(__webpack_exports__, {
   "default": () => (__rspack_default_export),
   getError: () => (getError),
   id: () => (id)
@@ -49,14 +49,14 @@ const id = module.id;
 
 },
 
-},function(__rspack_require) {
+},function(__webpack_require__) {
 // webpack/runtime/define_property_getters
 (() => {
 
-__rspack_require.d = function (exports, getters, values) {
+__webpack_require__.d = function (exports, getters, values) {
   var define = function (defs, kind) {
     for(var key in defs) {
-      if(__rspack_require.o(defs, key) && !__rspack_require.o(exports, key)) {
+      if(__webpack_require__.o(defs, key) && !__webpack_require__.o(exports, key)) {
         Object.defineProperty(exports, key, { configurable: true, enumerable: true, [kind]: defs[key] });
       }
     }
@@ -68,7 +68,7 @@ __rspack_require.d = function (exports, getters, values) {
 })();
 // webpack/runtime/get_full_hash
 (() => {
-__rspack_require.h = () => ("CURRENT_HASH")
+__webpack_require__.h = () => ("CURRENT_HASH")
 })();
 
 }
@@ -106,7 +106,7 @@ Updated Modules:
 - ./a.js
 
 Updated Runtime:
-- `__rspack_require.h`
+- `__webpack_require__.h`
 
 
 #### Callback

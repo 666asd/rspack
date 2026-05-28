@@ -205,7 +205,9 @@ export class NodeRunner implements ITestRunner {
       __MODE__: this._options.compilerOptions.mode,
       __SNAPSHOT__: path.join(
         this._options.source,
-        process.env.RSPACK_TEST_RUNTIME_REQUIREMENTS_PROXY
+        this._options.dist
+          .split(path.sep)
+          .some((part) => part.startsWith('runtime-proxy-'))
           ? '__runtime_proxy_snapshot__'
           : '__snapshot__',
       ),

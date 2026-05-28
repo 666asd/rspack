@@ -8,9 +8,9 @@ var __module_federation_bundler_runtime__,
   __module_federation_library_type__;
 export default function () {
   if (
-    (__rspack_require.initializeSharingData ||
-      __rspack_require.initializeExposesData) &&
-    __rspack_require.federation
+    (__webpack_require__.initializeSharingData ||
+      __webpack_require__.initializeExposesData) &&
+    __webpack_require__.federation
   ) {
     const override = (obj, key, value) => {
       if (!obj) return;
@@ -31,39 +31,41 @@ export default function () {
     };
 
     const remotesLoadingChunkMapping =
-      __rspack_require.remotesLoadingData?.chunkMapping ?? {};
+      __webpack_require__.remotesLoadingData?.chunkMapping ?? {};
     const remotesLoadingModuleIdToRemoteDataMapping =
-      __rspack_require.remotesLoadingData?.moduleIdToRemoteDataMapping ?? {};
+      __webpack_require__.remotesLoadingData?.moduleIdToRemoteDataMapping ?? {};
     const initializeSharingScopeToInitDataMapping =
-      __rspack_require.initializeSharingData?.scopeToSharingDataMapping ?? {};
+      __webpack_require__.initializeSharingData?.scopeToSharingDataMapping ??
+      {};
     const consumesLoadingChunkMapping =
-      __rspack_require.consumesLoadingData?.chunkMapping ?? {};
+      __webpack_require__.consumesLoadingData?.chunkMapping ?? {};
     const consumesLoadingModuleToConsumeDataMapping =
-      __rspack_require.consumesLoadingData?.moduleIdToConsumeDataMapping ?? {};
+      __webpack_require__.consumesLoadingData?.moduleIdToConsumeDataMapping ??
+      {};
     const consumesLoadinginstalledModules = {};
     const initializeSharingInitPromises = [];
     const initializeSharingInitTokens = {};
     const containerShareScope =
-      __rspack_require.initializeExposesData?.shareScope;
+      __webpack_require__.initializeExposesData?.shareScope;
 
     for (const key in __module_federation_bundler_runtime__) {
-      __rspack_require.federation[key] =
+      __webpack_require__.federation[key] =
         __module_federation_bundler_runtime__[key];
     }
 
     early(
-      __rspack_require.federation,
+      __webpack_require__.federation,
       'libraryType',
       () => __module_federation_library_type__,
     );
     early(
-      __rspack_require.federation,
+      __webpack_require__.federation,
       'sharedFallback',
       () => __module_federation_share_fallbacks__,
     );
-    const sharedFallback = __rspack_require.federation.sharedFallback;
+    const sharedFallback = __webpack_require__.federation.sharedFallback;
     early(
-      __rspack_require.federation,
+      __webpack_require__.federation,
       'consumesLoadingModuleToHandlerMapping',
       () => {
         const consumesLoadingModuleToHandlerMapping = {};
@@ -72,12 +74,12 @@ export default function () {
         )) {
           consumesLoadingModuleToHandlerMapping[moduleId] = {
             getter: sharedFallback
-              ? __rspack_require.federation.bundlerRuntime?.getSharedFallbackGetter(
+              ? __webpack_require__.federation.bundlerRuntime?.getSharedFallbackGetter(
                   {
                     shareKey: data.shareKey,
                     factory: data.fallback,
-                    webpackRequire: __rspack_require,
-                    libraryType: __rspack_require.federation.libraryType,
+                    webpackRequire: __webpack_require__,
+                    libraryType: __webpack_require__.federation.libraryType,
                   },
                 )
               : data.fallback,
@@ -93,7 +95,7 @@ export default function () {
               scope: [data.shareScope],
             },
             shareKey: data.shareKey,
-            treeShaking: __rspack_require.federation.sharedFallback
+            treeShaking: __webpack_require__.federation.sharedFallback
               ? {
                   get: data.fallback,
                   mode: data.treeShakingMode,
@@ -105,18 +107,18 @@ export default function () {
       },
     );
 
-    early(__rspack_require.federation, 'initOptions', () => ({}));
+    early(__webpack_require__.federation, 'initOptions', () => ({}));
     early(
-      __rspack_require.federation.initOptions,
+      __webpack_require__.federation.initOptions,
       'name',
       () => __module_federation_container_name__,
     );
     early(
-      __rspack_require.federation.initOptions,
+      __webpack_require__.federation.initOptions,
       'shareStrategy',
       () => __module_federation_share_strategy__,
     );
-    early(__rspack_require.federation.initOptions, 'shared', () => {
+    early(__webpack_require__.federation.initOptions, 'shared', () => {
       const shared = {};
       for (let [scope, stages] of Object.entries(
         initializeSharingScopeToInitDataMapping,
@@ -170,35 +172,35 @@ export default function () {
       }
       return shared;
     });
-    merge(__rspack_require.federation.initOptions, 'remotes', () =>
+    merge(__webpack_require__.federation.initOptions, 'remotes', () =>
       Object.values(__module_federation_remote_infos__)
         .flat()
         .filter((remote) => remote.externalType === 'script'),
     );
     merge(
-      __rspack_require.federation.initOptions,
+      __webpack_require__.federation.initOptions,
       'plugins',
       () => __module_federation_runtime_plugins__,
     );
 
-    early(__rspack_require.federation, 'bundlerRuntimeOptions', () => ({}));
+    early(__webpack_require__.federation, 'bundlerRuntimeOptions', () => ({}));
     early(
-      __rspack_require.federation.bundlerRuntimeOptions,
+      __webpack_require__.federation.bundlerRuntimeOptions,
       'remotes',
       () => ({}),
     );
     early(
-      __rspack_require.federation.bundlerRuntimeOptions.remotes,
+      __webpack_require__.federation.bundlerRuntimeOptions.remotes,
       'chunkMapping',
       () => remotesLoadingChunkMapping,
     );
     early(
-      __rspack_require.federation.bundlerRuntimeOptions.remotes,
+      __webpack_require__.federation.bundlerRuntimeOptions.remotes,
       'remoteInfos',
       () => __module_federation_remote_infos__,
     );
     early(
-      __rspack_require.federation.bundlerRuntimeOptions.remotes,
+      __webpack_require__.federation.bundlerRuntimeOptions.remotes,
       'idToExternalAndNameMapping',
       () => {
         const remotesLoadingIdToExternalAndNameMappingMapping = {};
@@ -216,12 +218,12 @@ export default function () {
       },
     );
     early(
-      __rspack_require.federation.bundlerRuntimeOptions.remotes,
+      __webpack_require__.federation.bundlerRuntimeOptions.remotes,
       'webpackRequire',
-      () => __rspack_require,
+      () => __webpack_require__,
     );
     merge(
-      __rspack_require.federation.bundlerRuntimeOptions.remotes,
+      __webpack_require__.federation.bundlerRuntimeOptions.remotes,
       'idToRemoteMap',
       () => {
         const idToRemoteMap = {};
@@ -237,63 +239,63 @@ export default function () {
     );
 
     override(
-      __rspack_require,
+      __webpack_require__,
       'S',
-      __rspack_require.federation.bundlerRuntime.S,
+      __webpack_require__.federation.bundlerRuntime.S,
     );
-    if (__rspack_require.federation.attachShareScopeMap) {
-      __rspack_require.federation.attachShareScopeMap(__rspack_require);
+    if (__webpack_require__.federation.attachShareScopeMap) {
+      __webpack_require__.federation.attachShareScopeMap(__webpack_require__);
     }
 
-    override(__rspack_require.f, 'remotes', (chunkId, promises) =>
-      __rspack_require.federation.bundlerRuntime.remotes({
+    override(__webpack_require__.f, 'remotes', (chunkId, promises) =>
+      __webpack_require__.federation.bundlerRuntime.remotes({
         chunkId,
         promises,
         chunkMapping: remotesLoadingChunkMapping,
         idToExternalAndNameMapping:
-          __rspack_require.federation.bundlerRuntimeOptions.remotes
+          __webpack_require__.federation.bundlerRuntimeOptions.remotes
             .idToExternalAndNameMapping,
         idToRemoteMap:
-          __rspack_require.federation.bundlerRuntimeOptions.remotes
+          __webpack_require__.federation.bundlerRuntimeOptions.remotes
             .idToRemoteMap,
-        webpackRequire: __rspack_require,
+        webpackRequire: __webpack_require__,
       }),
     );
-    override(__rspack_require.f, 'consumes', (chunkId, promises) =>
-      __rspack_require.federation.bundlerRuntime.consumes({
+    override(__webpack_require__.f, 'consumes', (chunkId, promises) =>
+      __webpack_require__.federation.bundlerRuntime.consumes({
         chunkId,
         promises,
         chunkMapping: consumesLoadingChunkMapping,
         moduleToHandlerMapping:
-          __rspack_require.federation.consumesLoadingModuleToHandlerMapping,
+          __webpack_require__.federation.consumesLoadingModuleToHandlerMapping,
         installedModules: consumesLoadinginstalledModules,
-        webpackRequire: __rspack_require,
+        webpackRequire: __webpack_require__,
       }),
     );
-    override(__rspack_require, 'I', (name, initScope) =>
-      __rspack_require.federation.bundlerRuntime.I({
+    override(__webpack_require__, 'I', (name, initScope) =>
+      __webpack_require__.federation.bundlerRuntime.I({
         shareScopeName: name,
         initScope,
         initPromises: initializeSharingInitPromises,
         initTokens: initializeSharingInitTokens,
-        webpackRequire: __rspack_require,
+        webpackRequire: __webpack_require__,
       }),
     );
     override(
-      __rspack_require,
+      __webpack_require__,
       'initContainer',
       (shareScope, initScope, remoteEntryInitOptions) =>
-        __rspack_require.federation.bundlerRuntime.initContainerEntry({
+        __webpack_require__.federation.bundlerRuntime.initContainerEntry({
           shareScope,
           initScope,
           remoteEntryInitOptions,
           shareScopeKey: containerShareScope,
-          webpackRequire: __rspack_require,
+          webpackRequire: __webpack_require__,
         }),
     );
-    override(__rspack_require, 'getContainer', (module, getScope) => {
-      var moduleMap = __rspack_require.initializeExposesData.moduleMap;
-      __rspack_require.R = getScope;
+    override(__webpack_require__, 'getContainer', (module, getScope) => {
+      var moduleMap = __webpack_require__.initializeExposesData.moduleMap;
+      __webpack_require__.R = getScope;
       getScope = Object.prototype.hasOwnProperty.call(moduleMap, module)
         ? moduleMap[module]()
         : Promise.resolve().then(() => {
@@ -301,22 +303,23 @@ export default function () {
               'Module "' + module + '" does not exist in container.',
             );
           });
-      __rspack_require.R = undefined;
+      __webpack_require__.R = undefined;
       return getScope;
     });
 
-    __rspack_require.federation.instance =
-      __rspack_require.federation.bundlerRuntime.init({
-        webpackRequire: __rspack_require,
+    __webpack_require__.federation.instance =
+      __webpack_require__.federation.bundlerRuntime.init({
+        webpackRequire: __webpack_require__,
       });
 
-    if (__rspack_require.consumesLoadingData?.initialConsumes) {
-      __rspack_require.federation.bundlerRuntime.installInitialConsumes({
-        webpackRequire: __rspack_require,
+    if (__webpack_require__.consumesLoadingData?.initialConsumes) {
+      __webpack_require__.federation.bundlerRuntime.installInitialConsumes({
+        webpackRequire: __webpack_require__,
         installedModules: consumesLoadinginstalledModules,
-        initialConsumes: __rspack_require.consumesLoadingData.initialConsumes,
+        initialConsumes:
+          __webpack_require__.consumesLoadingData.initialConsumes,
         moduleToHandlerMapping:
-          __rspack_require.federation.consumesLoadingModuleToHandlerMapping,
+          __webpack_require__.federation.consumesLoadingModuleToHandlerMapping,
       });
     }
   }

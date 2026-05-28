@@ -77,6 +77,12 @@ fn render_runtime_variable_webpack_alias(
   Some(format!("var {alias} = {runtime_variable};\n"))
 }
 
+fn reserved_rename_names() -> HashSet<Atom> {
+  let mut names = RESERVED_NAMES_ATOM_SET.clone();
+  names.insert(Atom::from("__nested_rspack_exports__"));
+  names
+}
+
 fn render_runtime_variable_declaration(
   compilation: &Compilation,
   runtime_template: &RuntimeCodeTemplate<'_>,
@@ -1202,7 +1208,7 @@ function {}(moduleId) {{
 
     let mut inlined_modules_to_info: IdentifierMap<InlinedModuleInfo> = IdentifierMap::default();
     let mut non_inlined_module_through_idents: Vec<ConcatenatedModuleIdent> = Vec::new();
-    let mut all_used_names: HashSet<Atom> = RESERVED_NAMES_ATOM_SET.clone();
+    let mut all_used_names: HashSet<Atom> = reserved_rename_names();
     let mut renamed_inline_modules: IdentifierMap<Arc<dyn Source>> = IdentifierMap::default();
 
     let render_module_results = rspack_parallel::scope::<_, _>(|token| {
@@ -1264,7 +1270,7 @@ function {}(moduleId) {{
           Ok(RenameInfoPatch {
             inlined_modules_to_info: IdentifierMap::default(),
             non_inlined_module_through_idents: Vec::new(),
-            all_used_names: RESERVED_NAMES_ATOM_SET.clone(),
+            all_used_names: reserved_rename_names(),
           })
         },
         |mut acc, (rendered_module, m)| {
@@ -1418,7 +1424,7 @@ function {}(moduleId) {{
           Ok(RenameInfoPatch {
             inlined_modules_to_info: IdentifierMap::default(),
             non_inlined_module_through_idents: Vec::new(),
-            all_used_names: RESERVED_NAMES_ATOM_SET.clone(),
+            all_used_names: reserved_rename_names(),
           })
         },
         |acc, chunk| match acc {

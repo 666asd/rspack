@@ -44,6 +44,16 @@ const testFilter = process.argv.includes("--test") || process.argv.includes("-t"
   : undefined;
 
 const reporters: RstestConfig['reporters'] = testFilter ? ['verbose' as const] : ['default' as const];
+const selectedProjects = process.argv.flatMap((arg, index, args) => {
+  if (arg === '--project') {
+    return args[index + 1] ? [args[index + 1]] : [];
+  }
+  if (arg.startsWith('--project=')) {
+    return [arg.slice('--project='.length)];
+  }
+  return [];
+});
+const shouldRunRuntimeProxyProject = selectedProjects.includes('runtimeProxy');
 if (process.env.CI) {
   reporters.push(new StreamedEventReporter(path.join(__dirname, '../../', 'rspack-test-event-report.txt')));
 }
@@ -111,7 +121,6 @@ const sharedConfig = defineProject({
       : undefined,
     __RSPACK_PATH__: path.resolve(root, "packages/rspack"),
     __RSPACK_TEST_TOOLS_PATH__: path.resolve(root, "packages/rspack-test-tools"),
-    RSPACK_TEST_RUNTIME_REQUIREMENTS_PROXY: process.env.RSPACK_TEST_RUNTIME_REQUIREMENTS_PROXY,
     __DEBUG__: process.env.DEBUG === "test" ? 'true' : 'false',
   },
   ...(wasmConfig || {}),
@@ -148,15 +157,12 @@ export default defineConfig({
   }, {
     extends: sharedConfig,
     name: 'runtimeProxy',
-    include: process.env.RSPACK_TEST_RUNTIME_REQUIREMENTS_PROXY ? [
+    include: shouldRunRuntimeProxyProject ? [
       'RuntimeProxy*.test.js',
     ] : [],
     exclude: [
       'NativeWatcher*.test.js',
     ],
-    env: {
-      RSPACK_TEST_RUNTIME_REQUIREMENTS_PROXY: 'true',
-    },
   }],
   reporters,
   pool: {

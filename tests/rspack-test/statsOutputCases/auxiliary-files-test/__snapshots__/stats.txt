@@ -54,4 +54,4 @@ runtime modules xx KiB
     [no exports]
     [used exports unknown]
   
-Rspack compiled successfully (3188591e8cba364c)
+Rspack compiled successfully (7762259ba9d01658)

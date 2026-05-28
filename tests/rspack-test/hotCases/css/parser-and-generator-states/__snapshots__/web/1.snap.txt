@@ -6,7 +6,7 @@
 ## Asset Files
 - Bundle: bundle.js
 - Manifest: main.LAST_HASH.hot-update.json, size: 28
-- Update: main.LAST_HASH.hot-update.js, size: 780
+- Update: main.LAST_HASH.hot-update.js, size: 792
 
 ## Manifest
 
@@ -32,7 +32,7 @@
 ```js
 "use strict";
 self["rspackHotUpdate"]("main", {
-"./index.module.css"(module, __unused_rspack_exports, __rspack_require) {
+"./index.module.css"(module, __unused_rspack_exports, __webpack_require__) {
 var exports = {
   "btn-info_is-enabled": "./index.module.css__btn-info_is-enabled",
   "btnInfoIsEnabled": "./index.module.css__btn-info_is-enabled",
@@ -45,15 +45,15 @@ if (module.hot.data && module.hot.data.exports && module.hot.data.exports != str
   module.hot.accept();
 }
 module.hot.dispose(function(data) { data.exports = stringified_exports; });
-__rspack_require.r(module.exports = exports);
+__webpack_require__.r(module.exports = exports);
 
 
 },
 
-},function(__rspack_require) {
+},function(__webpack_require__) {
 // webpack/runtime/get_full_hash
 (() => {
-__rspack_require.h = () => ("CURRENT_HASH")
+__webpack_require__.h = () => ("CURRENT_HASH")
 })();
 
 }

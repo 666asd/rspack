@@ -48,16 +48,15 @@ struct PathTree {
 impl PathTree {
   pub fn find_common_root(&self) -> Option<ArcPath> {
     let root = self.find_root()?;
-    Some(self.find_common_root_recursive(root))
+    self.find_common_root_recursive(root)
   }
 
-  fn find_common_root_recursive(&self, path: ArcPath) -> ArcPath {
-    let node = self
-      .inner
-      .get(&path)
-      .expect("Path should exist in the tree");
-    // We need make sure the path is exists
-    assert!(path.exists(), "Path should exist");
+  fn find_common_root_recursive(&self, path: ArcPath) -> Option<ArcPath> {
+    let node = self.inner.get(&path)?;
+    if !path.exists() {
+      drop(node);
+      return Self::find_existing_ancestor(path);
+    }
 
     if let Some(child) = node
       .only_child()
@@ -66,8 +65,19 @@ impl PathTree {
     {
       self.find_common_root_recursive(child)
     } else {
-      path // Return the current path if it has no single child
+      Some(path) // Return the current path if it has no single child
     }
+  }
+
+  fn find_existing_ancestor(path: ArcPath) -> Option<ArcPath> {
+    let mut current = Some(path);
+    while let Some(path) = current {
+      if path.exists() {
+        return Some(path);
+      }
+      current = path.parent().map(ArcPath::from);
+    }
+    None
   }
 
   pub fn update_paths(&self, added_paths: &ArcPathDashSet, removed_paths: &ArcPathDashSet) {
@@ -199,5 +209,19 @@ mod tests {
 
     assert_eq!(watch_patterns.len(), 1);
     assert_eq!(watch_patterns[0].path, ArcPath::from(current_dir));
+  }
+
+  #[test]
+  fn test_find_with_removed_directory() {
+    let temp_dir = tempfile::tempdir().expect("should create temp dir");
+    let root = ArcPath::from(temp_dir.path());
+    let child = ArcPath::from(temp_dir.path().join("child"));
+    std::fs::create_dir_all(&child).expect("should create child dir");
+
+    let analyzer = WatcherRootAnalyzer::default();
+    analyzer.path_tree.add_path(&child);
+    std::fs::remove_dir_all(&child).expect("should remove child dir");
+
+    assert_eq!(analyzer.path_tree.find_common_root(), Some(root));
   }
 }

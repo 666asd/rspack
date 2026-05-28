@@ -1,8 +1,8 @@
 ```js title=chunk_js.js
 "use strict";
 (self["rspackChunk"] = self["rspackChunk"] || []).push([["chunk_js"], {
-"./chunk.js"(__unused_rspack_module, __rspack_exports, __rspack_require) {
-__rspack_require.r(__rspack_exports);
+"./chunk.js"(__unused_rspack_module, __webpack_exports__, __webpack_require__) {
+__webpack_require__.r(__webpack_exports__);
 
 
 
@@ -13,12 +13,12 @@ __rspack_require.r(__rspack_exports);
 
 ```js title=main.js
 (self["rspackChunk"] = self["rspackChunk"] || []).push([["main"], {
-"./import-module.js"(__unused_rspack_module, __rspack_exports, __rspack_require) {
+"./import-module.js"(__unused_rspack_module, __webpack_exports__, __webpack_require__) {
 "use strict";
-__rspack_require.d(__rspack_exports, {
+__webpack_require__.d(__webpack_exports__, {
   test: () => (test)
 });
-/* import */ var _module__rspack_import_0 = __rspack_require("./module.js");
+/* import */ var _module__rspack_import_0 = __webpack_require__("./module.js");
 
 
 function test() {
@@ -29,20 +29,20 @@ function test() {
 
 
 },
-"./index.js"(__unused_rspack_module, __unused_rspack_exports, __rspack_require) {
+"./index.js"(__unused_rspack_module, __unused_rspack_exports, __webpack_require__) {
 it("should generate correct code when pure expressions are in dead branches", () => {
-	(__rspack_require("./import-module.js")/* .test */.test)();
-	return Promise.all([Promise.resolve(/* import() */).then(__rspack_require.bind(__rspack_require, "./some-module.js")), __rspack_require.e(/* import() */ "chunk_js").then(__rspack_require.bind(__rspack_require, "./chunk.js"))]);
+	(__webpack_require__("./import-module.js")/* .test */.test)();
+	return Promise.all([Promise.resolve(/* import() */).then(__webpack_require__.bind(__webpack_require__, "./some-module.js")), __webpack_require__.e(/* import() */ "chunk_js").then(__webpack_require__.bind(__webpack_require__, "./chunk.js"))]);
 });
 
 
 },
-"./module.js"(__unused_rspack_module, __rspack_exports, __rspack_require) {
+"./module.js"(__unused_rspack_module, __webpack_exports__, __webpack_require__) {
 "use strict";
-__rspack_require.d(__rspack_exports, {
+__webpack_require__.d(__webpack_exports__, {
   "default": () => (__rspack_default_export)
 });
-/* import */ var _some_module__rspack_import_0 = __rspack_require("./some-module.js");
+/* import */ var _some_module__rspack_import_0 = __webpack_require__("./some-module.js");
 
 
 function getType(obj) {
@@ -87,10 +87,10 @@ function useDocument(obj) {
 
 
 },
-"./some-module.js"(__unused_rspack_module, __rspack_exports, __rspack_require) {
+"./some-module.js"(__unused_rspack_module, __webpack_exports__, __webpack_require__) {
 "use strict";
-__rspack_require.r(__rspack_exports);
-__rspack_require.d(__rspack_exports, {
+__webpack_require__.r(__webpack_exports__);
+__webpack_require__.d(__webpack_exports__, {
   Block: () => (Block),
   Document: () => (Document),
   Inline: () => (Inline)
@@ -112,9 +112,9 @@ class Document {
 
 },
 
-},function(__rspack_require) {
-var __rspack_exec = function(moduleId) { return __rspack_require(__rspack_require.s = moduleId) }
-var __rspack_exports = (__rspack_exec("./index.js"));
+},function(__webpack_require__) {
+var __webpack_exec__ = function(moduleId) { return __webpack_require__(__webpack_require__.s = moduleId) }
+var __webpack_exports__ = (__webpack_exec__("./index.js"));
 
 }
 ]);

@@ -1,9 +1,9 @@
 ```mjs title=main.mjs
-import { __rspack_require } from "./runtime.mjs";
+import { __webpack_require__ } from "./runtime.mjs";
 // NAMESPACE OBJECT: ./foo.js
 var foo_namespaceObject = {};
-__rspack_require.r(foo_namespaceObject);
-__rspack_require.d(foo_namespaceObject, { 
+__webpack_require__.r(foo_namespaceObject);
+__webpack_require__.d(foo_namespaceObject, {
   foo1: () => (foo1),
   foo2: () => (foo2) });
 
@@ -35,14 +35,14 @@ export {};
 
 ```mjs title=runtime.mjs
 // The require scope
-var __rspack_require = {};
+var __webpack_require__ = {};
 
 // webpack/runtime/define_property_getters
 (() => {
-__rspack_require.d = (exports, getters, values) => {
+__webpack_require__.d = (exports, getters, values) => {
 	var define = (defs, kind) => {
 		for(var key in defs) {
-			if(__rspack_require.o(defs, key) && !__rspack_require.o(exports, key)) {
+			if(__webpack_require__.o(defs, key) && !__webpack_require__.o(exports, key)) {
 				Object.defineProperty(exports, key, { enumerable: true, [kind]: defs[key] });
 			}
 		}
@@ -53,20 +53,19 @@ __rspack_require.d = (exports, getters, values) => {
 })();
 // webpack/runtime/has_own_property
 (() => {
-__rspack_require.o = (obj, prop) => (Object.prototype.hasOwnProperty.call(obj, prop))
+__webpack_require__.o = (obj, prop) => (Object.prototype.hasOwnProperty.call(obj, prop))
 })();
 // webpack/runtime/make_namespace_object
 (() => {
 // define __esModule on exports
-__rspack_require.r = (__rspack_exports) => {
+__webpack_require__.r = (__rspack_exports) => {
 	if(typeof Symbol !== 'undefined' && Symbol.toStringTag) {
 		Object.defineProperty(__rspack_exports, Symbol.toStringTag, { value: 'Module' });
 	}
 	Object.defineProperty(__rspack_exports, '__esModule', { value: true });
 };
-
 })();
 
-export { __rspack_require };
+export { __webpack_require__ };
 
 ```

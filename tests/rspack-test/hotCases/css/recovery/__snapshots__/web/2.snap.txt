@@ -6,7 +6,7 @@
 ## Asset Files
 - Bundle: bundle.js
 - Manifest: main.LAST_HASH.hot-update.json, size: 28
-- Update: main.hot-update.js, size: 5987
+- Update: main.hot-update.js, size: 6038
 
 ## Manifest
 
@@ -34,14 +34,14 @@
 ```js
 "use strict";
 self["rspackHotUpdate"]("main", {
-"./index.css"(module, __rspack_exports, __rspack_require) {
-__rspack_require.r(__rspack_exports);
+"./index.css"(module, __webpack_exports__, __webpack_require__) {
+__webpack_require__.r(__webpack_exports__);
 // extracted by css-extract-rspack-plugin
 
     if(true) {
       (function() {
         var localsJsonString = undefined;
-        var cssReload = (__rspack_require("../../../../../../../../packages/rspack/dist/cssExtractHmr.js")/* .cssReload */.cssReload)(module.id, {});
+        var cssReload = (__webpack_require__("../../../../../../../../packages/rspack/dist/cssExtractHmr.js")/* .cssReload */.cssReload)(module.id, {});
         // only invalidate when locals change
         if (
           module.hot.data &&
@@ -61,9 +61,9 @@ __rspack_require.r(__rspack_exports);
   
 
 },
-"../../../../../../../../packages/rspack/dist/cssExtractHmr.js"(__unused_rspack___rspack_module, __rspack_exports, __rspack_require) {
-__rspack_require.r(__rspack_exports);
-__rspack_require.d(__rspack_exports, {
+"../../../../../../../../packages/rspack/dist/cssExtractHmr.js"(__unused_rspack___webpack_module__, __webpack_exports__, __webpack_require__) {
+__webpack_require__.r(__webpack_exports__);
+__webpack_require__.d(__webpack_exports__, {
   cssReload: () => (cssReload),
   normalizeUrl: () => (normalizeUrl)
 });
@@ -170,14 +170,14 @@ function cssReload(moduleId, options) {
 
 },
 
-},function(__rspack_require) {
+},function(__webpack_require__) {
 // webpack/runtime/define_property_getters
 (() => {
 
-__rspack_require.d = function (exports, getters, values) {
+__webpack_require__.d = function (exports, getters, values) {
   var define = function (defs, kind) {
     for(var key in defs) {
-      if(__rspack_require.o(defs, key) && !__rspack_require.o(exports, key)) {
+      if(__webpack_require__.o(defs, key) && !__webpack_require__.o(exports, key)) {
         Object.defineProperty(exports, key, { configurable: true, enumerable: true, [kind]: defs[key] });
       }
     }
@@ -189,7 +189,7 @@ __rspack_require.d = function (exports, getters, values) {
 })();
 // webpack/runtime/get_full_hash
 (() => {
-__rspack_require.h = () => ("CURRENT_HASH")
+__webpack_require__.h = () => ("CURRENT_HASH")
 })();
 
 }

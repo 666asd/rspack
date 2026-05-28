@@ -1,8 +1,8 @@
 ```mjs title=main.mjs
-import { __rspack_require } from "./runtime.mjs";
+import { __webpack_require__ } from "./runtime.mjs";
 // NAMESPACE OBJECT: ./bar.js
 var bar_namespaceObject = {};
-__rspack_require.r(bar_namespaceObject);
+__webpack_require__.r(bar_namespaceObject);
 
 
 // ./bar.js
@@ -21,20 +21,19 @@ export {};
 
 ```mjs title=runtime.mjs
 // The require scope
-var __rspack_require = {};
+var __webpack_require__ = {};
 
 // webpack/runtime/make_namespace_object
 (() => {
 // define __esModule on exports
-__rspack_require.r = (__rspack_exports) => {
+__webpack_require__.r = (__rspack_exports) => {
 	if(typeof Symbol !== 'undefined' && Symbol.toStringTag) {
 		Object.defineProperty(__rspack_exports, Symbol.toStringTag, { value: 'Module' });
 	}
 	Object.defineProperty(__rspack_exports, '__esModule', { value: true });
 };
-
 })();
 
-export { __rspack_require };
+export { __webpack_require__ };
 
 ```

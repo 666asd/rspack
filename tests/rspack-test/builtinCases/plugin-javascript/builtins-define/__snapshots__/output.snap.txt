@@ -1,15 +1,15 @@
 ```js title=main.js
 "use strict";
 (self["rspackChunk"] = self["rspackChunk"] || []).push([["main"], {
-"./index.js"(__unused_rspack_module, __rspack_exports, __rspack_require) {
-__rspack_require.r(__rspack_exports);
-/* import */ var _lib__rspack_import_0 = __rspack_require("./lib.js");
+"./index.js"(__unused_rspack_module, __webpack_exports__, __webpack_require__) {
+__webpack_require__.r(__webpack_exports__);
+/* import */ var _lib__rspack_import_0 = __webpack_require__("./lib.js");
 // import assert from "assert";
 // import { equal } from "assert";
 
 
-const lib = __rspack_require("./lib.js");
-const { DO_NOT_CONVERTED9 } = __rspack_require("./lib.js");
+const lib = __webpack_require__("./lib.js");
+const { DO_NOT_CONVERTED9 } = __webpack_require__("./lib.js");
 
 equal(true, true);
 // require("assert").deepStrictEqual(FALSE, false);
@@ -193,9 +193,9 @@ console.log(console.log(console.log));
 
 
 },
-"./lib.js"(__unused_rspack_module, __rspack_exports, __rspack_require) {
-__rspack_require.r(__rspack_exports);
-__rspack_require.d(__rspack_exports, {
+"./lib.js"(__unused_rspack_module, __webpack_exports__, __webpack_require__) {
+__webpack_require__.r(__webpack_exports__);
+__webpack_require__.d(__webpack_exports__, {
   DO_NOT_CONVERTED7: () => (DO_NOT_CONVERTED7),
   DO_NOT_CONVERTED9: () => (DO_NOT_CONVERTED9),
   "default": () => (__rspack_default_export)
@@ -208,9 +208,9 @@ const DO_NOT_CONVERTED9 = 403;
 
 },
 
-},function(__rspack_require) {
-var __rspack_exec = function(moduleId) { return __rspack_require(__rspack_require.s = moduleId) }
-var __rspack_exports = (__rspack_exec("./index.js"));
+},function(__webpack_require__) {
+var __webpack_exec__ = function(moduleId) { return __webpack_require__(__webpack_require__.s = moduleId) }
+var __webpack_exports__ = (__webpack_exec__("./index.js"));
 
 }
 ]);

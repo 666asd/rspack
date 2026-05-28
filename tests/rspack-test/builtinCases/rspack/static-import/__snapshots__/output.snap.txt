@@ -1,10 +1,10 @@
 ```js title=main.js
 (self["rspackChunk"] = self["rspackChunk"] || []).push([["main"], {
-"./a.js"(__unused_rspack_module, __rspack_exports, __rspack_require) {
+"./a.js"(__unused_rspack_module, __webpack_exports__, __webpack_require__) {
 "use strict";
-__rspack_require.r(__rspack_exports);
-/* import */ var _b__rspack_import_0 = __rspack_require("./b.js");
-/* import */ var _b__rspack_import_0_default = /*#__PURE__*/__rspack_require.n(_b__rspack_import_0);
+__webpack_require__.r(__webpack_exports__);
+/* import */ var _b__rspack_import_0 = __webpack_require__("./b.js");
+/* import */ var _b__rspack_import_0_default = /*#__PURE__*/__webpack_require__.n(_b__rspack_import_0);
 
 console.log("a");
 
@@ -15,19 +15,19 @@ console.log("b");
 
 
 },
-"./index.js"(__unused_rspack_module, __rspack_exports, __rspack_require) {
+"./index.js"(__unused_rspack_module, __webpack_exports__, __webpack_require__) {
 "use strict";
-__rspack_require.r(__rspack_exports);
-/* import */ var _a__rspack_import_0 = __rspack_require("./a.js");
+__webpack_require__.r(__webpack_exports__);
+/* import */ var _a__rspack_import_0 = __webpack_require__("./a.js");
 
 console.log("hello, world");
 
 
 },
 
-},function(__rspack_require) {
-var __rspack_exec = function(moduleId) { return __rspack_require(__rspack_require.s = moduleId) }
-var __rspack_exports = (__rspack_exec("./index.js"));
+},function(__webpack_require__) {
+var __webpack_exec__ = function(moduleId) { return __webpack_require__(__webpack_require__.s = moduleId) }
+var __webpack_exports__ = (__webpack_exec__("./index.js"));
 
 }
 ]);

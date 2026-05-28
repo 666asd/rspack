@@ -1,6 +1,6 @@
 ```js title=main.js
 (() => {
-var __webpack_modules__, __rspack_modules = __webpack_modules__ = ({
+var __webpack_modules__ = ({
 "../../normalModuleFactory​#resolve/resource/a.js"(module) {
 module.exports = "a";
 
@@ -14,48 +14,46 @@ module.exports = "c";
 
 });
 // The module cache
-var __webpack_module_cache__, __rspack_module_cache = __webpack_module_cache__ = {};
+var __webpack_module_cache__ = {};
 
 // The require function
-function __rspack_require(moduleId) {
+function __webpack_require__(moduleId) {
 
 // Check if module is in cache
-var cachedModule = __rspack_module_cache[moduleId];
+var cachedModule = __webpack_module_cache__[moduleId];
 if (cachedModule !== undefined) {
 return cachedModule.exports;
 }
 // Create a new module (and put it into the cache)
-var module = (__rspack_module_cache[moduleId] = {
+var module = (__webpack_module_cache__[moduleId] = {
 exports: {}
 });
 // Execute the module function
-__rspack_modules[moduleId](module, module.exports, __rspack_require);
+__webpack_modules__[moduleId](module, module.exports, __webpack_require__);
 
 // Return the exports of the module
 return module.exports;
 
 }
 
-var __webpack_require__ = __rspack_require;
-
 // webpack/runtime/compat_get_default_export
 (() => {
 // getDefaultExport function for compatibility with non-ESM modules
-__rspack_require.n = (module) => {
+__webpack_require__.n = (module) => {
 	var getter = module && module.__esModule ?
 		() => (module['default']) :
 		() => (module);
-	__rspack_require.d(getter, { a: getter });
+	__webpack_require__.d(getter, { a: getter });
 	return getter;
 };
 
 })();
 // webpack/runtime/define_property_getters
 (() => {
-__rspack_require.d = (exports, getters, values) => {
+__webpack_require__.d = (exports, getters, values) => {
 	var define = (defs, kind) => {
 		for(var key in defs) {
-			if(__rspack_require.o(defs, key) && !__rspack_require.o(exports, key)) {
+			if(__webpack_require__.o(defs, key) && !__webpack_require__.o(exports, key)) {
 				Object.defineProperty(exports, key, { enumerable: true, [kind]: defs[key] });
 			}
 		}
@@ -66,21 +64,21 @@ __rspack_require.d = (exports, getters, values) => {
 })();
 // webpack/runtime/has_own_property
 (() => {
-__rspack_require.o = (obj, prop) => (Object.prototype.hasOwnProperty.call(obj, prop))
+__webpack_require__.o = (obj, prop) => (Object.prototype.hasOwnProperty.call(obj, prop))
 })();
 // This entry needs to be wrapped in an IIFE because it needs to be in strict mode.
 (() => {
 "use strict";
 
 // EXTERNAL MODULE: ../../normalModuleFactory​#resolve/resource/a.js
-var a = __rspack_require("../../normalModuleFactory​#resolve/resource/a.js");
-var a_default = /*#__PURE__*/__rspack_require.n(a);
+var a = __webpack_require__("../../normalModuleFactory​#resolve/resource/a.js");
+var a_default = /*#__PURE__*/__webpack_require__.n(a);
 // EXTERNAL MODULE: ../../normalModuleFactory​#resolve/resource/b.js
-var b = __rspack_require("../../normalModuleFactory​#resolve/resource/b.js");
-var b_default = /*#__PURE__*/__rspack_require.n(b);
+var b = __webpack_require__("../../normalModuleFactory​#resolve/resource/b.js");
+var b_default = /*#__PURE__*/__webpack_require__.n(b);
 ;// CONCATENATED MODULE: external "fs"
 const external_fs_namespaceObject = require("fs");
-var external_fs_default = /*#__PURE__*/__rspack_require.n(external_fs_namespaceObject);
+var external_fs_default = /*#__PURE__*/__webpack_require__.n(external_fs_namespaceObject);
 ;// CONCATENATED MODULE: ../../normalModuleFactory​#resolve/resource/resource.js
 
 

@@ -13,9 +13,9 @@ module.exports = {
     expect(Object.keys(files).sort().reverse()).toEqual(["/main.js", "/555.js"]); // CHANGE
     const bundle = files["/main.js"];
     const chunk = files["/555.js"]; // CHANGE
-    expect(bundle).toMatch("function __rspack_require(");
-    expect(bundle).toMatch("__rspack_require(/*! ./b */");
-    expect(chunk).not.toMatch("__rspack_require(/* ./b */");
+    expect(bundle).toMatch("function __webpack_require__(");
+    expect(bundle).toMatch("__webpack_require__(/*! ./b */");
+    expect(chunk).not.toMatch("__webpack_require__(/* ./b */");
     expect(bundle).toMatch("./chunks.js");
     expect(chunk).toMatch("./a.js");
     expect(chunk).toMatch("./b.js");

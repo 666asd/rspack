@@ -43,7 +43,7 @@ module.exports = {
               // should make sure no default property access for default ExportsType
               jsContent,
             ).toContain(
-              'var __rspack_exportsdefault = __rspack_exports;',
+              'var __webpack_exports__default = __webpack_exports__;',
             );
           });
         });

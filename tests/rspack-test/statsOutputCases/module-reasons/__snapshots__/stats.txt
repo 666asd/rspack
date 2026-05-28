@@ -1,4 +1,4 @@
-asset main.js xx KiB [emitted] (name: main)
+asset main.js xx bytes [emitted] (name: main)
 orphan modules xx bytes [orphan] 3 modules
 cacheable modules xx bytes
   ./index.js + 2 modules xx bytes [code generated]

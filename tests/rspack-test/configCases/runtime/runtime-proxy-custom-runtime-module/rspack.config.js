@@ -7,10 +7,10 @@ class ReadDefineGetterRuntimeModule extends RuntimeModule {
 
   generate() {
     return `
-			var readResult = typeof __webpack_require__.d;
-			__webpack_require__.runtimeProxyReadResult = readResult;
-			__webpack_require__.d = function customDefinePropertyGetters(exports, definition) {
-				__webpack_require__.runtimeProxyWriteResult = typeof definition;
+			var readResult = typeof __rspack_require.d;
+			__rspack_require.runtimeProxyReadResult = readResult;
+			__rspack_require.d = function customDefinePropertyGetters(exports, definition) {
+				__rspack_require.runtimeProxyWriteResult = typeof definition;
 			};
 		`;
   }

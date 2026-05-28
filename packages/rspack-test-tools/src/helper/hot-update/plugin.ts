@@ -170,12 +170,13 @@ export class HotUpdatePlugin {
           if (
             module.constructor.name === 'DefinePropertyGettersRuntimeModule'
           ) {
-            const definePropertyGetters = process.env
-              .RSPACK_TEST_RUNTIME_REQUIREMENTS_PROXY
+            const isRuntimeProxy = compiler.options.output.path
+              ?.split(path.sep)
+              .some((part) => part.startsWith('runtime-proxy-'));
+            const definePropertyGetters = isRuntimeProxy
               ? '__var_d'
               : RuntimeGlobals.definePropertyGetters;
-            const hasOwnProperty = process.env
-              .RSPACK_TEST_RUNTIME_REQUIREMENTS_PROXY
+            const hasOwnProperty = isRuntimeProxy
               ? '__var_o'
               : RuntimeGlobals.hasOwnProperty;
             // HMR tests re-execute modules and redefine the same export keys, so

@@ -11,10 +11,10 @@ module.exports = {
   async check({ files }) {
     expect(Object.keys(files)).toEqual(["/main.js"]);
     const bundle = files["/main.js"];
-    expect(bundle).toMatch("function __rspack_require(");
-    expect(bundle).toMatch("__rspack_require(/*! ./a */");
-    expect(bundle).toMatch("__rspack_require(/*! ./b */");
-    expect(bundle).toMatch("__rspack_require(/*! ./c */");
+    expect(bundle).toMatch("function __webpack_require__(");
+    expect(bundle).toMatch("__webpack_require__(/*! ./a */");
+    expect(bundle).toMatch("__webpack_require__(/*! ./b */");
+    expect(bundle).toMatch("__webpack_require__(/*! ./c */");
     expect(bundle).toMatch("./abc.js");
     expect(bundle).toMatch("./a.js");
     expect(bundle).toMatch("./b.js");

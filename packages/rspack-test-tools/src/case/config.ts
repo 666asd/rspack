@@ -16,6 +16,7 @@ import {
   compiler,
   configMultiCompiler,
   findMultiCompilerBundle,
+  isRuntimeProxyCase,
   run,
 } from './common';
 import { createMultiCompilerRunner, getMultiCompilerRunnerKey } from './runner';
@@ -140,7 +141,7 @@ export function overrideOptions(
       level: 'error',
     };
   }
-  if (process.env.RSPACK_TEST_RUNTIME_REQUIREMENTS_PROXY) {
+  if (isRuntimeProxyCase(context)) {
     options.experiments ??= {};
     options.experiments.runtimeMode = 'rspack';
   }

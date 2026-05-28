@@ -27,23 +27,23 @@ module.exports = {
 			"should work correct for labeled statement",
 			"should work correct for labeled statement break in nested switch"
 		);
-		expect(labeled).toContain(`__rspack_require("./used.js?n=24")`);
-		expect(labeled).toContain(`__rspack_require("./used.js?n=25")`);
-		expect(labeled).toContain(`__rspack_require("./used.js?n=26")`);
-		expect(labeled).toContain(`__rspack_require("./used.js?n=27")`);
+		expect(labeled).toContain(`__webpack_require__("./used.js?n=24")`);
+		expect(labeled).toContain(`__webpack_require__("./used.js?n=25")`);
+		expect(labeled).toContain(`__webpack_require__("./used.js?n=26")`);
+		expect(labeled).toContain(`__webpack_require__("./used.js?n=27")`);
 
 		const nestedSwitch = getTestBlock(
 			bundle,
 			"should work correct for labeled statement break in nested switch",
 			"should work correct for labeled statement break in try/finally"
 		);
-		expect(nestedSwitch).toContain(`__rspack_require("./used.js?n=227")`);
+		expect(nestedSwitch).toContain(`__webpack_require__("./used.js?n=227")`);
 
 		const nestedTry = getTestBlock(
 			bundle,
 			"should work correct for labeled statement break in try/finally",
 			"should work correct for while statement"
 		);
-		expect(nestedTry).toContain(`__rspack_require("./used.js?n=228")`);
+		expect(nestedTry).toContain(`__webpack_require__("./used.js?n=228")`);
 	}
 };

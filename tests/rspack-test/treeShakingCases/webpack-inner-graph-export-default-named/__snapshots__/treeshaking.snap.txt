@@ -1,11 +1,11 @@
 ```js title=main.js
 "use strict";
 (self["rspackChunk"] = self["rspackChunk"] || []).push([["main"], {
-"./a.js"(__unused_rspack_module, __rspack_exports, __rspack_require) {
-__rspack_require.d(__rspack_exports, {
+"./a.js"(__unused_rspack_module, __webpack_exports__, __webpack_require__) {
+__webpack_require__.d(__webpack_exports__, {
   "default": () => (abc)
 });
-/* import */ var _dep_a__rspack_import_0 = __rspack_require("./dep.js?a");
+/* import */ var _dep_a__rspack_import_0 = __webpack_require__("./dep.js?a");
 
 
 function abc() {
@@ -14,8 +14,8 @@ function abc() {
 
 
 },
-"./b.js"(__unused_rspack_module, __unused_rspack___rspack_exports, __rspack_require) {
-/* import */ var _dep_b__rspack_import_0 = __rspack_require("./dep.js?b");
+"./b.js"(__unused_rspack_module, __unused_rspack___webpack_exports__, __webpack_require__) {
+/* import */ var _dep_b__rspack_import_0 = __webpack_require__("./dep.js?b");
 
 
 function abc() {
@@ -24,8 +24,8 @@ function abc() {
 
 
 },
-"./c.js"(__unused_rspack_module, __unused_rspack___rspack_exports, __rspack_require) {
-/* import */ var _dep_c__rspack_import_0 = __rspack_require("./dep.js?c");
+"./c.js"(__unused_rspack_module, __unused_rspack___webpack_exports__, __webpack_require__) {
+/* import */ var _dep_c__rspack_import_0 = __webpack_require__("./dep.js?c");
 
 
 function abc() {
@@ -36,11 +36,11 @@ abc();
 
 
 },
-"./d.js"(__unused_rspack_module, __rspack_exports, __rspack_require) {
-__rspack_require.d(__rspack_exports, {
+"./d.js"(__unused_rspack_module, __webpack_exports__, __webpack_require__) {
+__webpack_require__.d(__webpack_exports__, {
   "default": () => (def)
 });
-/* import */ var _dep_d__rspack_import_0 = __rspack_require("./dep.js?d");
+/* import */ var _dep_d__rspack_import_0 = __webpack_require__("./dep.js?d");
 
 
 class def {
@@ -51,8 +51,8 @@ class def {
 
 
 },
-"./dep.js?a"(__unused_rspack_module, __rspack_exports, __rspack_require) {
-__rspack_require.d(__rspack_exports, {
+"./dep.js?a"(__unused_rspack_module, __webpack_exports__, __webpack_require__) {
+__webpack_require__.d(__webpack_exports__, {
   "default": () => (__rspack_default_export),
   x: () => (x)
 });
@@ -62,8 +62,8 @@ const x = "x";
 
 
 },
-"./dep.js?b"(__unused_rspack_module, __rspack_exports, __rspack_require) {
-__rspack_require.d(__rspack_exports, {
+"./dep.js?b"(__unused_rspack_module, __webpack_exports__, __webpack_require__) {
+__webpack_require__.d(__webpack_exports__, {
   "default": () => (__rspack_default_export)
 });
 const x = "x";
@@ -72,8 +72,8 @@ const x = "x";
 
 
 },
-"./dep.js?c"(__unused_rspack_module, __rspack_exports, __rspack_require) {
-__rspack_require.d(__rspack_exports, {
+"./dep.js?c"(__unused_rspack_module, __webpack_exports__, __webpack_require__) {
+__webpack_require__.d(__webpack_exports__, {
   "default": () => (__rspack_default_export),
   x: () => (x)
 });
@@ -83,8 +83,8 @@ const x = "x";
 
 
 },
-"./dep.js?d"(__unused_rspack_module, __rspack_exports, __rspack_require) {
-__rspack_require.d(__rspack_exports, {
+"./dep.js?d"(__unused_rspack_module, __webpack_exports__, __webpack_require__) {
+__webpack_require__.d(__webpack_exports__, {
   "default": () => (__rspack_default_export),
   x: () => (x)
 });
@@ -94,8 +94,8 @@ const x = "x";
 
 
 },
-"./dep.js?e"(__unused_rspack_module, __rspack_exports, __rspack_require) {
-__rspack_require.d(__rspack_exports, {
+"./dep.js?e"(__unused_rspack_module, __webpack_exports__, __webpack_require__) {
+__webpack_require__.d(__webpack_exports__, {
   "default": () => (__rspack_default_export)
 });
 const x = "x";
@@ -104,8 +104,8 @@ const x = "x";
 
 
 },
-"./dep.js?f"(__unused_rspack_module, __rspack_exports, __rspack_require) {
-__rspack_require.d(__rspack_exports, {
+"./dep.js?f"(__unused_rspack_module, __webpack_exports__, __webpack_require__) {
+__webpack_require__.d(__webpack_exports__, {
   "default": () => (__rspack_default_export),
   x: () => (x)
 });
@@ -115,8 +115,8 @@ const x = "x";
 
 
 },
-"./e.js"(__unused_rspack_module, __unused_rspack___rspack_exports, __rspack_require) {
-/* import */ var _dep_e__rspack_import_0 = __rspack_require("./dep.js?e");
+"./e.js"(__unused_rspack_module, __unused_rspack___webpack_exports__, __webpack_require__) {
+/* import */ var _dep_e__rspack_import_0 = __webpack_require__("./dep.js?e");
 
 
 class def {
@@ -127,8 +127,8 @@ class def {
 
 
 },
-"./f.js"(__unused_rspack_module, __unused_rspack___rspack_exports, __rspack_require) {
-/* import */ var _dep_f__rspack_import_0 = __rspack_require("./dep.js?f");
+"./f.js"(__unused_rspack_module, __unused_rspack___webpack_exports__, __webpack_require__) {
+/* import */ var _dep_f__rspack_import_0 = __webpack_require__("./dep.js?f");
 
 
 class def {
@@ -141,19 +141,19 @@ new def().method();
 
 
 },
-"./index.js"(__unused_rspack_module, __unused_rspack___rspack_exports, __rspack_require) {
-/* import */ var _a__rspack_import_0 = __rspack_require("./a.js");
-/* import */ var _b__rspack_import_1 = __rspack_require("./b.js");
-/* import */ var _c__rspack_import_2 = __rspack_require("./c.js");
-/* import */ var _d__rspack_import_3 = __rspack_require("./d.js");
-/* import */ var _e__rspack_import_4 = __rspack_require("./e.js");
-/* import */ var _f__rspack_import_5 = __rspack_require("./f.js");
-/* import */ var _dep_a__rspack_import_6 = __rspack_require("./dep.js?a");
-/* import */ var _dep_b__rspack_import_7 = __rspack_require("./dep.js?b");
-/* import */ var _dep_c__rspack_import_8 = __rspack_require("./dep.js?c");
-/* import */ var _dep_d__rspack_import_9 = __rspack_require("./dep.js?d");
-/* import */ var _dep_e__rspack_import_10 = __rspack_require("./dep.js?e");
-/* import */ var _dep_f__rspack_import_11 = __rspack_require("./dep.js?f");
+"./index.js"(__unused_rspack_module, __unused_rspack___webpack_exports__, __webpack_require__) {
+/* import */ var _a__rspack_import_0 = __webpack_require__("./a.js");
+/* import */ var _b__rspack_import_1 = __webpack_require__("./b.js");
+/* import */ var _c__rspack_import_2 = __webpack_require__("./c.js");
+/* import */ var _d__rspack_import_3 = __webpack_require__("./d.js");
+/* import */ var _e__rspack_import_4 = __webpack_require__("./e.js");
+/* import */ var _f__rspack_import_5 = __webpack_require__("./f.js");
+/* import */ var _dep_a__rspack_import_6 = __webpack_require__("./dep.js?a");
+/* import */ var _dep_b__rspack_import_7 = __webpack_require__("./dep.js?b");
+/* import */ var _dep_c__rspack_import_8 = __webpack_require__("./dep.js?c");
+/* import */ var _dep_d__rspack_import_9 = __webpack_require__("./dep.js?d");
+/* import */ var _dep_e__rspack_import_10 = __webpack_require__("./dep.js?e");
+/* import */ var _dep_f__rspack_import_11 = __webpack_require__("./dep.js?f");
 
 
 
@@ -204,9 +204,9 @@ it("f should be used", () => {
 
 },
 
-},function(__rspack_require) {
-var __rspack_exec = function(moduleId) { return __rspack_require(__rspack_require.s = moduleId) }
-var __rspack_exports = (__rspack_exec("./index.js"));
+},function(__webpack_require__) {
+var __webpack_exec__ = function(moduleId) { return __webpack_require__(__webpack_require__.s = moduleId) }
+var __webpack_exports__ = (__webpack_exec__("./index.js"));
 
 }
 ]);

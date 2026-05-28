@@ -10,9 +10,9 @@
 - Bundle: shared.chunk.CURRENT_HASH.js
 - Manifest: [runtime of dep1_js-dep2_js-worker_js].LAST_HASH.hot-update.json, size: 49
 - Manifest: main.LAST_HASH.hot-update.json, size: 48
-- Update: dep1_js-dep2_js-worker_js.LAST_HASH.hot-update.js, size: 462
-- Update: dep1_js-module_js.LAST_HASH.hot-update.js, size: 329
-- Update: main.LAST_HASH.hot-update.js, size: 175
+- Update: dep1_js-dep2_js-worker_js.LAST_HASH.hot-update.js, size: 486
+- Update: dep1_js-module_js.LAST_HASH.hot-update.js, size: 347
+- Update: main.LAST_HASH.hot-update.js, size: 181
 
 ## Manifest
 
@@ -46,9 +46,9 @@
 ```js
 "use strict";
 self["rspackHotUpdate"]("dep1_js-dep2_js-worker_js", {
-"./dep1.js"(__unused_rspack_module, __rspack_exports, __rspack_require) {
-__rspack_require.r(__rspack_exports);
-__rspack_require.d(__rspack_exports, {
+"./dep1.js"(__unused_rspack_module, __webpack_exports__, __webpack_require__) {
+__webpack_require__.r(__webpack_exports__);
+__webpack_require__.d(__webpack_exports__, {
   "default": () => (__rspack_default_export)
 });
 /* export default */ const __rspack_default_export = (43);
@@ -56,10 +56,10 @@ __rspack_require.d(__rspack_exports, {
 
 },
 
-},function(__rspack_require) {
+},function(__webpack_require__) {
 // webpack/runtime/get_full_hash
 (() => {
-__rspack_require.h = () => ("CURRENT_HASH")
+__webpack_require__.h = () => ("CURRENT_HASH")
 })();
 
 }
@@ -80,9 +80,9 @@ __rspack_require.h = () => ("CURRENT_HASH")
 ```js
 "use strict";
 self["rspackHotUpdate"]("dep1_js-module_js", {
-"./dep1.js"(__unused_rspack_module, __rspack_exports, __rspack_require) {
-__rspack_require.r(__rspack_exports);
-__rspack_require.d(__rspack_exports, {
+"./dep1.js"(__unused_rspack_module, __webpack_exports__, __webpack_require__) {
+__webpack_require__.r(__webpack_exports__);
+__webpack_require__.d(__webpack_exports__, {
   "default": () => (__rspack_default_export)
 });
 /* export default */ const __rspack_default_export = (43);
@@ -106,10 +106,10 @@ __rspack_require.d(__rspack_exports, {
 #### Changed Content
 ```js
 "use strict";
-self["rspackHotUpdate"]("main", {},function(__rspack_require) {
+self["rspackHotUpdate"]("main", {},function(__webpack_require__) {
 // webpack/runtime/get_full_hash
 (() => {
-__rspack_require.h = () => ("CURRENT_HASH")
+__webpack_require__.h = () => ("CURRENT_HASH")
 })();
 
 }

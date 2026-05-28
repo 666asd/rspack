@@ -13,9 +13,9 @@ const b = (/* unused pure expression or super */ null && ({
 
 },
 
-},function(__rspack_require) {
-var __rspack_exec = function(moduleId) { return __rspack_require(__rspack_require.s = moduleId) }
-var __rspack_exports = (__rspack_exec("./index.tsx"));
+},function(__webpack_require__) {
+var __webpack_exec__ = function(moduleId) { return __webpack_require__(__webpack_require__.s = moduleId) }
+var __webpack_exports__ = (__webpack_exec__("./index.tsx"));
 
 }
 ]);

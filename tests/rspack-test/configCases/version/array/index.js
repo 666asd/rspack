@@ -4,5 +4,5 @@ const fs = require("fs");
 it('should inject version when use bundlerInfo.force=["version"]', () => {
 	expect(
 		fs.readFileSync(path.join(__dirname, "bundle0.js"), "utf-8")
-	).toMatch(/(^|[^"'`])__rspack_require\.rv =/m);
+	).toMatch(/(^|[^"'`])__webpack_require__\.rv =/m);
 });
