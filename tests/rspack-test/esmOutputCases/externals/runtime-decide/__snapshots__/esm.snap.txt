@@ -23,7 +23,6 @@ def(exports)
   !*** ./runtime-decide.js ***!
   \***************************/
 (__unused_rspack_module, __rspack_exports, __rspack_require) {
-var __webpack_exports__ = __rspack_exports;
 /* import */ var _dynamic_exports__rspack_import_0 = __rspack_require(/*! ./dynamic-exports */ "./dynamic-exports.js");
 /* import */ var _dynamic_exports__rspack_import_0_default = /*#__PURE__*/__rspack_require.n(_dynamic_exports__rspack_import_0);
 if(__rspack_require.o(_dynamic_exports__rspack_import_0, "readFile")) __rspack_require.d(__rspack_exports, { readFile: function() { return _dynamic_exports__rspack_import_0.readFile; } });

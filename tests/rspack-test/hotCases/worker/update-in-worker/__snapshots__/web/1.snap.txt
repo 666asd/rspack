@@ -9,7 +9,7 @@
 - Manifest: [runtime of worker_js].LAST_HASH.hot-update.json, size: 33
 - Manifest: main.LAST_HASH.hot-update.json, size: 28
 - Update: main.LAST_HASH.hot-update.js, size: 175
-- Update: worker_js.LAST_HASH.hot-update.js, size: 535
+- Update: worker_js.LAST_HASH.hot-update.js, size: 447
 
 ## Manifest
 
@@ -67,8 +67,6 @@ __rspack_require.h = () => ("CURRENT_HASH")
 "use strict";
 self["rspackHotUpdate"]("worker_js", {
 "./module.js"(__unused_rspack_module, __rspack_exports, __rspack_require) {
-var __webpack_exports__ = __rspack_exports;
-var __webpack_require__ = __rspack_require;
 __rspack_require.r(__rspack_exports);
 __rspack_require.d(__rspack_exports, {
   "default": () => (__rspack_default_export)

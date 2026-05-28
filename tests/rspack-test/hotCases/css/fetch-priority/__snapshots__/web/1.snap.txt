@@ -8,7 +8,7 @@
 - Bundle: style_module_css.chunk.CURRENT_HASH.js
 - Manifest: main.LAST_HASH.hot-update.json, size: 47
 - Update: main.LAST_HASH.hot-update.js, size: 175
-- Update: style_module_css.LAST_HASH.hot-update.js, size: 627
+- Update: style_module_css.LAST_HASH.hot-update.js, size: 583
 
 ## Manifest
 
@@ -58,7 +58,6 @@ __rspack_require.h = () => ("CURRENT_HASH")
 "use strict";
 self["rspackHotUpdate"]("style_module_css", {
 "./style.module.css"(module, __unused_rspack_exports, __rspack_require) {
-var __webpack_require__ = __rspack_require;
 var exports = {
   "class-other": "style_module_css-class-other",
 };

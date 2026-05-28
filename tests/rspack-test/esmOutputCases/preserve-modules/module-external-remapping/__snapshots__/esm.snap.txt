@@ -148,7 +148,6 @@ __rspack_require.add({
   !*** ./src/wrapped.js ***!
   \************************/
 (module, __rspack_exports, __rspack_require) {
-var __webpack_exports__ = __rspack_exports;
 /* import */ var node_events__rspack_import_0 = __rspack_require(/*! node:events */ "node:events?df85");
 /* module decorator */ module = __rspack_require.hmd(module);
 

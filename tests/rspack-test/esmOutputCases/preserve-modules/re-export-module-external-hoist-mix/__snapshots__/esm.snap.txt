@@ -139,7 +139,6 @@ __rspack_require.add({
   !*** ./src/wrapped.js ***!
   \************************/
 (module, __rspack_exports, __rspack_require) {
-var __webpack_exports__ = __rspack_exports;
 /* import */ var fs__rspack_import_0 = __rspack_require(/*! fs */ "fs?2159");
 /* module decorator */ module = __rspack_require.hmd(module);
 

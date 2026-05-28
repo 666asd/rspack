@@ -9,7 +9,6 @@ _test__rspack_import_0.obj.test = 1;
 
 },
 "./test.js"(__unused_rspack_module, __rspack_exports, __rspack_require) {
-var __webpack_exports__ = __rspack_exports;
 __rspack_require.d(__rspack_exports, {
   obj: () => (obj)
 });

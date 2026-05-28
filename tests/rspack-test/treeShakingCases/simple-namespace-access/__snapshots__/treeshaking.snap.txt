@@ -12,7 +12,6 @@ console.log(_maths_js__rspack_import_0.square);
 
 },
 "./maths.js"(__unused_rspack_module, __rspack_exports, __rspack_require) {
-var __webpack_exports__ = __rspack_exports;
 __rspack_require.d(__rspack_exports, {
   square: () => (square),
   xxx: () => (/* reexport module object */ _test_js__rspack_import_0)
@@ -38,7 +37,6 @@ function cube(x) {
 
 },
 "./test.js"(__unused_rspack_module, __rspack_exports, __rspack_require) {
-var __webpack_exports__ = __rspack_exports;
 __rspack_require.d(__rspack_exports, {
   test: () => (test)
 });

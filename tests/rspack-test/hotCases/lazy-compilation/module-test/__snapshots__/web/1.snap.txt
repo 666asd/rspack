@@ -10,7 +10,7 @@
 - Bundle: moduleB_js.chunk.CURRENT_HASH.js
 - Manifest: main.LAST_HASH.hot-update.json, size: 64
 - Update: main.LAST_HASH.hot-update.js, size: 175
-- Update: moduleA_js_lazy-compilation-proxy.LAST_HASH.hot-update.js, size: 1045
+- Update: moduleA_js_lazy-compilation-proxy.LAST_HASH.hot-update.js, size: 1001
 
 ## Manifest
 
@@ -59,7 +59,6 @@ __rspack_require.h = () => ("CURRENT_HASH")
 ```js
 self["rspackHotUpdate"]("moduleA_js_lazy-compilation-proxy", {
 "./moduleA.js!lazy-compilation-proxy"(module, __unused_rspack_exports, __rspack_require) {
-var __webpack_require__ = __rspack_require;
 var client = __rspack_require("../../../../../../../../packages/rspack/hot/lazy-compilation-web.js?http%3A%2F%2Flocalhost%3APORT%2F_rspack%2Flazy%2Ftrigger");
 var data = "lazy-compilation-proxy|<TEST_TOOLS_ROOT>/dist/helper/hot-update/loader.js!<TEST_ROOT>/js/temp/hot-snapshot/hotSnapshotCases-hotCases/lazy-compilation/module-test/moduleA.js";
         module.exports = __rspack_require.e(/* import() */ "moduleA_js").then(__rspack_require.bind(__rspack_require, "./moduleA.js"));

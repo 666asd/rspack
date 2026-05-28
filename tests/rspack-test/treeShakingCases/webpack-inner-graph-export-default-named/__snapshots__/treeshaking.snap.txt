@@ -2,7 +2,6 @@
 "use strict";
 (self["rspackChunk"] = self["rspackChunk"] || []).push([["main"], {
 "./a.js"(__unused_rspack_module, __rspack_exports, __rspack_require) {
-var __webpack_exports__ = __rspack_exports;
 __rspack_require.d(__rspack_exports, {
   "default": () => (abc)
 });
@@ -38,7 +37,6 @@ abc();
 
 },
 "./d.js"(__unused_rspack_module, __rspack_exports, __rspack_require) {
-var __webpack_exports__ = __rspack_exports;
 __rspack_require.d(__rspack_exports, {
   "default": () => (def)
 });
@@ -54,7 +52,6 @@ class def {
 
 },
 "./dep.js?a"(__unused_rspack_module, __rspack_exports, __rspack_require) {
-var __webpack_exports__ = __rspack_exports;
 __rspack_require.d(__rspack_exports, {
   "default": () => (__rspack_default_export),
   x: () => (x)
@@ -66,7 +63,6 @@ const x = "x";
 
 },
 "./dep.js?b"(__unused_rspack_module, __rspack_exports, __rspack_require) {
-var __webpack_exports__ = __rspack_exports;
 __rspack_require.d(__rspack_exports, {
   "default": () => (__rspack_default_export)
 });
@@ -77,7 +73,6 @@ const x = "x";
 
 },
 "./dep.js?c"(__unused_rspack_module, __rspack_exports, __rspack_require) {
-var __webpack_exports__ = __rspack_exports;
 __rspack_require.d(__rspack_exports, {
   "default": () => (__rspack_default_export),
   x: () => (x)
@@ -89,7 +84,6 @@ const x = "x";
 
 },
 "./dep.js?d"(__unused_rspack_module, __rspack_exports, __rspack_require) {
-var __webpack_exports__ = __rspack_exports;
 __rspack_require.d(__rspack_exports, {
   "default": () => (__rspack_default_export),
   x: () => (x)
@@ -101,7 +95,6 @@ const x = "x";
 
 },
 "./dep.js?e"(__unused_rspack_module, __rspack_exports, __rspack_require) {
-var __webpack_exports__ = __rspack_exports;
 __rspack_require.d(__rspack_exports, {
   "default": () => (__rspack_default_export)
 });
@@ -112,7 +105,6 @@ const x = "x";
 
 },
 "./dep.js?f"(__unused_rspack_module, __rspack_exports, __rspack_require) {
-var __webpack_exports__ = __rspack_exports;
 __rspack_require.d(__rspack_exports, {
   "default": () => (__rspack_default_export),
   x: () => (x)

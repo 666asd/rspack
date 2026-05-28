@@ -20,7 +20,6 @@ function a() {
 },
 "./name.js"(__unused_rspack_module, __rspack_exports, __rspack_require) {
 "use strict";
-var __webpack_exports__ = __rspack_exports;
 __rspack_require.r(__rspack_exports);
 __rspack_require.d(__rspack_exports, {
   "default": () => (__rspack_default_export)

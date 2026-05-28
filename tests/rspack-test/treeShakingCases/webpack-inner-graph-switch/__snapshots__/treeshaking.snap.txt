@@ -2,7 +2,6 @@
 "use strict";
 (self["rspackChunk"] = self["rspackChunk"] || []).push([["chunk_js"], {
 "./chunk.js"(__unused_rspack_module, __rspack_exports, __rspack_require) {
-var __webpack_exports__ = __rspack_exports;
 __rspack_require.r(__rspack_exports);
 
 
@@ -16,7 +15,6 @@ __rspack_require.r(__rspack_exports);
 (self["rspackChunk"] = self["rspackChunk"] || []).push([["main"], {
 "./import-module.js"(__unused_rspack_module, __rspack_exports, __rspack_require) {
 "use strict";
-var __webpack_exports__ = __rspack_exports;
 __rspack_require.d(__rspack_exports, {
   test: () => (test)
 });
@@ -41,7 +39,6 @@ it("should generate correct code when pure expressions are in dead branches", ()
 },
 "./module.js"(__unused_rspack_module, __rspack_exports, __rspack_require) {
 "use strict";
-var __webpack_exports__ = __rspack_exports;
 __rspack_require.d(__rspack_exports, {
   "default": () => (__rspack_default_export)
 });
@@ -92,7 +89,6 @@ function useDocument(obj) {
 },
 "./some-module.js"(__unused_rspack_module, __rspack_exports, __rspack_require) {
 "use strict";
-var __webpack_exports__ = __rspack_exports;
 __rspack_require.r(__rspack_exports);
 __rspack_require.d(__rspack_exports, {
   Block: () => (Block),

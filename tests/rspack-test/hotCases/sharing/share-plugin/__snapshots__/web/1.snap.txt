@@ -7,7 +7,7 @@
 - Bundle: bundle.js
 - Bundle: common_js_2.chunk.CURRENT_HASH.js
 - Manifest: main.LAST_HASH.hot-update.json, size: 28
-- Update: main.LAST_HASH.hot-update.js, size: 42144
+- Update: main.LAST_HASH.hot-update.js, size: 42056
 
 ## Manifest
 
@@ -38,8 +38,6 @@
 "use strict";
 self["rspackHotUpdate"]("main", {
 "./module.js"(__unused_rspack_module, __rspack_exports, __rspack_require) {
-var __webpack_exports__ = __rspack_exports;
-var __webpack_require__ = __rspack_require;
 __rspack_require.r(__rspack_exports);
 __rspack_require.d(__rspack_exports, {
   "default": () => (/* reexport default from dynamic */ common__rspack_import_0_default.a),

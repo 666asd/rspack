@@ -8,8 +8,8 @@
 - Bundle: file_js.chunk.CURRENT_HASH.js
 - Bundle: vendors-node_modules_vue_js.chunk.CURRENT_HASH.js
 - Manifest: main.LAST_HASH.hot-update.json, size: 94
-- Update: file_js.LAST_HASH.hot-update.js, size: 447
-- Update: main.LAST_HASH.hot-update.js, size: 703
+- Update: file_js.LAST_HASH.hot-update.js, size: 359
+- Update: main.LAST_HASH.hot-update.js, size: 615
 
 ## Manifest
 
@@ -36,8 +36,6 @@
 "use strict";
 self["rspackHotUpdate"]("file_js", {
 "./file.js"(__unused_rspack_module, __rspack_exports, __rspack_require) {
-var __webpack_exports__ = __rspack_exports;
-var __webpack_require__ = __rspack_require;
 __rspack_require.r(__rspack_exports);
 __rspack_require.d(__rspack_exports, {
   Vue: () => (/* reexport safe */ vue__rspack_import_0.Vue)
@@ -66,8 +64,6 @@ __rspack_require.d(__rspack_exports, {
 "use strict";
 self["rspackHotUpdate"]("main", {
 "./chunk.js"(__unused_rspack_module, __rspack_exports, __rspack_require) {
-var __webpack_exports__ = __rspack_exports;
-var __webpack_require__ = __rspack_require;
 __rspack_require.r(__rspack_exports);
 __rspack_require.d(__rspack_exports, {
   test: () => (test)

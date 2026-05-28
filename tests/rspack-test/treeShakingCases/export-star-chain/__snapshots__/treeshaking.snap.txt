@@ -2,7 +2,6 @@
 "use strict";
 (self["rspackChunk"] = self["rspackChunk"] || []).push([["main"], {
 "./colors/a.js"(__unused_rspack_module, __rspack_exports, __rspack_require) {
-var __webpack_exports__ = __rspack_exports;
 __rspack_require.d(__rspack_exports, {
   red: () => (red)
 });
@@ -11,7 +10,6 @@ const red = "red";
 
 },
 "./colors/b.js"(__unused_rspack_module, __rspack_exports, __rspack_require) {
-var __webpack_exports__ = __rspack_exports;
 __rspack_require.d(__rspack_exports, {
   blue: () => (blue)
 });
@@ -20,7 +18,6 @@ const blue = "blue";
 
 },
 "./colors/c.js"(__unused_rspack_module, __rspack_exports, __rspack_require) {
-var __webpack_exports__ = __rspack_exports;
 __rspack_require.d(__rspack_exports, {
   result: () => (/* reexport safe */ _result__rspack_import_0.result)
 });
@@ -30,7 +27,6 @@ __rspack_require.d(__rspack_exports, {
 
 },
 "./colors/index.js"(__unused_rspack_module, __rspack_exports, __rspack_require) {
-var __webpack_exports__ = __rspack_exports;
 __rspack_require.r(__rspack_exports);
 __rspack_require.d(__rspack_exports, {
   blue: () => (/* reexport safe */ _b__rspack_import_1.blue),
@@ -47,7 +43,6 @@ __rspack_require.d(__rspack_exports, {
 
 },
 "./colors/result.js"(__unused_rspack_module, __rspack_exports, __rspack_require) {
-var __webpack_exports__ = __rspack_exports;
 __rspack_require.d(__rspack_exports, {
   result: () => (result)
 });
@@ -66,7 +61,6 @@ _export__rspack_import_1.Something;
 
 },
 "./something/Something.js"(__unused_rspack_module, __rspack_exports, __rspack_require) {
-var __webpack_exports__ = __rspack_exports;
 __rspack_require.d(__rspack_exports, {
   Something: () => (Something)
 });

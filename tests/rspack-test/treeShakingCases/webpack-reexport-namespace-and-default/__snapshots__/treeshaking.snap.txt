@@ -27,7 +27,6 @@ it("default export should be used", () => {
 
 },
 "./module.js"(__unused_rspack_module, __rspack_exports, __rspack_require) {
-var __webpack_exports__ = __rspack_exports;
 __rspack_require.r(__rspack_exports);
 __rspack_require.d(__rspack_exports, {
   mod: () => (mod)
@@ -42,7 +41,6 @@ const mod = _package2_script__rspack_import_1["default"];
 
 },
 "./package1/script.js"(__unused_rspack_module, __rspack_exports, __rspack_require) {
-var __webpack_exports__ = __rspack_exports;
 __rspack_require.d(__rspack_exports, {
   exportDefaultUsed: () => (exportDefaultUsed)
 });
@@ -63,7 +61,6 @@ const exportDefaultUsed = false;
 
 },
 "./package1/script2.js"(__unused_rspack_module, __rspack_exports, __rspack_require) {
-var __webpack_exports__ = __rspack_exports;
 __rspack_require.d(__rspack_exports, {
   exportDefaultUsed: () => (exportDefaultUsed)
 });
@@ -78,7 +75,6 @@ const exportDefaultUsed = false;
 
 },
 "./package2/script.js"(__unused_rspack_module, __rspack_exports, __rspack_require) {
-var __webpack_exports__ = __rspack_exports;
 __rspack_require.d(__rspack_exports, {
   "default": () => (__rspack_default_export),
   exportDefaultUsed: () => (exportDefaultUsed)
@@ -93,7 +89,6 @@ const exportDefaultUsed = true;
 
 },
 "./package2/script1.js"(__unused_rspack_module, __rspack_exports, __rspack_require) {
-var __webpack_exports__ = __rspack_exports;
 __rspack_require.d(__rspack_exports, {
   "default": () => (__rspack_default_export)
 });

@@ -40,7 +40,6 @@ ConsoleExporterWeb = (function () {
 
 },
 "<PNPM_INNER>/@swc/helpers/esm/_create_class.js"(__unused_rspack_module, __rspack_exports, __rspack_require) {
-var __webpack_exports__ = __rspack_exports;
 __rspack_require.d(__rspack_exports, {
   _: () => (_create_class)
 });

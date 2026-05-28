@@ -9,7 +9,6 @@ __rspack_require.add({
   !*** ./lib.js ***!
   \****************/
 (__unused_rspack_module, __rspack_exports, __rspack_require) {
-var __webpack_exports__ = __rspack_exports;
 __rspack_require.r(__rspack_exports);
 /* import */ var fs__rspack_import_0 = __rspack_require(/*! fs */ "fs");
 
@@ -39,7 +38,6 @@ __rspack_require.d(__rspack_exports, {
   !*** ./lib2.js ***!
   \*****************/
 (__unused_rspack_module, __rspack_exports, __rspack_require) {
-var __webpack_exports__ = __rspack_exports;
 __rspack_require.r(__rspack_exports);
 /* import */ var path__rspack_import_0 = __rspack_require(/*! path */ "path");
 
@@ -68,7 +66,6 @@ __rspack_require.d(__rspack_exports, {
   !*** ./lib3.js ***!
   \*****************/
 (__unused_rspack_module, __rspack_exports, __rspack_require) {
-var __webpack_exports__ = __rspack_exports;
 /* import */ var fs__rspack_import_0 = __rspack_require(/*! fs */ "fs");
 const lib3 = 42
 

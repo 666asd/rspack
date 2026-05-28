@@ -2,7 +2,6 @@
 "use strict";
 (self["rspackChunk"] = self["rspackChunk"] || []).push([["a_js"], {
 "./a.js"(__unused_rspack_module, __rspack_exports, __rspack_require) {
-var __webpack_exports__ = __rspack_exports;
 __rspack_require.r(__rspack_exports);
 /* import */ var _shared__rspack_import_0 = __rspack_require("./shared.js");
 /* import */ var _shared__rspack_import_0_default = /*#__PURE__*/__rspack_require.n(_shared__rspack_import_0);

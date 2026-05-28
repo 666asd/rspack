@@ -9,7 +9,6 @@ it("should be able to load package without side effects where modules are unused
 },
 "./module.js"(__unused_rspack_module, __rspack_exports, __rspack_require) {
 "use strict";
-var __webpack_exports__ = __rspack_exports;
 __rspack_require.r(__rspack_exports);
 __rspack_require.d(__rspack_exports, {
   "default": () => (__rspack_default_export),
@@ -26,7 +25,6 @@ function test() {}
 },
 "./package/index.js"(__unused_rspack_module, __rspack_exports, __rspack_require) {
 "use strict";
-var __webpack_exports__ = __rspack_exports;
 __rspack_require.d(__rspack_exports, {
   a: () => (a)
 });

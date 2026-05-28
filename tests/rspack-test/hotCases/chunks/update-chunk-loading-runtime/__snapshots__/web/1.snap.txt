@@ -10,9 +10,9 @@
 - Bundle: runtime~main.js
 - Bundle: vendors-node_modules_vendor_js.js
 - Manifest: runtime~main.LAST_HASH.hot-update.json, size: 76
-- Update: main.LAST_HASH.hot-update.js, size: 632
+- Update: main.LAST_HASH.hot-update.js, size: 544
 - Update: runtime~main.LAST_HASH.hot-update.js, size: 18813
-- Update: vendors-node_modules_vendor_js.LAST_HASH.hot-update.js, size: 444
+- Update: vendors-node_modules_vendor_js.LAST_HASH.hot-update.js, size: 356
 
 ## Manifest
 
@@ -39,8 +39,6 @@
 "use strict";
 self["rspackHotUpdate"]("main", {
 "./index.js"(module, __rspack_exports, __rspack_require) {
-var __webpack_exports__ = __rspack_exports;
-var __webpack_require__ = __rspack_require;
 __rspack_require.r(__rspack_exports);
 /* import */ var vendor__rspack_import_0 = __rspack_require("./node_modules/vendor.js");
 
@@ -739,8 +737,6 @@ chunkLoadingGlobal.push = __rspack_jsonp.bind(null, chunkLoadingGlobal.push.bind
 "use strict";
 self["rspackHotUpdate"]("vendors-node_modules_vendor_js", {
 "./node_modules/vendor.js"(__unused_rspack_module, __rspack_exports, __rspack_require) {
-var __webpack_exports__ = __rspack_exports;
-var __webpack_require__ = __rspack_require;
 __rspack_require.r(__rspack_exports);
 __rspack_require.d(__rspack_exports, {
   "default": () => (__rspack_default_export)

@@ -2,7 +2,6 @@
 (self["rspackChunk"] = self["rspackChunk"] || []).push([["main"], {
 "./a.js"(__unused_rspack_module, __rspack_exports, __rspack_require) {
 "use strict";
-var __webpack_exports__ = __rspack_exports;
 __rspack_require.d(__rspack_exports, {
   aaa: () => (/* reexport module object */ _app__rspack_import_0),
   routes: () => (routes)

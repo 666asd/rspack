@@ -17,9 +17,9 @@
 - Manifest: [runtime of workerB_js].LAST_HASH.hot-update.json, size: 71
 - Manifest: main.LAST_HASH.hot-update.json, size: 56
 - Update: main.LAST_HASH.hot-update.js, size: 175
-- Update: shared.LAST_HASH.hot-update.js, size: 896
-- Update: workerA_js.LAST_HASH.hot-update.js, size: 667
-- Update: workerB_js.LAST_HASH.hot-update.js, size: 537
+- Update: shared.LAST_HASH.hot-update.js, size: 720
+- Update: workerA_js.LAST_HASH.hot-update.js, size: 579
+- Update: workerB_js.LAST_HASH.hot-update.js, size: 449
 
 ## Manifest
 
@@ -86,8 +86,6 @@ __rspack_require.h = () => ("CURRENT_HASH")
 "use strict";
 self["rspackHotUpdate"]("shared", {
 "./moduleAs.js"(__unused_rspack_module, __rspack_exports, __rspack_require) {
-var __webpack_exports__ = __rspack_exports;
-var __webpack_require__ = __rspack_require;
 __rspack_require.r(__rspack_exports);
 __rspack_require.d(__rspack_exports, {
   "default": () => (__rspack_default_export)
@@ -98,8 +96,6 @@ if (Math.random() < 0) __rspack_require.e(/* import() */ "chunkS_js").then(__rsp
 
 },
 "./moduleBs.js"(__unused_rspack_module, __rspack_exports, __rspack_require) {
-var __webpack_exports__ = __rspack_exports;
-var __webpack_require__ = __rspack_require;
 __rspack_require.r(__rspack_exports);
 __rspack_require.d(__rspack_exports, {
   "default": () => (__rspack_default_export)
@@ -127,8 +123,6 @@ __rspack_require.d(__rspack_exports, {
 "use strict";
 self["rspackHotUpdate"]("workerA_js", {
 "./moduleA.js"(__unused_rspack_module, __rspack_exports, __rspack_require) {
-var __webpack_exports__ = __rspack_exports;
-var __webpack_require__ = __rspack_require;
 __rspack_require.r(__rspack_exports);
 __rspack_require.d(__rspack_exports, {
   "default": () => (__rspack_default_export)
@@ -164,8 +158,6 @@ __rspack_require.h = () => ("CURRENT_HASH")
 "use strict";
 self["rspackHotUpdate"]("workerB_js", {
 "./moduleB.js"(__unused_rspack_module, __rspack_exports, __rspack_require) {
-var __webpack_exports__ = __rspack_exports;
-var __webpack_require__ = __rspack_require;
 __rspack_require.r(__rspack_exports);
 __rspack_require.d(__rspack_exports, {
   "default": () => (__rspack_default_export)

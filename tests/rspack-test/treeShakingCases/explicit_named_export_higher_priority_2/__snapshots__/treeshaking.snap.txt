@@ -7,7 +7,6 @@ const a = "bar";
 
 },
 "./baz.js"(__unused_rspack_module, __rspack_exports, __rspack_require) {
-var __webpack_exports__ = __rspack_exports;
 __rspack_require.d(__rspack_exports, {
   a: () => (a)
 });
@@ -16,7 +15,6 @@ const a = "baz";
 
 },
 "./foo.js"(__unused_rspack_module, __rspack_exports, __rspack_require) {
-var __webpack_exports__ = __rspack_exports;
 __rspack_require.d(__rspack_exports, {
   a: () => (/* reexport safe */ _baz__rspack_import_0.a)
 });

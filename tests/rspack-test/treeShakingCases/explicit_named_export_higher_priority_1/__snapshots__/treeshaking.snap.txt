@@ -7,7 +7,6 @@ const a = "bar";
 
 },
 "./foo.js"(__unused_rspack_module, __rspack_exports, __rspack_require) {
-var __webpack_exports__ = __rspack_exports;
 __rspack_require.d(__rspack_exports, {
   a: () => (a)
 });

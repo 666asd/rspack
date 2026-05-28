@@ -21,7 +21,6 @@ it("should be able to handle circular referenced", () => {
 
 },
 "./module.js"(__unused_rspack_module, __rspack_exports, __rspack_require) {
-var __webpack_exports__ = __rspack_exports;
 __rspack_require.d(__rspack_exports, {
   a: () => (a),
   f3: () => (f3),

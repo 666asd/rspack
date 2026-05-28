@@ -2,7 +2,6 @@
 (self["rspackChunk"] = self["rspackChunk"] || []).push([["main"], {
 "./child/child/index.js"(__unused_rspack_module, __rspack_exports, __rspack_require) {
 "use strict";
-var __webpack_exports__ = __rspack_exports;
 __rspack_require.r(__rspack_exports);
 __rspack_require.d(__rspack_exports, {
   value: () => (value)
@@ -13,7 +12,6 @@ const value = "dynamic";
 },
 "./child/index.js"(__unused_rspack_module, __rspack_exports, __rspack_require) {
 "use strict";
-var __webpack_exports__ = __rspack_exports;
 __rspack_require.r(__rspack_exports);
 __rspack_require.d(__rspack_exports, {
   value: () => (value)

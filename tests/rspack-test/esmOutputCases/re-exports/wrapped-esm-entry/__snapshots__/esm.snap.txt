@@ -8,7 +8,6 @@ __rspack_require.add({
   !*** ./index.js ***!
   \******************/
 (module, __rspack_exports, __rspack_require) {
-var __webpack_exports__ = __rspack_exports;
 __rspack_require.r(__rspack_exports);
 /* import */ var fs__rspack_import_0 = __rspack_require(/*! fs */ "fs");
 

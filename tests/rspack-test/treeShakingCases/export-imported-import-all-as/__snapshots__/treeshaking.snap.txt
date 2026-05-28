@@ -9,7 +9,6 @@ _answer__rspack_import_0;
 
 },
 "./test.js"(__unused_rspack_module, __rspack_exports, __rspack_require) {
-var __webpack_exports__ = __rspack_exports;
 __rspack_require.r(__rspack_exports);
 __rspack_require.d(__rspack_exports, {
   result: () => (result)

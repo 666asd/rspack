@@ -6,7 +6,7 @@
 ## Asset Files
 - Bundle: bundle.js
 - Manifest: main.LAST_HASH.hot-update.json, size: 28
-- Update: main.hot-update.js, size: 6163
+- Update: main.hot-update.js, size: 5987
 
 ## Manifest
 
@@ -35,8 +35,6 @@
 "use strict";
 self["rspackHotUpdate"]("main", {
 "./index.css"(module, __rspack_exports, __rspack_require) {
-var __webpack_exports__ = __rspack_exports;
-var __webpack_require__ = __rspack_require;
 __rspack_require.r(__rspack_exports);
 // extracted by css-extract-rspack-plugin
 
@@ -64,8 +62,6 @@ __rspack_require.r(__rspack_exports);
 
 },
 "../../../../../../../../packages/rspack/dist/cssExtractHmr.js"(__unused_rspack___rspack_module, __rspack_exports, __rspack_require) {
-var __webpack_exports__ = __rspack_exports;
-var __webpack_require__ = __rspack_require;
 __rspack_require.r(__rspack_exports);
 __rspack_require.d(__rspack_exports, {
   cssReload: () => (cssReload),

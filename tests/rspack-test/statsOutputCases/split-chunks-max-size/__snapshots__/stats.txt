@@ -74,7 +74,7 @@ production:
   production (Rspack x.x.x) compiled successfully
 
 development:
-  Entrypoint main xx KiB = dev-vendors-node_modules_big_js_1-node_modules_small_js_1-node_modules_small_js_2.js xx KiB dev-vendors-node_modules_very-big_js_1.js xx KiB dev-main~0.js xx KiB dev-main~1.js xx KiB dev-main~in-some-directory_very-big_js-4febc798.js xx KiB dev-main~index_js-fb10b2a7.js xx KiB dev-main~4.js xx KiB dev-main~5.js xx KiB dev-main~6.js xx KiB dev-main~7.js xx KiB dev-main~very-big_js-219ca2dd.js xx KiB dev-main~very-big_js-2480b080.js xx KiB dev-main~very-big_js-de1029b2.js xx KiB + 13 assets
+  Entrypoint main xx KiB = dev-vendors-node_modules_big_js_1-node_modules_small_js_1-node_modules_small_js_2.js xx bytes dev-vendors-node_modules_very-big_js_1.js xx KiB dev-main~0.js xx bytes dev-main~1.js xx KiB dev-main~in-some-directory_very-big_js-4febc798.js xx KiB dev-main~index_js-fb10b2a7.js xx KiB dev-main~4.js xx KiB dev-main~5.js xx KiB dev-main~6.js xx bytes dev-main~7.js xx KiB dev-main~very-big_js-219ca2dd.js xx KiB dev-main~very-big_js-2480b080.js xx KiB dev-main~very-big_js-de1029b2.js xx KiB + 13 assets
   chunk (runtime: main) dev-main~0.js (main~0) xx bytes ={main~1}= ={main~4}= ={main~5}= ={main~6}= ={main~7}= ={main~in-some-directory_very-big_js-4febc798}= ={main~index_js-fb10b2a7}= ={main~very-big_js-219ca2dd}= ={main~very-big_js-2480b080}= ={main~very-big_js-de1029b2}= ={vendors-node_modules_big_js_1-node_modules_small_js_1-node_modules_small_js_2}= ={vendors-node_modules_very-big_js_1}= [initial] [rendered]
     > ./ main
     ./big.js?1 xx bytes [built] [code generated]

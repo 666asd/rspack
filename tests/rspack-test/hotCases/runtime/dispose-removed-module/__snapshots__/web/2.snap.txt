@@ -7,7 +7,7 @@
 ## Asset Files
 - Bundle: bundle.js
 - Manifest: main.LAST_HASH.hot-update.json, size: 36
-- Update: main.LAST_HASH.hot-update.js, size: 905
+- Update: main.LAST_HASH.hot-update.js, size: 729
 
 ## Manifest
 
@@ -35,8 +35,6 @@
 "use strict";
 self["rspackHotUpdate"]("main", {
 "./a.js"(module, __rspack_exports, __rspack_require) {
-var __webpack_exports__ = __rspack_exports;
-var __webpack_require__ = __rspack_require;
 __rspack_require.r(__rspack_exports);
 __rspack_require.d(__rspack_exports, {
   "default": () => (__rspack_default_export)
@@ -45,8 +43,6 @@ __rspack_require.d(__rspack_exports, {
 
 },
 "./module.js"(__unused_rspack_module, __rspack_exports, __rspack_require) {
-var __webpack_exports__ = __rspack_exports;
-var __webpack_require__ = __rspack_require;
 __rspack_require.r(__rspack_exports);
 __rspack_require.d(__rspack_exports, {
   "default": () => (/* reexport safe */ _a__rspack_import_0["default"])

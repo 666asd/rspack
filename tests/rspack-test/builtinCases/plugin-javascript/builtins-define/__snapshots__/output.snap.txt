@@ -2,7 +2,6 @@
 "use strict";
 (self["rspackChunk"] = self["rspackChunk"] || []).push([["main"], {
 "./index.js"(__unused_rspack_module, __rspack_exports, __rspack_require) {
-var __webpack_exports__ = __rspack_exports;
 __rspack_require.r(__rspack_exports);
 /* import */ var _lib__rspack_import_0 = __rspack_require("./lib.js");
 // import assert from "assert";
@@ -195,7 +194,6 @@ console.log(console.log(console.log));
 
 },
 "./lib.js"(__unused_rspack_module, __rspack_exports, __rspack_require) {
-var __webpack_exports__ = __rspack_exports;
 __rspack_require.r(__rspack_exports);
 __rspack_require.d(__rspack_exports, {
   DO_NOT_CONVERTED7: () => (DO_NOT_CONVERTED7),
