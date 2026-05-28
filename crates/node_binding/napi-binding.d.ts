@@ -514,10 +514,6 @@ export declare class VirtualFileStore {
 }
 export type JsVirtualFileStore = VirtualFileStore
 
-export declare function __nodeWasmImportCall(instanceId: number, importIndex: number, args: Array<number>, memoryBuffer: ArrayBuffer): Array<number>
-
-export declare function __registerNodeWasmRuntime(helper: object): void
-
 export interface AssetInfoRelated {
   sourceMap?: string | null
 }

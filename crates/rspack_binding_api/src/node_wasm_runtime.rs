@@ -25,7 +25,7 @@ const RUNTIME_IDENTIFIER: &str = "node-webassembly-v8-v1";
 
 static NODE_WASM_HOST: OnceLock<Arc<NodeWasmHost>> = OnceLock::new();
 
-#[napi(js_name = "__registerNodeWasmRuntime")]
+#[napi(skip_typescript, js_name = "__registerNodeWasmRuntime")]
 pub fn register_node_wasm_runtime(env: Env, helper: Object) -> napi::Result<()> {
   let host = if let Some(host) = NODE_WASM_HOST.get() {
     Arc::clone(host)
@@ -39,7 +39,7 @@ pub fn register_node_wasm_runtime(env: Env, helper: Object) -> napi::Result<()> 
   Ok(())
 }
 
-#[napi(js_name = "__nodeWasmImportCall")]
+#[napi(skip_typescript, js_name = "__nodeWasmImportCall")]
 pub fn node_wasm_import_call(
   env: Env,
   instance_id: u32,
