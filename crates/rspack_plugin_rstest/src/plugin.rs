@@ -12,8 +12,8 @@ use rspack_core::{
   CompilationProcessAssets, CompilationRuntimeModule, CompilerCompilation, DependencyType,
   ExportsInfoArtifact, FactoryMeta, ModuleFactoryCreateData, ModuleIdentifier, ModuleType,
   NormalModuleFactoryBeforeResolve, NormalModuleFactoryParser, ParserAndGenerator, ParserOptions,
-  Plugin, PluginExt, ResolveOptionsWithDependencyType, ResolveResult, RuntimeGlobals,
-  RuntimeModule, SideEffectsOptimizeArtifact,
+  Plugin, PluginExt, ResolveOptionsWithDependencyType, ResolveResult, RuntimeGlobalRenderMode,
+  RuntimeGlobals, RuntimeModule, SideEffectsOptimizeArtifact,
   build_module_graph::BuildModuleGraphArtifact,
   module_declared_side_effect_free,
   rspack_sources::{BoxSource, ReplaceSource, SourceExt},
@@ -259,7 +259,9 @@ impl RstestPlugin {
   }
 
   fn generate_define_property_getters_runtime_source(compilation: &Compilation) -> String {
-    let runtime_template = compilation.runtime_template.create_runtime_code_template();
+    let runtime_template = compilation
+      .runtime_template
+      .create_runtime_code_template(RuntimeGlobalRenderMode::RequireProperty);
     let define_property_getters =
       runtime_template.render_runtime_globals(&RuntimeGlobals::DEFINE_PROPERTY_GETTERS);
     let has_own_property =
