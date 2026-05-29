@@ -28,7 +28,7 @@ use rspack_core::{
 use rspack_error::{Diagnostic, Error, Severity};
 use rspack_util::{ext::DynHash, json_stringify};
 use rustc_hash::{FxHashSet as HashSet, FxHasher};
-use swc_core::ecma::atoms::Atom;
+use swc_core::{atoms::atom, ecma::atoms::Atom};
 
 use super::{
   create_resource_identifier_for_esm_dependency,
@@ -1243,7 +1243,7 @@ impl Dependency for ESMExportImportedSpecifierDependency {
         Some(ExportsSpec {
           exports: ExportsOfExportsSpec::Names(vec![ExportNameOrSpec::ExportSpec(ExportSpec {
             name: mode.name,
-            export: Some(rspack_core::Nullable::Value(vec![Atom::from("default")])),
+            export: Some(rspack_core::Nullable::Value(vec![atom!("default")])),
             from: from.cloned(),
             ..Default::default()
           })]),
@@ -1257,7 +1257,7 @@ impl Dependency for ESMExportImportedSpecifierDependency {
         Some(ExportsSpec {
           exports: ExportsOfExportsSpec::Names(vec![ExportNameOrSpec::ExportSpec(ExportSpec {
             name: mode.name,
-            export: Some(rspack_core::Nullable::Value(vec![Atom::from("default")])),
+            export: Some(rspack_core::Nullable::Value(vec![atom!("default")])),
             from: from.cloned(),
             ..Default::default()
           })]),

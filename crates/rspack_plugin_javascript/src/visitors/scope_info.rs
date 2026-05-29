@@ -305,11 +305,10 @@ pub struct ScopeInfo {
 }
 
 impl ScopeInfo {
-  pub fn variables(&self) -> impl Iterator<Item = (&str, &VariableInfoId)> {
+  pub fn variables(&self) -> impl Iterator<Item = (&Atom, &VariableInfoId)> {
     self
       .map
       .iter()
       .filter(|&(_, &info_id)| info_id != VariableInfoId::tombstone())
-      .map(|(name, info_id)| (name.as_str(), info_id))
   }
 }

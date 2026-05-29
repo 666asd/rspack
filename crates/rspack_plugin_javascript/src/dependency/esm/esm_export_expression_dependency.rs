@@ -9,9 +9,9 @@ use rspack_core::{
   ModuleGraphCacheArtifact, SideEffectsStateArtifact, TemplateContext, TemplateReplaceSource,
   UsedName, property_access, rspack_sources::ReplacementEnforce,
 };
-use swc_core::atoms::Atom;
+use swc_core::atoms::{Atom, atom};
 
-use crate::{ConstValue, parser_plugin::JS_DEFAULT_KEYWORD};
+use crate::ConstValue;
 
 #[cacheable]
 #[derive(Debug, Clone)]
@@ -93,7 +93,7 @@ impl Dependency for ESMExportExpressionDependency {
   ) -> Option<ExportsSpec> {
     Some(ExportsSpec {
       exports: ExportsOfExportsSpec::Names(vec![ExportNameOrSpec::ExportSpec(ExportSpec {
-        name: JS_DEFAULT_KEYWORD.clone(),
+        name: atom!("default"),
         inlinable: self
           .const_value
           .as_ref()
@@ -126,7 +126,7 @@ impl Dependency for ESMExportExpressionDependency {
   }
 
   fn forward_id(&self) -> ForwardId {
-    ForwardId::Id(JS_DEFAULT_KEYWORD.clone())
+    ForwardId::Id(atom!("default"))
   }
 }
 
@@ -174,6 +174,7 @@ impl DependencyTemplate for ESMExportExpressionDependencyTemplate {
     } = code_generatable_context;
 
     let module_identifier = module.identifier();
+    let js_default_keyword = atom!("default");
     let is_circular_module = compilation
       .circular_modules
       .as_ref()
@@ -194,14 +195,14 @@ impl DependencyTemplate for ESMExportExpressionDependencyTemplate {
       };
 
       if let Some(scope) = concatenation_scope {
-        scope.register_export(JS_DEFAULT_KEYWORD.clone(), name.to_string());
+        scope.register_export(js_default_keyword.clone(), name.to_string());
       } else if let Some(used) = compilation
         .exports_info_artifact
         .get_exports_info_data(&module_identifier)
         .get_used_name(
           &compilation.exports_info_artifact,
           *runtime,
-          std::slice::from_ref(&JS_DEFAULT_KEYWORD),
+          std::slice::from_ref(&js_default_keyword),
         )
         && let UsedName::Normal(used) = used
       {
@@ -232,7 +233,7 @@ impl DependencyTemplate for ESMExportExpressionDependencyTemplate {
       // 'var' is a little bit incorrect as TDZ is not correct, but we can't use 'const'
       let supports_const = compilation.options.output.environment.supports_const();
       let content = if let Some(scope) = concatenation_scope {
-        scope.register_export(JS_DEFAULT_KEYWORD.clone(), DEFAULT_EXPORT.to_string());
+        scope.register_export(js_default_keyword.clone(), DEFAULT_EXPORT.to_string());
         format!(
           "/* export default */ {} {DEFAULT_EXPORT} = ",
           if supports_const { "const" } else { "var" }
@@ -243,7 +244,7 @@ impl DependencyTemplate for ESMExportExpressionDependencyTemplate {
         .get_used_name(
           &compilation.exports_info_artifact,
           *runtime,
-          std::slice::from_ref(&JS_DEFAULT_KEYWORD),
+          std::slice::from_ref(&js_default_keyword),
         )
       {
         if let UsedName::Normal(used) = used {

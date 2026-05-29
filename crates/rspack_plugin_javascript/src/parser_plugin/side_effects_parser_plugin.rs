@@ -6,7 +6,7 @@ use rspack_core::{
 use rspack_util::SpanExt;
 use rustc_hash::FxHashSet;
 use swc_core::{
-  atoms::Atom,
+  atoms::{Atom, atom},
   common::{
     BytePos, Mark, Span, Spanned, SyntaxContext,
     comments::{CommentKind, Comments},
@@ -67,12 +67,12 @@ impl<'a> Visit for PureAnnotation<'a> {
           if let Some(ident) = &fn_expr.ident {
             self.side_effects_free.insert(ident.sym.clone());
           }
-          self.side_effects_free.insert(Atom::from("default"));
+          self.side_effects_free.insert(atom!("default"));
         } else if let Some(arrow_expr) = default_expr.expr.as_arrow()
           && (has_no_side_effects_notation(self.parser.comments, default_expr.span())
             || has_no_side_effects_notation(self.parser.comments, arrow_expr.span()))
         {
-          self.side_effects_free.insert(Atom::from("default"));
+          self.side_effects_free.insert(atom!("default"));
         }
       }
       ModuleDecl::ExportDefaultDecl(default_decl) => {
@@ -83,7 +83,7 @@ impl<'a> Visit for PureAnnotation<'a> {
           if let Some(ident) = &fn_expr.ident {
             self.side_effects_free.insert(ident.sym.clone());
           }
-          self.side_effects_free.insert(Atom::from("default"));
+          self.side_effects_free.insert(atom!("default"));
         }
       }
       ModuleDecl::ExportDecl(export_decl) => {
@@ -218,12 +218,12 @@ fn collect_pure_function_acceptable_names(program: &Program) -> FxHashSet<Atom> 
           ModuleDecl::ExportDefaultDecl(default_decl)
             if matches!(default_decl.decl, swc_core::ecma::ast::DefaultDecl::Fn(_)) =>
           {
-            names.insert(Atom::from("default"));
+            names.insert(atom!("default"));
           }
           ModuleDecl::ExportDefaultExpr(default_expr)
             if default_expr.expr.is_fn_expr() || default_expr.expr.is_arrow() =>
           {
-            names.insert(Atom::from("default"));
+            names.insert(atom!("default"));
           }
           _ => {}
         }
@@ -250,7 +250,7 @@ fn collect_defined_configured_side_effects_free(
   configured_side_effects_free
     .iter()
     .filter_map(|name| {
-      let atom = Atom::from(name.clone());
+      let atom = Atom::from(name.as_str());
       acceptable.contains(&atom).then_some(atom)
     })
     .collect()
@@ -478,7 +478,7 @@ fn try_mark_auto_side_effects_free_module_decl(
       let Some(ident) = &fn_expr.ident else {
         return;
       };
-      let export_name = Atom::from("default");
+      let export_name = atom!("default");
       if parser
         .build_info
         .side_effects_free
@@ -505,7 +505,7 @@ fn try_mark_auto_side_effects_free_module_decl(
       let Some(ident) = &fn_expr.ident else {
         return;
       };
-      let export_name = Atom::from("default");
+      let export_name = atom!("default");
       if parser
         .build_info
         .side_effects_free
@@ -769,14 +769,15 @@ impl JavascriptParserPlugin for SideEffectsParserPlugin {
       let mut not_defined = Vec::new();
       // check if all user flagged side_effects_free are defined
       if let Some(side_effects_free) = &parser.javascript_options.side_effects_free {
-        let mut side_effects_free = side_effects_free.iter().collect::<Vec<_>>();
-        side_effects_free.sort();
+        let mut configured_side_effects_free = side_effects_free.iter().collect::<Vec<_>>();
+        configured_side_effects_free.sort();
         let defined_side_effects_free = parser.build_info.side_effects_free.as_ref();
-        for atom in side_effects_free {
+        for name in configured_side_effects_free {
+          let atom = Atom::from(name.as_str());
           if !defined_side_effects_free.is_some_and(|configured_side_effects_free| {
-            configured_side_effects_free.contains(&Atom::from(atom.clone()))
+            configured_side_effects_free.contains(&atom)
           }) {
-            not_defined.push(Atom::from(atom.clone()));
+            not_defined.push(atom);
           }
         }
       }

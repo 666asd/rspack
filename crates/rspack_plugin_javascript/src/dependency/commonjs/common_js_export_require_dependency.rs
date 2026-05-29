@@ -14,7 +14,7 @@ use rspack_core::{
   to_normal_comment,
 };
 use rustc_hash::FxHashSet;
-use swc_core::atoms::Atom;
+use swc_core::atoms::{Atom, atom};
 
 use super::ExportsBase;
 use crate::dependency::commonjs::OBJECT_PROTOTYPE_METHODS;
@@ -179,7 +179,7 @@ impl CommonJsExportRequireDependency {
         }
       }
       if is_namespace_import {
-        exports.insert(Atom::from("__esModule"));
+        exports.insert(atom!("__esModule"));
       }
     }
 

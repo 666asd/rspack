@@ -70,9 +70,3 @@ pub(crate) use self::{
   use_strict_plugin::UseStrictPlugin,
   worker_plugin::WorkerPlugin,
 };
-
-pub static JS_DEFAULT_KEYWORD: std::sync::LazyLock<swc_core::atoms::Atom> =
-  std::sync::LazyLock::new(|| swc_core::atoms::atom!("default"));
-
-pub static DEFAULT_STAR_JS_WORD: std::sync::LazyLock<swc_core::atoms::Atom> =
-  std::sync::LazyLock::new(|| swc_core::atoms::atom!("*default*"));

@@ -7,7 +7,7 @@ use rspack_core::{
   TemplateReplaceSource, create_exports_object_referenced,
 };
 use rspack_util::{ext::DynHash, json_stringify_str};
-use swc_core::atoms::Atom;
+use swc_core::atoms::{Atom, atom};
 
 pub const IMPORT_META_RSC_BINDING: &str = "__rspack_import_meta_rsc__";
 
@@ -27,7 +27,7 @@ impl ImportMetaRscDependency {
   pub fn new(importer: String, range: DependencyRange, loc: Option<DependencyLocation>) -> Self {
     Self {
       id: DependencyId::new(),
-      request: Atom::from("react"),
+      request: atom!("react"),
       importer,
       range: Some(range),
       loc,
@@ -38,7 +38,7 @@ impl ImportMetaRscDependency {
   pub fn new_without_replacement(importer: String, loc: Option<DependencyLocation>) -> Self {
     Self {
       id: DependencyId::new(),
-      request: Atom::from("react"),
+      request: atom!("react"),
       importer,
       range: None,
       loc,
@@ -190,7 +190,7 @@ impl DependencyTemplate for ImportMetaRscDependencyTemplate {
         )),
         None,
       )
-      .with_top_level_decl_symbols(vec![Atom::from(IMPORT_META_RSC_BINDING)]),
+      .with_top_level_decl_symbols(vec![atom!("__rspack_import_meta_rsc__")]),
     ));
 
     if let Some(range) = dependency.range {

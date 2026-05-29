@@ -1,4 +1,5 @@
 use swc_core::{
+  atoms::atom,
   common::Spanned,
   ecma::ast::{DefaultDecl, ExportSpecifier, ExprStmt, ModuleDecl, ModuleItem, Stmt},
 };
@@ -11,7 +12,6 @@ use super::{
   },
 };
 use crate::{
-  JS_DEFAULT_KEYWORD,
   parser_plugin::JavascriptParserPlugin,
   visitors::{VariableDeclaration, VariableDeclarationKind},
 };
@@ -156,11 +156,12 @@ impl JavascriptParser<'_> {
             self.prev_statement = prev;
             self.block_pre_walk_statement(stmt);
             if let Some(ident) = &c.ident {
+              let js_default_keyword = atom!("default");
               drive.export_specifier(
                 self,
                 ExportLocal::Default(export),
                 &ident.sym,
-                &JS_DEFAULT_KEYWORD,
+                &js_default_keyword,
                 ident.span(),
               );
             } else {
@@ -174,11 +175,12 @@ impl JavascriptParser<'_> {
             self.prev_statement = prev;
             self.block_pre_walk_statement(stmt);
             if let Some(ident) = &f.ident {
+              let js_default_keyword = atom!("default");
               drive.export_specifier(
                 self,
                 ExportLocal::Default(export),
                 &ident.sym,
-                &JS_DEFAULT_KEYWORD,
+                &js_default_keyword,
                 ident.span(),
               );
             } else {

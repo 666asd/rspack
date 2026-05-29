@@ -5,7 +5,7 @@ use rspack_core::{
 use rspack_util::SpanExt;
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use swc_core::{
-  atoms::Atom,
+  atoms::{Atom, atom},
   common::{BytePos, Mark, Span, Spanned, SyntaxContext},
   ecma::ast::{
     AssignOp, ClassMember, DefaultDecl, ExportDefaultExpr, Expr, ModuleDecl, Pat, VarDeclarator,
@@ -19,7 +19,7 @@ use super::state::{
 use crate::{
   ClassExt,
   dependency::{ESMImportSpecifierDependency, PureExpressionDependency, URLDependency},
-  parser_plugin::{DEFAULT_STAR_JS_WORD, JavascriptParserPlugin},
+  parser_plugin::JavascriptParserPlugin,
   side_effects_parser_plugin::{
     is_pure_class, is_pure_class_member, is_pure_expression, is_pure_function,
   },
@@ -402,7 +402,7 @@ impl JavascriptParserPlugin for InnerGraphParserPlugin {
     {
       let name = &fn_decl
         .ident()
-        .map_or_else(|| DEFAULT_STAR_JS_WORD.clone(), |ident| ident.sym.clone());
+        .map_or_else(|| atom!("*default*"), |ident| ident.sym.clone());
       let fn_variable = Self::tag_top_level_symbol(parser, name);
 
       parser
@@ -437,7 +437,7 @@ impl JavascriptParserPlugin for InnerGraphParserPlugin {
     {
       let name = &class_decl
         .ident()
-        .map_or_else(|| DEFAULT_STAR_JS_WORD.clone(), |ident| ident.sym.clone());
+        .map_or_else(|| atom!("*default*"), |ident| ident.sym.clone());
       let class_variable = Self::tag_top_level_symbol(parser, name);
       parser
         .inner_graph
@@ -471,7 +471,8 @@ impl JavascriptParserPlugin for InnerGraphParserPlugin {
           None,
         )
       {
-        let variable = Self::tag_top_level_symbol(parser, &DEFAULT_STAR_JS_WORD);
+        let default_star_js_word = atom!("*default*");
+        let variable = Self::tag_top_level_symbol(parser, &default_star_js_word);
         parser
           .inner_graph
           .class_with_top_level_symbol
@@ -486,7 +487,8 @@ impl JavascriptParserPlugin for InnerGraphParserPlugin {
           None,
         )
       {
-        let variable = Self::tag_top_level_symbol(parser, &DEFAULT_STAR_JS_WORD);
+        let default_star_js_word = atom!("*default*");
+        let variable = Self::tag_top_level_symbol(parser, &default_star_js_word);
         parser
           .inner_graph
           .statement_with_top_level_symbol
@@ -509,7 +511,8 @@ impl JavascriptParserPlugin for InnerGraphParserPlugin {
       )
     {
       let export_part = &**expr;
-      let variable = Self::tag_top_level_symbol(parser, &DEFAULT_STAR_JS_WORD);
+      let default_star_js_word = atom!("*default*");
+      let variable = Self::tag_top_level_symbol(parser, &default_star_js_word);
 
       for (name, span) in callees {
         variable.add_depend_on(&mut parser.inner_graph, name, span);

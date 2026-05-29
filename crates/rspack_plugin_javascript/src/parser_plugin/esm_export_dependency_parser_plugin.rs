@@ -4,13 +4,13 @@ use rspack_core::{
 };
 use rspack_util::SpanExt;
 use swc_core::{
-  atoms::Atom,
+  atoms::{Atom, atom},
   common::{Span, Spanned, comments::CommentKind},
   ecma::ast::Expr,
 };
 
 use super::{
-  DEFAULT_STAR_JS_WORD, JS_DEFAULT_KEYWORD, JavascriptParserPlugin,
+  JavascriptParserPlugin,
   esm_import_dependency_parser_plugin::{ESM_SPECIFIER_TAG, ESMSpecifierData},
   inline_const::{ConstValueData, INLINABLE_CONST_TAG, to_evaluated_inlinable_value},
   inner_graph::state::InnerGraphMapUsage,
@@ -49,7 +49,7 @@ fn create_default_exported_namespace_dependency(
     settings.source,
     settings.source_order,
     vec![],
-    Some(JS_DEFAULT_KEYWORD.clone()),
+    Some(atom!("default")),
     None,
     statement_span.into(),
     ESMExportImportedSpecifierDependency::create_export_presence_mode(parser.javascript_options),
@@ -351,10 +351,11 @@ impl JavascriptParserPlugin for ESMExportDependencyParserPlugin {
       parser.to_dependency_location(DependencyRange::from(expr_span)),
     );
     parser.add_dependency(Box::new(dep));
+    let default_star_js_word = atom!("*default*");
     InnerGraphParserPlugin::add_variable_usage(
       parser,
-      expr.ident().unwrap_or_else(|| &DEFAULT_STAR_JS_WORD),
-      InnerGraphMapUsage::Value(JS_DEFAULT_KEYWORD.clone()),
+      expr.ident().unwrap_or(&default_star_js_word),
+      InnerGraphMapUsage::Value(atom!("default")),
     );
     Some(true)
   }

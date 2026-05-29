@@ -2,7 +2,7 @@
 
 use rspack_util::atom::ModuleExportNameExt;
 use swc_core::{
-  atoms::Atom,
+  atoms::{Atom, atom},
   common::{Span, Spanned},
   ecma::ast::{
     BlockStmt, BreakStmt, Class, ClassDecl, ClassExpr, ContinueStmt, DebuggerStmt, Decl,
@@ -12,8 +12,6 @@ use swc_core::{
     TryStmt, UsingDecl, VarDecl, VarDeclKind, VarDeclarator, WhileStmt, WithStmt,
   },
 };
-
-use crate::JS_DEFAULT_KEYWORD;
 
 #[derive(Debug, Clone, Copy)]
 pub enum ClassDeclOrExpr<'ast> {
@@ -178,7 +176,7 @@ impl ExportNamedDeclaration<'_> {
       match spec {
         ExportSpecifier::Namespace(_) => unreachable!("should handle ExportSpecifier::Namespace by ExportAllOrNamedAll::NamedAll in block_pre_walk_export_all_declaration"),
         ExportSpecifier::Default(s) => {
-          (JS_DEFAULT_KEYWORD.clone(), s.exported.sym.clone(), s.exported.span())
+          (atom!("default"), s.exported.sym.clone(), s.exported.span())
         },
         ExportSpecifier::Named(n) => {
           let exported_name = n.exported.as_ref().unwrap_or(&n.orig);

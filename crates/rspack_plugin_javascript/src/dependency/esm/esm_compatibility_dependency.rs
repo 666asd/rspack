@@ -4,7 +4,7 @@ use rspack_core::{
   InitFragmentStage, ModuleGraph, NormalInitFragment, RuntimeGlobals, TemplateContext,
   TemplateReplaceSource, UsageState,
 };
-use swc_core::atoms::Atom;
+use swc_core::atoms::atom;
 
 // Mark module `__esModule`.
 // Add `__webpack_require__.r(__webpack_exports__);`.
@@ -52,7 +52,7 @@ impl DependencyTemplate for ESMCompatibilityDependencyTemplate {
     let module = module_graph
       .module_by_identifier(&module.identifier())
       .expect("should have mgm");
-    let name = Atom::from("__esModule");
+    let name = atom!("__esModule");
     let exports_info = compilation
       .exports_info_artifact
       .get_exports_info_data(&module.identifier());
