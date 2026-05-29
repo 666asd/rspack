@@ -1,5 +1,6 @@
 use std::{
   borrow::Cow,
+  cell::OnceCell,
   hash::{Hash, Hasher},
   sync::{Arc, OnceLock},
 };
@@ -191,16 +192,29 @@ impl Source for CachedSource {
 }
 
 struct CachedSourceChunks<'source> {
-  chunks: Box<dyn Chunks + 'source>,
   cache_source: &'source CachedSource,
+  chunks: OnceCell<Box<dyn Chunks + 'source>>,
 }
 
-impl<'a> CachedSourceChunks<'a> {
-  fn new(cache_source: &'a CachedSource) -> Self {
+impl<'source> CachedSourceChunks<'source> {
+  fn new(cache_source: &'source CachedSource) -> Self {
     Self {
-      chunks: cache_source.inner.stream_chunks(),
       cache_source,
+      chunks: OnceCell::new(),
     }
+  }
+
+  fn get_or_init_chunks(&self) -> &dyn Chunks {
+    self
+      .chunks
+      .get_or_init(|| self.cache_source.inner.stream_chunks())
+      .as_ref()
+  }
+
+  fn get_or_init_source(&self) -> TextSpan<'_> {
+    let source = self.cache_source.get_or_init_source();
+    let is_ascii = self.cache_source.is_ascii();
+    TextSpan::with_known(source, is_ascii)
   }
 }
 
@@ -220,9 +234,7 @@ impl Chunks for CachedSourceChunks<'_> {
     };
     match cell.get() {
       Some(map) => {
-        let source = self.cache_source.get_or_init_source();
-        let is_ascii = self.cache_source.is_ascii();
-        let source = TextSpan::with_known(source, is_ascii);
+        let source = self.get_or_init_source();
         if let Some(map) = map {
           stream_chunks_of_source_map(
             options,
@@ -242,7 +254,7 @@ impl Chunks for CachedSourceChunks<'_> {
         // and storing a child SourceMap here would encode the same mappings
         // again before the parent source map encoder consumes them.
         self
-          .chunks
+          .get_or_init_chunks()
           .stream(object_pool, options, on_chunk, on_source, on_name)
       }
     }
