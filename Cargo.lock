@@ -3956,6 +3956,8 @@ dependencies = [
 name = "rspack_ids"
 version = "0.100.5"
 dependencies = [
+ "derive_more",
+ "futures",
  "itertools 0.14.0",
  "rayon",
  "rspack_collections",

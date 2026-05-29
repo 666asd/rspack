@@ -2156,6 +2156,15 @@ export interface RawCssParserOptions {
   dashedIdents?: boolean
 }
 
+export interface RawDeterministicModuleIdsPluginOptions {
+  context?: string
+  test?: RawModuleFilter
+  maxLength?: number
+  salt?: number
+  fixedLength?: boolean
+  failOnConflict?: boolean
+}
+
 export interface RawDllEntryPluginOptions {
   context: string
   entries: Array<string>
