@@ -204,6 +204,36 @@ mod tests {
   }
 
   #[test]
+  fn record_reference_and_replacement_create_asset_record() {
+    let mut artifact = RealContentHashArtifact::default();
+
+    artifact.record_reference(
+      "runtime.js",
+      "bbbb",
+      Some("aaaa"),
+      ContentHashReferenceMeta {
+        kind: ContentHashReferenceKind::Source,
+        referenced_chunk: None,
+        referenced_source_type: None,
+      },
+    );
+    artifact.record_replacement(
+      "runtime.js",
+      "bbbb",
+      Some(10..14),
+      ContentHashReplacementKind::Source,
+    );
+
+    let record = artifact
+      .asset_records
+      .get("runtime.js")
+      .expect("record should exist");
+    assert_eq!(record.references[0].referenced_hash, "bbbb");
+    assert_eq!(record.references[0].owner_hash.as_deref(), Some("aaaa"));
+    assert_eq!(record.replacements[0].range, Some(10..14));
+  }
+
+  #[test]
   fn rename_moves_record_and_reverse_index() {
     let mut artifact = RealContentHashArtifact::default();
     artifact.record_asset_hashes("old.js", ["aaaa".to_string()]);
@@ -215,6 +245,22 @@ mod tests {
     assert_eq!(
       artifact.hash_to_assets.get("aaaa").expect("hash owner"),
       &vec!["new.js".to_string()]
+    );
+  }
+
+  #[test]
+  fn rename_missing_asset_keeps_existing_records_unchanged() {
+    let mut artifact = RealContentHashArtifact::default();
+    artifact.record_asset_hashes("existing.js", ["aaaa".to_string()]);
+
+    artifact.rename_asset("missing.js", "new.js");
+
+    assert!(artifact.asset_records.get("missing.js").is_none());
+    assert!(artifact.asset_records.get("new.js").is_none());
+    assert!(artifact.asset_records.get("existing.js").is_some());
+    assert_eq!(
+      artifact.hash_to_assets.get("aaaa").expect("hash owner"),
+      &vec!["existing.js".to_string()]
     );
   }
 

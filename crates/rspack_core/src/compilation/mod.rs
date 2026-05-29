@@ -86,6 +86,7 @@ use crate::{
   RuntimeMode, RuntimeModule, RuntimeSpec, RuntimeSpecMap, RuntimeTemplate, SharedPluginDriver,
   SideEffectsOptimizeArtifact, SideEffectsStateArtifact, SourceType, Stats, StatsContext,
   StealCell, ValueCacheVersions,
+  artifacts::{ContentHashReferenceMeta, ContentHashReplacementKind, RealContentHashArtifact},
   cache::persistent::occasion::minimize::MinimizePersistentCacheArtifact,
   compilation::build_module_graph::{
     BuildModuleGraphArtifact, ModuleExecutor, UpdateParam, update_module_graph,
@@ -256,6 +257,7 @@ pub struct Compilation {
   pub cgc_runtime_requirements_artifact: StealCell<CgcRuntimeRequirementsArtifact>,
   // artifact for create_hash
   pub chunk_hashes_artifact: StealCell<ChunkHashesArtifact>,
+  pub real_content_hash_artifact: RealContentHashArtifact,
   // artifact for create_chunk_assets
   pub chunk_render_artifact: StealCell<ChunkRenderArtifact>,
   // artifact for caching get_mode
@@ -390,6 +392,7 @@ impl Compilation {
       cgm_runtime_requirements_artifact: StealCell::new(Default::default()),
       cgc_runtime_requirements_artifact: StealCell::new(Default::default()),
       chunk_hashes_artifact: StealCell::new(Default::default()),
+      real_content_hash_artifact: Default::default(),
       chunk_render_artifact: StealCell::new(Default::default()),
       module_graph_cache_artifact: StealCell::new(Default::default()),
       module_static_cache: Default::default(),
@@ -852,6 +855,7 @@ impl Compilation {
           chunk.remove_file(filename);
           chunk.remove_auxiliary_file(filename);
         });
+      self.real_content_hash_artifact.delete_asset(filename);
     }
   }
 
@@ -869,6 +873,9 @@ impl Compilation {
       self.set_asset_info(&new_name, Some(asset.get_info()), None);
 
       self.assets.insert(new_name.clone(), asset);
+      self
+        .real_content_hash_artifact
+        .rename_asset(filename, &new_name);
 
       self
         .build_chunk_graph_artifact
@@ -884,6 +891,40 @@ impl Compilation {
           }
         });
     }
+  }
+
+  pub fn record_real_content_hashes(
+    &mut self,
+    asset: impl Into<String>,
+    own_hashes: impl IntoIterator<Item = String>,
+  ) {
+    self
+      .real_content_hash_artifact
+      .record_asset_hashes(asset, own_hashes);
+  }
+
+  pub fn record_real_content_hash_reference(
+    &mut self,
+    asset: &str,
+    referenced_hash: &str,
+    owner_hash: Option<&str>,
+    meta: ContentHashReferenceMeta,
+  ) {
+    self
+      .real_content_hash_artifact
+      .record_reference(asset, referenced_hash, owner_hash, meta);
+  }
+
+  pub fn record_real_content_hash_replacement(
+    &mut self,
+    asset: &str,
+    old_hash: &str,
+    range: Option<std::ops::Range<u32>>,
+    kind: ContentHashReplacementKind,
+  ) {
+    self
+      .real_content_hash_artifact
+      .record_replacement(asset, old_hash, range, kind);
   }
 
   // Batch version of rename_asset with parallel optimization.
@@ -921,7 +962,10 @@ impl Compilation {
         self.set_asset_info(&old_name, None, Some(asset.get_info()));
         self.set_asset_info(&new_name, Some(asset.get_info()), None);
 
-        self.assets.insert(new_name, asset);
+        self.assets.insert(new_name.clone(), asset);
+        self
+          .real_content_hash_artifact
+          .rename_asset(&old_name, &new_name);
       }
     }
   }
