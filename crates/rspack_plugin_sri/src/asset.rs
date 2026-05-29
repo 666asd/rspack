@@ -1,9 +1,10 @@
-use std::{cmp::Ordering, sync::Arc};
+use std::{cmp::Ordering, ops::Range, sync::Arc};
 
 use rayon::iter::{IntoParallelIterator, IntoParallelRefIterator, ParallelIterator};
 use rspack_core::{
   ChunkUkey, Compilation, CompilationAfterProcessAssets, CompilationAssets,
-  CompilationProcessAssets, CrossOriginLoading, ManifestAssetType,
+  CompilationProcessAssets, ContentHashReferenceMeta, ContentHashReplacementKind,
+  CrossOriginLoading, ManifestAssetType,
   chunk_graph_chunk::ChunkId,
   rspack_sources::{ReplaceSource, Source},
 };
@@ -27,6 +28,13 @@ struct ProcessChunkResult {
   pub warnings: Vec<String>,
   pub placeholder: Option<String>,
   pub integrity: Option<String>,
+  pub source_replacements: Vec<SourceReplacement>,
+}
+
+#[derive(Debug, Clone)]
+struct SourceReplacement {
+  pub integrity: String,
+  pub range: Range<u32>,
 }
 
 fn process_chunks(
@@ -96,6 +104,7 @@ See https://w3c.github.io/webappsec-subresource-integrity/#cross-origin-data-lea
             warnings: vec![format!("No asset found for source path '{}'", file)],
             placeholder: None,
             integrity: None,
+            source_replacements: Vec::new(),
           }
         }
       })
@@ -121,23 +130,49 @@ See https://w3c.github.io/webappsec-subresource-integrity/#cross-origin-data-lea
 
       let real_content_hash = compilation.options.optimization.real_content_hash;
 
-      if let Some(source) = result.source
-        && let Some(error) = compilation
+      let update_error = if let Some(source) = result.source {
+        compilation
           .update_asset(&result.file, |_, info| {
             if use_any_hash(&info) && (info.content_hash.is_empty() || !real_content_hash) {
               should_warn_content_hash = true;
             }
 
             let mut new_info = info;
-            new_info.content_hash.insert(integrity);
+            new_info.content_hash.insert(integrity.clone());
             Ok((Arc::new(source), new_info))
           })
           .err()
-      {
+      } else {
+        None
+      };
+
+      if let Some(error) = update_error {
         compilation.push_diagnostic(Diagnostic::error(
           "SubresourceIntegrity".to_string(),
           format!("Failed to update asset '{}': {}", result.file, error),
         ));
+      } else {
+        compilation.record_real_content_hashes(result.file.clone(), [integrity.clone()]);
+        for replacement in result.source_replacements {
+          compilation.record_real_content_hash_replacement(
+            &result.file,
+            &replacement.integrity,
+            Some(replacement.range),
+            ContentHashReplacementKind::Source,
+          );
+
+          let references_other_asset = integrities.iter().any(|(asset, asset_integrity)| {
+            asset != &result.file && asset_integrity == &replacement.integrity
+          });
+          if references_other_asset && replacement.integrity != integrity {
+            compilation.record_real_content_hash_reference(
+              &result.file,
+              &replacement.integrity,
+              Some(&integrity),
+              ContentHashReferenceMeta::default(),
+            );
+          }
+        }
       }
     }
     if should_warn_content_hash {
@@ -173,13 +208,32 @@ fn process_chunk_source(
   }
 
   // replace placeholders with integrity hash
+  let mut source_replacements = Vec::new();
+  let mut replacement_offset: i64 = 0;
   for caps in PLACEHOLDER_REGEX.captures_iter(&source_content) {
     if let Some(m) = caps.get(0) {
-      let replacement = hash_by_placeholders
-        .get(m.as_str())
+      let known_integrity = hash_by_placeholders.get(m.as_str());
+      let replacement = known_integrity
         .map_or(m.as_str(), |i| i.as_str())
         .to_string();
+      let replacement_len = replacement.len();
       new_source.replace(m.start() as u32, m.end() as u32, replacement, None);
+      if let Some(integrity) = known_integrity {
+        let start = i64::try_from(m.start())
+          .expect("SRI placeholder replacement start should fit in i64")
+          + replacement_offset;
+        let end = start
+          + i64::try_from(integrity.len())
+            .expect("SRI placeholder replacement length should fit in i64");
+        source_replacements.push(SourceReplacement {
+          integrity: integrity.clone(),
+          range: u32::try_from(start).expect("SRI replacement start should fit in u32")
+            ..u32::try_from(end).expect("SRI replacement end should fit in u32"),
+        });
+      }
+      replacement_offset += i64::try_from(replacement_len)
+        .expect("SRI placeholder replacement length should fit in i64")
+        - i64::try_from(m.end() - m.start()).expect("SRI placeholder length should fit in i64");
     }
   }
 
@@ -193,6 +247,7 @@ fn process_chunk_source(
     warnings,
     placeholder,
     integrity: Some(integrity),
+    source_replacements,
   }
 }
 
@@ -359,4 +414,49 @@ pub async fn update_hash(
     return Ok(Some(new_integrity));
   }
   Ok(None)
+}
+
+#[cfg(test)]
+mod tests {
+  use std::sync::Arc;
+
+  use rspack_core::{
+    ManifestAssetType,
+    rspack_sources::{RawStringSource, Source},
+  };
+
+  use super::*;
+  use crate::integrity::SubresourceIntegrityHashFunction;
+
+  #[test]
+  fn process_chunk_source_records_placeholder_replacement_ranges() {
+    let hash_funcs = vec![SubresourceIntegrityHashFunction::Sha256];
+    let placeholder = make_placeholder(ManifestAssetType::JavaScript, &hash_funcs, "chunk-a");
+    let integrity = "sha256-abcdefghijklmnopqrstuvwxyz0123456789ABCDE=".to_string();
+    let source_content = format!("before:{placeholder}:after");
+    let mut hash_by_placeholders = HashMap::default();
+    hash_by_placeholders.insert(placeholder, integrity.clone());
+
+    let result = process_chunk_source(
+      "main.js",
+      Arc::new(RawStringSource::from(source_content)),
+      ManifestAssetType::JavaScript,
+      None,
+      &hash_funcs,
+      &hash_by_placeholders,
+      "",
+    );
+
+    let source = result.source.expect("source should be replaced");
+    assert_eq!(
+      source.source().into_string_lossy(),
+      format!("before:{integrity}:after")
+    );
+    assert_eq!(result.source_replacements.len(), 1);
+    assert_eq!(result.source_replacements[0].integrity, integrity);
+    assert_eq!(
+      result.source_replacements[0].range,
+      7..(7 + u32::try_from(integrity.len()).expect("integrity length"))
+    );
+  }
 }
