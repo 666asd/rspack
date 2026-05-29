@@ -13,7 +13,6 @@ workspace = true
 ignored = ["tracing"]
 
 [dependencies]
-rayon   = { workspace = true }
 tracing = { workspace = true }
 
 rspack_collections = { workspace = true }

@@ -1,7 +1,6 @@
 use std::{cmp::Ordering, fmt::Debug, hash::Hash};
 
 use itertools::Itertools;
-use rayon::prelude::*;
 use rspack_collections::IdentifierSet;
 use rspack_error::Diagnostic;
 use rspack_hash::{RspackHash, RspackHashDigest};
@@ -988,7 +987,7 @@ impl Chunk {
     }
 
     let add_child_ids_results = add_child_ids_task
-      .into_par_iter()
+      .into_iter()
       .filter_map(|(chunk_ukey, order)| {
         let (chunk_id, child_ids) =
           add_child_ids_by_orders_to_map(&chunk_ukey, &order, compilation, filter_fn)?;

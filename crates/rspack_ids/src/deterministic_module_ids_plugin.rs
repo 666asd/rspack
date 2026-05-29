@@ -1,10 +1,9 @@
 use std::borrow::Cow;
 
-use rayon::prelude::*;
 use rspack_collections::IdentifierMap;
 use rspack_core::{
   ChunkGraph, Compilation, CompilationModuleIds, ModuleIdsArtifact, Plugin,
-  incremental::IncrementalPasses,
+  incremental::IncrementalPasses, spawn_iter_then_collect,
 };
 use rspack_error::{Diagnostic, Result};
 use rspack_hook::{plugin, plugin_hook};
@@ -55,8 +54,11 @@ async fn module_ids(
   let used_ids_len = used_ids.len();
 
   let module_names = modules
-    .par_iter()
-    .map(|m| (m.identifier(), get_full_module_name(m, context)))
+    .iter()
+    .map(|m| async move { (m.identifier(), get_full_module_name(m, context)) })
+    .collect::<Vec<_>>();
+  let module_names = unsafe { spawn_iter_then_collect(module_names).await }
+    .into_iter()
     .collect::<IdentifierMap<String>>();
 
   assign_deterministic_ids(

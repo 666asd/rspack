@@ -24,7 +24,7 @@ Primary language for Rspack's core engine.
 - `swc`: JavaScript/TypeScript compiler
 - `tokio`: Async runtime
 - `serde`: Serialization
-- `rayon`: Parallel processing
+- `rspack_parallel`: Tokio-backed parallel orchestration
 
 **Resources:**
 

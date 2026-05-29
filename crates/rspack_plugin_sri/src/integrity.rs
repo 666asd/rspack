@@ -1,4 +1,3 @@
-use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use rspack_util::base64;
 use sha2::{Digest, Sha256, Sha384, Sha512};
 
@@ -27,14 +26,14 @@ impl TryFrom<String> for SubresourceIntegrityHashFunction {
 }
 
 pub fn compute_integrity(
-  hash_func_names: &Vec<SubresourceIntegrityHashFunction>,
+  hash_func_names: &[SubresourceIntegrityHashFunction],
   source: &str,
 ) -> String {
   hash_func_names
-    .par_iter()
+    .iter()
     .map(|hash_func| create_hash(hash_func, source))
-    .intersperse(" ".to_string())
-    .collect()
+    .collect::<Vec<_>>()
+    .join(" ")
 }
 
 fn create_hash(hash_func: &SubresourceIntegrityHashFunction, source: &str) -> String {

@@ -14,7 +14,6 @@ derive_more                     = { workspace = true, features = ["debug"] }
 futures                         = { workspace = true }
 once_cell                       = { workspace = true }
 pathdiff                        = { workspace = true }
-rayon                           = { workspace = true }
 regex                           = { workspace = true }
 rspack_cacheable                = { workspace = true }
 rspack_collections              = { workspace = true }

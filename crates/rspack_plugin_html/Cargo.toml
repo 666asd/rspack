@@ -16,7 +16,6 @@ cow-utils         = { workspace = true }
 futures           = { workspace = true }
 itertools         = { workspace = true }
 path-clean        = { workspace = true }
-rayon             = { workspace = true }
 rspack_core       = { workspace = true }
 rspack_dojang     = { workspace = true }
 rspack_error      = { workspace = true }

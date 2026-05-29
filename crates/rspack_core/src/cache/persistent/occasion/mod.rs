@@ -33,7 +33,11 @@ pub trait Occasion {
   fn reset(&self, storage: &mut dyn Storage);
 
   /// Persist `artifact` into storage.  Only called when not in readonly mode.
-  fn save(&self, storage: &mut dyn Storage, artifact: &Self::Artifact);
+  fn save<'a>(
+    &'a self,
+    storage: &'a mut dyn Storage,
+    artifact: &'a Self::Artifact,
+  ) -> impl Future<Output = ()> + Send + 'a;
 
   /// Load and reconstruct the artifact from storage.
   fn recovery<'a>(

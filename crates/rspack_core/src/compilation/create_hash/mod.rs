@@ -4,6 +4,7 @@ use rustc_hash::FxHashSet;
 use super::*;
 use crate::{
   ModuleCodeGenerationContext, cache::Cache, compilation::pass::PassExt, logger::Logger,
+  spawn_iter_then_try_collect,
 };
 
 pub struct ChunkHashResult {
@@ -46,35 +47,27 @@ pub async fn create_hash(
   // possible to depend on full hash, but for library type commonjs/module, it's possible to
   // have non-runtime chunks depend on full hash, the library format plugin is using
   // dependent_full_hash hook to declare it.
-  let mut full_hash_chunks: FxHashSet<_> = compilation
+  let compilation_ref: &Compilation = compilation;
+  let plugin_driver_ref = &plugin_driver;
+  let full_hash_chunks = compilation_ref
     .build_chunk_graph_artifact
     .chunk_by_ukey
     .keys()
     .copied()
     .collect::<Vec<_>>()
-    .into_par_iter()
-    .try_fold(
-      FxHashSet::default,
-      |mut local_set, chunk_ukey| -> Result<FxHashSet<_>> {
-        let mut chunk_dependent_full_hash = false;
-        plugin_driver.compilation_hooks.dependent_full_hash.call(
-          compilation,
-          &chunk_ukey,
-          &mut chunk_dependent_full_hash,
-        )?;
-        if chunk_dependent_full_hash {
-          local_set.insert(chunk_ukey);
-        }
-        Ok(local_set)
-      },
-    )
-    .try_reduce(
-      FxHashSet::default,
-      |mut acc, local_set| -> Result<FxHashSet<_>> {
-        acc.extend(local_set);
-        Ok(acc)
-      },
-    )?;
+    .into_iter()
+    .map(|chunk_ukey| async move {
+      let mut chunk_dependent_full_hash = false;
+      plugin_driver_ref
+        .compilation_hooks
+        .dependent_full_hash
+        .call(compilation_ref, &chunk_ukey, &mut chunk_dependent_full_hash)?;
+      Ok::<_, rspack_error::Error>(chunk_dependent_full_hash.then_some(chunk_ukey))
+    });
+  let mut full_hash_chunks = unsafe { spawn_iter_then_try_collect(full_hash_chunks).await }?
+    .into_iter()
+    .flatten()
+    .collect::<FxHashSet<_>>();
   if !full_hash_chunks.is_empty()
     && let Some(diagnostic) = compilation.incremental.disable_passes(
       IncrementalPasses::CHUNKS_HASHES,

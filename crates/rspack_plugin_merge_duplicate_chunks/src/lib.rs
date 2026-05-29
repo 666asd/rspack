@@ -1,4 +1,3 @@
-use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use rspack_core::{
   ChunkUkey, Compilation, CompilationOptimizeChunks, ExportsInfoData, Plugin, RuntimeSpec,
   incremental::Mutation, is_runtime_equal,
@@ -119,7 +118,7 @@ async fn optimize_chunks(&self, compilation: &mut Compilation) -> Result<Option<
             .build_chunk_graph_artifact
             .chunk_graph
             .get_chunk_modules_identifier(&chunk_ukey)
-            .into_par_iter()
+            .iter()
             .all(|module| {
               is_equally_used(
                 compilation

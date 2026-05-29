@@ -1,7 +1,6 @@
 #![allow(clippy::only_used_in_recursion)]
 use std::{borrow::Cow, collections::VecDeque, sync::Arc};
 
-use rayon::prelude::*;
 use rspack_collections::{
   Identifiable, IdentifierDashMap, IdentifierIndexSet, IdentifierMap, IdentifierSet,
 };
@@ -16,6 +15,7 @@ use rspack_core::{
   },
   filter_runtime, get_cached_readable_identifier, get_target,
   incremental::IncrementalPasses,
+  spawn_in_context,
 };
 use rspack_error::{Result, ToStringResultToRspackResultExt};
 use rspack_hook::{plugin, plugin_hook};
@@ -704,7 +704,7 @@ impl ModuleConcatenationPlugin {
       .map(|(k, _)| *k)
       .collect();
     let res: Vec<_> = modules
-      .into_par_iter()
+      .into_iter()
       .map(|module_id| {
         let mut can_be_root = true;
         let mut can_be_inner = true;
@@ -898,7 +898,7 @@ impl ModuleConcatenationPlugin {
       .copied()
       .collect::<IdentifierSet>();
     let modules_without_runtime_cache_entries = cache_modules
-      .into_par_iter()
+      .into_iter()
       .map(|module_id| {
         let exports_info = compilation
           .exports_info_artifact
@@ -1140,7 +1140,9 @@ impl ModuleConcatenationPlugin {
 
     logger.time_end(start);
 
-    rayon::spawn(move || drop(modules_without_runtime_cache));
+    spawn_in_context(async move {
+      drop(modules_without_runtime_cache);
+    });
 
     if !concat_configurations.is_empty() {
       let mut concat_len_buffer = itoa::Buffer::new();
@@ -1457,7 +1459,7 @@ where
   let mg = compilation.get_module_graph();
 
   let dependency_parts = modules_set
-    .par_iter()
+    .iter()
     .filter_map(|m| {
       if m == new_module {
         return None;

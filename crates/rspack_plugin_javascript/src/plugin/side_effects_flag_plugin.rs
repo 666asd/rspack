@@ -1,6 +1,5 @@
 use std::{borrow::Cow, fmt::Debug};
 
-use rayon::prelude::*;
 use rspack_collections::{IdentifierMap, IdentifierSet};
 use rspack_core::{
   AsyncModulesArtifact, BoxModule, Compilation, CompilationFinishModules,
@@ -13,6 +12,7 @@ use rspack_core::{
   build_module_graph::BuildModuleGraphArtifact,
   can_move_target, get_target,
   incremental::{self, IncrementalPasses, Mutation},
+  spawn_iter_then_collect,
 };
 use rspack_error::{Diagnostic, Result};
 use rspack_hook::{plugin, plugin_hook};
@@ -388,26 +388,31 @@ async fn optimize_dependencies(
   logger.time_end(inner_start);
 
   let inner_start = logger.time("find optimizable connections");
-  let mut optimized_connections = modules
-    .par_iter()
-    .filter(|module| side_effects_state_map[module] == ConnectionState::Active(false))
-    .flat_map(|module| {
-      module_graph
-        .get_incoming_connections(module)
-        .collect::<Vec<_>>()
-    })
-    .map(|connection| {
-      (
-        connection.dependency_id,
-        can_optimize_connection(
-          connection,
-          &side_effects_state_map,
-          module_graph,
-          exports_info_artifact,
-        ),
-      )
-    })
-    .collect::<Vec<_>>();
+  let mut optimized_connections = {
+    let side_effects_state_map_ref = &side_effects_state_map;
+    let exports_info_artifact_ref = &*exports_info_artifact;
+    let optimized_connections_tasks = modules
+      .iter()
+      .filter(|module| side_effects_state_map_ref[module] == ConnectionState::Active(false))
+      .flat_map(|module| {
+        module_graph
+          .get_incoming_connections(module)
+          .collect::<Vec<_>>()
+      })
+      .map(|connection| async move {
+        (
+          connection.dependency_id,
+          can_optimize_connection(
+            connection,
+            side_effects_state_map_ref,
+            module_graph,
+            exports_info_artifact_ref,
+          ),
+        )
+      })
+      .collect::<Vec<_>>();
+    unsafe { spawn_iter_then_collect(optimized_connections_tasks).await }
+  };
   optimized_connections.sort_unstable_by_key(|(dep_id, _)| *dep_id);
   for (dep_id, can_optimize) in optimized_connections {
     if let Some(do_optimize) = can_optimize {
@@ -439,20 +444,30 @@ async fn optimize_dependencies(
       .collect();
 
     let module_graph = build_module_graph_artifact.get_module_graph();
-    do_optimizes = new_connections
-      .into_par_iter()
-      .filter(|(_, module)| side_effects_state_map[module] == ConnectionState::Active(false))
-      .filter_map(|(connection, _)| module_graph.connection_by_dependency_id(&connection))
-      .filter_map(|connection| {
-        can_optimize_connection(
-          connection,
-          &side_effects_state_map,
-          module_graph,
-          exports_info_artifact,
-        )
-        .map(|i| (connection.dependency_id, i))
-      })
-      .collect();
+    do_optimizes = {
+      let side_effects_state_map_ref = &side_effects_state_map;
+      let exports_info_artifact_ref = &*exports_info_artifact;
+      let do_optimize_tasks = new_connections
+        .into_iter()
+        .map(|(connection, module)| async move {
+          if side_effects_state_map_ref[&module] != ConnectionState::Active(false) {
+            return None;
+          }
+          let connection = module_graph.connection_by_dependency_id(&connection)?;
+          can_optimize_connection(
+            connection,
+            side_effects_state_map_ref,
+            module_graph,
+            exports_info_artifact_ref,
+          )
+          .map(|i| (connection.dependency_id, i))
+        })
+        .collect::<Vec<_>>();
+      unsafe { spawn_iter_then_collect(do_optimize_tasks).await }
+        .into_iter()
+        .flatten()
+        .collect()
+    };
     do_optimizes.sort_unstable_by_key(|(dependency, _)| *dependency);
   }
   logger.time_end(inner_start);

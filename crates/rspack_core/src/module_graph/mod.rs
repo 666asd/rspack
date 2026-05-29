@@ -4,7 +4,6 @@ pub mod rollback;
 use std::hash::BuildHasherDefault;
 
 use internal::try_get_module_graph_module_mut_by_identifier;
-use rayon::prelude::*;
 use rspack_collections::{IdentifierHasher, IdentifierMap};
 use rspack_error::Result;
 use rspack_hash::RspackHashDigest;
@@ -195,10 +194,8 @@ impl ModuleGraph {
   }
 
   #[inline]
-  pub fn modules_par(
-    &self,
-  ) -> impl rayon::prelude::ParallelIterator<Item = (&ModuleIdentifier, &BoxModule)> {
-    self.inner.modules.par_iter()
+  pub fn modules_par(&self) -> impl Iterator<Item = (&ModuleIdentifier, &BoxModule)> {
+    self.inner.modules.iter()
   }
 
   #[inline]
@@ -1084,7 +1081,7 @@ impl ModuleGraph {
     tasks: Vec<(DependencyId, ModuleIdentifier)>,
   ) {
     let changed = tasks
-      .into_par_iter()
+      .into_iter()
       .map(|(dep_id, original_module_identifier)| {
         let mut con = self
           .connection_by_dependency_id(&dep_id)
@@ -1102,7 +1099,7 @@ impl ModuleGraph {
 
   pub fn batch_set_connections_module(&mut self, tasks: Vec<(DependencyId, ModuleIdentifier)>) {
     let changed = tasks
-      .into_par_iter()
+      .into_iter()
       .map(|(dep_id, module_identifier)| {
         let mut con = self
           .connection_by_dependency_id(&dep_id)
@@ -1123,7 +1120,7 @@ impl ModuleGraph {
     tasks: Vec<(ModuleIdentifier, Vec<DependencyId>, Vec<DependencyId>)>,
   ) {
     let changed = tasks
-      .into_par_iter()
+      .into_iter()
       .map(|(mid, outgoings, incomings)| {
         let mut mgm = self
           .module_graph_module_by_identifier(&mid)
@@ -1149,7 +1146,7 @@ impl ModuleGraph {
     tasks: Vec<(ModuleIdentifier, Vec<DependencyId>, Vec<DependencyId>)>,
   ) {
     let changed = tasks
-      .into_par_iter()
+      .into_iter()
       .map(|(mid, outgoings, incomings)| {
         let mut mgm = self
           .module_graph_module_by_identifier(&mid)

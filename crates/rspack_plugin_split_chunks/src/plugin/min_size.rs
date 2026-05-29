@@ -1,4 +1,3 @@
-use rayon::prelude::*;
 use rspack_collections::IdentifierSet;
 use rspack_core::{ModuleIdentifier, SourceType};
 
@@ -124,7 +123,7 @@ impl SplitChunksPlugin {
     module_sizes: &ModuleSizes,
   ) {
     let invalidated_module_groups = module_group_map
-      .par_iter_mut()
+      .iter_mut()
       .filter_map(|(module_group_key, module_group)| {
         let cache_group = module_group.get_cache_group(&self.cache_groups);
         // Fast path

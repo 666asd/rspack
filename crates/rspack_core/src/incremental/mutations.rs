@@ -1,8 +1,8 @@
 use std::fmt;
 
 use either::Either;
+use itertools::Itertools;
 use once_cell::sync::OnceCell;
-use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use rspack_collections::IdentifierSet;
 use rustc_hash::FxHashSet;
 
@@ -273,7 +273,7 @@ fn compute_affected_modules_with_module_graph(
     module_graph: &ModuleGraph,
   ) -> (IdentifierSet, IdentifierSet) {
     modules
-      .par_iter()
+      .iter()
       .flat_map(|module_identifier| {
         module_graph
           .get_incoming_connections_by_origin_module(module_identifier)

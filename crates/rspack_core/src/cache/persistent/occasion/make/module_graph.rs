@@ -1,6 +1,3 @@
-use std::sync::atomic::{AtomicUsize, Ordering};
-
-use rayon::prelude::*;
 use rspack_cacheable::{cacheable, utils::OwnedOrRef};
 use rspack_collections::IdentifierSet;
 use rspack_error::Result;
@@ -10,9 +7,10 @@ use super::alternatives::{TempDependency, TempModule};
 use crate::{
   AsyncDependenciesBlock, AsyncDependenciesBlockIdentifier, BoxDependency, BoxModule, Dependency,
   DependencyId, DependencyParents, ModuleGraph, ModuleGraphConnection, ModuleGraphModule,
-  ModuleIdentifier, RayonConsumer,
+  ModuleIdentifier,
   cache::persistent::{codec::CacheCodec, storage::Storage},
   compilation::build_module_graph::{LazyDependencies, ModuleToLazyMake},
+  spawn_iter_then_collect,
 };
 
 pub const SCOPE: &str = "occasion_make_module_graph";
@@ -32,7 +30,7 @@ struct Node<'a> {
 }
 
 #[tracing::instrument("Cache::Occasion::Make::ModuleGraph::save", skip_all)]
-pub fn save_module_graph(
+pub async fn save_module_graph(
   mg: &ModuleGraph,
   module_to_lazy_make: &ModuleToLazyMake,
   removed_modules: &IdentifierSet,
@@ -45,10 +43,9 @@ pub fn save_module_graph(
   }
 
   // save module_graph
-  let saved_count = AtomicUsize::new(0);
-  need_update_modules
-    .par_iter()
-    .map(|identifier| {
+  let save_tasks = need_update_modules
+    .iter()
+    .map(|identifier| async move {
       let mgm = mg
         .module_graph_module_by_identifier(identifier)
         .expect("should have mgm");
@@ -57,12 +54,12 @@ pub fn save_module_graph(
         .expect("should have module");
       let blocks = module
         .get_blocks()
-        .par_iter()
+        .iter()
         .map(|block_id| mg.block_by_id(block_id).expect("should have block").into())
         .collect::<Vec<_>>();
       let dependencies = mgm
         .all_dependencies()
-        .par_iter()
+        .iter()
         .map(|dep_id| {
           (
             mg.dependency_by_id(dep_id).into(),
@@ -72,7 +69,7 @@ pub fn save_module_graph(
         .collect::<Vec<_>>();
       let connections = mgm
         .outgoing_connections()
-        .par_iter()
+        .iter()
         .map(|dep_id| {
           mg.connection_by_dependency_id(dep_id)
             .expect("should have connection")
@@ -113,12 +110,14 @@ pub fn save_module_graph(
         }
       }
     })
-    .consume(|(id, bytes)| {
-      storage.set(SCOPE, id, bytes);
-      saved_count.fetch_add(1, Ordering::Relaxed);
-    });
+    .collect::<Vec<_>>();
+  let saved_items = unsafe { spawn_iter_then_collect(save_tasks).await };
+  let saved_count = saved_items.len();
+  for (id, bytes) in saved_items {
+    storage.set(SCOPE, id, bytes);
+  }
 
-  tracing::debug!("save {} modules", saved_count.load(Ordering::Relaxed));
+  tracing::debug!("save {} modules", saved_count);
 }
 
 #[tracing::instrument("Cache::Occasion::Make::ModuleGraph::recovery", skip_all)]
@@ -129,47 +128,47 @@ pub async fn recovery_module_graph(
   let mut need_check_dep = vec![];
   let mut mg = ModuleGraph::default();
   let mut module_to_lazy_make = ModuleToLazyMake::default();
-  storage
+  let decode_tasks = storage
     .load(SCOPE)
     .await?
-    .into_par_iter()
-    .map(|(_, v)| {
+    .into_iter()
+    .map(|(_, v)| async move {
       codec
         .decode::<Node>(&v)
         .expect("unexpected module graph deserialize failed")
     })
-    .with_max_len(1)
-    .consume(|node| {
-      let mgm = node.mgm.into_owned();
-      let module = node.module.into_owned();
-      for (index_in_block, (dep, parent_block)) in node.dependencies.into_iter().enumerate() {
-        let dep = dep.into_owned();
-        mg.set_parents(
-          *dep.id(),
-          DependencyParents {
-            block: parent_block.map(|b| b.into_owned()),
-            module: module.identifier(),
-            index_in_block,
-          },
-        );
-        mg.add_dependency(dep);
-      }
-      for con in node.connections {
-        let con = con.into_owned();
-        need_check_dep.push((con.dependency_id, *con.module_identifier()));
-        mg.cache_recovery_connection(con);
-      }
-      for block in node.blocks {
-        let block = block.into_owned();
-        mg.add_block(Box::new(block));
-      }
-      if let Some(lazy_info) = node.lazy_info {
-        module_to_lazy_make
-          .update_module_lazy_dependencies(module.identifier(), Some(lazy_info.into_owned()));
-      }
-      mg.add_module_graph_module(mgm);
-      mg.add_module(module);
-    });
+    .collect::<Vec<_>>();
+  for node in unsafe { spawn_iter_then_collect(decode_tasks).await } {
+    let mgm = node.mgm.into_owned();
+    let module = node.module.into_owned();
+    for (index_in_block, (dep, parent_block)) in node.dependencies.into_iter().enumerate() {
+      let dep = dep.into_owned();
+      mg.set_parents(
+        *dep.id(),
+        DependencyParents {
+          block: parent_block.map(|b| b.into_owned()),
+          module: module.identifier(),
+          index_in_block,
+        },
+      );
+      mg.add_dependency(dep);
+    }
+    for con in node.connections {
+      let con = con.into_owned();
+      need_check_dep.push((con.dependency_id, *con.module_identifier()));
+      mg.cache_recovery_connection(con);
+    }
+    for block in node.blocks {
+      let block = block.into_owned();
+      mg.add_block(Box::new(block));
+    }
+    if let Some(lazy_info) = node.lazy_info {
+      module_to_lazy_make
+        .update_module_lazy_dependencies(module.identifier(), Some(lazy_info.into_owned()));
+    }
+    mg.add_module_graph_module(mgm);
+    mg.add_module(module);
+  }
   // recovery incoming connections
   for (dep_id, module_identifier) in need_check_dep {
     let mgm = mg.module_graph_module_by_identifier_mut(&module_identifier);

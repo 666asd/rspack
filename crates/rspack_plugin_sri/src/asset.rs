@@ -1,6 +1,5 @@
 use std::{cmp::Ordering, sync::Arc};
 
-use rayon::iter::{IntoParallelIterator, IntoParallelRefIterator, ParallelIterator};
 use rspack_core::{
   ChunkUkey, Compilation, CompilationAfterProcessAssets, CompilationAssets,
   CompilationProcessAssets, CrossOriginLoading, ManifestAssetType,
@@ -30,7 +29,7 @@ struct ProcessChunkResult {
 }
 
 fn process_chunks(
-  hash_funcs: &Vec<SubresourceIntegrityHashFunction>,
+  hash_funcs: &[SubresourceIntegrityHashFunction],
   compilation: &mut Compilation,
 ) -> HashMap<String, String> {
   let mut hash_by_placeholders = HashMap::default();
@@ -58,7 +57,7 @@ See https://w3c.github.io/webappsec-subresource-integrity/#cross-origin-data-lea
       .collect::<Vec<_>>();
 
     let results = chunks
-      .into_par_iter()
+      .into_iter()
       .flat_map(|c| {
         let mut files = c.files().iter().map(|f| (c.id(), f)).collect::<Vec<_>>();
         files.sort_by(|a, b| {
@@ -159,7 +158,7 @@ fn process_chunk_source(
   source: Arc<dyn Source>,
   asset_type: ManifestAssetType,
   chunk_id: Option<&ChunkId>,
-  hash_funcs: &Vec<SubresourceIntegrityHashFunction>,
+  hash_funcs: &[SubresourceIntegrityHashFunction],
   hash_by_placeholders: &HashMap<String, String>,
   hot_update_global: &str,
 ) -> ProcessChunkResult {
@@ -247,12 +246,12 @@ fn digest_chunks(compilation: &Compilation) -> Vec<Vec<ChunkUkey>> {
 async fn add_minssing_integrities(
   assets: &CompilationAssets,
   integrities: Arc<RwLock<HashMap<String, String>>>,
-  hash_func_names: &Vec<SubresourceIntegrityHashFunction>,
+  hash_func_names: &[SubresourceIntegrityHashFunction],
 ) {
   let new_integrities = {
     let integrities = integrities.read().await;
     assets
-      .par_iter()
+      .iter()
       .filter_map(|(src, asset)| {
         if integrities.contains_key(src) {
           return None;

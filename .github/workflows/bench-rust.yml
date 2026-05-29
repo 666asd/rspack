@@ -70,7 +70,7 @@ jobs:
         timeout-minutes: 30
         env:
           TMPDIR: ${{ runner.temp }}/codspeed-valgrind-tmp
-          RAYON_NUM_THREADS: 1
+          TOKIO_WORKER_THREADS: 1
           CODSPEED_EXPERIMENTAL_FAIR_SCHED: true
         with:
           mode: 'simulation'

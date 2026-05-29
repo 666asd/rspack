@@ -56,7 +56,7 @@ async fn handle_html_plugin_assets(
 
 async fn handle_html_plugin_tags(
   data: &mut AlterAssetTagGroupsData,
-  hash_func_names: &Vec<SubresourceIntegrityHashFunction>,
+  hash_func_names: &[SubresourceIntegrityHashFunction],
   integrities: Arc<RwLock<HashMap<String, String>>>,
   ctx: &SRICompilationContext,
 ) -> Result<()> {
@@ -87,7 +87,7 @@ async fn handle_html_plugin_tags(
 async fn process_tag_group(
   tags: &mut [HtmlPluginTag],
   public_path: &str,
-  hash_func_names: &Vec<SubresourceIntegrityHashFunction>,
+  hash_func_names: &[SubresourceIntegrityHashFunction],
   integrities: Arc<RwLock<HashMap<String, String>>>,
   normalized_integrities: &HashMap<String, String>,
   ctx: &SRICompilationContext,
@@ -161,7 +161,7 @@ async fn process_tag(
   public_path: &str,
   integrities: Arc<RwLock<HashMap<String, String>>>,
   normalized_integrities: &HashMap<String, String>,
-  hash_func_names: &Vec<SubresourceIntegrityHashFunction>,
+  hash_func_names: &[SubresourceIntegrityHashFunction],
   ctx: &SRICompilationContext,
 ) -> Result<Option<String>> {
   if tag.tag_name != "script" && tag.tag_name != "link" {
@@ -270,7 +270,7 @@ async fn get_normalized_integrities(
 async fn compute_file_integrity(
   path: &Utf8Path,
   fs: &ArcFs,
-  hash_func_names: &Vec<SubresourceIntegrityHashFunction>,
+  hash_func_names: &[SubresourceIntegrityHashFunction],
 ) -> Result<String> {
   let file = fs.read_file(path).await?;
   let content = String::from_utf8(file).to_rspack_result()?;

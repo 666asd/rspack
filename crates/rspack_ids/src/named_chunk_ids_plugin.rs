@@ -1,4 +1,3 @@
-use rayon::iter::{IntoParallelIterator, ParallelBridge, ParallelIterator};
 use rspack_core::{
   ChunkByUkey, ChunkGraph, ChunkGroupByUkey, ChunkNamedIdArtifact, ChunkUkey, CompilationChunkIds,
   ExportsInfoArtifact, Logger, ModuleGraph, ModuleGraphCacheArtifact, Plugin,
@@ -34,7 +33,7 @@ fn assign_named_chunk_ids(
 ) -> Vec<ChunkUkey> {
   let chunks_len = chunks.len();
   let item_name_pair: Vec<_> = chunks
-    .into_par_iter()
+    .into_iter()
     .map(|item| {
       let chunk = chunk_by_ukey.expect_get(&item);
       let name = get_short_chunk_name(
@@ -102,7 +101,6 @@ fn assign_named_chunk_ids(
       }
       res
     })
-    .par_bridge()
     .map(|(_, item)| {
       let chunk = chunk_by_ukey.expect_get(&item);
       let long_name = get_long_chunk_name(

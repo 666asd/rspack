@@ -1,4 +1,3 @@
-use rayon::prelude::*;
 use rspack_core::{
   ChunkGraph, ChunkInitFragments, ChunkUkey, CodeGenerationPublicPathAutoReplace, Compilation,
   Module, ModuleCodeGenerationContext, RuntimeCodeTemplate, RuntimeGlobals, SourceType,
@@ -83,17 +82,17 @@ pub async fn render_chunk_modules(
     .into_iter()
     .map(|(_, source, _, _)| source)
     .collect();
-  let module_sources = module_sources
-    .into_par_iter()
-    .fold(ConcatSource::default, |mut output, source| {
-      output.add(source);
-      output
-    })
-    .collect::<Vec<ConcatSource>>();
+  let module_sources =
+    module_sources
+      .into_iter()
+      .fold(ConcatSource::default(), |mut output, source| {
+        output.add(source);
+        output
+      });
 
   let mut sources = ConcatSource::default();
   sources.add(RawStringSource::from_static("{\n"));
-  sources.add(ConcatSource::new(module_sources));
+  sources.add(module_sources);
   sources.add(RawStringSource::from_static("\n}"));
 
   Ok(Some((sources.boxed(), chunk_init_fragments)))

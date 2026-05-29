@@ -153,7 +153,7 @@ impl Cache for PersistentCache {
 
   async fn after_compile(&mut self, compilation: &Compilation) {
     // save meta
-    self.ctx.save_occasion(&self.meta_occasion, &());
+    self.ctx.save_occasion(&self.meta_occasion, &()).await;
 
     // save snapshot
     let (_, file_added, file_updated, file_removed) = compilation.file_dependencies();
@@ -208,10 +208,13 @@ impl Cache for PersistentCache {
   }
 
   async fn after_build_module_graph(&mut self, compilation: &Compilation) {
-    self.ctx.save_occasion(
-      &self.make_occasion,
-      &compilation.build_module_graph_artifact,
-    );
+    self
+      .ctx
+      .save_occasion(
+        &self.make_occasion,
+        &compilation.build_module_graph_artifact,
+      )
+      .await;
   }
 
   async fn before_process_assets(&mut self, compilation: &mut Compilation) {
@@ -229,7 +232,10 @@ impl Cache for PersistentCache {
 
   async fn after_process_assets(&mut self, compilation: &Compilation) {
     if let Some(artifact) = &compilation.minimize_persistent_cache_artifact {
-      self.ctx.save_occasion(&self.minimize_occasion, artifact);
+      self
+        .ctx
+        .save_occasion(&self.minimize_occasion, artifact)
+        .await;
     }
   }
 

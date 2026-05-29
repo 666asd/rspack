@@ -1,6 +1,5 @@
 use std::sync::{Arc, atomic::AtomicI32};
 
-use rayon::iter::{IntoParallelRefIterator, ParallelBridge, ParallelIterator};
 use rspack_collections::{Identifiable, IdentifierMap, IdentifierSet};
 use rspack_core::{
   BoxModule, ChunkGraph, Compilation, Context, DependencyId, DependencyType, ExportsInfoArtifact,
@@ -76,7 +75,7 @@ pub fn collect_modules(
   let module_ukey_counter: Arc<AtomicI32> = Arc::new(AtomicI32::new(0));
 
   modules
-    .par_iter()
+    .iter()
     .map(|(module_id, module)| {
       let ukey = module_ukey_counter.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
       let depth = module_graph.get_depth(module_id);
@@ -139,7 +138,7 @@ pub fn collect_concatenated_modules(
   modules: &IdentifierMap<&BoxModule>,
 ) -> (IdentifierMap<IdentifierSet>, IdentifierMap<IdentifierSet>) {
   let children_map = modules
-    .par_iter()
+    .iter()
     .filter_map(|(module_id, module)| {
       let concatenated_module = module.as_concatenated_module()?;
       Some((
@@ -182,7 +181,7 @@ pub fn collect_module_original_sources(
 
   let tls: ThreadLocal<ObjectPool> = ThreadLocal::new();
   modules
-    .par_iter()
+    .iter()
     .filter_map(|(module_id, module)| {
       let module = if let Some(module) = module.as_concatenated_module() {
         module_graph
@@ -247,8 +246,8 @@ pub fn collect_module_dependencies(
   let dependency_ukey_counter = Arc::new(AtomicI32::new(0));
 
   modules
-    .par_iter()
-    .filter_map(|(module_id, _)| {
+    .keys()
+    .filter_map(|module_id| {
       let rsd_module_ukey = module_ukeys.get(module_id)?;
       let dependencies = module_graph
         .get_outgoing_connections(module_id)
@@ -299,7 +298,6 @@ pub fn collect_module_ids(
 ) -> Vec<RsdoctorModuleId> {
   modules
     .keys()
-    .par_bridge()
     .filter_map(|module_id| {
       let render_id = ChunkGraph::get_module_id(module_ids, *module_id).map(|s| s.to_string())?;
       let module_ukey = module_ukeys.get(module_id)?;
@@ -317,7 +315,7 @@ pub fn collect_module_side_effects_locations(
   module_graph: &ModuleGraph,
 ) -> IdentifierMap<Vec<RsdoctorSideEffectLocation>> {
   modules
-    .par_iter()
+    .iter()
     .filter_map(|(module_id, module)| {
       let bailout_reasons = module_graph.get_optimization_bailout(module_id);
       let module_ukey = module_ukeys.get(module_id)?;
@@ -360,8 +358,8 @@ pub fn collect_connections_only_imports(
   module_ukey_to_info: &HashMap<ModuleUkey, (String, bool)>,
 ) -> Vec<RsdoctorConnectionsOnlyImport> {
   let connections = modules
-    .par_iter()
-    .flat_map(|(module_id, _)| {
+    .keys()
+    .flat_map(|module_id| {
       if module_ukeys.get(module_id).is_none() {
         return vec![];
       }

@@ -8,10 +8,10 @@ use std::{
   mem::{ManuallyDrop, MaybeUninit},
 };
 
-pub use iterator_consumer::{FutureConsumer, RayonConsumer, TryFutureConsumer};
+pub use iterator_consumer::{FutureConsumer, TryFutureConsumer};
 pub use scope::scope;
 
-/// par_iter then collect into vec
+/// Spawn futures from an iterator and collect their outputs into a vec.
 ///
 /// This is a wrapper around `scope`, but allows non-'static return values.
 ///
@@ -31,12 +31,12 @@ pub use scope::scope;
 /// let data: Vec<String> = vec!["hello".into(), "world".into(), "!".into()];
 /// let tasks = data.iter().map(|s| handle(s));
 ///
-/// let list = unsafe { par_iter_then_collect(tasks) };
+/// let list = unsafe { spawn_iter_then_collect(tasks).await };
 ///
 /// assert_eq!(list, vec![(5, "hello"), (5, "world"), (1, "!")]);
 /// # }
 /// ```
-pub async unsafe fn par_iter_then_collect<I, F, O>(iter: I) -> Vec<O>
+pub async unsafe fn spawn_iter_then_collect<I, F, O>(iter: I) -> Vec<O>
 where
   I: IntoIterator<Item = F>,
   I::IntoIter: ExactSizeIterator,
@@ -111,4 +111,27 @@ where
     let ptr = ptr.cast::<O>();
     Vec::from_raw_parts(ptr, len, cap)
   }
+}
+
+/// Spawn fallible futures from an iterator, collect their outputs into a vec,
+/// then return the first error if any task failed.
+///
+/// This keeps the work on the compiler Tokio runtime while preserving the
+/// ordered collection shape commonly used by former parallel map/collect call
+/// sites.
+///
+/// # Safety
+///
+/// Its safety assumptions are the same as [`scope`] and
+/// [`spawn_iter_then_collect`].
+pub async unsafe fn spawn_iter_then_try_collect<I, F, O, E>(iter: I) -> Result<Vec<O>, E>
+where
+  I: IntoIterator<Item = F>,
+  I::IntoIter: ExactSizeIterator,
+  F: Future<Output = Result<O, E>> + Send + Sync,
+  O: Send + Sync,
+  E: Send + Sync,
+{
+  let items = unsafe { spawn_iter_then_collect(iter).await };
+  items.into_iter().collect()
 }

@@ -1,6 +1,5 @@
 use std::collections::{VecDeque, hash_map::Entry};
 
-use rayon::prelude::*;
 use rspack_collections::IdentifierMap;
 use rspack_core::{
   AsyncDependenciesBlockIdentifier, BuildMetaExportsType, CanInlineUse, Compilation,
@@ -10,6 +9,7 @@ use rspack_core::{
   SideEffectsOptimizeArtifact, SideEffectsStateArtifact, UsageState,
   build_module_graph::BuildModuleGraphArtifact, get_entry_runtime, incremental::IncrementalPasses,
   is_exports_object_referenced, is_no_exports_referenced, module_declared_side_effect_free,
+  spawn_iter_then_collect,
 };
 use rspack_error::{Diagnostic, Result};
 use rspack_hook::{plugin, plugin_hook};
@@ -131,30 +131,35 @@ impl<'a> FlagDependencyUsagePluginProxy<'a> {
       }
 
       self.compilation.module_graph_cache_artifact.freeze();
-      let compilation = self.compilation;
-      let module_graph = self.build_module_graph_artifact.get_module_graph();
+      let batch_res = {
+        let module_graph = self.build_module_graph_artifact.get_module_graph();
+        let this = &*self;
+        let global = self.global;
+        let side_effects_state_artifact_ref = &side_effects_state_artifact;
 
-      // collect referenced exports from modules by calling `dependency.get_referenced_exports`
-      // and also added referenced modules to queue for further processing
-      let batch_res = batch
-        .into_par_iter()
-        .map(|(block_id, runtime, force_side_effects)| {
-          let (referenced_exports, module_tasks) = self.process_module(
-            module_graph,
-            &side_effects_state_artifact,
-            block_id,
-            runtime.as_ref(),
-            force_side_effects,
-            self.global,
-          );
-          (
-            runtime,
-            force_side_effects,
-            referenced_exports,
-            module_tasks,
-          )
-        })
-        .collect::<Vec<_>>();
+        // collect referenced exports from modules by calling `dependency.get_referenced_exports`
+        // and also added referenced modules to queue for further processing
+        let batch_res = batch
+          .into_iter()
+          .map(|(block_id, runtime, force_side_effects)| async move {
+            let (referenced_exports, module_tasks) = this.process_module(
+              module_graph,
+              side_effects_state_artifact_ref,
+              block_id,
+              runtime.as_ref(),
+              force_side_effects,
+              global,
+            );
+            (
+              runtime,
+              force_side_effects,
+              referenced_exports,
+              module_tasks,
+            )
+          })
+          .collect::<Vec<_>>();
+        unsafe { spawn_iter_then_collect(batch_res).await }
+      };
 
       let mut nested_tasks = vec![];
       let mut non_nested_tasks: IdentifierMap<Vec<NonNestedTask>> =
@@ -167,14 +172,15 @@ impl<'a> FlagDependencyUsagePluginProxy<'a> {
 
         let mg = self.build_module_graph_artifact.get_module_graph();
 
+        let exports_info_artifact = &*self.exports_info_artifact;
         let collected = batch_res
-          .into_par_iter()
+          .into_iter()
           .map(
-            |(runtime, force_side_effects, referenced_exports, module_tasks)| {
+            |(runtime, force_side_effects, referenced_exports, module_tasks)| async move {
               let mut nested_tasks = Vec::with_capacity(referenced_exports.len());
               let mut non_nested_tasks = Vec::with_capacity(referenced_exports.len());
               for (module_id, exports) in referenced_exports {
-                let exports_info = self.exports_info_artifact.get_exports_info_data(&module_id);
+                let exports_info = exports_info_artifact.get_exports_info_data(&module_id);
                 let has_nested = exports.iter().any(|e| match e {
                   ExtendedReferencedExport::Array(arr) => arr.len() > 1,
                   ExtendedReferencedExport::Export(export) => export.name.len() > 1,
@@ -196,6 +202,7 @@ impl<'a> FlagDependencyUsagePluginProxy<'a> {
             },
           )
           .collect::<Vec<_>>();
+        let collected = unsafe { spawn_iter_then_collect(collected).await };
 
         for (module_nested_tasks, module_non_nested_tasks, module_tasks) in collected {
           for i in module_tasks {
@@ -211,10 +218,10 @@ impl<'a> FlagDependencyUsagePluginProxy<'a> {
       // We can ensure that only the module's exports info data will be modified,
       // so we can process these non-nested tasks parallelly by moving the exports info data out
       // and setting it back after processing. This avoids cloning large exports info maps while
-      // preserving the original rayon work shape.
+      // preserving the original parallel work shape.
       let non_nested_res = {
         let mg = self.build_module_graph_artifact.get_module_graph();
-        non_nested_tasks
+        let non_nested_tasks = non_nested_tasks
           .into_iter()
           .map(|(module_id, tasks)| {
             let exports_info_id = self.exports_info_artifact.get_exports_info(&module_id);
@@ -231,8 +238,8 @@ impl<'a> FlagDependencyUsagePluginProxy<'a> {
             (module_id, (tasks, exports_info))
           })
           .collect::<IdentifierMap<_>>()
-          .into_par_iter()
-          .map(|(module_id, (tasks, mut exports_info))| {
+          .into_iter()
+          .map(|(module_id, (tasks, mut exports_info))| async move {
             let module = mg
               .module_by_identifier(&module_id)
               .expect("should have module");
@@ -258,7 +265,8 @@ impl<'a> FlagDependencyUsagePluginProxy<'a> {
             }
             (exports_info, res)
           })
-          .collect::<Vec<_>>()
+          .collect::<Vec<_>>();
+        unsafe { spawn_iter_then_collect(non_nested_tasks).await }
       };
 
       {

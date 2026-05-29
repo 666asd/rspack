@@ -8,7 +8,6 @@ use std::{
 use anyhow::{Context, anyhow};
 use cow_utils::CowUtils;
 use itertools::Itertools;
-use rayon::prelude::*;
 use rspack_core::{
   AssetInfo, Compilation, CompilationAsset, Filename, PathData,
   rspack_sources::{RawBufferSource, RawStringSource, SourceExt},
@@ -189,7 +188,7 @@ impl HtmlPluginAssetTags {
     asset_tags.scripts.extend(
       assets
         .js
-        .par_iter()
+        .iter()
         .map(|x| HtmlPluginTag::create_script(x.as_str(), &config.script_loading))
         .collect::<Vec<_>>(),
     );
@@ -198,7 +197,7 @@ impl HtmlPluginAssetTags {
     asset_tags.styles.extend(
       assets
         .css
-        .par_iter()
+        .iter()
         .map(|x| HtmlPluginTag::create_style(x.as_str()))
         .collect::<Vec<_>>(),
     );

@@ -40,7 +40,6 @@ use std::{
 use dashmap::DashSet;
 use futures::future::BoxFuture;
 use itertools::Itertools;
-use rayon::prelude::*;
 use rspack_cacheable::{
   cacheable,
   with::{AsOption, AsPreset, AsVec},
@@ -895,7 +894,6 @@ impl Compilation {
       .build_chunk_graph_artifact
       .chunk_by_ukey
       .values_mut()
-      .par_bridge()
       .for_each(|chunk| {
         for (old_name, new_name) in renames.iter() {
           if chunk.remove_file(old_name) {

@@ -5,7 +5,6 @@ use std::{
 };
 
 use futures::future::join_all;
-use rayon::prelude::*;
 use rspack_collections::IdentifierMap;
 use rspack_core::{
   ChunkByUkey, ChunkUkey, Compilation, ExportsInfoArtifact, Module, ModuleIdentifier,
@@ -265,7 +264,7 @@ impl Combinator {
     chunk_sets_by_count: Vec<ChunkCombination>,
   ) -> FxHashMap<ChunksKey, Vec<ChunkCombination>> {
     chunk_sets_in_graph
-      .into_par_iter()
+      .into_iter()
       .map(|(chunks_key, chunks_set)| {
         let mut result = vec![];
         let chunks_set_len = chunks_set.len();
@@ -290,7 +289,7 @@ impl Combinator {
     chunk_index_map: &FxHashMap<ChunkUkey, u32>,
   ) {
     let chunk_sets_in_graph = all_modules
-      .par_iter()
+      .iter()
       .enumerate()
       .filter_map(|(module_index, _)| {
         let chunks = module_chunks
@@ -329,7 +328,7 @@ impl Combinator {
     chunk_index_map: &FxHashMap<ChunkUkey, u32>,
   ) {
     let (grouped_by_exports, used_exports_chunks): (Vec<_>, Vec<_>) = all_modules
-      .par_iter()
+      .iter()
       .enumerate()
       .map(|(module_index, module)| {
         let grouped_chunks = Self::group_chunks_by_exports(
@@ -601,7 +600,7 @@ impl SplitChunksPlugin {
   ) {
     // remove all modules from other entries and update size
     let keys_of_invalid_group = module_group_map
-      .par_iter_mut()
+      .iter_mut()
       .filter_map(|(key, other_module_group)| {
         other_module_group
           .chunks

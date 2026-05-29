@@ -1,7 +1,6 @@
 use std::{collections::VecDeque, sync::Arc};
 
 use atomic_refcell::AtomicRefCell;
-use rayon::prelude::*;
 use rspack_collections::{IdentifierMap, IdentifierSet};
 use rspack_core::{
   ChunkGroupUkey, ChunkUkey, Compilation, DependenciesBlock, DependencyType, ExportProvided,
@@ -304,7 +303,6 @@ pub(crate) fn ensure_entry_exports(compilation: &mut Compilation) {
     .build_chunk_graph_artifact
     .chunk_by_ukey
     .iter()
-    .par_bridge()
     .filter(|(ukey, _)| !entrypoint_chunks.contains_key(ukey))
     .for_each(|(ukey, _)| {
       let modules = compilation

@@ -54,7 +54,7 @@ jobs:
         uses: CodSpeedHQ/action@d872884a306dd4853acf0f584f4b706cf0cc72a2
         timeout-minutes: 30
         env:
-          RAYON_NUM_THREADS: 1
+          TOKIO_WORKER_THREADS: 1
           CODSPEED_EXPERIMENTAL_FAIR_SCHED: true
         with:
           mode: 'simulation'

@@ -168,7 +168,7 @@ impl RuntimeModule for SRIHashVariableRuntimeModule {
 fn generate_sri_hash_placeholders(
   asset_type: ManifestAssetType,
   chunks: Vec<&ChunkId>,
-  hash_funcs: &Vec<SubresourceIntegrityHashFunction>,
+  hash_funcs: &[SubresourceIntegrityHashFunction],
   _compilation: &Compilation,
 ) -> String {
   format!(

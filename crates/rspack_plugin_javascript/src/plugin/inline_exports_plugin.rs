@@ -1,10 +1,10 @@
 use itertools::Itertools;
-use rayon::prelude::*;
 use rspack_core::{
   Compilation, CompilationOptimizeDependencies, Dependency, DependencyId, ExportMode,
   ExportProvided, ExportsInfo, ExportsInfoArtifact, ModuleGraph, ModuleGraphConnection,
   ModuleIdentifier, Plugin, RuntimeSpec, SideEffectsOptimizeArtifact, UsageState, UsedName,
   UsedNameItem, build_module_graph::BuildModuleGraphArtifact, incremental::IncrementalPasses,
+  spawn_iter_then_collect,
 };
 use rspack_error::{Diagnostic, Result};
 use rspack_hook::{plugin, plugin_hook};
@@ -132,42 +132,48 @@ async fn optimize_dependencies(
 
   while !q.is_empty() {
     let items = std::mem::take(&mut q);
-    let batch = items
-      .par_iter()
-      .filter_map(|exports_info| {
-        let exports_info_data = exports_info.as_data(exports_info_artifact);
-        let export_list = {
-          // If there are other usage (e.g. `import { Kind } from './enum'; Kind;`) in any runtime,
-          // then we cannot inline this export.
-          if exports_info_data.other_exports_info().get_used(None) != UsageState::Unused {
-            return None;
-          }
-          exports_info_data
-            .exports()
-            .values()
-            .map(|export_info_data| {
-              let do_inline = !export_info_data.has_used_name()
-                && export_info_data.can_inline() == Some(true)
-                && matches!(export_info_data.provided(), Some(ExportProvided::Provided));
+    let batch = {
+      let exports_info_artifact = &*exports_info_artifact;
+      let batch = items
+        .into_iter()
+        .map(|exports_info| async move {
+          let exports_info_data = exports_info.as_data(exports_info_artifact);
+          let export_list =
+            if exports_info_data.other_exports_info().get_used(None) != UsageState::Unused {
+              None
+            } else {
+              Some(
+                exports_info_data
+                  .exports()
+                  .values()
+                  .map(|export_info_data| {
+                    let do_inline = !export_info_data.has_used_name()
+                      && export_info_data.can_inline() == Some(true)
+                      && matches!(export_info_data.provided(), Some(ExportProvided::Provided));
 
-              let nested_exports_info = if export_info_data.exports_info_owned() {
-                let used = export_info_data.get_used(None);
-                if used == UsageState::OnlyPropertiesUsed || used == UsageState::Unused {
-                  export_info_data.exports_info()
-                } else {
-                  None
-                }
-              } else {
-                None
-              };
-              (export_info_data.id(), nested_exports_info, do_inline)
-            })
-            .collect::<Vec<_>>()
-        };
-
-        Some((*exports_info, export_list))
-      })
-      .collect::<FxHashMap<_, _>>();
+                    let nested_exports_info = if export_info_data.exports_info_owned() {
+                      let used = export_info_data.get_used(None);
+                      if used == UsageState::OnlyPropertiesUsed || used == UsageState::Unused {
+                        export_info_data.exports_info()
+                      } else {
+                        None
+                      }
+                    } else {
+                      None
+                    };
+                    (export_info_data.id(), nested_exports_info, do_inline)
+                  })
+                  .collect::<Vec<_>>(),
+              )
+            };
+          export_list.map(|export_list| (exports_info, export_list))
+        })
+        .collect::<Vec<_>>();
+      unsafe { spawn_iter_then_collect(batch).await }
+        .into_iter()
+        .flatten()
+        .collect::<FxHashMap<_, _>>()
+    };
 
     visited.extend(batch.keys());
     for (_, export_list) in batch {

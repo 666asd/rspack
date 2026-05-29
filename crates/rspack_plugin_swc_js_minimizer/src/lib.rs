@@ -6,7 +6,6 @@ use std::{
 
 use cow_utils::CowUtils;
 use once_cell::sync::OnceCell;
-use rayon::prelude::*;
 use regex::Regex;
 use rspack_core::{
   AssetInfo, ChunkUkey, Compilation, CompilationAsset, CompilationParams, CompilationProcessAssets,
@@ -203,9 +202,9 @@ async fn process_assets(&self, compilation: &mut Compilation) -> Result<()> {
   let tls: ThreadLocal<ObjectPool> = ThreadLocal::new();
   compilation
     .assets_mut()
-    .par_iter_mut()
+    .iter_mut()
     .filter(|(filename, original)| {
-      // propagate span in rayon to keep parent relation
+      // propagate span in parallel work to keep parent relation
       let is_matched = match_object(options, filename);
 
       if !is_matched || original.get_info().minimized.unwrap_or(false) {
@@ -214,7 +213,7 @@ async fn process_assets(&self, compilation: &mut Compilation) -> Result<()> {
 
       true
     })
-    .try_for_each_with(tx,|tx, (filename, original)| -> Result<()>  {
+    .try_for_each(|(filename, original)| -> Result<()>  {
       let _guard = enter_span.enter();
       let filename = filename.split('?').next().expect("Should have filename");
       if let Some(original_source) = original.get_source() {
@@ -501,6 +500,7 @@ async fn process_assets(&self, compilation: &mut Compilation) -> Result<()> {
     }
   }
 
+  drop(tx);
   compilation.extend_diagnostics(rx.into_iter().flatten().collect::<Vec<_>>());
 
   // write all extracted comments to assets

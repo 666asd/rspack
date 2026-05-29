@@ -1,6 +1,5 @@
 use std::ops::{Deref, DerefMut};
 
-use rayon::prelude::{FromParallelIterator, IntoParallelIterator, ParallelIterator};
 use rspack_util::atom::Atom;
 use rustc_hash::FxHashMap;
 
@@ -68,15 +67,6 @@ impl IntoIterator for SideEffectsOptimizeArtifact {
 
   fn into_iter(self) -> Self::IntoIter {
     self.0.into_iter()
-  }
-}
-
-impl FromParallelIterator<(DependencyId, SideEffectsDoOptimize)> for SideEffectsOptimizeArtifact {
-  fn from_par_iter<I>(par_iter: I) -> Self
-  where
-    I: IntoParallelIterator<Item = (DependencyId, SideEffectsDoOptimize)>,
-  {
-    Self(par_iter.into_par_iter().collect())
   }
 }
 

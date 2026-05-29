@@ -1,4 +1,3 @@
-use rayon::prelude::*;
 use rspack_collections::{IdentifierLinkedSet, IdentifierMap, IdentifierSet};
 use rspack_core::{
   AsyncModulesArtifact, Compilation, CompilationFinishModules, DependencyType, ExportsInfoArtifact,
@@ -97,7 +96,6 @@ fn set_sync_modules(
 ) {
   let mut outgoing_connections = modules
     .iter()
-    .par_bridge()
     .map(|mid| {
       (
         *mid,

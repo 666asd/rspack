@@ -1,4 +1,3 @@
-use rayon::prelude::*;
 use rspack_collections::{IdentifierIndexSet, IdentifierSet};
 use rspack_core::{
   ChunkGraph, CompilationModuleIds, Logger, ModuleGraph, ModuleId, ModuleIdentifier,
@@ -37,7 +36,7 @@ fn assign_named_module_ids(
   mutations: &mut Option<Mutations>,
 ) -> Vec<ModuleIdentifier> {
   let item_name_pair: Vec<_> = modules
-    .into_par_iter()
+    .into_iter()
     .map(|item| {
       let module = module_graph
         .module_by_identifier(&item)
@@ -84,7 +83,6 @@ fn assign_named_module_ids(
   let item_name_pair: Vec<_> = conflict_name_to_items
     .into_iter()
     .flat_map(|(name, items)| items.into_iter().map(move |item| (name.clone(), item)))
-    .par_bridge()
     .map(|(name, item)| {
       let module = module_graph
         .module_by_identifier(&item)

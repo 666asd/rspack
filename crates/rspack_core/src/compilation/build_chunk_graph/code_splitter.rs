@@ -6,7 +6,6 @@ use std::{
 
 use itertools::Itertools;
 use num_bigint::BigUint;
-use rayon::prelude::*;
 use rspack_collections::{IdentifierIndexSet, IdentifierMap, IdentifierSet};
 use rspack_error::{Diagnostic, Error, Result, error};
 use rspack_util::{
@@ -775,7 +774,7 @@ Or do you want to use the entrypoints '{name}' and '{runtime}' independently on 
 
   pub fn prepare_input_entrypoints_and_modules(
     &mut self,
-    all_modules: &Vec<ModuleIdentifier>,
+    all_modules: &[ModuleIdentifier],
     compilation: &mut Compilation,
   ) -> Result<FxIndexMap<ChunkGroupUkey, Vec<ModuleIdentifier>>> {
     let mut input_entrypoints_and_modules: FxIndexMap<ChunkGroupUkey, Vec<ModuleIdentifier>> =
@@ -786,7 +785,7 @@ Or do you want to use the entrypoints '{name}' and '{runtime}' independently on 
     let outgoings = {
       let mg = compilation.get_module_graph();
       all_modules
-        .par_iter()
+        .iter()
         .filter_map(|m| {
           let mgm = mg.module_graph_module_by_identifier(m)?;
           let outgoing_connections = mgm.outgoing_connections();
@@ -820,7 +819,7 @@ Or do you want to use the entrypoints '{name}' and '{runtime}' independently on 
       .unwrap_or_default();
 
     let assign_depths_maps = assign_tasks
-      .par_iter()
+      .iter()
       .map(|(_, modules)| {
         let initial_depth_capacity = initial_depth_capacity.max(modules.len());
         let mut assign_depths_map =
@@ -2256,7 +2255,7 @@ Or do you want to use the entrypoints '{name}' and '{runtime}' independently on 
       }
 
       let mut chunk_group_merging_results = chunk_groups_merging_tasks
-        .into_par_iter()
+        .into_iter()
         .map(|(info_ukey, process_block, mut cgi)| {
           let mut changed = false;
           let available_modules_length = cgi.available_modules_to_be_merged.len() as u32;
@@ -2347,7 +2346,7 @@ Or do you want to use the entrypoints '{name}' and '{runtime}' independently on 
   ) -> Result<()> {
     let mg = compilation.get_module_graph();
     self.prepared_connection_map = all_modules
-      .par_iter()
+      .iter()
       .map(|module| {
         let all_dependencies = mg
           .module_graph_module_by_identifier(module)

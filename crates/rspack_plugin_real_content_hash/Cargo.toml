@@ -13,7 +13,6 @@ atomic_refcell  = { workspace = true }
 derive_more     = { workspace = true, features = ["debug"] }
 indexmap        = { workspace = true }
 once_cell       = { workspace = true }
-rayon           = { workspace = true }
 regex           = { workspace = true }
 rspack_core     = { workspace = true }
 rspack_error    = { workspace = true }

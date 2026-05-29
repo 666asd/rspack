@@ -1,4 +1,3 @@
-use rayon::prelude::*;
 use rspack_core::{
   Chunk, ChunkSplitData, ChunkUkey, Compilation, ModuleIdentifier, incremental::Mutation,
 };
@@ -30,7 +29,7 @@ impl SplitChunksPlugin {
   ) -> ModuleChunks {
     let chunk_graph = &compilation.build_chunk_graph_artifact.chunk_graph;
     all_modules
-      .par_iter()
+      .iter()
       .map(|module| chunk_graph.get_module_chunks(*module).clone())
       .collect::<Vec<_>>()
   }

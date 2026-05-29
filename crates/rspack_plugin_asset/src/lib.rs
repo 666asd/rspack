@@ -1,7 +1,6 @@
 use std::{borrow::Cow, hash::Hasher, path::PathBuf};
 
 use asset_exports_dependency::AssetExportsDependency;
-use rayon::prelude::*;
 use rspack_cacheable::{cacheable, cacheable_dyn};
 use rspack_core::{
   AssetGeneratorDataUrl, AssetGeneratorDataUrlFnCtx, AssetGeneratorImportMode, AssetInfo,
@@ -13,6 +12,7 @@ use rspack_core::{
   ParserAndGenerator, PathData, Plugin, PublicPath, RenderManifestEntry, ResourceData,
   RuntimeGlobals, RuntimeSpec, SourceType,
   rspack_sources::{BoxSource, RawStringSource, SourceExt},
+  spawn_iter_then_try_collect,
 };
 use rspack_error::{Diagnostic, IntoTWithDiagnosticArray, Result, error};
 use rspack_hash::{RspackHash, RspackHashDigest};
@@ -814,11 +814,11 @@ async fn render_manifest(
     .get_chunk_modules_identifier_by_source_type(chunk_ukey, SourceType::Asset, module_graph);
 
   let assets = ordered_modules
-    .par_iter()
-    .map(|mid| {
+    .into_iter()
+    .map(|mid| async move {
       let code_gen_result = compilation
         .code_generation_results
-        .get(mid, Some(chunk.runtime()));
+        .get(&mid, Some(chunk.runtime()));
 
       let result = code_gen_result.get(&SourceType::Asset).map(|source| {
         let asset_filename = code_gen_result
@@ -842,10 +842,11 @@ async fn render_manifest(
         }
       });
 
-      Ok(result)
+      Ok::<_, rspack_error::Error>(result)
     })
-    .collect::<Result<Vec<Option<RenderManifestEntry>>>>()?
-    .into_par_iter()
+    .collect::<Vec<_>>();
+  let assets = unsafe { spawn_iter_then_try_collect(assets).await }?
+    .into_iter()
     .flatten()
     .collect::<Vec<RenderManifestEntry>>();
 

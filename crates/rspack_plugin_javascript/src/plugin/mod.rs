@@ -6,7 +6,6 @@ use std::{
   sync::{Arc, LazyLock, RwLock as SyncRwLock},
 };
 
-use rayon::prelude::*;
 use rustc_hash::{FxHashMap, FxHashSet as HashSet};
 pub mod api_plugin;
 mod drive;
@@ -1081,187 +1080,155 @@ var {} = {{}};
     }
 
     // make patch in parallel iteration
-    let rename_info_patch = render_module_sources
-      .par_iter()
-      .fold(
-        || {
-          Ok(RenameInfoPatch {
-            inlined_modules_to_info: IdentifierMap::default(),
-            non_inlined_module_through_idents: Vec::new(),
-            all_used_names: RESERVED_NAMES_ATOM_SET.clone(),
-          })
-        },
-        |mut acc, (rendered_module, m)| {
-          let is_inlined_module = inlined_modules.contains_key(&m.identifier());
+    let rename_info_patch = render_module_sources.iter().try_fold(
+      RenameInfoPatch {
+        inlined_modules_to_info: IdentifierMap::default(),
+        non_inlined_module_through_idents: Vec::new(),
+        all_used_names: RESERVED_NAMES_ATOM_SET.clone(),
+      },
+      |mut acc, (rendered_module, m)| {
+        let is_inlined_module = inlined_modules.contains_key(&m.identifier());
 
-          if let Ok(acc) = acc.as_mut() {
-            let code = rendered_module;
-            let mut use_cache = false;
+        let code = rendered_module;
+        let mut use_cache = false;
+
+        if is_inlined_module {
+          if let Some(ident_info_with_hash) =
+            self.rename_module_cache.get_inlined_info(&m.identifier())
+            && let (Some(hash_current), Some(hash_cache)) = (
+              m.build_info().hash.as_ref(),
+              ident_info_with_hash.hash.as_ref(),
+            )
+            && *hash_current == *hash_cache
+          {
+            let WithHash { value, .. } = (*ident_info_with_hash).clone();
+            acc.inlined_modules_to_info.insert(m.identifier(), value);
+            use_cache = true;
+          }
+        } else if let Some(idents_with_hash) = self
+          .rename_module_cache
+          .get_non_inlined_idents(&m.identifier())
+          && let (Some(hash_current), Some(hash_cache)) =
+            (m.build_info().hash.as_ref(), idents_with_hash.hash.as_ref())
+          && *hash_current == *hash_cache
+        {
+          acc
+            .all_used_names
+            .extend(idents_with_hash.value.iter().map(|v| v.id.sym.clone()));
+          acc
+            .non_inlined_module_through_idents
+            .extend(idents_with_hash.value.clone());
+          use_cache = true;
+        }
+
+        if !use_cache {
+          let cm: Arc<swc_core::common::SourceMap> = Default::default();
+          let fm = cm.new_source_file(
+            Arc::new(FileName::Custom(m.identifier().to_string())),
+            code.source().into_string_lossy().into_owned(),
+          );
+          let comments = SingleThreadedComments::default();
+          let mut errors = vec![];
+
+          if let Ok(program) = swc_core::ecma::parser::parse_file_as_program(
+            &fm,
+            swc_core::ecma::parser::Syntax::default(),
+            swc_core::ecma::ast::EsVersion::EsNext,
+            Some(&comments),
+            &mut errors,
+          ) {
+            let mut ast: Ast = Ast::new(program, cm, Some(comments));
+            let mut global_ctxt = SyntaxContext::empty();
+            let mut module_ctxt = SyntaxContext::empty();
+
+            ast.transform(|program, context| {
+              global_ctxt = global_ctxt.apply_mark(context.unresolved_mark);
+              module_ctxt = module_ctxt.apply_mark(context.top_level_mark);
+              program.visit_mut_with(&mut resolver(
+                context.unresolved_mark,
+                context.top_level_mark,
+                false,
+              ));
+            });
+
+            let mut collector = IdentCollector::default();
+            ast.visit(|program, _ctxt| {
+              program.visit_with(&mut collector);
+            });
 
             if is_inlined_module {
-              if let Some(ident_info_with_hash) =
-                self.rename_module_cache.get_inlined_info(&m.identifier())
-                && let (Some(hash_current), Some(hash_cache)) = (
-                  m.build_info().hash.as_ref(),
-                  ident_info_with_hash.hash.as_ref(),
-                )
-                && *hash_current == *hash_cache
-              {
-                let WithHash { value, .. } = (*ident_info_with_hash).clone();
-                acc.inlined_modules_to_info.insert(m.identifier(), value);
-                use_cache = true;
-              }
-            } else if let Some(idents_with_hash) = self
-              .rename_module_cache
-              .get_non_inlined_idents(&m.identifier())
-              && let (Some(hash_current), Some(hash_cache)) =
-                (m.build_info().hash.as_ref(), idents_with_hash.hash.as_ref())
-              && *hash_current == *hash_cache
-            {
-              acc
-                .all_used_names
-                .extend(idents_with_hash.value.iter().map(|v| v.id.sym.clone()));
-              acc
-                .non_inlined_module_through_idents
-                .extend(idents_with_hash.value.clone());
-              use_cache = true;
-            }
+              let mut module_scope_idents = Vec::new();
 
-            if !use_cache {
-              let cm: Arc<swc_core::common::SourceMap> = Default::default();
-              let fm = cm.new_source_file(
-                Arc::new(FileName::Custom(m.identifier().to_string())),
-                code.source().into_string_lossy().into_owned(),
-              );
-              let comments = SingleThreadedComments::default();
-              let mut errors = vec![];
+              for ident in collector.ids {
+                if ident.id.ctxt == global_ctxt
+                  || ident.id.ctxt != module_ctxt
+                  || ident.is_class_expr_with_ident
+                {
+                  acc.all_used_names.insert(ident.id.sym.clone());
+                }
 
-              if let Ok(program) = swc_core::ecma::parser::parse_file_as_program(
-                &fm,
-                swc_core::ecma::parser::Syntax::default(),
-                swc_core::ecma::ast::EsVersion::EsNext,
-                Some(&comments),
-                &mut errors,
-              ) {
-                let mut ast: Ast = Ast::new(program, cm, Some(comments));
-                let mut global_ctxt = SyntaxContext::empty();
-                let mut module_ctxt = SyntaxContext::empty();
-
-                ast.transform(|program, context| {
-                  global_ctxt = global_ctxt.apply_mark(context.unresolved_mark);
-                  module_ctxt = module_ctxt.apply_mark(context.top_level_mark);
-                  program.visit_mut_with(&mut resolver(
-                    context.unresolved_mark,
-                    context.top_level_mark,
-                    false,
-                  ));
-                });
-
-                let mut collector = IdentCollector::default();
-                ast.visit(|program, _ctxt| {
-                  program.visit_with(&mut collector);
-                });
-
-                if is_inlined_module {
-                  let mut module_scope_idents = Vec::new();
-
-                  for ident in collector.ids {
-                    if ident.id.ctxt == global_ctxt
-                      || ident.id.ctxt != module_ctxt
-                      || ident.is_class_expr_with_ident
-                    {
-                      acc.all_used_names.insert(ident.id.sym.clone());
-                    }
-
-                    if ident.id.ctxt == module_ctxt {
-                      acc.all_used_names.insert(ident.id.sym.clone());
-                      module_scope_idents.push(Arc::new(ident));
-                    }
-                  }
-
-                  let ident = m.identifier();
-
-                  let info = InlinedModuleInfo {
-                    source: code.clone(),
-                    module_scope_idents,
-                    used_in_non_inlined: Vec::new(),
-                  };
-                  let runtime = compilation
-                    .build_chunk_graph_artifact
-                    .chunk_by_ukey
-                    .expect_get(chunk_ukey)
-                    .runtime();
-
-                  self.rename_module_cache.inlined_modules_to_info.insert(
-                    ident,
-                    Arc::new(WithHash {
-                      hash: ChunkGraph::get_module_hash(compilation, ident, runtime).cloned(),
-                      value: info.clone(),
-                    }),
-                  );
-
-                  acc.inlined_modules_to_info.insert(ident, info);
-                } else {
-                  let mut idents_vec = vec![];
-                  let module_ident = m.identifier();
-                  let runtime = compilation
-                    .build_chunk_graph_artifact
-                    .chunk_by_ukey
-                    .expect_get(chunk_ukey)
-                    .runtime();
-
-                  for ident in collector.ids {
-                    if ident.id.ctxt == global_ctxt {
-                      acc.all_used_names.insert(ident.clone().id.sym.clone());
-                      idents_vec.push(ident.clone());
-                      acc.non_inlined_module_through_idents.push(ident);
-                    }
-                  }
-
-                  self
-                    .rename_module_cache
-                    .non_inlined_modules_through_idents
-                    .insert(
-                      module_ident,
-                      Arc::new(WithHash {
-                        hash: ChunkGraph::get_module_hash(compilation, module_ident, runtime)
-                          .cloned(),
-                        value: idents_vec.clone(),
-                      }),
-                    );
+                if ident.id.ctxt == module_ctxt {
+                  acc.all_used_names.insert(ident.id.sym.clone());
+                  module_scope_idents.push(Arc::new(ident));
                 }
               }
+
+              let ident = m.identifier();
+
+              let info = InlinedModuleInfo {
+                source: code.clone(),
+                module_scope_idents,
+                used_in_non_inlined: Vec::new(),
+              };
+              let runtime = compilation
+                .build_chunk_graph_artifact
+                .chunk_by_ukey
+                .expect_get(chunk_ukey)
+                .runtime();
+
+              self.rename_module_cache.inlined_modules_to_info.insert(
+                ident,
+                Arc::new(WithHash {
+                  hash: ChunkGraph::get_module_hash(compilation, ident, runtime).cloned(),
+                  value: info.clone(),
+                }),
+              );
+
+              acc.inlined_modules_to_info.insert(ident, info);
+            } else {
+              let mut idents_vec = vec![];
+              let module_ident = m.identifier();
+              let runtime = compilation
+                .build_chunk_graph_artifact
+                .chunk_by_ukey
+                .expect_get(chunk_ukey)
+                .runtime();
+
+              for ident in collector.ids {
+                if ident.id.ctxt == global_ctxt {
+                  acc.all_used_names.insert(ident.clone().id.sym.clone());
+                  idents_vec.push(ident.clone());
+                  acc.non_inlined_module_through_idents.push(ident);
+                }
+              }
+
+              self
+                .rename_module_cache
+                .non_inlined_modules_through_idents
+                .insert(
+                  module_ident,
+                  Arc::new(WithHash {
+                    hash: ChunkGraph::get_module_hash(compilation, module_ident, runtime).cloned(),
+                    value: idents_vec.clone(),
+                  }),
+                );
             }
           }
+        }
 
-          acc
-        },
-      )
-      .reduce(
-        || {
-          Ok(RenameInfoPatch {
-            inlined_modules_to_info: IdentifierMap::default(),
-            non_inlined_module_through_idents: Vec::new(),
-            all_used_names: RESERVED_NAMES_ATOM_SET.clone(),
-          })
-        },
-        |acc, chunk| match acc {
-          Ok(mut acc) => match chunk {
-            Ok(chunk) => {
-              acc
-                .inlined_modules_to_info
-                .extend(chunk.inlined_modules_to_info);
-              acc
-                .non_inlined_module_through_idents
-                .extend(chunk.non_inlined_module_through_idents);
-              acc.all_used_names.extend(chunk.all_used_names);
-              Ok(acc)
-            }
-            Err(e) => Err(e),
-          },
-          Err(e) => Err(e),
-        },
-      );
+        Ok(acc)
+      },
+    );
 
     match rename_info_patch {
       Ok(rename_info_patch) => {

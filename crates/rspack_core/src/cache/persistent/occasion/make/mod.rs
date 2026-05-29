@@ -43,7 +43,7 @@ impl Occasion for MakeOccasion {
   }
 
   #[tracing::instrument(name = "Cache::Occasion::Make::save", skip_all)]
-  fn save(&self, storage: &mut dyn Storage, artifact: &BuildModuleGraphArtifact) {
+  async fn save(&self, storage: &mut dyn Storage, artifact: &BuildModuleGraphArtifact) {
     let BuildModuleGraphArtifact {
       // write all of field here to avoid forget to update occasion when add new fields
       // for module graph
@@ -81,7 +81,8 @@ impl Occasion for MakeOccasion {
       &need_update_modules,
       storage,
       &self.codec,
-    );
+    )
+    .await;
   }
 
   #[tracing::instrument(name = "Cache::Occasion::Make::recovery", skip_all)]

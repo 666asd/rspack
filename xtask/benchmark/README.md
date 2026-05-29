@@ -53,14 +53,14 @@ npm run bench:rust:local -- build_chunk_graph
 The script expands to:
 
 ```bash
-mkdir -p /tmp/rspack-codspeed-valgrind-tmp && TMPDIR=/tmp/rspack-codspeed-valgrind-tmp RAYON_NUM_THREADS=1 RSPACK_BENCHCASES_DIR=$PWD/.bench/rspack-benchcases codspeed run -m simulation -- cargo codspeed run -m simulation
+mkdir -p /tmp/rspack-codspeed-valgrind-tmp && TMPDIR=/tmp/rspack-codspeed-valgrind-tmp TOKIO_WORKER_THREADS=1 RSPACK_BENCHCASES_DIR=$PWD/.bench/rspack-benchcases codspeed run -m simulation -- cargo codspeed run -m simulation
 ```
 
 This command:
 
 - Creates a stable temporary directory for CodSpeed and Valgrind files
 - Sets `TMPDIR` so the temporary files are written to that directory
-- Sets `RAYON_NUM_THREADS=1` to match the single-threaded CI simulation environment
+- Sets `TOKIO_WORKER_THREADS=1` to match the single-threaded CI simulation environment
 - Sets `RSPACK_BENCHCASES_DIR` to the prepared benchmark fixtures
 - Wraps `cargo codspeed run -m simulation` in `codspeed run -m simulation` so local runs use the CodSpeed runner environment instead of only checking benchmarks
 

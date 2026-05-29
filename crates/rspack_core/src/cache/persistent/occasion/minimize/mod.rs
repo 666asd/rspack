@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use rayon::prelude::*;
 use rspack_cacheable::{cacheable, with::AsPreset};
 use rspack_error::Result;
 use rspack_sources::BoxSource;
@@ -10,7 +9,7 @@ use super::{
   super::{codec::CacheCodec, storage::Storage},
   Occasion,
 };
-use crate::RayonConsumer;
+use crate::spawn_iter_then_collect;
 
 pub const SCOPE: &str = "occasion_minimize";
 
@@ -101,34 +100,38 @@ impl Occasion for MinimizeOccasion {
   }
 
   #[tracing::instrument(name = "Cache::Occasion::Minimize::save", skip_all)]
-  fn save(&self, storage: &mut dyn Storage, artifact: &MinimizePersistentCacheArtifact) {
+  async fn save(&self, storage: &mut dyn Storage, artifact: &MinimizePersistentCacheArtifact) {
     // Only persist entries that were added during this build.
-    artifact
+    let save_tasks = artifact
       .dirty_keys
-      .par_iter()
-      .filter_map(|key| {
-        let entry = artifact.entries.get(key)?;
-        let storage_entry = Entry {
-          source: entry.source.clone(),
-          extracted_comments: entry
-            .extracted_comments
-            .as_ref()
-            .map(|ec| ExtractedCommentsEntry {
-              source: ec.source.clone(),
-              comments_file_name: ec.comments_file_name.clone(),
+      .iter()
+      .map(|key| async move {
+        artifact.entries.get(key).and_then(|entry| {
+          let storage_entry = Entry {
+            source: entry.source.clone(),
+            extracted_comments: entry.extracted_comments.as_ref().map(|ec| {
+              ExtractedCommentsEntry {
+                source: ec.source.clone(),
+                comments_file_name: ec.comments_file_name.clone(),
+              }
             }),
-        };
-        match self.codec.encode(&storage_entry) {
-          Ok(bytes) => Some((key.to_bytes(), bytes)),
-          Err(err) => {
-            tracing::warn!("minimize persistent cache encode failed: {:?}", err);
-            None
+          };
+          match self.codec.encode(&storage_entry) {
+            Ok(bytes) => Some((key.to_bytes(), bytes)),
+            Err(err) => {
+              tracing::warn!("minimize persistent cache encode failed: {:?}", err);
+              None
+            }
           }
-        }
+        })
       })
-      .consume(|(key, bytes)| {
-        storage.set(SCOPE, key, bytes);
-      });
+      .collect::<Vec<_>>();
+    for (key, bytes) in unsafe { spawn_iter_then_collect(save_tasks).await }
+      .into_iter()
+      .flatten()
+    {
+      storage.set(SCOPE, key, bytes);
+    }
 
     tracing::debug!(
       "saved {} minimize persistent cache entries",
@@ -142,28 +145,33 @@ impl Occasion for MinimizeOccasion {
     let mut entries = FxHashMap::default();
     entries.reserve(items.len());
 
-    for (key, value) in items {
+    let decode_tasks = items.into_iter().map(|(key, value)| async move {
       let Some(key) = MinimizeCacheKey::from_bytes(&key) else {
         tracing::warn!("minimize persistent cache key has invalid length");
-        continue;
+        return None;
       };
       match self.codec.decode::<Entry>(&value) {
-        Ok(entry) => {
-          entries.insert(
-            key,
-            CachedMinimizeEntry {
-              source: entry.source,
-              extracted_comments: entry.extracted_comments.map(|ec| CachedExtractedComments {
-                source: ec.source,
-                comments_file_name: ec.comments_file_name,
-              }),
-            },
-          );
-        }
+        Ok(entry) => Some((
+          key,
+          CachedMinimizeEntry {
+            source: entry.source,
+            extracted_comments: entry.extracted_comments.map(|ec| CachedExtractedComments {
+              source: ec.source,
+              comments_file_name: ec.comments_file_name,
+            }),
+          },
+        )),
         Err(err) => {
           tracing::warn!("minimize persistent cache decode failed: {:?}", err);
+          None
         }
       }
+    });
+    for (key, entry) in unsafe { spawn_iter_then_collect(decode_tasks).await }
+      .into_iter()
+      .flatten()
+    {
+      entries.insert(key, entry);
     }
 
     tracing::debug!(

@@ -41,7 +41,8 @@ pub use compile_boolean_matcher::*;
 pub use concatenated_module_visitor::*;
 pub use concatenation_scope::*;
 pub use memory_gc::MemoryGCStorage;
-pub use rspack_parallel::{FutureConsumer, RayonConsumer};
+pub use rspack_parallel::{FutureConsumer, spawn_iter_then_collect, spawn_iter_then_try_collect};
+pub use rspack_tasks::spawn_in_context;
 pub use steal_cell::StealCell;
 
 #[cfg(feature = "codspeed")]

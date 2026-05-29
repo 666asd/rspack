@@ -10,7 +10,6 @@ use lightningcss::{
   stylesheet::{MinifyOptions, ParserFlags, ParserOptions, StyleSheet},
   targets::{Features, Targets},
 };
-use rayon::prelude::*;
 use regex::Regex;
 use rspack_core::{
   ChunkUkey, Compilation, CompilationChunkHash, CompilationProcessAssets, Plugin,
@@ -135,7 +134,7 @@ async fn process_assets(&self, compilation: &mut Compilation) -> Result<()> {
   let tls: ThreadLocal<ObjectPool> = ThreadLocal::new();
   compilation
     .assets_mut()
-    .par_iter_mut()
+    .iter_mut()
     .filter(|(filename, original)| {
       if !CSS_ASSET_REGEXP.is_match(filename) {
         return false;

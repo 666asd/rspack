@@ -4,7 +4,7 @@ use std::{
   sync::{Arc, LazyLock},
 };
 
-use rayon::{iter::Either, prelude::*};
+use either::Either;
 use rspack_collections::{IdentifierIndexMap, IdentifierIndexSet, IdentifierMap};
 use rspack_core::{
   BuildMetaDefaultObject, BuildMetaExportsType, ChunkGraph, ChunkInitFragments, ChunkRenderContext,
@@ -499,7 +499,7 @@ impl EsmLibraryPlugin {
     }
 
     let (escaped_name_entries, escaped_identifier_entries) = concate_modules_map
-      .par_values()
+      .values()
       .map(|info| {
         let (name_capacity, identifier_capacity) = match info {
           ModuleInfo::Concatenated(info) => {
@@ -564,14 +564,11 @@ impl EsmLibraryPlugin {
           escaped_identifiers,
         )
       })
-      .reduce(
-        || (Vec::new(), Vec::new()),
-        |mut a, mut b| {
-          a.0.append(&mut b.0);
-          a.1.append(&mut b.1);
-          a
-        },
-      );
+      .fold((Vec::new(), Vec::new()), |mut a, mut b| {
+        a.0.append(&mut b.0);
+        a.1.append(&mut b.1);
+        a
+      });
     let mut escaped_names =
       FxHashMap::with_capacity_and_hasher(escaped_name_entries.len(), Default::default());
     for (name, escaped_name) in escaped_name_entries {

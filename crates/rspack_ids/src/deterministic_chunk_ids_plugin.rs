@@ -1,8 +1,8 @@
 use std::borrow::Cow;
 
-use rayon::prelude::*;
 use rspack_core::{
   ChunkByUkey, ChunkNamedIdArtifact, CompilationChunkIds, Plugin, incremental::IncrementalPasses,
+  spawn_iter_then_collect,
 };
 use rspack_error::{Diagnostic, Result};
 use rspack_hook::{plugin, plugin_hook};
@@ -65,9 +65,10 @@ async fn chunk_ids(
   let mut chunk_key_to_id =
     FxHashMap::with_capacity_and_hasher(chunks.len(), FxBuildHasher::default());
 
+  let context_ref = context.as_str();
   let chunk_names = chunks
-    .par_iter()
-    .map(|chunk| {
+    .iter()
+    .map(|chunk| async move {
       (
         chunk.ukey(),
         get_full_chunk_name(
@@ -78,11 +79,14 @@ async fn chunk_ids(
           &compilation
             .build_module_graph_artifact
             .side_effects_state_artifact,
-          &context,
+          context_ref,
           &compilation.exports_info_artifact,
         ),
       )
     })
+    .collect::<Vec<_>>();
+  let chunk_names = unsafe { spawn_iter_then_collect(chunk_names).await }
+    .into_iter()
     .collect::<FxHashMap<_, _>>();
 
   let mut chunk_compare_cache = NaturalChunkCompareCache::default();

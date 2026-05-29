@@ -1,7 +1,6 @@
 use std::{borrow::Cow, cmp::Ordering};
 
 use itertools::Itertools;
-use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use rspack_collections::{Identifier, IdentifierMap, IdentifierSet};
 use rspack_util::fx_hash::FxHashMap;
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
@@ -63,7 +62,7 @@ pub fn get_chunk_group_ordered_children<'a>(
   ordered_children
     .get(order_key)
     .unwrap_or_else(|| panic!("should have {order_key} chunk groups"))
-    .par_iter()
+    .iter()
     .map(|ukey| {
       let cg = chunk_group_by_ukey.expect_get(ukey);
       stats.get_chunk_group(

@@ -4,6 +4,7 @@ use rspack_error::Result;
 use super::*;
 use crate::{
   OptimizationBailoutItem, SideEffectsStateArtifact, cache::Cache, logger::Logger, pass::PassExt,
+  spawn_iter_then_collect,
 };
 
 pub struct FinishModulesPhasePass;
@@ -134,7 +135,8 @@ pub async fn finish_modules_inner(
     compilation,
     dependencies_diagnostics_artifact,
     exports_info_artifact,
-  );
+  )
+  .await;
   compilation.module_graph_cache_artifact.unfreeze();
 
   // take make diagnostics
@@ -144,7 +146,7 @@ pub async fn finish_modules_inner(
 }
 
 #[tracing::instrument("Compilation:collect_dependencies_diagnostics", skip_all)]
-fn collect_dependencies_diagnostics(
+async fn collect_dependencies_diagnostics(
   compilation: &Compilation,
   dependencies_diagnostics_artifact: &mut DependenciesDiagnosticsArtifact,
   exports_info_artifact: &ExportsInfoArtifact,
@@ -199,11 +201,11 @@ fn collect_dependencies_diagnostics(
 
   let module_graph = build_module_graph_artifact.get_module_graph();
   let module_graph_cache = &compilation.module_graph_cache_artifact;
-  let dependencies_diagnostics: DependenciesDiagnosticsArtifact = modules
-    .par_iter()
-    .map(|module_identifier| {
+  let dependencies_diagnostics = modules
+    .into_iter()
+    .map(|module_identifier| async move {
       let mgm = module_graph
-        .module_graph_module_by_identifier(module_identifier)
+        .module_graph_module_by_identifier(&module_identifier)
         .expect("should have mgm");
       let diagnostics = mgm
         .all_dependencies()
@@ -214,7 +216,7 @@ fn collect_dependencies_diagnostics(
             .get_diagnostics(module_graph, module_graph_cache, exports_info_artifact)
             .map(|diagnostics| {
               diagnostics.into_iter().map(|mut diagnostic| {
-                diagnostic.module_identifier = Some(*module_identifier);
+                diagnostic.module_identifier = Some(module_identifier);
                 diagnostic.loc = dependency.loc();
                 diagnostic
               })
@@ -222,10 +224,14 @@ fn collect_dependencies_diagnostics(
         })
         .flatten()
         .collect::<Vec<_>>();
-      (*module_identifier, diagnostics)
+      (module_identifier, diagnostics)
     })
-    .collect::<rspack_collections::IdentifierMap<Vec<Diagnostic>>>()
-    .into();
+    .collect::<Vec<_>>();
+  let dependencies_diagnostics: DependenciesDiagnosticsArtifact =
+    unsafe { spawn_iter_then_collect(dependencies_diagnostics).await }
+      .into_iter()
+      .collect::<rspack_collections::IdentifierMap<Vec<Diagnostic>>>()
+      .into();
   let all_modules_diagnostics = if has_mutations {
     dependencies_diagnostics_artifact.extend(dependencies_diagnostics);
     dependencies_diagnostics_artifact.clone()

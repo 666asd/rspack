@@ -88,7 +88,7 @@ fn recurse_chunk(
 
 pub fn make_placeholder(
   asset_type: ManifestAssetType,
-  hash_funcs: &Vec<SubresourceIntegrityHashFunction>,
+  hash_funcs: &[SubresourceIntegrityHashFunction],
   id: &str,
 ) -> String {
   let placeholder_source = format!("{PLACEHOLDER_PREFIX}{asset_type}{id}");

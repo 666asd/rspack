@@ -4,10 +4,6 @@ use std::{
   hash::{BuildHasher, Hash},
 };
 
-use rayon::iter::{
-  IntoParallelRefIterator as RayonIntoParallelRefIterator,
-  IntoParallelRefMutIterator as RayonIntoParallelRefMutIterator,
-};
 use rustc_hash::FxBuildHasher;
 
 #[derive(Debug, Clone)]
@@ -148,34 +144,6 @@ where
   // check the length of mutations for debug performance purpose
   pub fn mutations_len(&self) -> usize {
     self.undo_stack.len()
-  }
-}
-
-impl<'data, K, V, S> RayonIntoParallelRefIterator<'data> for RollbackMap<K, V, S>
-where
-  K: Eq + Hash + Send + Sync + 'data,
-  V: Send + Sync + 'data,
-  S: BuildHasher + Send + Sync,
-{
-  type Item = (&'data K, &'data V);
-  type Iter = rayon::collections::hash_map::Iter<'data, K, V>;
-
-  fn par_iter(&'data self) -> Self::Iter {
-    self.map.par_iter()
-  }
-}
-
-impl<'data, K, V, S> RayonIntoParallelRefMutIterator<'data> for RollbackMap<K, V, S>
-where
-  K: Eq + Hash + Send + Sync + 'data,
-  V: Send + 'data,
-  S: BuildHasher + Send + Sync,
-{
-  type Item = (&'data K, &'data mut V);
-  type Iter = rayon::collections::hash_map::IterMut<'data, K, V>;
-
-  fn par_iter_mut(&'data mut self) -> Self::Iter {
-    self.map.par_iter_mut()
   }
 }
 

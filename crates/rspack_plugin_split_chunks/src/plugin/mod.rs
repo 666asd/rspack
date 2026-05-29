@@ -7,9 +7,10 @@ mod module_group;
 use std::{borrow::Cow, cmp::Ordering, fmt::Debug};
 
 use itertools::Itertools;
-use rayon::iter::{IntoParallelRefIterator, IntoParallelRefMutIterator, ParallelIterator};
 use rspack_collections::IdentifierMap;
-use rspack_core::{ChunkUkey, Compilation, CompilationOptimizeChunks, Logger, Plugin};
+use rspack_core::{
+  ChunkUkey, Compilation, CompilationOptimizeChunks, Logger, Plugin, spawn_in_context,
+};
 use rspack_error::Result;
 use rspack_hook::{plugin, plugin_hook};
 use rspack_util::{fx_hash::FxIndexMap, tracing_preset::TRACING_BENCH_TARGET};
@@ -62,7 +63,7 @@ impl SplitChunksPlugin {
     // Use the precomputed identifier hash first to avoid repeated long string comparisons.
     all_modules.sort_unstable_by_key(|module| (module.precomputed_hash(), *module));
 
-    let module_sizes = get_module_sizes(all_modules.par_iter().copied(), compilation);
+    let module_sizes = get_module_sizes(all_modules.iter().copied(), compilation);
     let module_chunks = Self::get_module_chunks(&all_modules, compilation);
     logger.time_end(start);
 
@@ -172,7 +173,7 @@ impl SplitChunksPlugin {
       tracing::trace!("prepared module_group_map {:#?}", module_group_map);
 
       module_group_map
-        .par_iter_mut()
+        .iter_mut()
         .for_each(|(_, module_group)| module_group.prepare_modules_for_sizes_and_compare());
       self.ensure_min_size_fit(&mut module_group_map, &module_sizes);
 
@@ -303,7 +304,9 @@ impl SplitChunksPlugin {
       .await?;
     logger.time_end(start);
 
-    rayon::spawn(move || drop(combinator));
+    spawn_in_context(async move {
+      drop(combinator);
+    });
 
     Ok(())
   }

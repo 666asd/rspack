@@ -1320,7 +1320,7 @@ pub fn create_stats_warnings<'a>(
     return env.create_array(0);
   };
 
-  let mut diagnostics = warnings
+  let diagnostics = warnings
     .into_iter()
     .map(|warning| warning.into_diagnostic(Severity::Warning))
     .collect::<Vec<_>>();
@@ -1328,7 +1328,7 @@ pub fn create_stats_warnings<'a>(
   let stats_warnings = rspack_core::create_stats_errors(
     compilation,
     module_graph,
-    &mut diagnostics,
+    &diagnostics,
     colored.unwrap_or(false),
   );
 

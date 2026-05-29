@@ -160,5 +160,5 @@ Use this only for visualization.
 
 - `sftrace filter` matches function symbols by regex/list. It is not a first-class crate-path/module-path filter.
 - Filtering does not automatically keep all descendants. If a child function symbol does not match your filter, it may disappear from the trace.
-- Cross-thread relationships (for example via rayon) are not reconstructed as a single uninterrupted call chain.
+- Cross-thread relationships (for example via Tokio worker handoffs) are not reconstructed as a single uninterrupted call chain.
 - For complete call stacks, record without filter (or with a broad filter) and narrow down during analysis.

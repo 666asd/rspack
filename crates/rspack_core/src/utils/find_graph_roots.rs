@@ -62,7 +62,6 @@ pub fn find_graph_roots<
   items: Vec<Item>,
   get_dependencies: impl Sync + Fn(Item, &mut dyn FnMut(Item)),
 ) -> Vec<Item> {
-  use rayon::prelude::*;
   // early exit when there is only a single item
   if items.len() <= 1 {
     return items;
@@ -81,7 +80,7 @@ pub fn find_graph_roots<
   let items_by_node = nodes.iter().map(|node| node.item).collect::<Vec<_>>();
 
   // grab all the dependencies
-  nodes.par_iter_mut().for_each(|node| {
+  nodes.iter_mut().for_each(|node| {
     get_dependencies(node.item, &mut |item| {
       if let Some(node_id) = item_to_node_id.get(&item) {
         node.dependencies.push(*node_id);

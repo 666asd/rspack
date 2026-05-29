@@ -1,11 +1,11 @@
 use std::borrow::Cow;
 
 use itertools::Itertools;
-use rayon::prelude::*;
 use rspack_core::{
   BuildMetaExportsType, Compilation, CompilationOptimizeCodeGeneration, ExportInfo, ExportProvided,
   ExportsInfo, ExportsInfoArtifact, ExportsInfoData, Plugin, UsageState, UsedNameItem,
   build_module_graph::BuildModuleGraphArtifact, incremental::IncrementalPasses,
+  spawn_iter_then_collect,
 };
 use rspack_error::{Diagnostic, Result};
 use rspack_hook::{plugin, plugin_hook};
@@ -162,61 +162,74 @@ async fn optimize_code_generation(
 
   while !q.is_empty() {
     let items = std::mem::take(&mut q);
-    let batch = items
-      .par_iter()
-      .filter_map(|(exports_info, is_namespace)| {
-        let deterministic = self.deterministic;
-        let exports_info_data = exports_info.as_data(exports_info_artifact);
-        let mangleable_state =
-          get_mangleable_state(exports_info_data, deterministic, *is_namespace)?;
+    let batch = {
+      let exports_info_artifact = &*exports_info_artifact;
+      let deterministic = self.deterministic;
+      let batch = items
+        .into_iter()
+        .map(|(exports_info, is_namespace)| async move {
+          let exports_info_data = exports_info.as_data(exports_info_artifact);
+          get_mangleable_state(exports_info_data, deterministic, is_namespace).map(
+            |mangleable_state| {
+              (
+                exports_info,
+                exports_info_data
+                  .exports()
+                  .values()
+                  .map(|export_info_data| {
+                    let can_mangle = if !export_info_data.has_used_name() {
+                      let name = export_info_data
+                        .name()
+                        .expect(
+                          "the name of export_info inserted in exports_info can not be `None`",
+                        )
+                        .clone();
+                      let can_not_mangle = export_info_data.can_mangle() != Some(true)
+                        || is_one_char_mangle_name(name.as_str())
+                        || (deterministic && is_two_char_deterministic_mangle_name(name.as_str()))
+                        || (mangleable_state.avoid_mangle_non_provided
+                          && !matches!(
+                            export_info_data.provided(),
+                            Some(ExportProvided::Provided)
+                          ));
 
-        Some((
-          *exports_info,
-          exports_info_data
-            .exports()
-            .values()
-            .map(|export_info_data| {
-              let can_mangle = if !export_info_data.has_used_name() {
-                let name = export_info_data
-                  .name()
-                  .expect("the name of export_info inserted in exports_info can not be `None`")
-                  .clone();
-                let can_not_mangle = export_info_data.can_mangle() != Some(true)
-                  || is_one_char_mangle_name(name.as_str())
-                  || (deterministic && is_two_char_deterministic_mangle_name(name.as_str()))
-                  || (mangleable_state.avoid_mangle_non_provided
-                    && !matches!(export_info_data.provided(), Some(ExportProvided::Provided)));
+                      if can_not_mangle {
+                        Manglable::CanNotMangle(name)
+                      } else {
+                        Manglable::CanMangle(name)
+                      }
+                    } else {
+                      Manglable::Mangled
+                    };
 
-                if can_not_mangle {
-                  Manglable::CanNotMangle(name)
-                } else {
-                  Manglable::CanMangle(name)
-                }
-              } else {
-                Manglable::Mangled
-              };
+                    let nested_exports_info = if export_info_data.exports_info_owned() {
+                      let used = export_info_data.get_used(None);
+                      if used == UsageState::OnlyPropertiesUsed || used == UsageState::Unused {
+                        export_info_data.exports_info()
+                      } else {
+                        None
+                      }
+                    } else {
+                      None
+                    };
 
-              let nested_exports_info = if export_info_data.exports_info_owned() {
-                let used = export_info_data.get_used(None);
-                if used == UsageState::OnlyPropertiesUsed || used == UsageState::Unused {
-                  export_info_data.exports_info()
-                } else {
-                  None
-                }
-              } else {
-                None
-              };
-
-              ExportInfoCache {
-                id: export_info_data.id(),
-                exports_info: nested_exports_info,
-                can_mangle,
-              }
-            })
-            .collect_vec(),
-        ))
-      })
-      .collect::<Vec<_>>();
+                    ExportInfoCache {
+                      id: export_info_data.id(),
+                      exports_info: nested_exports_info,
+                      can_mangle,
+                    }
+                  })
+                  .collect_vec(),
+              )
+            },
+          )
+        })
+        .collect::<Vec<_>>();
+      unsafe { spawn_iter_then_collect(batch).await }
+        .into_iter()
+        .flatten()
+        .collect::<Vec<_>>()
+    };
 
     for (exports_info, export_list) in batch {
       q.extend(
@@ -236,17 +249,23 @@ async fn optimize_code_generation(
 
   while !queue.is_empty() {
     let tasks = std::mem::take(&mut queue);
-    let batch = tasks
-      .into_par_iter()
-      .map(|exports_info| {
-        mangle_exports_info(
-          exports_info_artifact,
-          self.deterministic,
-          exports_info,
-          &exports_info_cache,
-        )
-      })
-      .collect::<Vec<_>>();
+    let batch = {
+      let exports_info_artifact = &*exports_info_artifact;
+      let deterministic = self.deterministic;
+      let exports_info_cache = &exports_info_cache;
+      let batch = tasks
+        .into_iter()
+        .map(|exports_info| async move {
+          mangle_exports_info(
+            exports_info_artifact,
+            deterministic,
+            exports_info,
+            exports_info_cache,
+          )
+        })
+        .collect::<Vec<_>>();
+      unsafe { spawn_iter_then_collect(batch).await }
+    };
 
     let mut used_name_tasks = vec![];
     for (changes, nested_exports) in batch {

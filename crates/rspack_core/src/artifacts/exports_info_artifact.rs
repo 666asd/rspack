@@ -1,4 +1,3 @@
-use rayon::prelude::*;
 use rspack_collections::IdentifierMap;
 
 use crate::{
@@ -101,7 +100,7 @@ impl ExportsInfoArtifact {
   }
 
   pub fn reset_all_exports_info_used(&mut self) {
-    self.exports_info_map.par_iter_mut().for_each(
+    self.exports_info_map.iter_mut().for_each(
       |(_, exports_info): (&ExportsInfo, &mut ExportsInfoData)| {
         for export_info in exports_info.exports_mut().values_mut() {
           export_info.set_has_use_info();

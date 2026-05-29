@@ -7,7 +7,6 @@ use std::{
   sync::{Arc, LazyLock},
 };
 
-use rayon::prelude::*;
 use regex::Regex;
 use rspack_cacheable::{cacheable, cacheable_dyn, with::As};
 use rspack_collections::{
@@ -882,7 +881,7 @@ impl Module for ConcatenatedModule {
 
     let dependency_parts = self
       .modules
-      .par_iter()
+      .iter()
       .map(|item| {
         let module = module_graph
           .module_by_identifier(&item.id)
@@ -1065,7 +1064,7 @@ impl Module for ConcatenatedModule {
     let mut import_stmts = FxIndexMap::<(String, Option<String>), ImportSpec>::default();
 
     let (escaped_name_entries, escaped_identifier_entries) = module_to_info_map
-      .par_values()
+      .values()
       .map(|info| {
         let (name_capacity, identifier_capacity) = match info {
           ModuleInfo::Concatenated(info) => {
@@ -1132,14 +1131,11 @@ impl Module for ConcatenatedModule {
           escaped_identifiers,
         )
       })
-      .reduce(
-        || (Vec::new(), Vec::new()),
-        |mut a, mut b| {
-          a.0.append(&mut b.0);
-          a.1.append(&mut b.1);
-          a
-        },
-      );
+      .fold((Vec::new(), Vec::new()), |mut a, mut b| {
+        a.0.append(&mut b.0);
+        a.1.append(&mut b.1);
+        a
+      });
     let mut escaped_names =
       HashMap::with_capacity_and_hasher(escaped_name_entries.len(), Default::default());
     for (name, escaped_name) in escaped_name_entries {
@@ -1427,7 +1423,7 @@ impl Module for ConcatenatedModule {
     // Find and replace references to modules
     // Splitting read and write to avoid violating rustc borrow rules
     let mut changes = module_to_info_map
-      .par_values()
+      .values()
       .filter_map(|info| {
         let ModuleInfo::Concatenated(info) = info else {
           return None;
@@ -2227,7 +2223,7 @@ impl ConcatenatedModule {
         );
 
         let imports_map = module_set
-          .par_iter()
+          .iter()
           .map(|module| {
             let imports =
               self.get_concatenated_imports(module, &root_module, runtime, mg, &artifacts);

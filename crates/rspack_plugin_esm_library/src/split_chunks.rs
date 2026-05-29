@@ -1,7 +1,7 @@
 use std::{hash::BuildHasherDefault, sync::Arc};
 
+use either::Either;
 use futures::future::BoxFuture;
-use rayon::{iter::Either, prelude::*};
 use rspack_collections::{IdentifierIndexSet, IdentifierSet};
 use rspack_core::{
   BoxModule, Compilation, Filename, Module, ModuleGraph, ModuleIdentifier, SourceType,
@@ -295,7 +295,7 @@ pub(crate) async fn split(groups: &[CacheGroup], compilation: &mut Compilation) 
     }
   }
 
-  let module_sizes = get_module_sizes(modules.par_iter().copied(), compilation);
+  let module_sizes = get_module_sizes(modules.iter().copied(), compilation);
 
   // ensure min size fit
   let group_modules = group_modules

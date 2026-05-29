@@ -238,12 +238,12 @@ impl CacheContext {
 
   /// Persists an occasion's artifact. No-op in readonly mode.
   #[tracing::instrument("Cache::Context::save_occasion", skip_all)]
-  pub fn save_occasion<O: Occasion>(&mut self, occasion: &O, artifact: &O::Artifact) {
+  pub async fn save_occasion<O: Occasion>(&mut self, occasion: &O, artifact: &O::Artifact) {
     if self.readonly {
       return;
     }
 
-    occasion.save(&mut *self.storage, artifact);
+    occasion.save(&mut *self.storage, artifact).await;
   }
 
   /// Enqueues a background persistence flush. No-op in readonly mode.

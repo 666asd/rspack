@@ -5,7 +5,6 @@ use std::{
 
 use derive_more::Debug;
 use futures::future::BoxFuture;
-use rayon::prelude::*;
 use rspack_collections::IdentifierMap;
 use rspack_core::{ChunkUkey, Compilation, Module, ModuleIdentifier, SourceType};
 use rspack_error::Result;
@@ -201,7 +200,7 @@ impl DerefMut for SplitChunkSizes {
   }
 }
 
-pub fn get_module_sizes<T: ParallelIterator<Item = ModuleIdentifier>>(
+pub fn get_module_sizes<T: Iterator<Item = ModuleIdentifier>>(
   all_modules: T,
   compilation: &Compilation,
 ) -> ModuleSizes {

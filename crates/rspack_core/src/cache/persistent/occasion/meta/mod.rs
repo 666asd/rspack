@@ -43,7 +43,7 @@ impl Occasion for MetaOccasion {
   }
 
   #[tracing::instrument("Cache::Occasion::Meta::save", skip_all)]
-  fn save(&self, storage: &mut dyn Storage, _artifact: &()) {
+  async fn save(&self, storage: &mut dyn Storage, _artifact: &()) {
     let meta = Meta {
       max_dependencies_id: get_current_dependency_id(),
     };

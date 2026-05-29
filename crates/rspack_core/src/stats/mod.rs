@@ -7,10 +7,6 @@ use std::{
 use dashmap::DashSet;
 use either::Either;
 use itertools::Itertools;
-use rayon::iter::{
-  IntoParallelIterator, IntoParallelRefIterator, IntoParallelRefMutIterator, ParallelBridge,
-  ParallelIterator,
-};
 use rspack_collections::{IdentifierMap, IdentifierSet};
 use rspack_error::{Diagnostic, Display, Result, StringDisplayer};
 use rspack_hash::RspackHashDigest;
@@ -322,7 +318,7 @@ impl Stats<'_> {
 
     let mut assets: HashMap<&String, StatsAsset> = self
       .assets()
-      .par_iter()
+      .iter()
       .filter_map(|(name, asset)| {
         asset.get_source().map(|source| {
           let mut related = vec![];
@@ -384,20 +380,20 @@ impl Stats<'_> {
         assets.remove(source_map);
       }
     }
-    assets.par_iter_mut().for_each(|(name, asset)| {
+    assets.iter_mut().for_each(|(name, asset)| {
       if let Some(chunks) = compilation_file_to_chunks.get(name) {
         asset.chunks = chunks
-          .par_iter()
+          .iter()
           .map(|chunk| chunk.id().map(|id| id.as_str()))
           .collect();
         asset.chunks.sort_unstable();
         asset.chunk_names = chunks
-          .par_iter()
+          .iter()
           .filter_map(|chunk| chunk.name())
           .collect::<Vec<_>>();
         asset.chunk_names.sort_unstable();
         asset.chunk_id_hints = chunks
-          .par_iter()
+          .iter()
           .flat_map(|chunk| {
             chunk
               .id_name_hints()
@@ -411,17 +407,17 @@ impl Stats<'_> {
 
       if let Some(auxiliary_chunks) = compilation_file_to_auxiliary_chunks.get(name) {
         asset.auxiliary_chunks = auxiliary_chunks
-          .par_iter()
+          .iter()
           .map(|chunk| chunk.id().map(|id| id.as_str()))
           .collect();
         asset.auxiliary_chunks.sort_unstable();
         asset.auxiliary_chunk_names = auxiliary_chunks
-          .par_iter()
+          .iter()
           .filter_map(|chunk| chunk.name())
           .collect::<Vec<_>>();
         asset.auxiliary_chunk_names.sort_unstable();
         asset.auxiliary_chunk_id_hints = auxiliary_chunks
-          .par_iter()
+          .iter()
           .flat_map(|chunk| {
             chunk
               .id_name_hints()
@@ -457,7 +453,7 @@ impl Stats<'_> {
       }
     }
     let assets_by_chunk_name = assets_by_chunk_name
-      .into_par_iter()
+      .into_iter()
       .map(|(name, mut files)| {
         files.sort_unstable();
         StatsAssetsByChunkName { name, files }
@@ -496,7 +492,6 @@ impl Stats<'_> {
     let mut modules: Vec<StatsModule> = module_graph
       .modules()
       .map(|(_, module)| module)
-      .par_bridge()
       .map(|module| {
         self.get_module(
           module_graph,
@@ -516,7 +511,7 @@ impl Stats<'_> {
 
     let runtime_modules = self
       .runtime_modules()
-      .par_iter()
+      .iter()
       .map(|(identifier, module)| self.get_runtime_module(identifier, module, options))
       .collect::<Result<Vec<_>>>()?;
     modules.extend(runtime_modules);
@@ -531,7 +526,6 @@ impl Stats<'_> {
       let executed_modules: Vec<StatsModule> = executor_module_graph
         .modules()
         .map(|(_, module)| module)
-        .par_bridge()
         .map(|module| {
           self.get_module(
             executor_module_graph,
@@ -558,7 +552,6 @@ impl Stats<'_> {
     {
       let runtime_modules: Vec<StatsModule> = executed_runtime_modules
         .iter()
-        .par_bridge()
         .map(|item| {
           let (id, module) = item.pair();
           self.get_executed_runtime_module(id, module, options)
@@ -606,7 +599,6 @@ impl Stats<'_> {
       .build_chunk_graph_artifact()
       .chunk_by_ukey
       .values()
-      .par_bridge()
       .map(|c| -> Result<_> {
         let files: Vec<_> = {
           let mut vec = c.files().iter().map(|s| s.as_str()).collect::<Vec<_>>();
@@ -804,31 +796,29 @@ impl Stats<'_> {
 
     let assets = cg
       .chunks
-      .par_iter()
-      .map(|c| {
+      .iter()
+      .flat_map(|c| {
         let chunk = build_chunk_graph_artifact.chunk_by_ukey.expect_get(c);
-        chunk.files().par_iter().map(|file| StatsChunkGroupAsset {
+        chunk.files().iter().map(|file| StatsChunkGroupAsset {
           name: file.as_str(),
           size: get_asset_size(file, self.assets()),
         })
       })
-      .flatten()
       .collect::<Vec<_>>();
 
     let auxiliary_assets = if chunk_group_auxiliary {
       cg.chunks
-        .par_iter()
-        .map(|c| {
+        .iter()
+        .flat_map(|c| {
           let chunk = build_chunk_graph_artifact.chunk_by_ukey.expect_get(c);
           chunk
             .auxiliary_files()
-            .par_iter()
+            .iter()
             .map(|file| StatsChunkGroupAsset {
               name: file.as_str(),
               size: get_asset_size(file, self.assets()),
             })
         })
-        .flatten()
         .collect::<Vec<_>>()
     } else {
       vec![]
@@ -907,7 +897,7 @@ impl Stats<'_> {
     self
       .build_chunk_graph_artifact()
       .entrypoints
-      .par_iter()
+      .iter()
       .map(|(name, ukey)| {
         self.get_chunk_group(
           module_graph,
@@ -931,7 +921,7 @@ impl Stats<'_> {
     let mut named_chunk_groups: Vec<StatsChunkGroup> = self
       .build_chunk_graph_artifact()
       .named_chunk_groups
-      .par_iter()
+      .iter()
       .map(|(name, ukey)| {
         self.get_chunk_group(
           module_graph,
@@ -1483,7 +1473,7 @@ impl Stats<'_> {
     {
       let mut modules: Vec<StatsModule> = module
         .get_modules()
-        .par_iter()
+        .iter()
         .filter_map(|m| module_graph.module_by_identifier(&m.id))
         .map(|module| {
           self.get_module(
@@ -1729,11 +1719,11 @@ impl Stats<'_> {
 pub fn create_stats_errors<'a>(
   compilation: &'a Compilation,
   module_graph: &'a ModuleGraph,
-  diagnostics: &'a mut Vec<Diagnostic>,
+  diagnostics: &'a [Diagnostic],
   colored: bool,
 ) -> Vec<StatsError<'a>> {
   diagnostics
-    .par_iter()
+    .iter()
     .map(|d| {
       let module_identifier = d.module_identifier;
       let (module_name, module_id) = module_identifier

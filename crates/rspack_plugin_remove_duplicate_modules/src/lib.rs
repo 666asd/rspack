@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use rayon::prelude::*;
 use rspack_collections::IdentifierSet;
 use rspack_core::{
   ChunkUkey, Compilation, CompilationOptimizeChunks, ModuleIdentifier, Plugin,
@@ -36,11 +35,7 @@ fn find_reusable_chunk(
       && modules.iter().all(|module| chunk_modules.contains(module))
   };
 
-  if chunks.len() > 10 {
-    chunks.par_iter().find_first(filter).copied()
-  } else {
-    chunks.iter().find(filter).copied()
-  }
+  chunks.iter().find(filter).copied()
 }
 
 #[plugin_hook(CompilationOptimizeChunks for RemoveDuplicateModulesPlugin)]

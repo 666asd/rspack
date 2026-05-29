@@ -11,10 +11,10 @@ Rspack is a high-performance JavaScript bundler written in Rust that offers stro
 
 ## Concurrency architecture
 
-- **Synchronous concurrency**: Prefer `rayon` for CPU-bound parallel work and data-parallel iteration
+- **CPU-bound concurrency**: Use Tokio-backed `rspack_parallel` abstractions for parallel work that participates in the compiler runtime
 - **Asynchronous concurrency**: Prefer the abstractions provided by `rspack_parallel` instead of using raw `tokio` task orchestration directly
-- **Thread pool boundaries**: Avoid mixing `rayon` and `tokio` thread pools for the same workflow unless there is a clear boundary that cannot be avoided
-- **Rule of thumb**: Do not use `tokio` to parallelize synchronous CPU-heavy work, and do not introduce `rayon` inside async orchestration that should stay within `rspack_parallel`
+- **Thread pool boundaries**: Keep compiler parallelism on the Tokio runtime; avoid introducing separate CPU pools into compiler workflows
+- **Rule of thumb**: Do not add a second synchronous parallel scheduler for compiler hot paths; use `rspack_parallel` or standard iterators depending on whether the phase is async or synchronous
 
 ## Setup
 

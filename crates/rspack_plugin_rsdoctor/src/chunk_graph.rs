@@ -1,6 +1,5 @@
 use std::sync::{Arc, atomic::AtomicI32};
 
-use rayon::iter::{IntoParallelRefIterator, ParallelBridge, ParallelIterator};
 use rspack_collections::IdentifierMap;
 use rspack_core::{
   Chunk, ChunkByUkey, ChunkGraph, ChunkGroupByUkey, ChunkGroupUkey, ChunkUkey, CompilationAsset,
@@ -21,7 +20,7 @@ pub fn collect_chunks(
   chunk_group_by_ukey: &ChunkGroupByUkey,
 ) -> HashMap<ChunkUkey, RsdoctorChunk> {
   chunks
-    .par_iter()
+    .iter()
     .map(|(chunk_id, chunk)| {
       let names = chunk.name().map(|n| vec![n.to_owned()]).unwrap_or_default();
       let files: Vec<_> = {
@@ -60,7 +59,7 @@ pub fn collect_chunk_dependencies(
   chunk_by_ukey: &ChunkByUkey,
 ) -> HashMap<ChunkUkey, (HashSet<RsdoctorChunkUkey>, HashSet<RsdoctorChunkUkey>)> {
   chunks
-    .par_iter()
+    .iter()
     .map(|(chunk_id, chunk)| {
       let mut parents = HashSet::default();
       let mut children = HashSet::default();
@@ -112,7 +111,7 @@ pub fn collect_entrypoints(
   chunk_group_by_ukey: &ChunkGroupByUkey,
 ) -> FxHashMap<ChunkGroupUkey, RsdoctorEntrypoint> {
   entrypoints
-    .par_iter()
+    .iter()
     .map(|(name, ukey)| {
       let cg = chunk_group_by_ukey.get(ukey);
       let chunks = cg
@@ -149,7 +148,7 @@ pub fn collect_assets(
     }
   }
   assets
-    .par_iter()
+    .iter()
     .map(|(path, asset)| {
       let chunks = compilation_file_to_chunks
         .get(path)
@@ -184,7 +183,6 @@ pub fn collect_chunk_modules(
 ) -> Vec<RsdoctorChunkModules> {
   chunk_by_ukey
     .keys()
-    .par_bridge()
     .map(|chunk_id| {
       let modules = chunk_graph
         .get_ordered_chunk_modules_identifier(chunk_id)
@@ -222,7 +220,6 @@ pub fn collect_chunk_assets(
 ) -> Vec<RsdoctorChunkAssets> {
   chunk_by_ukey
     .iter()
-    .par_bridge()
     .map(|(chunk_id, chunk)| RsdoctorChunkAssets {
       chunk: chunk_id.as_u32() as RsdoctorChunkUkey,
       assets: chunk
@@ -242,7 +239,7 @@ pub fn collect_entrypoint_assets(
   chunk_by_ukey: &ChunkByUkey,
 ) -> Vec<RsdoctorEntrypointAssets> {
   entrypoints
-    .par_iter()
+    .iter()
     .filter_map(|(_, ukey)| {
       let entrypoint_ukey = entrypoint_ukey_map.get(ukey)?;
       let chunk_group = chunk_group_by_ukey.get(ukey)?;

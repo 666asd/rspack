@@ -307,7 +307,6 @@ pub async fn process_chunks_runtime_requirements(
   let chunk_requirements = chunks
     .iter()
     .chain(entries.iter())
-    .par_bridge()
     .map(|chunk_ukey| {
       let mut set = RuntimeGlobals::default();
       for mid in compilation

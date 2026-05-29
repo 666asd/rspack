@@ -10,11 +10,11 @@ use atomic_refcell::AtomicRefCell;
 use derive_more::Debug;
 pub use drive::*;
 use once_cell::sync::OnceCell;
-use rayon::prelude::*;
 use regex::Regex;
 use rspack_core::{
   AssetInfo, BindingCell, Compilation, CompilationId, CompilationProcessAssets, Logger, Plugin,
   rspack_sources::{BoxSource, RawStringSource, SourceExt, SourceValue},
+  spawn_iter_then_collect,
 };
 use rspack_error::{Result, ToStringResultToRspackResultExt};
 use rspack_hash::RspackHash;
@@ -110,18 +110,22 @@ async fn inner_impl(compilation: &mut Compilation) -> Result<()> {
   logger.time_end(start);
 
   let start = logger.time("create ordered hashes");
-  let assets_data: HashMap<&str, AssetData> = compilation
+  let hash_ac_ref = &hash_ac;
+  let assets_data_tasks = compilation
     .assets()
-    .par_iter()
-    .filter_map(|(name, asset)| {
+    .iter()
+    .map(|(name, asset)| async move {
       asset.get_source().map(|source| {
-        (
-          name.as_str(),
-          AssetData::new(source.clone(), asset.get_info(), &hash_ac),
-        )
+        let data = AssetData::new(source.clone(), asset.get_info(), hash_ac_ref);
+        (name.as_str(), data)
       })
     })
-    .collect();
+    .collect::<Vec<_>>();
+  let assets_data: HashMap<&str, AssetData> =
+    unsafe { spawn_iter_then_collect(assets_data_tasks).await }
+      .into_iter()
+      .flatten()
+      .collect();
 
   let (ordered_hashes, mut hash_dependencies) =
     OrderedHashesBuilder::new(&hash_to_asset_names, &assets_data).build();
@@ -171,12 +175,20 @@ async fn inner_impl(compilation: &mut Compilation) -> Result<()> {
       .collect::<Vec<_>>();
 
     let batch_sources = batch_source_tasks
-      .into_par_iter()
+      .into_iter()
       .map(|(hash, name, data)| {
+        let hash_to_new_hash = &hash_to_new_hash;
+        let hash_ac = &hash_ac;
+        (hash, name, data, hash_to_new_hash, hash_ac)
+      })
+      .map(|(hash, name, data, hash_to_new_hash, hash_ac)| async move {
         let new_source =
-          data.compute_new_source(data.own_hashes.contains(hash), &hash_to_new_hash, &hash_ac);
+          data.compute_new_source(data.own_hashes.contains(hash), hash_to_new_hash, hash_ac);
         ((hash, name), new_source)
       })
+      .collect::<Vec<_>>();
+    let batch_sources = unsafe { spawn_iter_then_collect(batch_sources).await }
+      .into_iter()
       .collect::<HashMap<_, _>>();
 
     let new_hashes = rspack_parallel::scope::<_, Result<_>>(|token| {
@@ -238,10 +250,15 @@ async fn inner_impl(compilation: &mut Compilation) -> Result<()> {
   logger.time_end(start);
 
   let start = logger.time("collect hash updates");
-  let updates: Vec<_> = assets_data
-    .into_par_iter()
-    .filter_map(|(name, data)| {
-      let new_source = data.compute_new_source(false, &hash_to_new_hash, &hash_ac);
+  let update_tasks = assets_data
+    .into_iter()
+    .map(|(name, data)| {
+      let hash_to_new_hash = &hash_to_new_hash;
+      let hash_ac = &hash_ac;
+      (name, data, hash_to_new_hash, hash_ac)
+    })
+    .map(|(name, data, hash_to_new_hash, hash_ac)| async move {
+      let new_source = data.compute_new_source(false, hash_to_new_hash, hash_ac);
       let mut new_name = String::with_capacity(name.len());
       hash_ac.replace_all_with(name, &mut new_name, |_, hash, dst| {
         let replace_to = hash_to_new_hash
@@ -251,9 +268,10 @@ async fn inner_impl(compilation: &mut Compilation) -> Result<()> {
         true
       });
       let new_name = (name != new_name).then_some(new_name);
-      Some((name.to_owned(), new_source, new_name))
+      (name.to_owned(), new_source, new_name)
     })
-    .collect();
+    .collect::<Vec<_>>();
+  let updates: Vec<_> = unsafe { spawn_iter_then_collect(update_tasks).await };
   logger.time_end(start);
 
   let start = logger.time("update assets");

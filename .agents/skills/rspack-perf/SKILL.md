@@ -19,7 +19,7 @@ The larger the structure, the more dangerous full scans, repeated traversals, br
 2. Estimate whether the hot path scales with dependencies, exports, modules, chunks, chunk groups, entries, or runtimes.
 3. Look for repeated CPU work and repeated allocation before designing a larger refactor.
 4. Prefer small, measurable changes that preserve observable output.
-5. If adding parallelism, respect Rspack's concurrency model: use `rayon` for CPU-bound synchronous work, use `rspack_parallel` abstractions for async orchestration, and avoid mixing rayon and tokio pools inside one workflow without a clear boundary.
+5. If adding parallelism, respect Rspack's concurrency model: use Tokio-backed `rspack_parallel` abstractions for async orchestration and avoid introducing a separate CPU worker pool inside the same workflow.
 
 ## CPU Optimization Techniques
 
