@@ -295,6 +295,8 @@ pub struct RawJavascriptParserOptions {
   pub override_strict: Option<String>,
   pub import_meta: Option<String>,
   pub commonjs_magic_comments: Option<bool>,
+  #[napi(ts_type = "boolean | string")]
+  pub create_require: Option<Either<bool, String>>,
   #[napi(ts_type = "boolean | { exports?: boolean | 'skipInEsm' }")]
   pub commonjs: Option<Either<bool, RawJavascriptParserCommonjsOptions>>,
   pub defer_import: Option<bool>,
@@ -408,6 +410,13 @@ impl From<RawJavascriptParserOptions> for JavascriptParserOptions {
       }),
       import_dynamic: value.import_dynamic,
       commonjs_magic_comments: value.commonjs_magic_comments,
+      create_require: value
+        .create_require
+        .and_then(|create_require| match create_require {
+          Either::A(true) => Some("createRequire from module".to_string()),
+          Either::A(false) => None,
+          Either::B(value) => Some(value),
+        }),
       jsx: value.jsx,
       defer_import: value.defer_import,
       import_meta_resolve: value.import_meta_resolve,

@@ -9,7 +9,9 @@ use swc_core::{
 };
 
 use super::{
-  InnerGraphParserPlugin, JavascriptParserPlugin, inner_graph::state::InnerGraphUsageOperation,
+  InnerGraphParserPlugin, JavascriptParserPlugin,
+  common_js_imports_parse_plugin::{is_create_require_import, tag_create_require},
+  inner_graph::state::InnerGraphUsageOperation,
 };
 use crate::{
   dependency::{ESMImportSideEffectDependency, ESMImportSpecifierDependency},
@@ -91,6 +93,7 @@ impl JavascriptParserPlugin for ESMImportDependencyParserPlugin {
     id: Option<&Atom>,
     name: &Atom,
   ) -> Option<bool> {
+    let is_create_require = is_create_require_import(parser, source, id);
     let phase = if parser.javascript_options.defer_import.unwrap_or_default() {
       statement.phase.into()
     } else {
@@ -109,6 +112,9 @@ impl JavascriptParserPlugin for ESMImportDependencyParserPlugin {
         attributes: statement.with.as_ref().map(|obj| get_attributes(obj)),
       }),
     );
+    if is_create_require {
+      tag_create_require(parser, name.clone());
+    }
     Some(true)
   }
 

@@ -327,6 +327,7 @@ pub struct JavascriptParserOptions {
   pub commonjs: Option<JavascriptParserCommonjsOptions>,
   pub import_dynamic: Option<bool>,
   pub commonjs_magic_comments: Option<bool>,
+  pub create_require: Option<String>,
   pub jsx: Option<bool>,
   pub defer_import: Option<bool>,
   pub import_meta_resolve: Option<bool>,
