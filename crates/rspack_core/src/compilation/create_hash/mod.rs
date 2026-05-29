@@ -3,7 +3,8 @@ use rustc_hash::FxHashSet;
 
 use super::*;
 use crate::{
-  ModuleCodeGenerationContext, cache::Cache, compilation::pass::PassExt, logger::Logger,
+  ModuleCodeGenerationContext, RuntimeModuleGenerateContext, cache::Cache,
+  compilation::pass::PassExt, logger::Logger,
 };
 
 pub struct ChunkHashResult {
@@ -499,7 +500,19 @@ pub async fn runtime_modules_code_generation(compilation: &mut Compilation) -> R
             let source = result
               .get(&SourceType::Runtime)
               .expect("should have source");
-            Ok((*runtime_module_identifier, source.clone()))
+            let runtime_template = compilation.runtime_template.create_runtime_code_template();
+            let context = RuntimeModuleGenerateContext {
+              compilation,
+              runtime_template: &runtime_template,
+            };
+            let real_content_hashes = runtime_module
+              .generate_real_content_hashes(&context)
+              .await?;
+            Ok((
+              *runtime_module_identifier,
+              source.clone(),
+              real_content_hashes,
+            ))
           },
         )
       })
@@ -510,12 +523,18 @@ pub async fn runtime_modules_code_generation(compilation: &mut Compilation) -> R
   .collect::<Result<Vec<_>>>()?;
 
   let mut runtime_module_sources = IdentifierMap::<BoxSource>::default();
+  let mut runtime_module_real_content_hashes = IdentifierMap::default();
   for result in results {
-    let (runtime_module_identifier, source) = result?;
+    let (runtime_module_identifier, source, real_content_hashes) = result?;
     runtime_module_sources.insert(runtime_module_identifier, source);
+    if !real_content_hashes.is_empty() {
+      runtime_module_real_content_hashes.insert(runtime_module_identifier, real_content_hashes);
+    }
   }
 
   compilation.runtime_modules_code_generation_source = runtime_module_sources;
+  compilation.runtime_modules_code_generation_real_content_hashes =
+    runtime_module_real_content_hashes;
   compilation
     .code_generated_modules
     .extend(compilation.runtime_modules.keys().copied());

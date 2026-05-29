@@ -4,7 +4,7 @@ use rspack_core::{
   ChunkUkey, Compilation, CompilationAdditionalChunkRuntimeRequirements,
   CompilationDependentFullHash, CompilationParams, CompilerCompilation, Plugin,
   RuntimeCodeTemplate, RuntimeGlobals, RuntimeModule,
-  rspack_sources::{ConcatSource, RawStringSource, SourceExt},
+  rspack_sources::{ConcatSource, RawStringSource, Source, SourceExt},
 };
 use rspack_error::Result;
 use rspack_hash::RspackHash;
@@ -134,11 +134,15 @@ async fn render_chunk(
     .expect_get(chunk_ukey);
   let base_chunk_output_name = get_chunk_output_name(chunk, compilation).await?;
   let mut sources = ConcatSource::default();
+  let mut real_content_hashes = render_source.real_content_hashes.clone();
   sources.add(RawStringSource::from(format!(
     "exports.ids = [{}];\n",
     rspack_util::json_stringify(chunk.expect_id())
   )));
   sources.add(RawStringSource::from_static("exports.modules = "));
+  real_content_hashes.shift_source_ranges(
+    u32::try_from(sources.size()).expect("commonjs chunk prefix size should fit in u32"),
+  );
   sources.add(render_source.source.clone());
   sources.add(RawStringSource::from_static(";\n"));
   if compilation
@@ -147,7 +151,13 @@ async fn render_chunk(
     .has_chunk_runtime_modules(chunk_ukey)
   {
     sources.add(RawStringSource::from_static("exports.runtime = "));
-    sources.add(render_chunk_runtime_modules(compilation, chunk_ukey, runtime_template).await?);
+    let mut runtime_modules =
+      render_chunk_runtime_modules(compilation, chunk_ukey, runtime_template).await?;
+    runtime_modules.real_content_hashes.shift_source_ranges(
+      u32::try_from(sources.size()).expect("commonjs runtime prefix size should fit in u32"),
+    );
+    real_content_hashes.extend(runtime_modules.real_content_hashes);
+    sources.add(runtime_modules.source);
     sources.add(RawStringSource::from_static(";\n"));
   }
 
@@ -180,9 +190,7 @@ var {} = require({});
       .keys()
       .next_back()
       .expect("should have last entry module");
-    let mut startup_render_source = RenderSource {
-      source: start_up_source,
-    };
+    let mut startup_render_source = RenderSource::new(start_up_source);
     hooks
       .try_read()
       .expect("should have js plugin drive")
@@ -195,16 +203,28 @@ var {} = require({});
         runtime_template,
       )
       .await?;
+    startup_render_source
+      .real_content_hashes
+      .shift_source_ranges(
+        u32::try_from(sources.size()).expect("commonjs startup prefix size should fit in u32"),
+      );
+    real_content_hashes.extend(startup_render_source.real_content_hashes);
     sources.add(startup_render_source.source);
+    let wrapper_prefix = RawStringSource::from_static("(function() {\n").boxed();
+    real_content_hashes.shift_source_ranges(
+      u32::try_from(wrapper_prefix.size()).expect("commonjs wrapper prefix size should fit in u32"),
+    );
     render_source.source = ConcatSource::new([
-      RawStringSource::from_static("(function() {\n").boxed(),
+      wrapper_prefix,
       sources.boxed(),
       RawStringSource::from_static("\n})()").boxed(),
     ])
     .boxed();
+    render_source.real_content_hashes = real_content_hashes;
     return Ok(());
   }
   render_source.source = sources.boxed();
+  render_source.real_content_hashes = real_content_hashes;
   Ok(())
 }
 

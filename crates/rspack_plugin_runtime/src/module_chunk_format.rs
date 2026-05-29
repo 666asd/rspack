@@ -147,6 +147,7 @@ async fn render_chunk(
   let chunk_id_expr = rspack_util::json_stringify(chunk.expect_id());
 
   let mut sources = ConcatSource::default();
+  let mut real_content_hashes = render_source.real_content_hashes.clone();
   sources.add(RawStringSource::from(format!(
     "export const __rspack_esm_id = {chunk_id_expr};\n",
   )));
@@ -157,6 +158,9 @@ async fn render_chunk(
     "export const {} = ",
     runtime_template.render_runtime_variable(&RuntimeVariable::Modules),
   )));
+  real_content_hashes.shift_source_ranges(
+    u32::try_from(sources.size()).expect("module chunk prefix size should fit in u32"),
+  );
   sources.add(render_source.source.clone());
   sources.add(RawStringSource::from_static(";\n"));
 
@@ -168,12 +172,19 @@ async fn render_chunk(
     sources.add(RawStringSource::from_static(
       "export const __rspack_esm_runtime = ",
     ));
-    sources.add(render_chunk_runtime_modules(compilation, chunk_ukey, runtime_template).await?);
+    let mut runtime_modules =
+      render_chunk_runtime_modules(compilation, chunk_ukey, runtime_template).await?;
+    runtime_modules.real_content_hashes.shift_source_ranges(
+      u32::try_from(sources.size()).expect("module runtime prefix size should fit in u32"),
+    );
+    real_content_hashes.extend(runtime_modules.real_content_hashes);
+    sources.add(runtime_modules.source);
     sources.add(RawStringSource::from_static(";\n"));
   }
 
   if matches!(chunk.kind(), ChunkKind::HotUpdate) {
     render_source.source = sources.boxed();
+    render_source.real_content_hashes = real_content_hashes;
     return Ok(());
   }
 
@@ -304,9 +315,8 @@ async fn render_chunk(
       .keys()
       .next_back()
       .expect("should have last entry module");
-    let mut render_source = RenderSource {
-      source: RawStringSource::from(startup_source.join("\n")).boxed(),
-    };
+    let mut render_source =
+      RenderSource::new(RawStringSource::from(startup_source.join("\n")).boxed());
     hooks
       .try_read()
       .expect("should have js plugin drive")
@@ -319,9 +329,14 @@ async fn render_chunk(
         runtime_template,
       )
       .await?;
+    render_source.real_content_hashes.shift_source_ranges(
+      u32::try_from(sources.size()).expect("module startup prefix size should fit in u32"),
+    );
+    real_content_hashes.extend(render_source.real_content_hashes);
     sources.add(render_source.source);
   }
   render_source.source = sources.boxed();
+  render_source.real_content_hashes = real_content_hashes;
   Ok(())
 }
 
@@ -390,6 +405,9 @@ async fn render_startup(
     if !dependent_load.source().is_empty() {
       let mut sources = ConcatSource::default();
       sources.add(dependent_load);
+      render_source.real_content_hashes.shift_source_ranges(
+        u32::try_from(sources.size()).expect("module startup prefix size should fit in u32"),
+      );
       sources.add(render_source.source.clone());
       render_source.source = sources.boxed();
     }

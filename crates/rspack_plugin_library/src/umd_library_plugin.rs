@@ -6,7 +6,7 @@ use rspack_core::{
   LibraryAuxiliaryComment, LibraryCustomUmdObject, LibraryName, LibraryNonUmdObject,
   LibraryOptions, LibraryType, ModuleGraph, ModuleGraphCacheArtifact, PathData, Plugin,
   RuntimeCodeTemplate, RuntimeGlobals, RuntimeModule, SideEffectsStateArtifact, SourceType,
-  rspack_sources::{ConcatSource, RawStringSource, SourceExt},
+  rspack_sources::{ConcatSource, RawStringSource, Source, SourceExt},
 };
 use rspack_error::{Result, error};
 use rspack_hash::RspackHash;
@@ -318,6 +318,9 @@ async fn render(
       format!("function({})", external_arguments(&externals, compilation))
     },
   )));
+  render_source.real_content_hashes.shift_source_ranges(
+    u32::try_from(source.size()).expect("UMD library wrapper prefix size should fit in u32"),
+  );
   source.add(render_source.source.clone());
   source.add(RawStringSource::from_static("\n})"));
   render_source.source = source.boxed();

@@ -6,6 +6,6 @@ module.exports = {
   },
   output: {
     filename: '[name].js',
-    chunkFilename: '[runtime].[contenthash].[name].js',
+    chunkFilename: '[runtime].[contenthash:8].[name].js',
   },
 };

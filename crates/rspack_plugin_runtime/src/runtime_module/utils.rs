@@ -1,7 +1,9 @@
 use std::fmt::Write as _;
 
 use rspack_core::{
-  Chunk, ChunkLoading, ChunkUkey, Compilation, PathData, RuntimeCodeTemplate, SourceType,
+  AssetHashRecord, Chunk, ChunkLoading, ChunkUkey, Compilation, ContentHashReference,
+  ContentHashReferenceKind, ContentHashReplacement, ContentHashReplacementKind, PathData,
+  RuntimeCodeTemplate, SourceType,
   chunk_graph_chunk::{ChunkId, ChunkIdSet},
   get_js_chunk_filename_template, get_undo_path,
 };
@@ -179,6 +181,200 @@ where
   format!("\" + {content} + \"")
 }
 
+pub struct DynamicContentHash {
+  pub hash: String,
+  pub referenced_chunk: Option<ChunkUkey>,
+  pub referenced_source_type: Option<SourceType>,
+}
+
+#[derive(Debug, Clone)]
+struct RuntimeContentHashMarker {
+  old_hash: String,
+  referenced_chunk: Option<ChunkUkey>,
+  referenced_source_type: Option<SourceType>,
+  record_reference: bool,
+}
+
+#[derive(Debug, Default)]
+pub struct RuntimeContentHashContext {
+  markers: Vec<RuntimeContentHashMarker>,
+}
+
+impl RuntimeContentHashContext {
+  pub fn mark_content_hash(
+    &mut self,
+    hash: &str,
+    referenced_chunk: Option<ChunkUkey>,
+    referenced_source_type: Option<SourceType>,
+  ) -> String {
+    self.mark_content_hash_with_reference(hash, referenced_chunk, referenced_source_type, true)
+  }
+
+  pub fn mark_content_hash_replacement(
+    &mut self,
+    hash: &str,
+    referenced_chunk: Option<ChunkUkey>,
+    referenced_source_type: Option<SourceType>,
+  ) -> String {
+    self.mark_content_hash_with_reference(hash, referenced_chunk, referenced_source_type, false)
+  }
+
+  fn mark_content_hash_with_reference(
+    &mut self,
+    hash: &str,
+    referenced_chunk: Option<ChunkUkey>,
+    referenced_source_type: Option<SourceType>,
+    record_reference: bool,
+  ) -> String {
+    let id = self.markers.len();
+    self.markers.push(RuntimeContentHashMarker {
+      old_hash: hash.to_string(),
+      referenced_chunk,
+      referenced_source_type,
+      record_reference,
+    });
+    format!(
+      "{}{}{}{}{}",
+      marker_start_prefix(),
+      id,
+      marker_middle(),
+      hash,
+      marker_end(id)
+    )
+  }
+
+  pub fn into_recorded_source(self, source: String) -> (String, AssetHashRecord) {
+    let mut clean_source = String::with_capacity(source.len());
+    let mut record = AssetHashRecord::default();
+    let mut rest = source.as_str();
+
+    while let Some(start_index) = rest.find(marker_start_prefix()) {
+      clean_source.push_str(&rest[..start_index]);
+      rest = &rest[start_index + marker_start_prefix().len()..];
+
+      let Some(middle_index) = rest.find(marker_middle()) else {
+        clean_source.push_str(marker_start_prefix());
+        clean_source.push_str(rest);
+        return (clean_source, record);
+      };
+      let Ok(id) = rest[..middle_index].parse::<usize>() else {
+        clean_source.push_str(marker_start_prefix());
+        clean_source.push_str(rest);
+        return (clean_source, record);
+      };
+      rest = &rest[middle_index + marker_middle().len()..];
+
+      let end_marker = marker_end(id);
+      let Some(end_index) = rest.find(&end_marker) else {
+        clean_source.push_str(marker_start_prefix());
+        clean_source.push_str(&id.to_string());
+        clean_source.push_str(marker_middle());
+        clean_source.push_str(rest);
+        return (clean_source, record);
+      };
+
+      let hash_text = &rest[..end_index];
+      let start = u32::try_from(clean_source.len())
+        .expect("runtime content hash replacement range start should fit in u32");
+      clean_source.push_str(hash_text);
+      let end = u32::try_from(clean_source.len())
+        .expect("runtime content hash replacement range end should fit in u32");
+
+      if let Some(marker) = self.markers.get(id) {
+        debug_assert_eq!(marker.old_hash, hash_text);
+        if marker.record_reference {
+          record.references.push(ContentHashReference {
+            referenced_hash: marker.old_hash.clone(),
+            owner_hash: None,
+            referenced_chunk: marker.referenced_chunk,
+            referenced_source_type: marker.referenced_source_type,
+            kind: ContentHashReferenceKind::Source,
+          });
+        }
+        record.replacements.push(ContentHashReplacement {
+          old_hash: marker.old_hash.clone(),
+          range: Some(start..end),
+          kind: ContentHashReplacementKind::Source,
+        });
+      }
+
+      rest = &rest[end_index + end_marker.len()..];
+    }
+
+    clean_source.push_str(rest);
+    (clean_source, record)
+  }
+}
+
+pub fn stringify_dynamic_content_hash_chunk_map<F>(
+  f: F,
+  chunks: &FxIndexSet<ChunkUkey>,
+  chunk_map: &FxIndexMap<ChunkUkey, &Chunk>,
+  context: &mut RuntimeContentHashContext,
+) -> String
+where
+  F: Fn(&Chunk) -> Option<DynamicContentHash>,
+{
+  let mut entries = Vec::with_capacity(chunks.len());
+  let mut use_id = false;
+
+  for chunk_ukey in chunks.iter() {
+    if let Some(chunk) = chunk_map.get(chunk_ukey)
+      && let Some(chunk_id) = chunk.id()
+      && let Some(value) = f(chunk)
+    {
+      if value.hash.as_str() == chunk_id.as_str() {
+        use_id = true;
+      } else {
+        entries.push((
+          chunk_id,
+          rspack_util::json_stringify_str(&context.mark_content_hash(
+            &value.hash,
+            value.referenced_chunk,
+            value.referenced_source_type,
+          )),
+        ));
+      }
+    }
+  }
+
+  let content = match entries.as_mut_slice() {
+    [] => "chunkId".to_string(),
+    [(chunk_id, value)] => {
+      if use_id {
+        format!(
+          "(chunkId === {} ? {} : chunkId)",
+          rspack_util::json_stringify(*chunk_id),
+          value
+        )
+      } else {
+        value.clone()
+      }
+    }
+    entries => {
+      let map = stringify_map(entries);
+      if use_id {
+        format!("({map}[chunkId] || chunkId)")
+      } else {
+        format!("{map}[chunkId]")
+      }
+    }
+  };
+  format!("\" + {content} + \"")
+}
+
+fn marker_start_prefix() -> &'static str {
+  "__RSPACK_REAL_CONTENT_HASH_START_"
+}
+
+fn marker_middle() -> &'static str {
+  "__"
+}
+
+fn marker_end(id: usize) -> String {
+  format!("__RSPACK_REAL_CONTENT_HASH_END_{id}__")
+}
+
 pub fn stringify_static_chunk_map(filename: &str, chunk_ids: &[&ChunkId]) -> String {
   let condition = if chunk_ids.len() == 1 {
     let mut condition = String::from("chunkId === ");
@@ -245,9 +441,14 @@ pub fn generate_javascript_hmr_runtime(
 
 #[cfg(test)]
 mod tests {
-  use rspack_core::chunk_graph_chunk::{ChunkId, ChunkIdSet};
+  use rspack_core::{
+    SourceType,
+    chunk_graph_chunk::{ChunkId, ChunkIdSet},
+  };
 
-  use super::{stringify_chunks, stringify_map, stringify_static_chunk_map};
+  use super::{
+    RuntimeContentHashContext, stringify_chunks, stringify_map, stringify_static_chunk_map,
+  };
 
   #[test]
   fn stringify_chunks_keeps_sorted_numeric_ids() {
@@ -294,5 +495,36 @@ mod tests {
       stringify_static_chunk_map(&filename, &[&chunk_a, &chunk_b]),
       r#"if ({ "a":1,"b":1 }[chunkId]) return "style.css";"#
     );
+  }
+
+  #[test]
+  fn runtime_content_hash_markers_record_clean_source_ranges() {
+    let mut context = RuntimeContentHashContext::default();
+    let marked = context.mark_content_hash("abc123", None, Some(SourceType::JavaScript));
+    let (source, record) =
+      context.into_recorded_source(format!("prefix {marked} middle {marked} suffix"));
+
+    assert_eq!(source, "prefix abc123 middle abc123 suffix");
+    assert_eq!(record.replacements.len(), 2);
+    assert_eq!(record.replacements[0].old_hash, "abc123");
+    assert_eq!(record.replacements[0].range, Some(7..13));
+    assert_eq!(record.replacements[1].old_hash, "abc123");
+    assert_eq!(record.replacements[1].range, Some(21..27));
+    assert_eq!(record.references.len(), 2);
+    assert_eq!(record.references[0].referenced_hash, "abc123");
+  }
+
+  #[test]
+  fn runtime_content_hash_replacement_markers_do_not_record_references() {
+    let mut context = RuntimeContentHashContext::default();
+    let marked =
+      context.mark_content_hash_replacement("abc123", None, Some(SourceType::JavaScript));
+    let (source, record) = context.into_recorded_source(format!("prefix {marked} suffix"));
+
+    assert_eq!(source, "prefix abc123 suffix");
+    assert_eq!(record.replacements.len(), 1);
+    assert_eq!(record.replacements[0].old_hash, "abc123");
+    assert_eq!(record.replacements[0].range, Some(7..13));
+    assert!(record.references.is_empty());
   }
 }

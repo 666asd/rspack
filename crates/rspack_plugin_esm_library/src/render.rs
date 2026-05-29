@@ -2,11 +2,11 @@ use std::{borrow::Cow, sync::Arc};
 
 use rspack_collections::IdentifierIndexSet;
 use rspack_core::{
-  AssetInfo, Chunk, ChunkGraph, ChunkGroup, ChunkRenderContext, ChunkUkey,
+  AssetHashRecord, AssetInfo, Chunk, ChunkGraph, ChunkGroup, ChunkRenderContext, ChunkUkey,
   CodeGenerationDataFilename, Compilation, ConcatenatedModuleInfo, DependencyId, InitFragment,
   ModuleIdentifier, PathData, PathInfo, RuntimeCodeTemplate, RuntimeGlobals, RuntimeVariable,
   SourceType, export_name, get_js_chunk_filename_template, get_undo_path, render_imports,
-  render_init_fragments,
+  render_init_fragments_with_source_offset,
   rspack_sources::{ConcatSource, RawStringSource, ReplaceSource, Source, SourceExt},
 };
 use rspack_error::Result;
@@ -239,6 +239,7 @@ impl EsmLibraryPlugin {
 
     // render cross module links
     let mut runtime_source = ConcatSource::default();
+    let mut runtime_real_content_hashes = AssetHashRecord::default();
     let mut import_source = ConcatSource::default();
     let mut render_source = ConcatSource::default();
     let mut export_specifiers: FxIndexSet<Cow<str>> = Default::default();
@@ -307,7 +308,14 @@ var {} = {{}};
 
       runtime_source.add(runtimes);
       runtime_source.add(RawStringSource::from_static("\n"));
-      runtime_source.add(render_runtime_modules(compilation, chunk_ukey, runtime_template).await?);
+      let mut runtime_modules =
+        render_runtime_modules(compilation, chunk_ukey, runtime_template).await?;
+      runtime_modules.real_content_hashes.shift_source_ranges(
+        u32::try_from(runtime_source.size())
+          .expect("ESM runtime module prefix size should fit in u32"),
+      );
+      runtime_real_content_hashes.extend(runtime_modules.real_content_hashes);
+      runtime_source.add(runtime_modules.source);
       runtime_source.add(RawStringSource::from_static("\n"));
 
       // Link already decides whether `__webpack_require__` is exported via a runtime module.
@@ -616,16 +624,22 @@ var {} = {{}};
       final_source.add(RawStringSource::from(format!("{directive}\n")));
     }
     final_source.add(import_source.boxed());
-    final_source.add(render_init_fragments(
-      ConcatSource::new([
-        runtime_source.boxed(),
-        decl_source.boxed(),
-        render_source.boxed(),
-      ])
-      .boxed(),
+    let inner_source = ConcatSource::new([
+      runtime_source.boxed(),
+      decl_source.boxed(),
+      render_source.boxed(),
+    ])
+    .boxed();
+    let (inner_source, init_source_offset) = render_init_fragments_with_source_offset(
+      inner_source,
       chunk_init_fragments,
       &mut ChunkRenderContext {},
-    )?);
+    )?;
+    runtime_real_content_hashes.shift_source_ranges(init_source_offset);
+    runtime_real_content_hashes.shift_source_ranges(
+      u32::try_from(final_source.size()).expect("ESM render prefix size should fit in u32"),
+    );
+    final_source.add(inner_source);
 
     let mut exports = chunk_link.exports().iter().collect::<Vec<_>>();
     exports.sort_by(|a, b| a.0.cmp(b.0));
@@ -823,9 +837,10 @@ var {} = {{}};
       final_source
     };
 
-    Ok(Some(RenderSource {
-      source: final_source,
-    }))
+    Ok(Some(RenderSource::with_real_content_hashes(
+      final_source,
+      runtime_real_content_hashes,
+    )))
   }
 
   pub async fn render_runtime(

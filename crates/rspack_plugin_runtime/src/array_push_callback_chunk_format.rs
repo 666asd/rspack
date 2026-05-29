@@ -4,7 +4,7 @@ use rspack_core::{
   ChunkGraph, ChunkKind, ChunkUkey, Compilation, CompilationAdditionalChunkRuntimeRequirements,
   CompilationParams, CompilerCompilation, Plugin, RuntimeCodeTemplate, RuntimeGlobals,
   RuntimeModule, RuntimeVariable,
-  rspack_sources::{ConcatSource, RawStringSource, SourceExt},
+  rspack_sources::{ConcatSource, RawStringSource, Source, SourceExt},
 };
 use rspack_error::Result;
 use rspack_hash::RspackHash;
@@ -121,6 +121,7 @@ async fn render_chunk(
   let global_object = &compilation.options.output.global_object;
   let hot_update_global = &compilation.options.output.hot_update_global;
   let mut source = ConcatSource::default();
+  let mut real_content_hashes = render_source.real_content_hashes.clone();
 
   if matches!(chunk.kind(), ChunkKind::HotUpdate) {
     source.add(RawStringSource::from(format!(
@@ -129,10 +130,19 @@ async fn render_chunk(
       rspack_util::json_stringify_str(hot_update_global),
       rspack_util::json_stringify(chunk.expect_id())
     )));
+    real_content_hashes.shift_source_ranges(
+      u32::try_from(source.size()).expect("array-push hot-update prefix size should fit in u32"),
+    );
     source.add(render_source.source.clone());
     if has_runtime_modules {
       source.add(RawStringSource::from_static(","));
-      source.add(render_chunk_runtime_modules(compilation, chunk_ukey, runtime_template).await?);
+      let mut runtime_modules =
+        render_chunk_runtime_modules(compilation, chunk_ukey, runtime_template).await?;
+      runtime_modules.real_content_hashes.shift_source_ranges(
+        u32::try_from(source.size()).expect("array-push runtime prefix size should fit in u32"),
+      );
+      real_content_hashes.extend(runtime_modules.real_content_hashes);
+      source.add(runtime_modules.source);
     }
     source.add(RawStringSource::from_static(")"));
   } else {
@@ -146,6 +156,9 @@ async fn render_chunk(
       chunk_loading_global,
       rspack_util::json_stringify(chunk.expect_id()),
     )));
+    real_content_hashes.shift_source_ranges(
+      u32::try_from(source.size()).expect("array-push chunk prefix size should fit in u32"),
+    );
     source.add(render_source.source.clone());
     let has_entry = chunk.has_entry_module(&compilation.build_chunk_graph_artifact.chunk_graph);
     if has_entry || has_runtime_modules {
@@ -155,7 +168,13 @@ async fn render_chunk(
         runtime_template.render_runtime_globals(&RuntimeGlobals::REQUIRE)
       )));
       if has_runtime_modules {
-        source.add(render_runtime_modules(compilation, chunk_ukey, runtime_template).await?);
+        let mut runtime_modules =
+          render_runtime_modules(compilation, chunk_ukey, runtime_template).await?;
+        runtime_modules.real_content_hashes.shift_source_ranges(
+          u32::try_from(source.size()).expect("array-push runtime prefix size should fit in u32"),
+        );
+        real_content_hashes.extend(runtime_modules.real_content_hashes);
+        source.add(runtime_modules.source);
       }
       if has_entry {
         let entries = compilation
@@ -171,9 +190,7 @@ async fn render_chunk(
           .keys()
           .next_back()
           .expect("should have last entry module");
-        let mut render_source = RenderSource {
-          source: start_up_source,
-        };
+        let mut render_source = RenderSource::new(start_up_source);
         hooks
           .try_read()
           .expect("should have js plugin drive")
@@ -199,6 +216,7 @@ async fn render_chunk(
     source.add(RawStringSource::from_static("])"));
   }
   render_source.source = source.boxed();
+  render_source.real_content_hashes = real_content_hashes;
   Ok(())
 }
 

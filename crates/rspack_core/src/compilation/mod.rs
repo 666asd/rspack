@@ -87,8 +87,7 @@ use crate::{
   SideEffectsOptimizeArtifact, SideEffectsStateArtifact, SourceType, Stats, StatsContext,
   StealCell, ValueCacheVersions,
   artifacts::{
-    AssetHashRecord, ContentHashReferenceMeta, ContentHashReplacementKind,
-    RealContentHashArtifact,
+    AssetHashRecord, ContentHashReferenceMeta, ContentHashReplacementKind, RealContentHashArtifact,
   },
   cache::persistent::occasion::minimize::MinimizePersistentCacheArtifact,
   compilation::build_module_graph::{
@@ -227,6 +226,7 @@ pub struct Compilation {
   pub runtime_modules: IdentifierMap<Box<dyn RuntimeModule>>,
   pub runtime_modules_hash: IdentifierMap<RspackHashDigest>,
   pub runtime_modules_code_generation_source: IdentifierMap<BoxSource>,
+  pub runtime_modules_code_generation_real_content_hashes: IdentifierMap<AssetHashRecord>,
   assets: CompilationAssets,
   assets_related_in: HashMap<String, HashSet<String>>,
   pub emitted_assets: DashSet<String, BuildHasherDefault<FxHasher>>,
@@ -370,6 +370,7 @@ impl Compilation {
       runtime_modules: Default::default(),
       runtime_modules_hash: Default::default(),
       runtime_modules_code_generation_source: Default::default(),
+      runtime_modules_code_generation_real_content_hashes: Default::default(),
       entries: Default::default(),
       global_entry: Default::default(),
       assets: Default::default(),

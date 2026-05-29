@@ -275,22 +275,33 @@ async fn render(
     let original_source_str = render_source.source.source().into_string_lossy();
 
     let mut new_source = ConcatSource::default();
+    let mut inserted_before_runtime_hashes = 0u32;
 
     if let Some(hashbang) = hashbang {
-      new_source.add(RawStringSource::from(format!("{hashbang}\n")));
+      let content = format!("{hashbang}\n");
+      inserted_before_runtime_hashes +=
+        u32::try_from(content.len()).expect("rslib hashbang prefix size should fit in u32");
+      new_source.add(RawStringSource::from(content));
     }
 
     if let Some(directives) = directives {
       let use_strict_prefix = "\"use strict\";\n";
+      let directives = directives
+        .iter()
+        .map(|directive| format!("{directive}\n"))
+        .collect::<Vec<_>>();
+      inserted_before_runtime_hashes +=
+        u32::try_from(directives.iter().map(String::len).sum::<usize>())
+          .expect("rslib directive prefix size should fit in u32");
       if let Some(rest) = original_source_str.strip_prefix(use_strict_prefix) {
         new_source.add(RawStringSource::from(use_strict_prefix));
         for directive in directives {
-          new_source.add(RawStringSource::from(format!("{directive}\n")));
+          new_source.add(RawStringSource::from(directive));
         }
         new_source.add(RawStringSource::from(rest));
       } else {
         for directive in directives {
-          new_source.add(RawStringSource::from(format!("{directive}\n")));
+          new_source.add(RawStringSource::from(directive));
         }
         new_source.add(render_source.source.clone());
       }
@@ -298,6 +309,9 @@ async fn render(
       new_source.add(render_source.source.clone());
     }
 
+    render_source
+      .real_content_hashes
+      .shift_source_ranges(inserted_before_runtime_hashes);
     render_source.source = new_source.boxed();
     break;
   }

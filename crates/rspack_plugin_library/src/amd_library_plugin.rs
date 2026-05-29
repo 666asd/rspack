@@ -4,7 +4,7 @@ use rspack_core::{
   ChunkUkey, Compilation, CompilationAdditionalChunkRuntimeRequirements, CompilationParams,
   CompilerCompilation, ExternalModule, Filename, LibraryName, LibraryNonUmdObject, LibraryOptions,
   LibraryType, PathData, Plugin, RuntimeCodeTemplate, RuntimeGlobals, RuntimeModule, SourceType,
-  rspack_sources::{ConcatSource, RawStringSource, SourceExt},
+  rspack_sources::{ConcatSource, RawStringSource, Source, SourceExt},
 };
 use rspack_error::{Result, error_bail};
 use rspack_hash::RspackHash;
@@ -164,6 +164,9 @@ async fn render(
       "{amd_container_prefix}define({externals_deps_array}, {fn_start}"
     )));
   }
+  render_source.real_content_hashes.shift_source_ranges(
+    u32::try_from(source.size()).expect("AMD library wrapper prefix size should fit in u32"),
+  );
   source.add(render_source.source.clone());
   source.add(RawStringSource::from_static("\n})"));
   render_source.source = source.boxed();

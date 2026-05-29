@@ -3,9 +3,9 @@ use std::{cmp::Ordering, fmt};
 use itertools::Itertools;
 use rspack_cacheable::with::Unsupported;
 use rspack_core::{
-  Chunk, ChunkGraph, ChunkUkey, Compilation, Filename, PathData, RuntimeGlobals, RuntimeModule,
-  RuntimeModuleGenerateContext, RuntimeTemplate, SourceType, get_filename_without_hash_length,
-  has_hash_placeholder, impl_runtime_module,
+  AssetHashRecord, Chunk, ChunkGraph, ChunkUkey, Compilation, Filename, PathData, RuntimeGlobals,
+  RuntimeModule, RuntimeModuleGenerateContext, RuntimeTemplate, SourceType,
+  get_filename_without_hash_length, has_hash_placeholder, impl_runtime_module,
 };
 use rspack_util::{
   fx_hash::{FxIndexMap, FxIndexSet},
@@ -13,7 +13,10 @@ use rspack_util::{
 };
 use rustc_hash::FxHashMap;
 
-use super::{stringify_dynamic_chunk_map, stringify_static_chunk_map};
+use super::{
+  DynamicContentHash, RuntimeContentHashContext, stringify_dynamic_chunk_map,
+  stringify_dynamic_content_hash_chunk_map, stringify_static_chunk_map,
+};
 use crate::{get_chunk_runtime_requirements, runtime_module::unquoted_stringify};
 
 type GetChunkFilenameAllChunks = Box<dyn Fn(&RuntimeGlobals) -> bool + Sync + Send>;
@@ -69,25 +72,11 @@ impl GetChunkFilenameRuntimeModule {
       Box::new(filename_for_chunk),
     )
   }
-}
 
-#[async_trait::async_trait]
-impl RuntimeModule for GetChunkFilenameRuntimeModule {
-  fn template(&self) -> Vec<(String, String)> {
-    vec![(
-      self.id.to_string(),
-      include_str!("runtime/get_chunk_filename.ejs").to_string(),
-    )]
-  }
-
-  fn dependent_hash(&self) -> bool {
-    true
-  }
-
-  async fn generate(
+  async fn generate_with_real_content_hashes(
     &self,
     context: &RuntimeModuleGenerateContext<'_>,
-  ) -> rspack_error::Result<String> {
+  ) -> rspack_error::Result<(String, AssetHashRecord)> {
     let compilation = context.compilation;
     let runtime_template = context.runtime_template;
     let chunks = self
@@ -187,6 +176,7 @@ impl RuntimeModule for GetChunkFilenameRuntimeModule {
         });
     }
 
+    let mut hash_context = RuntimeContentHashContext::default();
     let dynamic_url = if let Some(dynamic_filename) = &dynamic_filename {
       let chunks = chunk_filenames
         .iter()
@@ -231,20 +221,25 @@ impl RuntimeModule for GetChunkFilenameRuntimeModule {
         &chunks,
         &chunk_map,
       );
-      let content_hash = stringify_dynamic_chunk_map(
+      let content_hash = stringify_dynamic_content_hash_chunk_map(
         |c| {
           c.rendered_content_hash_by_source_type(
             &compilation.chunk_hashes_artifact,
             &self.source_type,
             compilation.options.output.hash_digest_length,
           )
-          .map(|hash| match hash_len_map.get("[contenthash]") {
-            Some(hash_len) => hash[..*hash_len].to_string(),
-            None => hash.to_string(),
+          .map(|hash| DynamicContentHash {
+            hash: match hash_len_map.get("[contenthash]") {
+              Some(hash_len) => hash[..*hash_len].to_string(),
+              None => hash.to_string(),
+            },
+            referenced_chunk: Some(c.ukey()),
+            referenced_source_type: Some(self.source_type),
           })
         },
         &chunks,
         &chunk_map,
+        &mut hash_context,
       );
       let full_hash = match hash_len_map
         .get("[fullhash]")
@@ -320,13 +315,18 @@ impl RuntimeModule for GetChunkFilenameRuntimeModule {
           .content_hash(&compilation.chunk_hashes_artifact)
           .and_then(|content_hash| content_hash.get(&self.source_type))
           .map(|i| {
-            let hash = unquoted_stringify(
-              chunk.id(),
-              i.rendered(compilation.options.output.hash_digest_length),
-            );
-            match hash_len_map.get("[contenthash]") {
-              Some(hash_len) => hash[..*hash_len].to_string(),
-              None => hash,
+            let mut hash = i
+              .rendered(compilation.options.output.hash_digest_length)
+              .to_string();
+            if let Some(hash_len) = hash_len_map.get("[contenthash]") {
+              hash = hash[..*hash_len].to_string();
+            }
+            if chunk.id().is_some_and(|chunk_id| hash == chunk_id.as_str()) {
+              unquoted_stringify(chunk.id(), &hash)
+            } else {
+              let marked_hash =
+                hash_context.mark_content_hash(&hash, Some(chunk.ukey()), Some(self.source_type));
+              unquoted_stringify(chunk.id(), &marked_hash)
             }
           });
         let full_hash = match hash_len_map
@@ -394,7 +394,41 @@ impl RuntimeModule for GetChunkFilenameRuntimeModule {
       "_dynamic_url": dynamic_url.unwrap_or_else(|| format!("\"\" + chunkId + \".{}\"", self.content_type))
     })))?;
 
-    Ok(source)
+    Ok(hash_context.into_recorded_source(source))
+  }
+}
+
+#[async_trait::async_trait]
+impl RuntimeModule for GetChunkFilenameRuntimeModule {
+  fn template(&self) -> Vec<(String, String)> {
+    vec![(
+      self.id.to_string(),
+      include_str!("runtime/get_chunk_filename.ejs").to_string(),
+    )]
+  }
+
+  fn dependent_hash(&self) -> bool {
+    true
+  }
+
+  async fn generate(
+    &self,
+    context: &RuntimeModuleGenerateContext<'_>,
+  ) -> rspack_error::Result<String> {
+    self
+      .generate_with_real_content_hashes(context)
+      .await
+      .map(|(source, _)| source)
+  }
+
+  async fn generate_real_content_hashes(
+    &self,
+    context: &RuntimeModuleGenerateContext<'_>,
+  ) -> rspack_error::Result<AssetHashRecord> {
+    self
+      .generate_with_real_content_hashes(context)
+      .await
+      .map(|(_, record)| record)
   }
 
   fn additional_runtime_requirements(&self, compilation: &Compilation) -> RuntimeGlobals {

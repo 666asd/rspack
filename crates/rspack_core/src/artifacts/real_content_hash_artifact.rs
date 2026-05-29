@@ -21,6 +21,37 @@ impl AssetHashRecord {
   pub fn is_empty(&self) -> bool {
     self.own_hashes.is_empty() && self.references.is_empty() && self.replacements.is_empty()
   }
+
+  pub fn extend(&mut self, mut other: AssetHashRecord) {
+    self.own_hashes.extend(other.own_hashes);
+    self.references.append(&mut other.references);
+    self.replacements.append(&mut other.replacements);
+  }
+
+  pub fn shift_source_ranges(&mut self, offset: u32) {
+    if offset == 0 {
+      return;
+    }
+
+    for replacement in &mut self.replacements {
+      if !matches!(
+        replacement.kind,
+        ContentHashReplacementKind::Source | ContentHashReplacementKind::Custom
+      ) {
+        continue;
+      }
+      if let Some(range) = &mut replacement.range {
+        range.start = range
+          .start
+          .checked_add(offset)
+          .expect("content hash replacement range start should fit in u32");
+        range.end = range
+          .end
+          .checked_add(offset)
+          .expect("content hash replacement range end should fit in u32");
+      }
+    }
+  }
 }
 
 pub fn record_manifest_owned_content_hash(

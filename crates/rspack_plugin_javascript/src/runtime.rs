@@ -1,7 +1,8 @@
 use rayon::prelude::*;
 use rspack_core::{
-  ChunkGraph, ChunkInitFragments, ChunkUkey, CodeGenerationPublicPathAutoReplace, Compilation,
-  Module, ModuleCodeGenerationContext, RuntimeCodeTemplate, RuntimeGlobals, SourceType,
+  AssetHashRecord, ChunkGraph, ChunkInitFragments, ChunkUkey, CodeGenerationPublicPathAutoReplace,
+  Compilation, Module, ModuleCodeGenerationContext, RuntimeCodeTemplate, RuntimeGlobals,
+  RuntimeModuleGenerateContext, SourceType,
   chunk_graph_chunk::ChunkIdSet,
   get_undo_path,
   rspack_sources::{BoxSource, ConcatSource, RawStringSource, ReplaceSource, Source, SourceExt},
@@ -11,6 +12,11 @@ use rspack_error::{Result, ToStringResultToRspackResultExt};
 use crate::{JavascriptModulesPluginHooks, RenderSource};
 
 pub const AUTO_PUBLIC_PATH_PLACEHOLDER: &str = "__RSPACK_PLUGIN_ASSET_AUTO_PUBLIC_PATH__";
+
+pub struct RuntimeModulesRenderResult {
+  pub source: BoxSource,
+  pub real_content_hashes: AssetHashRecord,
+}
 
 pub async fn render_chunk_modules(
   compilation: &Compilation,
@@ -147,18 +153,12 @@ pub async fn render_module(
         );
         replace.replace(start as u32, end as u32, relative, None);
       }
-      RenderSource {
-        source: replace.boxed(),
-      }
+      RenderSource::new(replace.boxed())
     } else {
-      RenderSource {
-        source: origin_source.clone(),
-      }
+      RenderSource::new(origin_source.clone())
     }
   } else {
-    RenderSource {
-      source: origin_source.clone(),
-    }
+    RenderSource::new(origin_source.clone())
   };
 
   /*
@@ -251,9 +251,7 @@ pub async fn render_module(
         container_sources.add(RawStringSource::from_static("\n\n}),\n"));
       }
 
-      RenderSource {
-        source: container_sources.boxed(),
-      }
+      RenderSource::new(container_sources.boxed())
     };
 
     hooks
@@ -311,10 +309,10 @@ pub async fn render_chunk_runtime_modules(
   compilation: &Compilation,
   chunk_ukey: &ChunkUkey,
   runtime_template: &RuntimeCodeTemplate<'_>,
-) -> Result<BoxSource> {
-  let runtime_modules_sources =
+) -> Result<RuntimeModulesRenderResult> {
+  let mut runtime_modules_sources =
     render_runtime_modules(compilation, chunk_ukey, runtime_template).await?;
-  if runtime_modules_sources.source().is_empty() {
+  if runtime_modules_sources.source.source().is_empty() {
     return Ok(runtime_modules_sources);
   }
 
@@ -323,17 +321,26 @@ pub async fn render_chunk_runtime_modules(
     "function({}) {{\n",
     runtime_template.render_runtime_globals(&RuntimeGlobals::REQUIRE),
   )));
-  sources.add(runtime_modules_sources);
+  runtime_modules_sources
+    .real_content_hashes
+    .shift_source_ranges(
+      u32::try_from(sources.size()).expect("runtime chunk wrapper size should fit in u32"),
+    );
+  sources.add(runtime_modules_sources.source);
   sources.add(RawStringSource::from_static("\n}\n"));
-  Ok(sources.boxed())
+  Ok(RuntimeModulesRenderResult {
+    source: sources.boxed(),
+    real_content_hashes: runtime_modules_sources.real_content_hashes,
+  })
 }
 
 pub async fn render_runtime_modules(
   compilation: &Compilation,
   chunk_ukey: &ChunkUkey,
   _runtime_template: &RuntimeCodeTemplate<'_>,
-) -> Result<BoxSource> {
+) -> Result<RuntimeModulesRenderResult> {
   let mut sources = ConcatSource::default();
+  let mut real_content_hashes = AssetHashRecord::default();
   let runtime_module_sources = rspack_parallel::scope::<_, Result<_>>(|token| {
     compilation
       .build_chunk_graph_artifact
@@ -341,6 +348,7 @@ pub async fn render_runtime_modules(
       .get_chunk_runtime_modules_in_order(chunk_ukey, compilation)
       .map(|(identifier, runtime_module)| {
         (
+          *identifier,
           compilation
             .runtime_modules_code_generation_source
             .get(identifier)
@@ -348,12 +356,16 @@ pub async fn render_runtime_modules(
           runtime_module,
         )
       })
-      .for_each(|(source, module)| {
-        let s = unsafe { token.used((compilation, source, module)) };
-        s.spawn(|(compilation, source, module)| async move {
+      .for_each(|(identifier, source, module)| {
+        let s = unsafe { token.used((compilation, identifier, source, module)) };
+        s.spawn(|(compilation, identifier, source, module)| async move {
           let mut sources = ConcatSource::default();
+          let mut real_content_hashes = AssetHashRecord::default();
           if source.size() == 0 {
-            return Ok(sources);
+            return Ok(RuntimeModulesRenderResult {
+              source: sources.boxed(),
+              real_content_hashes,
+            });
           }
           sources.add(RawStringSource::from(format!(
             "// {}\n",
@@ -371,22 +383,43 @@ pub async fn render_runtime_modules(
               "!function() {\n"
             }));
           }
-          if !(module.full_hash() || module.dependent_hash()) {
-            sources.add(source.clone());
-          } else {
-            let mut runtime_template = compilation.runtime_template.create_module_code_template();
-            let mut code_generation_context = ModuleCodeGenerationContext {
-              compilation,
-              runtime: None,
-              concatenation_scope: None,
-              runtime_template: &mut runtime_template,
-            };
+          let (module_source, mut module_real_content_hashes) =
+            if !(module.full_hash() || module.dependent_hash()) {
+              (
+                source.clone(),
+                compilation
+                  .runtime_modules_code_generation_real_content_hashes
+                  .get(&identifier)
+                  .cloned()
+                  .unwrap_or_default(),
+              )
+            } else {
+              let mut runtime_template = compilation.runtime_template.create_module_code_template();
+              let mut code_generation_context = ModuleCodeGenerationContext {
+                compilation,
+                runtime: None,
+                concatenation_scope: None,
+                runtime_template: &mut runtime_template,
+              };
 
-            let result = module.code_generation(&mut code_generation_context).await?;
-            #[allow(clippy::unwrap_used)]
-            let source = result.get(&SourceType::Runtime).unwrap();
-            sources.add(source.clone());
-          }
+              let result = module.code_generation(&mut code_generation_context).await?;
+              #[allow(clippy::unwrap_used)]
+              let source = result.get(&SourceType::Runtime).unwrap();
+              let runtime_template = compilation.runtime_template.create_runtime_code_template();
+              let context = RuntimeModuleGenerateContext {
+                compilation,
+                runtime_template: &runtime_template,
+              };
+              (
+                source.clone(),
+                module.generate_real_content_hashes(&context).await?,
+              )
+            };
+          module_real_content_hashes.shift_source_ranges(
+            u32::try_from(sources.size()).expect("runtime module wrapper size should fit in u32"),
+          );
+          real_content_hashes.extend(module_real_content_hashes);
+          sources.add(module_source);
           if module.should_isolate() {
             sources.add(RawStringSource::from(if supports_arrow_function {
               "\n})();\n"
@@ -394,7 +427,10 @@ pub async fn render_runtime_modules(
               "\n}();\n"
             }));
           }
-          Ok(sources)
+          Ok(RuntimeModulesRenderResult {
+            source: sources.boxed(),
+            real_content_hashes,
+          })
         });
       })
   })
@@ -404,10 +440,20 @@ pub async fn render_runtime_modules(
   .collect::<Result<Vec<_>>>()?;
 
   for runtime_module_source in runtime_module_sources {
-    sources.add(runtime_module_source?);
+    let mut runtime_module_source = runtime_module_source?;
+    runtime_module_source
+      .real_content_hashes
+      .shift_source_ranges(
+        u32::try_from(sources.size()).expect("runtime modules source size should fit in u32"),
+      );
+    real_content_hashes.extend(runtime_module_source.real_content_hashes);
+    sources.add(runtime_module_source.source);
   }
 
-  Ok(sources.boxed())
+  Ok(RuntimeModulesRenderResult {
+    source: sources.boxed(),
+    real_content_hashes,
+  })
 }
 
 pub fn stringify_chunks_to_array(chunks: &ChunkIdSet) -> String {

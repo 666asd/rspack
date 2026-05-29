@@ -4,7 +4,7 @@ use async_trait::async_trait;
 use rspack_cacheable::cacheable;
 use rspack_collections::Identifier;
 
-use crate::{ChunkUkey, Compilation, Module, RuntimeCodeTemplate, RuntimeGlobals};
+use crate::{AssetHashRecord, ChunkUkey, Compilation, Module, RuntimeCodeTemplate, RuntimeGlobals};
 
 pub struct RuntimeModuleGenerateContext<'a> {
   pub compilation: &'a Compilation,
@@ -35,6 +35,12 @@ pub trait RuntimeModule:
     &self,
     context: &RuntimeModuleGenerateContext<'_>,
   ) -> rspack_error::Result<String>;
+  async fn generate_real_content_hashes(
+    &self,
+    _context: &RuntimeModuleGenerateContext<'_>,
+  ) -> rspack_error::Result<AssetHashRecord> {
+    Ok(AssetHashRecord::default())
+  }
   async fn generate_with_custom(&self, compilation: &Compilation) -> rspack_error::Result<String> {
     if let Some(custom_source) = self.get_custom_source() {
       Ok(custom_source)

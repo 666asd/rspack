@@ -1,12 +1,13 @@
 use std::sync::LazyLock;
 
 use rspack_core::{
-  Compilation, OutputOptions, PathData, RuntimeCodeTemplate, RuntimeGlobals, RuntimeModule,
-  RuntimeModuleGenerateContext, RuntimeModuleStage, RuntimeTemplate, SourceType,
-  get_js_chunk_filename_template, get_undo_path, impl_runtime_module,
+  AssetHashRecord, Compilation, OutputOptions, PathData, RuntimeCodeTemplate, RuntimeGlobals,
+  RuntimeModule, RuntimeModuleGenerateContext, RuntimeModuleStage, RuntimeTemplate, SourceType,
+  get_filename_without_hash_length, get_js_chunk_filename_template, get_undo_path,
+  impl_runtime_module,
 };
 
-use crate::extract_runtime_globals_from_ejs;
+use crate::{extract_runtime_globals_from_ejs, runtime_module::RuntimeContentHashContext};
 
 static AUTO_PUBLIC_PATH_TEMPLATE: &str = include_str!("runtime/auto_public_path.ejs");
 static AUTO_PUBLIC_PATH_RUNTIME_REQUIREMENTS: LazyLock<RuntimeGlobals> =
@@ -19,6 +20,63 @@ pub struct AutoPublicPathRuntimeModule {}
 impl AutoPublicPathRuntimeModule {
   pub fn new(runtime_template: &RuntimeTemplate) -> Self {
     Self::with_default(runtime_template)
+  }
+
+  async fn generate_with_real_content_hashes(
+    &self,
+    context: &RuntimeModuleGenerateContext<'_>,
+  ) -> rspack_error::Result<(String, AssetHashRecord)> {
+    let compilation = context.compilation;
+    let runtime_template = context.runtime_template;
+    let chunk = self.chunk.expect("The chunk should be attached");
+    let chunk = compilation
+      .build_chunk_graph_artifact
+      .chunk_by_ukey
+      .expect_get(&chunk);
+    let filename_template = get_js_chunk_filename_template(
+      chunk,
+      &compilation.options.output,
+      &compilation.build_chunk_graph_artifact.chunk_group_by_ukey,
+    );
+    let (filename_template, hash_len_map) = get_filename_without_hash_length(&filename_template);
+    let mut hash_context = RuntimeContentHashContext::default();
+    let marked_content_hash = chunk
+      .rendered_content_hash_by_source_type(
+        &compilation.chunk_hashes_artifact,
+        &SourceType::JavaScript,
+        compilation.options.output.hash_digest_length,
+      )
+      .map(|hash| {
+        let hash = match hash_len_map.get("[contenthash]") {
+          Some(hash_len) => &hash[..*hash_len],
+          None => hash,
+        };
+        hash_context.mark_content_hash_replacement(
+          hash,
+          Some(chunk.ukey()),
+          Some(SourceType::JavaScript),
+        )
+      });
+    let filename = compilation
+      .get_path(
+        &filename_template,
+        PathData::default()
+          .chunk_id_optional(chunk.id().map(|id| id.as_str()))
+          .chunk_hash_optional(chunk.rendered_hash(
+            &compilation.chunk_hashes_artifact,
+            compilation.options.output.hash_digest_length,
+          ))
+          .chunk_name_optional(chunk.name_for_filename_template())
+          .content_hash_optional(marked_content_hash.as_deref()),
+      )
+      .await?;
+    let source = auto_public_path_template(
+      runtime_template,
+      &self.id,
+      &filename,
+      &compilation.options.output,
+    )?;
+    Ok(hash_context.into_recorded_source(source))
   }
 }
 
@@ -36,41 +94,20 @@ impl RuntimeModule for AutoPublicPathRuntimeModule {
     &self,
     context: &RuntimeModuleGenerateContext<'_>,
   ) -> rspack_error::Result<String> {
-    let compilation = context.compilation;
-    let runtime_template = context.runtime_template;
-    let chunk = self.chunk.expect("The chunk should be attached");
-    let chunk = compilation
-      .build_chunk_graph_artifact
-      .chunk_by_ukey
-      .expect_get(&chunk);
-    let filename = get_js_chunk_filename_template(
-      chunk,
-      &compilation.options.output,
-      &compilation.build_chunk_graph_artifact.chunk_group_by_ukey,
-    );
-    let filename = compilation
-      .get_path(
-        &filename,
-        PathData::default()
-          .chunk_id_optional(chunk.id().map(|id| id.as_str()))
-          .chunk_hash_optional(chunk.rendered_hash(
-            &compilation.chunk_hashes_artifact,
-            compilation.options.output.hash_digest_length,
-          ))
-          .chunk_name_optional(chunk.name_for_filename_template())
-          .content_hash_optional(chunk.rendered_content_hash_by_source_type(
-            &compilation.chunk_hashes_artifact,
-            &SourceType::JavaScript,
-            compilation.options.output.hash_digest_length,
-          )),
-      )
-      .await?;
-    auto_public_path_template(
-      runtime_template,
-      &self.id,
-      &filename,
-      &compilation.options.output,
-    )
+    self
+      .generate_with_real_content_hashes(context)
+      .await
+      .map(|(source, _)| source)
+  }
+
+  async fn generate_real_content_hashes(
+    &self,
+    context: &RuntimeModuleGenerateContext<'_>,
+  ) -> rspack_error::Result<AssetHashRecord> {
+    self
+      .generate_with_real_content_hashes(context)
+      .await
+      .map(|(_, record)| record)
   }
 
   fn additional_runtime_requirements(&self, _compilation: &Compilation) -> RuntimeGlobals {

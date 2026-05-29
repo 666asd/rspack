@@ -1478,9 +1478,7 @@ var {} = {{}};
                   return Ok((ModuleInfo::Concatenated(concate_info), None));
                 };
 
-                let mut render_source = RenderSource {
-                  source: js_source.clone(),
-                };
+                let mut render_source = RenderSource::new(js_source.clone());
 
                 let mut chunk_init_fragments = vec![];
                 hooks

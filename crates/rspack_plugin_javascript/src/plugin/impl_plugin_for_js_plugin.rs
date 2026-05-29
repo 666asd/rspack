@@ -616,15 +616,15 @@ async fn render_manifest(
   let hooks = JsPlugin::get_compilation_hooks(compilation.id());
   let hooks = hooks.read().await;
 
-  let (source, _) = compilation
+  let (source, runtime_real_content_hashes, _) = compilation
     .chunk_render_cache_artifact
-    .use_cache(compilation, chunk, &SourceType::JavaScript, || async {
-      let source = if let Some(source) = hooks
+    .use_cache_with_real_content_hashes(compilation, chunk, &SourceType::JavaScript, || async {
+      let (source, real_content_hashes) = if let Some(source) = hooks
         .render_chunk_content
         .call(compilation, chunk_ukey, &mut asset_info, &runtime_template)
         .await?
       {
-        source.source
+        (source.source, source.real_content_hashes)
       } else if is_hot_update {
         self
           .render_chunk(compilation, chunk_ukey, &output_path, &runtime_template)
@@ -638,13 +638,18 @@ async fn render_manifest(
           .render_chunk(compilation, chunk_ukey, &output_path, &runtime_template)
           .await?
       };
-      Ok((CachedSource::new(source).boxed(), Vec::new()))
+      Ok((
+        CachedSource::new(source).boxed(),
+        real_content_hashes,
+        Vec::new(),
+      ))
     })
     .await?;
 
   let mut real_content_hashes = AssetHashRecord::default();
   record_manifest_owned_content_hash(&mut real_content_hashes, rendered_content_hash);
   record_manifest_filename_content_hashes(&mut real_content_hashes, asset_info.content_hash.iter());
+  real_content_hashes.extend(runtime_real_content_hashes);
   manifest.push(
     RenderManifestEntry::new(source, output_path, false, asset_info, false)
       .with_real_content_hashes(real_content_hashes),

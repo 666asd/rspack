@@ -9,7 +9,7 @@ use dyn_clone::{DynClone, clone_trait_object};
 use hashlink::LinkedHashSet;
 use indexmap::IndexMap;
 use rspack_error::Result;
-use rspack_sources::{BoxSource, ConcatSource, RawStringSource, SourceExt};
+use rspack_sources::{BoxSource, ConcatSource, RawStringSource, Source, SourceExt};
 use rspack_util::ext::{DynHash, IntoAny};
 use rustc_hash::FxHasher;
 use swc_core::ecma::atoms::Atom;
@@ -212,9 +212,17 @@ pub enum InitFragmentStage {
 /// InitFragment.addToSource
 pub fn render_init_fragments<C: InitFragmentRenderContext>(
   source: BoxSource,
-  mut fragments: Vec<Box<dyn InitFragment<C>>>,
+  fragments: Vec<Box<dyn InitFragment<C>>>,
   context: &mut C,
 ) -> Result<BoxSource> {
+  render_init_fragments_with_source_offset(source, fragments, context).map(|(source, _)| source)
+}
+
+pub fn render_init_fragments_with_source_offset<C: InitFragmentRenderContext>(
+  source: BoxSource,
+  mut fragments: Vec<Box<dyn InitFragment<C>>>,
+  context: &mut C,
+) -> Result<(BoxSource, u32)> {
   // here use sort_by_key because need keep order equal stage fragments
   fragments.sort_by(|a, b| {
     let stage = a.stage().cmp(&b.stage());
@@ -250,13 +258,15 @@ pub fn render_init_fragments<C: InitFragmentRenderContext>(
     }
   }
 
+  let source_offset = u32::try_from(concat_source.size())
+    .expect("rendered init fragment prefix size should fit in u32");
   concat_source.add(source);
 
   for content in end_contents.into_iter().rev() {
     concat_source.add(content);
   }
 
-  Ok(concat_source.boxed())
+  Ok((concat_source.boxed(), source_offset))
 }
 
 pub type BoxInitFragment<C> = Box<dyn InitFragment<C>>;

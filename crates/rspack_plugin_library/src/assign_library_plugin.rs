@@ -10,7 +10,7 @@ use rspack_core::{
   LibraryName, LibraryNonUmdObject, LibraryOptions, ModuleIdentifier, PathData, Plugin,
   RuntimeCodeTemplate, RuntimeGlobals, RuntimeModule, RuntimeVariable, SideEffectsStateArtifact,
   SourceType, UsageState, get_entry_runtime, property_access,
-  rspack_sources::{ConcatSource, RawStringSource, SourceExt},
+  rspack_sources::{ConcatSource, RawStringSource, Source, SourceExt},
   to_identifier,
 };
 use rspack_error::{Result, ToStringResultToRspackResultExt, error, error_bail};
@@ -234,6 +234,9 @@ async fn render(
     }
     let mut source = ConcatSource::default();
     source.add(RawStringSource::from(format!("var {base};\n")));
+    render_source.real_content_hashes.shift_source_ranges(
+      u32::try_from(source.size()).expect("assign library prefix size should fit in u32"),
+    );
     source.add(render_source.source.clone());
     render_source.source = source.boxed();
     return Ok(());

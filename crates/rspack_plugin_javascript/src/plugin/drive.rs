@@ -1,5 +1,5 @@
 use rspack_core::{
-  AssetInfo, BoxModule, Chunk, ChunkInitFragments, ChunkUkey, Compilation, Module,
+  AssetHashRecord, AssetInfo, BoxModule, Chunk, ChunkInitFragments, ChunkUkey, Compilation, Module,
   ModuleIdentifier, RuntimeCodeTemplate, rspack_sources::BoxSource,
 };
 use rspack_hash::RspackHash;
@@ -49,4 +49,21 @@ pub struct JavascriptModulesPluginHooks {
 #[derive(Debug)]
 pub struct RenderSource {
   pub source: BoxSource,
+  pub real_content_hashes: AssetHashRecord,
+}
+
+impl RenderSource {
+  pub fn new(source: BoxSource) -> Self {
+    Self {
+      source,
+      real_content_hashes: AssetHashRecord::default(),
+    }
+  }
+
+  pub fn with_real_content_hashes(source: BoxSource, real_content_hashes: AssetHashRecord) -> Self {
+    Self {
+      source,
+      real_content_hashes,
+    }
+  }
 }

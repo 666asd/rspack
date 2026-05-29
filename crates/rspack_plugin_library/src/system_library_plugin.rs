@@ -4,7 +4,7 @@ use rspack_core::{
   ChunkUkey, Compilation, CompilationAdditionalChunkRuntimeRequirements, CompilationParams,
   CompilerCompilation, ExternalModule, ExternalRequest, Filename, LibraryName, LibraryNonUmdObject,
   LibraryOptions, PathData, Plugin, RuntimeCodeTemplate, RuntimeGlobals, RuntimeModule,
-  rspack_sources::{ConcatSource, RawStringSource, SourceExt},
+  rspack_sources::{ConcatSource, RawStringSource, Source, SourceExt},
 };
 use rspack_error::{Result, ToStringResultToRspackResultExt, error_bail};
 use rspack_hash::RspackHash;
@@ -174,6 +174,9 @@ async fn render(
   }
   source.add(RawStringSource::from_static("execute: function() {\n"));
   source.add(RawStringSource::from(format!("{dynamic_export}(")));
+  render_source.real_content_hashes.shift_source_ranges(
+    u32::try_from(source.size()).expect("system library wrapper prefix size should fit in u32"),
+  );
   source.add(render_source.source.clone());
   source.add(RawStringSource::from_static(")}\n"));
   source.add(RawStringSource::from_static("}\n"));

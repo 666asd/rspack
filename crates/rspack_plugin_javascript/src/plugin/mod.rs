@@ -33,7 +33,7 @@ use rspack_core::{
   ExportsArgument, IdentCollector, Module, RuntimeCodeTemplate, RuntimeGlobals, RuntimeVariable,
   SourceType,
   concatenated_module::find_new_name,
-  render_init_fragments,
+  render_init_fragments_with_source_offset,
   reserved_names::RESERVED_NAMES_ATOM_SET,
   rspack_sources::{BoxSource, ConcatSource, RawStringSource, ReplaceSource, Source, SourceExt},
   split_readable_identifier,
@@ -676,7 +676,7 @@ var {} = {{}};
     chunk_ukey: &ChunkUkey,
     output_path: &str,
     runtime_template: &RuntimeCodeTemplate<'_>,
-  ) -> Result<BoxSource> {
+  ) -> Result<(BoxSource, rspack_core::AssetHashRecord)> {
     let js_plugin_hooks = Self::get_compilation_hooks(compilation.id());
     let hooks = js_plugin_hooks
       .try_read()
@@ -717,6 +717,7 @@ var {} = {{}};
       None
     };
     let mut sources = ConcatSource::default();
+    let mut real_content_hashes = rspack_core::AssetHashRecord::default();
     if iife {
       sources.add(RawStringSource::from(if supports_arrow_function {
         "(() => {\n"
@@ -790,7 +791,13 @@ var {} = {{}};
       .chunk_graph
       .has_chunk_runtime_modules(chunk_ukey)
     {
-      sources.add(render_runtime_modules(compilation, chunk_ukey, runtime_template).await?);
+      let mut runtime_modules =
+        render_runtime_modules(compilation, chunk_ukey, runtime_template).await?;
+      runtime_modules.real_content_hashes.shift_source_ranges(
+        u32::try_from(sources.size()).expect("rendered JS prefix size should fit in u32"),
+      );
+      real_content_hashes.extend(runtime_modules.real_content_hashes);
+      sources.add(runtime_modules.source);
     }
     if let Some(inlined_modules) = inlined_modules {
       let last_entry_module = inlined_modules
@@ -924,9 +931,7 @@ var {} = {{}};
           runtime_template.render_runtime_globals(&RuntimeGlobals::EXPORTS),
         )));
       }
-      let mut render_source = RenderSource {
-        source: startup_sources.boxed(),
-      };
+      let mut render_source = RenderSource::new(startup_sources.boxed());
       hooks
         .render_startup
         .call(
@@ -945,9 +950,8 @@ var {} = {{}};
       .keys()
       .next_back()
     {
-      let mut render_source = RenderSource {
-        source: RawStringSource::from(startup.join("\n") + "\n").boxed(),
-      };
+      let mut render_source =
+        RenderSource::new(RawStringSource::from(startup.join("\n") + "\n").boxed());
       hooks
         .render_startup
         .call(
@@ -971,14 +975,14 @@ var {} = {{}};
     if iife {
       sources.add(RawStringSource::from_static("})()\n"));
     }
-    let final_source = render_init_fragments(
+    let (final_source, init_source_offset) = render_init_fragments_with_source_offset(
       sources.boxed(),
       chunk_init_fragments,
       &mut ChunkRenderContext {},
     )?;
-    let mut render_source = RenderSource {
-      source: final_source,
-    };
+    real_content_hashes.shift_source_ranges(init_source_offset);
+    let mut render_source =
+      RenderSource::with_real_content_hashes(final_source, real_content_hashes);
     hooks
       .render
       .call(
@@ -988,7 +992,8 @@ var {} = {{}};
         runtime_template,
       )
       .await?;
-    Ok(if iife {
+    let real_content_hashes = render_source.real_content_hashes;
+    let source = if iife {
       ConcatSource::new([
         render_source.source,
         RawStringSource::from_static(";").boxed(),
@@ -996,7 +1001,8 @@ var {} = {{}};
       .boxed()
     } else {
       render_source.source
-    })
+    };
+    Ok((source, real_content_hashes))
   }
 
   #[allow(clippy::too_many_arguments)]
@@ -1367,7 +1373,7 @@ var {} = {{}};
     chunk_ukey: &ChunkUkey,
     output_path: &str,
     runtime_template: &RuntimeCodeTemplate<'_>,
-  ) -> Result<BoxSource> {
+  ) -> Result<(BoxSource, rspack_core::AssetHashRecord)> {
     let js_plugin_hooks = Self::get_compilation_hooks(compilation.id());
     let hooks = js_plugin_hooks
       .try_read()
@@ -1405,9 +1411,7 @@ var {} = {{}};
     )
     .await?
     .unwrap_or_else(|| (RawStringSource::from_static("{}").boxed(), Vec::new()));
-    let mut render_source = RenderSource {
-      source: chunk_modules_source,
-    };
+    let mut render_source = RenderSource::new(chunk_modules_source);
     hooks
       .render_chunk
       .call(
@@ -1417,14 +1421,15 @@ var {} = {{}};
         runtime_template,
       )
       .await?;
-    let source_with_fragments = render_init_fragments(
+    let (source_with_fragments, init_source_offset) = render_init_fragments_with_source_offset(
       render_source.source,
       chunk_init_fragments,
       &mut ChunkRenderContext {},
     )?;
-    let mut render_source = RenderSource {
-      source: source_with_fragments,
-    };
+    let mut real_content_hashes = render_source.real_content_hashes;
+    real_content_hashes.shift_source_ranges(init_source_offset);
+    let mut render_source =
+      RenderSource::with_real_content_hashes(source_with_fragments, real_content_hashes);
     hooks
       .render
       .call(
@@ -1434,11 +1439,15 @@ var {} = {{}};
         runtime_template,
       )
       .await?;
+    let mut real_content_hashes = render_source.real_content_hashes;
+    real_content_hashes.shift_source_ranges(
+      u32::try_from(sources.size()).expect("rendered JS chunk prefix size should fit in u32"),
+    );
     sources.add(render_source.source);
     if !is_module {
       sources.add(RawStringSource::from_static(";"));
     }
-    Ok(sources.boxed())
+    Ok((sources.boxed(), real_content_hashes))
   }
 
   #[inline]
