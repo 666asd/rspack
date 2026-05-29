@@ -278,8 +278,9 @@ strip     = true
 [profile.codspeed]
 debug    = "full"
 inherits = "release"
-lto      = "off"
-strip    = "none"
+# Match the production `release` profile's fat LTO so benchmarks reflect what users actually run.
+lto   = "fat"
+strip = "none"
 
 [profile.release.package]
 
