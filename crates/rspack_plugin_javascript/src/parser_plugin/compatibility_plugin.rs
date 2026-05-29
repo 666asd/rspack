@@ -87,6 +87,10 @@ impl CompatibilityPlugin {
 
   fn is_active_exports_argument(&self, parser: &JavascriptParser, name: &str) -> bool {
     name == WEBPACK_EXPORTS
+      || (matches!(
+        parser.build_info.exports_argument,
+        ExportsArgument::RspackExports
+      ) && name == parser.parser_runtime_requirements.exports)
       || (!matches!(
         parser.build_info.exports_argument,
         ExportsArgument::RspackExports
@@ -145,18 +149,27 @@ impl JavascriptParserPlugin for CompatibilityPlugin {
     } else if self.is_active_exports_argument(parser, ident.sym.as_str()) {
       let start = ident.span().real_lo();
       let end = ident.span().real_hi();
+      let rename = if ident.sym.as_str() == "exports" {
+        nested_exports_name(start, end)
+      } else {
+        "__nested_rspack_exports__".to_string()
+      };
       self.tag_nested_require_data(
         parser,
         ident.sym.clone(),
-        if ident.sym.as_str() == "exports" {
-          nested_exports_name(start, end)
-        } else {
-          "__nested_rspack_exports__".to_string()
-        },
+        rename.clone(),
         parser.in_short_hand,
         start,
         end,
       );
+      if ident.sym.as_str() != WEBPACK_EXPORTS
+        && ident.sym.as_str() == parser.parser_runtime_requirements.exports
+      {
+        parser.add_presentational_dependency(Box::new(ConstDependency::new(
+          (start, end).into(),
+          rename.into(),
+        )));
+      }
       return Some(true);
     }
 

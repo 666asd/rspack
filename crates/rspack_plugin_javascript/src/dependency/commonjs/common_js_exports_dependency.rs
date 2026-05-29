@@ -14,6 +14,23 @@ use swc_core::atoms::Atom;
 
 use crate::dependency::commonjs::OBJECT_PROTOTYPE_METHODS;
 
+fn cjs_export_placeholder(
+  base: &str,
+  module: &rspack_core::BoxModule,
+  range: DependencyRange,
+) -> String {
+  if module
+    .build_info()
+    .top_level_declarations
+    .as_ref()
+    .is_some_and(|decls| decls.contains(&Atom::new(base)))
+  {
+    format!("{base}_{}_{}__", range.start, range.end)
+  } else {
+    base.to_string()
+  }
+}
+
 #[cacheable]
 #[derive(Debug, Clone, Copy)]
 pub enum ExportsBase {
@@ -206,9 +223,13 @@ impl DependencyTemplate for CommonJsExportsDependencyTemplate {
       } else {
         // Export a inlinable const from cjs is not possible for now but we compat it here
         let is_inlined = matches!(used, Some(UsedName::Inlined(_)));
-        let placeholder_var = format!(
-          "__rspack_{}_export",
-          if is_inlined { "inlined" } else { "unused" }
+        let placeholder_var = cjs_export_placeholder(
+          &format!(
+            "__rspack_{}_export",
+            if is_inlined { "inlined" } else { "unused" }
+          ),
+          module,
+          dep.range,
         );
         source.replace(
           dep.range.start,
@@ -248,20 +269,21 @@ impl DependencyTemplate for CommonJsExportsDependencyTemplate {
             panic!("Unexpected base type");
           }
         } else {
+          let placeholder_var = cjs_export_placeholder("__rspack_unused_export", module, dep.range);
           init_fragments.push(
             NormalInitFragment::new(
-              "var __rspack_unused_export;\n".to_string(),
+              format!("var {placeholder_var};\n"),
               InitFragmentStage::StageConstants,
               0,
-              InitFragmentKey::CommonJsExports("__rspack_unused_export".to_owned()),
+              InitFragmentKey::CommonJsExports(placeholder_var.clone()),
               None,
             )
             .boxed(),
           );
-          source.replace_static(
+          source.replace(
             dep.range.start,
             value_range.start,
-            "__rspack_unused_export = (",
+            format!("{placeholder_var} = ("),
             None,
           );
           source.replace_static(value_range.end, dep.range.end, ")", None);
