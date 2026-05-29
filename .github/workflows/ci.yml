@@ -61,7 +61,7 @@ jobs:
     with:
       target: x86_64-unknown-linux-gnu
       profile: 'ci'
-      runner: ${{ vars.LINUX_SELF_HOSTED_RUNNER_LABELS || '"ubuntu-22.04"' }}
+      runner: '"physical-1"'
 
   test-linux:
     name: Test Linux
@@ -79,7 +79,7 @@ jobs:
     uses: ./.github/workflows/bench-binding.yml
     with:
       target: x86_64-unknown-linux-gnu
-      runner: '"ubuntu-22.04"'
+      runner: '"physical-1"'
 
   bench-rust:
     name: Rust Bench
@@ -88,7 +88,7 @@ jobs:
     uses: ./.github/workflows/bench-rust.yml
     with:
       target: x86_64-unknown-linux-gnu
-      runner: '"ubuntu-22.04"'
+      runner: '"physical-1"'
 
   test-windows:
     name: Test Windows
