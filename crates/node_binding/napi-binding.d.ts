@@ -296,6 +296,7 @@ export declare class JsCompilation {
   emitAsset(filename: string, source: JsSource, assetInfo?: AssetInfo | undefined | null): void
   deleteAsset(filename: string): void
   renameAsset(filename: string, newName: string): void
+  recordRealContentHashReference(options: JsRealContentHashReferenceOptions): void
   get entrypoints(): ChunkGroup[]
   get chunkGroups(): ChunkGroup[]
   get hash(): string | null
@@ -1024,6 +1025,29 @@ export interface JsPathDataChunkLike {
   hash?: string
   id?: string
 }
+
+interface JsRealContentHashReferenceBaseOptions {
+  asset: string
+  referencedHash: string
+  ownerHash?: string
+}
+
+export type JsRealContentHashReferenceOptions =
+  | (JsRealContentHashReferenceBaseOptions & {
+    kind?: "source"
+    /** UTF-8 byte offsets in the final source. */
+    range: [number, number]
+  })
+  | (JsRealContentHashReferenceBaseOptions & {
+    kind: "custom"
+    /** UTF-8 byte offsets in the final source. */
+    range: [number, number]
+  })
+  | (JsRealContentHashReferenceBaseOptions & {
+    kind: "filename"
+    /** UTF-8 byte offsets in the final source. */
+    range?: [number, number]
+  })
 
 export interface JsResolveData {
   request: string

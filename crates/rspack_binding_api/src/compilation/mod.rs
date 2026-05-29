@@ -14,7 +14,8 @@ use entries::JsEntries;
 use napi_derive::napi;
 use rspack_collections::IdentifierSet;
 use rspack_core::{
-  BindingCell, BoxDependency, Compilation, CompilationId, EntryOptions, ExportsInfoArtifact,
+  BindingCell, BoxDependency, Compilation, CompilationId, ContentHashReferenceKind,
+  ContentHashReferenceMeta, ContentHashReplacementKind, EntryOptions, ExportsInfoArtifact,
   FactorizeInfo, ModuleIdentifier, OptimizationBailoutItem, Reflector, rspack_sources::BoxSource,
 };
 use rspack_error::{Diagnostic, Severity, ToStringResultToRspackResultExt};
@@ -46,6 +47,108 @@ pub struct JsCompilation {
   #[allow(dead_code)]
   pub(crate) id: CompilationId,
   pub(crate) inner: NonNull<Compilation>,
+}
+
+#[napi(object)]
+pub struct JsRealContentHashReferenceOptions {
+  pub asset: String,
+  pub referenced_hash: String,
+  pub owner_hash: Option<String>,
+  /// UTF-8 byte offsets in the final source.
+  #[napi(ts_type = "[number, number]")]
+  pub range: Option<Vec<f64>>,
+  #[napi(ts_type = "\"source\" | \"filename\" | \"custom\"")]
+  pub kind: Option<String>,
+}
+
+fn parse_real_content_hash_reference_kind(
+  kind: Option<&str>,
+) -> Result<(ContentHashReferenceKind, ContentHashReplacementKind)> {
+  match kind.unwrap_or("source") {
+    "source" => Ok((
+      ContentHashReferenceKind::Source,
+      ContentHashReplacementKind::Source,
+    )),
+    "filename" => Ok((
+      ContentHashReferenceKind::Filename,
+      ContentHashReplacementKind::Filename,
+    )),
+    "custom" => Ok((
+      ContentHashReferenceKind::Custom,
+      ContentHashReplacementKind::Custom,
+    )),
+    kind => Err(napi::Error::new(
+      napi::Status::InvalidArg,
+      format!(
+        "Invalid real content hash reference kind '{kind}'. Expected 'source', 'filename', or 'custom'."
+      ),
+    )),
+  }
+}
+
+fn parse_real_content_hash_range_endpoint(value: f64, name: &str) -> Result<u32> {
+  if !value.is_finite() {
+    return Err(napi::Error::new(
+      napi::Status::InvalidArg,
+      format!("Invalid real content hash reference byte range {name}. Expected a finite number."),
+    ));
+  }
+
+  if value.fract() != 0.0 {
+    return Err(napi::Error::new(
+      napi::Status::InvalidArg,
+      format!(
+        "Invalid real content hash reference byte range {name} {value}. Expected an integer."
+      ),
+    ));
+  }
+
+  if value < 0.0 {
+    return Err(napi::Error::new(
+      napi::Status::InvalidArg,
+      format!(
+        "Invalid real content hash reference byte range {name} {value}. Expected a non-negative integer."
+      ),
+    ));
+  }
+
+  if value > u32::MAX as f64 {
+    return Err(napi::Error::new(
+      napi::Status::InvalidArg,
+      format!(
+        "Invalid real content hash reference byte range {name} {value}. Expected a value <= {}.",
+        u32::MAX
+      ),
+    ));
+  }
+
+  Ok(value as u32)
+}
+
+fn parse_real_content_hash_range(range: Option<Vec<f64>>) -> Result<Option<std::ops::Range<u32>>> {
+  let Some(range) = range else {
+    return Ok(None);
+  };
+  let [start, end]: [f64; 2] = range.try_into().map_err(|_| {
+    napi::Error::new(
+      napi::Status::InvalidArg,
+      "Invalid real content hash reference byte range. Expected [start, end] UTF-8 byte offsets."
+        .to_string(),
+    )
+  })?;
+  let start = parse_real_content_hash_range_endpoint(start, "start")?;
+  let end = parse_real_content_hash_range_endpoint(end, "end")?;
+
+  if start > end {
+    return Err(napi::Error::new(
+      napi::Status::InvalidArg,
+      format!(
+        "Invalid real content hash reference byte range [{start}, {end}]. Expected start <= end."
+      ),
+    ));
+  }
+
+  Ok(Some(start..end))
 }
 
 impl JsCompilation {
@@ -409,6 +512,53 @@ impl JsCompilation {
     let compilation = self.as_mut()?;
 
     compilation.rename_asset(&filename, new_name);
+    Ok(())
+  }
+
+  #[napi]
+  pub fn record_real_content_hash_reference(
+    &mut self,
+    options: JsRealContentHashReferenceOptions,
+  ) -> Result<()> {
+    let (reference_kind, replacement_kind) =
+      parse_real_content_hash_reference_kind(options.kind.as_deref())?;
+    let range = parse_real_content_hash_range(options.range)?;
+
+    if matches!(
+      replacement_kind,
+      ContentHashReplacementKind::Source | ContentHashReplacementKind::Custom
+    ) && range.is_none()
+    {
+      return Err(napi::Error::new(
+        napi::Status::InvalidArg,
+        format!(
+          "Real content hash references with kind '{}' require a byte range.",
+          options.kind.as_deref().unwrap_or("source")
+        ),
+      ));
+    }
+
+    let compilation = self.as_mut()?;
+    compilation.record_real_content_hash_reference(
+      &options.asset,
+      &options.referenced_hash,
+      options.owner_hash.as_deref(),
+      ContentHashReferenceMeta {
+        kind: reference_kind,
+        referenced_chunk: None,
+        referenced_source_type: None,
+      },
+    );
+
+    if let Some(range) = range {
+      compilation.record_real_content_hash_replacement(
+        &options.asset,
+        &options.referenced_hash,
+        Some(range),
+        replacement_kind,
+      );
+    }
+
     Ok(())
   }
 

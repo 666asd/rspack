@@ -78,6 +78,44 @@ export interface Asset {
   info: AssetInfo;
 }
 
+interface RealContentHashReferenceBaseOptions {
+  asset: string;
+  referencedHash: string;
+  ownerHash?: string;
+}
+
+type RealContentHashSourceReferenceOptions =
+  RealContentHashReferenceBaseOptions & {
+    kind?: 'source';
+    /**
+     * UTF-8 byte offsets in the final asset source.
+     */
+    range: [number, number];
+  };
+
+type RealContentHashCustomReferenceOptions =
+  RealContentHashReferenceBaseOptions & {
+    kind: 'custom';
+    /**
+     * UTF-8 byte offsets in the final asset source.
+     */
+    range: [number, number];
+  };
+
+type RealContentHashFilenameReferenceOptions =
+  RealContentHashReferenceBaseOptions & {
+    kind: 'filename';
+    /**
+     * UTF-8 byte offsets in the final asset source.
+     */
+    range?: [number, number];
+  };
+
+export type RealContentHashReferenceOptions =
+  | RealContentHashSourceReferenceOptions
+  | RealContentHashCustomReferenceOptions
+  | RealContentHashFilenameReferenceOptions;
+
 export type ChunkPathData = {
   id?: string | number;
   name?: string;
@@ -684,6 +722,10 @@ BREAKING CHANGE: Asset processing hooks in Compilation has been merged into a si
 
   renameAsset(filename: string, newFilename: string) {
     this.#inner.renameAsset(filename, newFilename);
+  }
+
+  recordRealContentHashReference(options: RealContentHashReferenceOptions) {
+    this.#inner.recordRealContentHashReference(options);
   }
 
   /**

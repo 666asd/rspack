@@ -33,6 +33,36 @@ class VerifyAdditionalAssetsPlugin {
   }
 }
 
+const getContentHashes = (asset) => {
+  const contenthash = asset.info.contenthash;
+  if (!contenthash) return [];
+  return Array.isArray(contenthash) ? contenthash : [contenthash];
+};
+
+const recordRealContentHashReferences = (compilation, assetName, source) => {
+  const recorded = new Set();
+  for (const asset of compilation.getAssets()) {
+    if (asset.name === assetName) continue;
+
+    for (const referencedHash of getContentHashes(asset)) {
+      let start = source.indexOf(referencedHash);
+      while (start >= 0) {
+        const end = start + referencedHash.length;
+        const key = `${referencedHash}:${start}:${end}`;
+        if (!recorded.has(key)) {
+          recorded.add(key);
+          compilation.recordRealContentHashReference({
+            asset: assetName,
+            referencedHash,
+            range: [start, end],
+          });
+        }
+        start = source.indexOf(referencedHash, end);
+      }
+    }
+  }
+};
+
 class HtmlPlugin {
   constructor(entrypoints) {
     this.entrypoints = entrypoints;
@@ -175,9 +205,13 @@ class HtmlMinimizePlugin {
         (assets) => {
           for (const name of Object.keys(assets)) {
             if (/\.html$/.test(name)) {
+              const asset = compilation.getAsset(name);
+              const minimizedSource = asset.source
+                .source()
+                .replace(/\s+/g, ' ');
               compilation.updateAsset(
                 name,
-                (source) => new RawSource(source.source().replace(/\s+/g, ' ')),
+                () => new RawSource(minimizedSource),
                 (assetInfo) => ({
                   ...assetInfo,
                   minimized: true,
@@ -188,6 +222,35 @@ class HtmlMinimizePlugin {
         },
       );
     });
+  }
+}
+
+class HtmlRealContentHashReferencesPlugin {
+  apply(compiler) {
+    compiler.hooks.compilation.tap(
+      'html-real-content-hash-references-plugin',
+      (compilation) => {
+        compilation.hooks.processAssets.tap(
+          {
+            name: 'html-real-content-hash-references-plugin',
+            stage: Compilation.PROCESS_ASSETS_STAGE_OPTIMIZE_HASH - 1,
+            additionalAssets: true,
+          },
+          (assets) => {
+            for (const name of Object.keys(assets)) {
+              if (/\.html$/.test(name)) {
+                const asset = compilation.getAsset(name);
+                recordRealContentHashReferences(
+                  compilation,
+                  name,
+                  asset.source.source(),
+                );
+              }
+            }
+          },
+        );
+      },
+    );
   }
 }
 
@@ -219,5 +282,6 @@ module.exports = {
     new HtmlPlugin(['inline', 'normal']),
     new HtmlInlinePlugin(/inline/),
     new SriHashSupportPlugin(),
+    new HtmlRealContentHashReferencesPlugin(),
   ],
 };
