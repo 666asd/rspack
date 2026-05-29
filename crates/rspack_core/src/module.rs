@@ -181,7 +181,7 @@ pub struct BuildInfo {
   #[cacheable(with=AsOption<AsPreset>)]
   pub json_data: Option<JsonValue>,
   pub asset_data_url: Option<CanonicalizedDataUrlOption>,
-  pub css: Option<Box<CssBuildInfo>>,
+  pub css: Option<CssBuildInfo>,
   #[cacheable(with=AsOption<AsVec<AsPreset>>)]
   pub side_effects_free: Option<HashSet<Atom>>,
   #[cacheable(with=AsOption<AsVec<AsPreset>>)]
