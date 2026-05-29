@@ -9,18 +9,13 @@ pub struct Experiments {
   pub pure_functions: bool,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub enum RuntimeOutputMode {
+  #[default]
   Webpack,
   Compatibility,
   CompatibilityWarning,
   Rspack,
-}
-
-impl Default for RuntimeOutputMode {
-  fn default() -> Self {
-    Self::Webpack
-  }
 }
 
 impl RuntimeOutputMode {

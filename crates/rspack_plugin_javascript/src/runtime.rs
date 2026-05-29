@@ -752,16 +752,24 @@ fn runtime_proxy_define_function(
     .environment
     .supports_arrow_function()
   {
-    let require_define = include_require_bridge.then(|| {
-      format!(" Object.defineProperty({require}, item[0], {{ configurable: true, enumerable: true, get: () => {runtime_proxy}[item[0]], set: (value) => {{ {runtime_proxy}[item[0]] = value; }} }});")
-    }).unwrap_or_default();
+    let require_define = if include_require_bridge {
+      format!(
+        " Object.defineProperty({require}, item[0], {{ configurable: true, enumerable: true, get: () => {runtime_proxy}[item[0]], set: (value) => {{ {runtime_proxy}[item[0]] = value; }} }});"
+      )
+    } else {
+      Default::default()
+    };
     format!(
       "(item) => {{ Object.defineProperty({runtime_proxy}, item[0], {{ configurable: true, enumerable: true, get: item[1], set: item[2] }});{require_define} }}"
     )
   } else {
-    let require_define = include_require_bridge.then(|| {
-      format!(" Object.defineProperty({require}, item[0], {{ configurable: true, enumerable: true, get: function() {{ return {runtime_proxy}[item[0]]; }}, set: function(value) {{ {runtime_proxy}[item[0]] = value; }} }});")
-    }).unwrap_or_default();
+    let require_define = if include_require_bridge {
+      format!(
+        " Object.defineProperty({require}, item[0], {{ configurable: true, enumerable: true, get: function() {{ return {runtime_proxy}[item[0]]; }}, set: function(value) {{ {runtime_proxy}[item[0]] = value; }} }});"
+      )
+    } else {
+      Default::default()
+    };
     format!(
       "function(item) {{ Object.defineProperty({runtime_proxy}, item[0], {{ configurable: true, enumerable: true, get: item[1], set: item[2] }});{require_define} }}"
     )

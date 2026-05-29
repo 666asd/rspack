@@ -69,7 +69,7 @@ fn is_runtime_proxy_name(parser: &JavascriptParser, for_name: &str) -> bool {
     .runtime_mode
     .is_runtime_requirements_proxy_enabled()
     && for_name
-      == runtime_variable_to_string(&RuntimeVariable::Runtime, &parser.compiler_options).as_str()
+      == runtime_variable_to_string(&RuntimeVariable::Runtime, parser.compiler_options).as_str()
 }
 
 pub struct APIPluginOptions {
