@@ -16,6 +16,7 @@ mod imported_by_defer_modules_artifact;
 mod module_graph_cache_artifact;
 mod module_ids_artifact;
 mod process_runtime_requirements_cache_artifact;
+mod real_content_hash_artifact;
 mod side_effects_do_optimize_artifact;
 mod side_effects_state_artifact;
 
@@ -100,5 +101,6 @@ pub use imported_by_defer_modules_artifact::ImportedByDeferModulesArtifact;
 pub use module_graph_cache_artifact::*;
 pub use module_ids_artifact::ModuleIdsArtifact;
 pub use process_runtime_requirements_cache_artifact::ProcessRuntimeRequirementsCacheArtifact;
+pub use real_content_hash_artifact::*;
 pub use side_effects_do_optimize_artifact::*;
 pub use side_effects_state_artifact::*;
