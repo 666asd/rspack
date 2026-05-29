@@ -1,7 +1,7 @@
 use rspack_core::{BuildMetaDefaultObject, BuildMetaExportsType, DependencyRange, RuntimeGlobals};
 use rspack_util::SpanExt;
 use swc_core::{
-  atoms::Atom,
+  atoms::{Atom, atom},
   common::{Span, Spanned},
   ecma::ast::{
     AssignExpr, CallExpr, Expr, ExprOrSpread, Ident, Lit, MemberExpr, ObjectLit, Prop, PropName,
@@ -17,7 +17,7 @@ use crate::{
   },
   parser_plugin::common_js_imports_parse_plugin::is_require_call_expr,
   utils::eval::{self, BasicEvaluatedExpression},
-  visitors::JavascriptParser,
+  visitors::{JavascriptParser, ParserHookName},
 };
 
 fn get_value_of_property_description(expr: &Expr) -> Option<&Expr> {
@@ -370,13 +370,13 @@ impl JavascriptParserPlugin for CommonJsExportsParserPlugin {
     &self,
     parser: &mut JavascriptParser,
     ident: &Ident,
-    for_name: &str,
+    for_name: ParserHookName<'_>,
   ) -> Option<bool> {
     if self.should_skip_handler(parser) {
       return None;
     }
 
-    if for_name == "module" {
+    if for_name.is_identifier(&atom!("module")) {
       let decorator = if parser.is_esm {
         RuntimeGlobals::ESM_MODULE_DECORATOR
       } else {
@@ -390,7 +390,7 @@ impl JavascriptParserPlugin for CommonJsExportsParserPlugin {
       return Some(true);
     }
 
-    if for_name == "exports" {
+    if for_name.is_identifier(&atom!("exports")) {
       // exports
       return handle_access_export(parser, ident.span(), &[], &[], ExportsBase::Exports, None);
     }
@@ -547,18 +547,20 @@ impl JavascriptParserPlugin for CommonJsExportsParserPlugin {
     &self,
     parser: &mut JavascriptParser,
     expr: &'a UnaryExpr,
-    for_name: &str,
+    for_name: ParserHookName<'_>,
   ) -> Option<BasicEvaluatedExpression<'a>> {
     if self.should_skip_handler(parser) {
       return None;
     }
 
-    (for_name == "module" || for_name == "exports").then(|| {
-      eval::evaluate_to_string(
+    if for_name.is_identifier(&atom!("module")) || for_name.is_identifier(&atom!("exports")) {
+      Some(eval::evaluate_to_string(
         "object".to_string(),
         expr.span.real_lo(),
         expr.span.real_hi(),
-      )
-    })
+      ))
+    } else {
+      None
+    }
   }
 }

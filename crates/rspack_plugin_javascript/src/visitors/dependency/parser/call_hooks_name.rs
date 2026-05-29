@@ -20,13 +20,6 @@ impl<'a> ParserHookName<'a> {
     }
   }
 
-  pub fn as_atom(self) -> Option<&'a Atom> {
-    match self {
-      Self::Identifier(name) => Some(name),
-      Self::MemberChain(_) => None,
-    }
-  }
-
   #[inline]
   pub fn is_identifier(self, expected: &Atom) -> bool {
     match self {

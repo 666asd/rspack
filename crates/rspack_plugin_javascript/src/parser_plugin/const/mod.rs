@@ -1,9 +1,10 @@
+use crate::visitors::ParserHookName;
 mod if_stmt;
 mod logic_expr;
 
 use rspack_core::{CachedConstDependency, ConstDependency};
 use rspack_util::SpanExt;
-use swc_core::common::Spanned;
+use swc_core::{atoms::Atom, common::Spanned};
 
 pub use self::logic_expr::is_logic_op;
 use super::JavascriptParserPlugin;
@@ -14,8 +15,20 @@ use crate::{
 
 pub struct ConstPlugin;
 
-const RESOURCE_FRAGMENT: &str = "__resourceFragment";
-const RESOURCE_QUERY: &str = "__resourceQuery";
+thread_local! {
+  static RESOURCE_FRAGMENT_ATOM: Atom = Atom::from("__resourceFragment");
+  static RESOURCE_QUERY_ATOM: Atom = Atom::from("__resourceQuery");
+}
+
+#[inline]
+fn is_resource_fragment(for_name: ParserHookName<'_>) -> bool {
+  RESOURCE_FRAGMENT_ATOM.with(|atom| for_name.is_identifier(atom))
+}
+
+#[inline]
+fn is_resource_query(for_name: ParserHookName<'_>) -> bool {
+  RESOURCE_QUERY_ATOM.with(|atom| for_name.is_identifier(atom))
+}
 
 #[rspack_macros::implemented_javascript_parser_hooks]
 impl JavascriptParserPlugin for ConstPlugin {
@@ -71,40 +84,38 @@ impl JavascriptParserPlugin for ConstPlugin {
     &self,
     parser: &mut JavascriptParser,
     ident: &swc_core::ecma::ast::Ident,
-    for_name: &str,
+    for_name: ParserHookName<'_>,
   ) -> Option<bool> {
-    match for_name {
-      RESOURCE_FRAGMENT => {
-        let resource_fragment = parser.resource_data.fragment().unwrap_or("");
-        parser.add_presentational_dependency(Box::new(CachedConstDependency::new(
-          ident.span.into(),
-          "__resourceFragment".into(),
-          rspack_util::json_stringify_str(resource_fragment).into(),
-        )));
-        Some(true)
-      }
-      RESOURCE_QUERY => {
-        let resource_query = parser.resource_data.query().unwrap_or("");
-        parser.add_presentational_dependency(Box::new(CachedConstDependency::new(
-          ident.span.into(),
-          "__resourceQuery".into(),
-          rspack_util::json_stringify_str(resource_query).into(),
-        )));
-        Some(true)
-      }
-      _ => None,
+    if is_resource_fragment(for_name) {
+      let resource_fragment = parser.resource_data.fragment().unwrap_or("");
+      parser.add_presentational_dependency(Box::new(CachedConstDependency::new(
+        ident.span.into(),
+        "__resourceFragment".into(),
+        rspack_util::json_stringify_str(resource_fragment).into(),
+      )));
+      Some(true)
+    } else if is_resource_query(for_name) {
+      let resource_query = parser.resource_data.query().unwrap_or("");
+      parser.add_presentational_dependency(Box::new(CachedConstDependency::new(
+        ident.span.into(),
+        "__resourceQuery".into(),
+        rspack_util::json_stringify_str(resource_query).into(),
+      )));
+      Some(true)
+    } else {
+      None
     }
   }
 
   fn evaluate_identifier(
     &self,
     parser: &mut JavascriptParser,
-    for_name: &str,
+    for_name: ParserHookName<'_>,
     start: u32,
     end: u32,
   ) -> Option<crate::utils::eval::BasicEvaluatedExpression<'static>> {
-    match for_name {
-      RESOURCE_QUERY => Some(evaluate_to_string(
+    if is_resource_query(for_name) {
+      Some(evaluate_to_string(
         parser
           .resource_data
           .query()
@@ -112,8 +123,9 @@ impl JavascriptParserPlugin for ConstPlugin {
           .unwrap_or_default(),
         start,
         end,
-      )),
-      RESOURCE_FRAGMENT => Some(evaluate_to_string(
+      ))
+    } else if is_resource_fragment(for_name) {
+      Some(evaluate_to_string(
         parser
           .resource_data
           .fragment()
@@ -121,8 +133,9 @@ impl JavascriptParserPlugin for ConstPlugin {
           .unwrap_or_default(),
         start,
         end,
-      )),
-      _ => None,
+      ))
+    } else {
+      None
     }
   }
 

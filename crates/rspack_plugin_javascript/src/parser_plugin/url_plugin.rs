@@ -119,9 +119,9 @@ impl JavascriptParserPlugin for URLPlugin {
     &self,
     parser: &mut JavascriptParser,
     expr: &NewExpr,
-    for_name: &str,
+    for_name: ParserHookName<'_>,
   ) -> Option<bool> {
-    if for_name != "URL" {
+    if !for_name.is_identifier(&atom!("URL")) {
       return None;
     }
 

@@ -1,5 +1,8 @@
-use rspack_plugin_javascript::{JavascriptParserPlugin, visitors::JavascriptParser};
-use swc_core::ecma::ast::MemberExpr;
+use rspack_plugin_javascript::{
+  JavascriptParserPlugin,
+  visitors::{JavascriptParser, ParserHookName},
+};
+use swc_core::{atoms::atom, ecma::ast::MemberExpr};
 
 #[derive(PartialEq, Debug, Default)]
 pub struct RslibParserPlugin {
@@ -38,9 +41,9 @@ impl JavascriptParserPlugin for RslibParserPlugin {
     &self,
     _parser: &mut JavascriptParser,
     _expr: &swc_core::ecma::ast::UnaryExpr,
-    for_name: &str,
+    for_name: ParserHookName<'_>,
   ) -> Option<bool> {
-    if for_name == "module" {
+    if for_name.is_identifier(&atom!("module")) {
       Some(false)
     } else {
       None

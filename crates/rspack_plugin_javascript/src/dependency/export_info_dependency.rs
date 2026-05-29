@@ -9,6 +9,19 @@ use rspack_core::{
 };
 use swc_core::atoms::{Atom, atom};
 
+thread_local! {
+  static USED_EXPORTS_ATOM: Atom = Atom::from("usedExports");
+  static CAN_MANGLE_ATOM: Atom = Atom::from("canMangle");
+  static CAN_INLINE_ATOM: Atom = Atom::from("canInline");
+  static PROVIDE_INFO_ATOM: Atom = Atom::from("provideInfo");
+}
+
+macro_rules! property_eq {
+  ($property:expr, $atom:ident) => {
+    $atom.with(|atom| $property == atom)
+  };
+}
+
 #[cacheable]
 #[derive(Debug, Clone)]
 pub struct ExportInfoDependency {
@@ -50,7 +63,7 @@ impl ExportInfoDependency {
     let prop = &self.property;
     let module_identifier = module.identifier();
 
-    if export_name.is_empty() && prop == &atom!("usedExports") {
+    if export_name.is_empty() && property_eq!(prop, USED_EXPORTS_ATOM) {
       let exports_info = compilation
         .exports_info_artifact
         .get_exports_info_data(&module_identifier);
@@ -75,7 +88,7 @@ impl ExportInfoDependency {
       .exports_info_artifact
       .get_exports_info_data(&module_identifier);
 
-    if prop == &atom!("canMangle") {
+    if property_eq!(prop, CAN_MANGLE_ATOM) {
       let can_mangle = if let Some(export_info) = exports_info
         .get_read_only_export_info_recursive(&compilation.exports_info_artifact, export_name)
       {
@@ -84,7 +97,7 @@ impl ExportInfoDependency {
         exports_info.other_exports_info().can_mangle()
       };
       can_mangle.map(|v| v.to_string())
-    } else if prop == &atom!("canInline") {
+    } else if property_eq!(prop, CAN_INLINE_ATOM) {
       let used_name =
         exports_info.get_used_name(&compilation.exports_info_artifact, *runtime, export_name);
       Some(matches!(used_name, Some(UsedName::Inlined(_))).to_string())
@@ -104,7 +117,7 @@ impl ExportInfoDependency {
         })
         .to_owned(),
       )
-    } else if prop == &atom!("provideInfo") {
+    } else if property_eq!(prop, PROVIDE_INFO_ATOM) {
       exports_info
         .is_export_provided(&compilation.exports_info_artifact, export_name)
         .map(|provided| {

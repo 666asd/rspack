@@ -11,7 +11,7 @@ Optimize `Atom` only when the access pattern benefits from it. Keep changes smal
 
 - `rspack_util::atom::Atom` is `swc_core::atoms::Atom`, backed by `swc_atoms`/`hstr`.
 - Default 64-bit `hstr::Atom` is one word; `Option<Atom>` is also one word.
-- Small strings are inline in the tagged word. On the default 64-bit build this is usually up to 7 bytes.
+- `atom!("literal")` is inline only when `literal.len() <= hstr::MAX_INLINE_LEN`, where length is UTF-8 bytes, not Unicode scalar count. In the current Rspack default 64-bit build, `MAX_INLINE_LEN = size_of::<TaggedValue>() - 1 = 7`, so literals of 7 bytes or fewer are inline. With `atom_size_128`, this would become 15 bytes.
 - Dynamic strings store bytes in `ThinArc` entries with a precomputed `rustc_hash::FxHasher` hash.
 - `Atom::hash` writes one `u64`; hashing an existing atom avoids scanning string bytes.
 - `Atom::eq` first compares the raw tagged value. Matching raw values are the fastest path.
@@ -46,14 +46,19 @@ rg -n 'Atom::from|Atom::new|atom!\(|lazy_atom!|FxHash(Map|Set)<Atom|FxIndex(Map|
 ## Preferred Fixes
 
 - Reuse existing AST atoms. Prefer cloning/passing the original `Atom` over `Atom::from(atom.as_str())`, `Atom::from(name.clone())`, or `Atom::new(name)`.
-- Preserve the original symbolic representation and compare like with like. If a hot value is already an `Atom`, compare it with another `Atom` such as `name == atom!("literal")` instead of converting through `as_str()`. Our parser microbenchmarks with the SWC atom equality inlining optimization showed exact `Atom == Atom` literal filters are faster than `atom.as_str() == "literal"` because they keep the raw-handle/inline-atom fast path available.
-- Use `as_str()` equality only when the semantics truly require text equivalence across different sources, or when the caller only has borrowed text and creating an `Atom` would be extra work. If identifier-only semantics are acceptable, prefer exact `Atom == Atom`; if member-chain semantics are needed, keep the borrowed `&str` comparison.
+- Preserve provenance for Atom equality. If both sides are known to share provenance, compare `Atom` to a borrowed/cached `Atom` and keep the raw-handle fast path.
+- For inline literals (`<= 7` UTF-8 bytes on current Rspack 64-bit builds), prefer direct `atom!("literal")` or a hoisted local `Atom`/`&Atom` target. Inline atoms have no backing entry and no cross-thread provenance problem; `thread_local!` does not help them.
+- Do not assume `atom == atom!("long_literal")` is the fastest literal check in a tight loop. For dynamic literals such as `"__webpack_layer__"`, `atom!` uses an internal static cache but returns an owned cloned `Atom` each call; clone/drop can dominate.
+- For hot dynamic literal checks, use a cached borrowed target such as `OnceLock<Atom>::get_or_init(...)` only when it is initialized in the same provenance as the compared atoms, or when compared atoms are cloned/moved from that target. If the target may be initialized on another thread while the compared atom is recreated locally, `atom.as_str() == "literal"` can be faster because Atom equality falls back to hash plus byte comparison anyway.
+- For parser-local dynamic literals that are repeatedly compared with `ParserHookName::Identifier(&Atom)`, a direct per-thread cached atom can be best: `thread_local! { static API_LAYER_ATOM: Atom = Atom::from(API_LAYER); }`. Initialize it with `Atom::from(literal)`, not `atom!(literal)`: long-literal `atom!` has its own global static cache, so using it inside `thread_local!` does not guarantee per-thread Atom provenance.
+- Treat `match atom.as_str()` or `match name.as_str()` over static literal arms as an optimization candidate in hot paths. If the matched value is logically an `Atom`, rewrite it to an `if`/`else if` chain that compares against borrowed cached atoms, preserving arm order and the default case. For many dynamic literals, prefer separate `thread_local!` cached atoms initialized with `Atom::from(LITERAL)` and a small local helper/macro to reduce repetition. Keep the string `match` only when the input is truly text-only or the semantics require text equality across non-Atom sources.
+- Use `as_str()` equality when the semantics are literal text matching, when cross-thread provenance is uncertain, or when creating/comparing another `Atom` would be extra work. If member-chain semantics are needed, keep the borrowed `&str` comparison.
 - For cross-thread work, create atoms once and move/clone the handles into workers. If workers must recreate the same process-wide text independently, consider `Ustr`/`Identifier` instead of `Atom`.
 - For Rspack-wide keys, prefer existing `Identifier`, `IdentifierMap`, `IdentifierSet`, `Ustr`, `UstrMap`, or `UstrSet`.
 - For generated-name collision loops, keep a `String` scratch value until the candidate is selected when possible. If membership checks dominate, maintain a parallel cheaper key set rather than interning every failed candidate.
 - For temporary lookup keys, avoid allocating a fresh `Atom` only to call `contains`/`get`; preserve the original atom, change the key type, or add a borrowed/string side index.
 - For static literals, prefer `atom!("literal")`. Inline literals are already cheap, but long literals through `atom!` use an internal static cache.
-- Use `LazyLock<Atom>` only when callers can borrow `&Atom` and profiling shows clone/drop cost matters. Do not add `thread_local!` just to cache an Atom literal.
+- Use `LazyLock<Atom>` only when callers can borrow `&Atom` and profiling shows clone/drop cost matters. Do not add `thread_local!` just to cache an Atom literal unless the goal is specifically per-thread provenance for a proven-hot parser-local dynamic literal comparison.
 
 ## Hasher Guidance
 

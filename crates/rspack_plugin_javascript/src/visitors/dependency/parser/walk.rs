@@ -719,9 +719,7 @@ impl JavascriptParser<'_> {
       };
       if expr_info
         .name
-        .call_hooks_name(self, |this, for_name| {
-          drive.r#typeof(this, expr, for_name.as_str())
-        })
+        .call_hooks_name(self, |this, for_name| drive.r#typeof(this, expr, for_name))
         .unwrap_or_default()
       {
         return;
@@ -977,14 +975,14 @@ impl JavascriptParser<'_> {
           parser
             .plugin_drive
             .clone()
-            .new_expression(parser, expr, for_name.as_str())
+            .new_expression(parser, expr, for_name)
         })
       } else {
         info.name.call_hooks_name(self, |parser, for_name| {
           parser
             .plugin_drive
             .clone()
-            .new_expression(parser, expr, for_name.as_str())
+            .new_expression(parser, expr, for_name)
         })
       };
       if result.unwrap_or_default() {
@@ -1541,7 +1539,7 @@ impl JavascriptParser<'_> {
   fn walk_identifier(&mut self, identifier: &Ident) {
     let drive = self.plugin_drive.clone();
     identifier.sym.call_hooks_name(self, |this, for_name| {
-      drive.identifier(this, identifier, for_name.as_str())
+      drive.identifier(this, identifier, for_name)
     });
   }
 
@@ -1578,9 +1576,7 @@ impl JavascriptParser<'_> {
         |this, ident| {
           if !ident
             .sym
-            .call_hooks_name(this, |this, for_name| {
-              drive.assign(this, expr, for_name.as_str())
-            })
+            .call_hooks_name(this, |this, for_name| drive.assign(this, expr, for_name))
             .unwrap_or_default()
           {
             // webpack use `walk_expression`, `walk_expression` just walk down the ast, so it's ok to use `walk_identifier`
@@ -1595,9 +1591,7 @@ impl JavascriptParser<'_> {
         |this: &mut JavascriptParser<'_>, ident| {
           if !ident
             .sym
-            .call_hooks_name(this, |this, for_name| {
-              drive.assign(this, expr, for_name.as_str())
-            })
+            .call_hooks_name(this, |this, for_name| drive.assign(this, expr, for_name))
             .unwrap_or_default()
           {
             this.define_variable(ident.sym.clone());

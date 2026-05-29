@@ -16,7 +16,7 @@ use crate::{
   utils::object_properties::get_attributes,
   visitors::{
     AllowedMemberTypes, AtomMembers, ExportedVariableInfo, JavascriptParser, MemberExpressionInfo,
-    TagInfoData, get_non_optional_member_chain_from_expr,
+    ParserHookName, TagInfoData, get_non_optional_member_chain_from_expr,
     get_non_optional_member_chain_from_member, get_non_optional_part,
   },
 };
@@ -201,9 +201,9 @@ impl JavascriptParserPlugin for ESMImportDependencyParserPlugin {
     &self,
     parser: &mut JavascriptParser,
     ident: &Ident,
-    for_name: &str,
+    for_name: ParserHookName<'_>,
   ) -> Option<bool> {
-    if for_name != ESM_SPECIFIER_TAG {
+    if !for_name.is_member_chain(ESM_SPECIFIER_TAG) {
       return None;
     }
     let tag_info = parser

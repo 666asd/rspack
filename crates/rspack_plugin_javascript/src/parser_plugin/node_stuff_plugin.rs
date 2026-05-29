@@ -5,7 +5,11 @@ use rspack_core::{
 use rspack_error::{Diagnostic, cyan, yellow};
 use rspack_util::SpanExt;
 use sugar_path::SugarPath;
-use swc_core::{atoms::atom, common::Spanned, ecma::ast::Expr};
+use swc_core::{
+  atoms::{Atom, atom},
+  common::Spanned,
+  ecma::ast::Expr,
+};
 use url::Url;
 
 use crate::{
@@ -22,6 +26,21 @@ const IMPORT_META_FILENAME: &str = "import.meta.filename";
 const GLOBAL: &str = "global";
 const MOCK_DIRNAME: &str = "/";
 const MOCK_FILENAME: &str = "/index.js";
+
+thread_local! {
+  static DIRNAME_ATOM: Atom = Atom::from(DIRNAME);
+  static FILENAME_ATOM: Atom = Atom::from(FILENAME);
+}
+
+#[inline]
+fn is_dirname(for_name: ParserHookName<'_>) -> bool {
+  DIRNAME_ATOM.with(|atom| for_name.is_identifier(atom))
+}
+
+#[inline]
+fn is_filename(for_name: ParserHookName<'_>) -> bool {
+  FILENAME_ATOM.with(|atom| for_name.is_identifier(atom))
+}
 
 /// Represents the type of import.meta property being handled (filename or dirname)
 #[derive(Clone, Copy)]
@@ -402,7 +421,7 @@ impl JavascriptParserPlugin for NodeStuffPlugin {
     &self,
     parser: &mut JavascriptParser,
     ident: &swc_core::ecma::ast::Ident,
-    for_name: &str,
+    for_name: ParserHookName<'_>,
   ) -> Option<bool> {
     // Skip CJS handling if not enabled
     if !self.handle_cjs {
@@ -413,7 +432,7 @@ impl JavascriptParserPlugin for NodeStuffPlugin {
       // When node: false, this plugin is not registered for CJS modules
       return None;
     };
-    if for_name == DIRNAME {
+    if is_dirname(for_name) {
       let dirname = match node_option.dirname {
         NodeDirnameOption::Mock => Some(MOCK_DIRNAME.to_string()),
         NodeDirnameOption::WarnMock => {
@@ -466,7 +485,7 @@ impl JavascriptParserPlugin for NodeStuffPlugin {
         )));
         return Some(true);
       }
-    } else if for_name == FILENAME {
+    } else if is_filename(for_name) {
       let filename = match node_option.filename {
         NodeFilenameOption::Mock => Some(MOCK_FILENAME.to_string()),
         NodeFilenameOption::WarnMock => {
@@ -518,7 +537,7 @@ impl JavascriptParserPlugin for NodeStuffPlugin {
         )));
         return Some(true);
       }
-    } else if for_name == GLOBAL
+    } else if for_name.is_identifier(&atom!(GLOBAL))
       && matches!(
         node_option.global,
         NodeGlobalOption::True | NodeGlobalOption::Warn
@@ -564,90 +583,86 @@ impl JavascriptParserPlugin for NodeStuffPlugin {
     &self,
     parser: &mut JavascriptParser,
     unary_expr: &swc_core::ecma::ast::UnaryExpr,
-    for_name: &str,
+    for_name: ParserHookName<'_>,
   ) -> Option<bool> {
     use crate::visitors::expr_name;
 
-    match for_name {
-      FILENAME => {
-        // Skip CJS __filename if not handling CJS
-        if !self.handle_cjs {
-          return None;
-        }
-        // Skip if node: false or node.filename is disabled
-        if parser.compiler_options.node.is_none()
-          || parser
-            .compiler_options
-            .node
-            .as_ref()
-            .is_some_and(|node_option| matches!(node_option.filename, NodeFilenameOption::False))
-        {
-          return None;
-        }
+    if is_filename(for_name) {
+      // Skip CJS __filename if not handling CJS
+      if !self.handle_cjs {
+        return None;
       }
-      expr_name::IMPORT_META_FILENAME => {
-        // Skip ESM import.meta.filename if not handling ESM
-        if !self.handle_esm {
-          return None;
-        }
-        // Skip if importMeta is disabled
-        if matches!(
-          parser.javascript_options.import_meta,
-          Some(ImportMeta::Disabled)
-        ) {
-          return None;
-        }
-        // Skip if node: false or node.filename is disabled
-        if parser.compiler_options.node.is_none()
-          || parser
-            .compiler_options
-            .node
-            .as_ref()
-            .is_some_and(|node_option| matches!(node_option.filename, NodeFilenameOption::False))
-        {
-          return None;
-        }
+      // Skip if node: false or node.filename is disabled
+      if parser.compiler_options.node.is_none()
+        || parser
+          .compiler_options
+          .node
+          .as_ref()
+          .is_some_and(|node_option| matches!(node_option.filename, NodeFilenameOption::False))
+      {
+        return None;
       }
-      DIRNAME => {
-        // Skip CJS __dirname if not handling CJS
-        if !self.handle_cjs {
-          return None;
-        }
-        // Skip if node: false or node.dirname is disabled
-        if parser.compiler_options.node.is_none()
-          || parser
-            .compiler_options
-            .node
-            .as_ref()
-            .is_some_and(|node_option| matches!(node_option.dirname, NodeDirnameOption::False))
-        {
-          return None;
-        }
+    } else if for_name.is_member_chain(expr_name::IMPORT_META_FILENAME) {
+      // Skip ESM import.meta.filename if not handling ESM
+      if !self.handle_esm {
+        return None;
       }
-      expr_name::IMPORT_META_DIRNAME => {
-        // Skip ESM import.meta.dirname if not handling ESM
-        if !self.handle_esm {
-          return None;
-        }
-        // Skip if importMeta is disabled
-        if matches!(
-          parser.javascript_options.import_meta,
-          Some(ImportMeta::Disabled)
-        ) {
-          return None;
-        }
-        // Skip if node: false or node.dirname is disabled
-        if parser.compiler_options.node.is_none()
-          || parser
-            .compiler_options
-            .node
-            .as_ref()
-            .is_some_and(|node_option| matches!(node_option.dirname, NodeDirnameOption::False))
-        {
-          return None;
-        }
+      // Skip if importMeta is disabled
+      if matches!(
+        parser.javascript_options.import_meta,
+        Some(ImportMeta::Disabled)
+      ) {
+        return None;
       }
-      _ => return None,
+      // Skip if node: false or node.filename is disabled
+      if parser.compiler_options.node.is_none()
+        || parser
+          .compiler_options
+          .node
+          .as_ref()
+          .is_some_and(|node_option| matches!(node_option.filename, NodeFilenameOption::False))
+      {
+        return None;
+      }
+    } else if is_dirname(for_name) {
+      // Skip CJS __dirname if not handling CJS
+      if !self.handle_cjs {
+        return None;
+      }
+      // Skip if node: false or node.dirname is disabled
+      if parser.compiler_options.node.is_none()
+        || parser
+          .compiler_options
+          .node
+          .as_ref()
+          .is_some_and(|node_option| matches!(node_option.dirname, NodeDirnameOption::False))
+      {
+        return None;
+      }
+    } else if for_name.is_member_chain(expr_name::IMPORT_META_DIRNAME) {
+      // Skip ESM import.meta.dirname if not handling ESM
+      if !self.handle_esm {
+        return None;
+      }
+      // Skip if importMeta is disabled
+      if matches!(
+        parser.javascript_options.import_meta,
+        Some(ImportMeta::Disabled)
+      ) {
+        return None;
+      }
+      // Skip if node: false or node.dirname is disabled
+      if parser.compiler_options.node.is_none()
+        || parser
+          .compiler_options
+          .node
+          .as_ref()
+          .is_some_and(|node_option| matches!(node_option.dirname, NodeDirnameOption::False))
+      {
+        return None;
+      }
+    } else {
+      return None;
     }
 
     parser.add_presentational_dependency(Box::new(ConstDependency::new(
@@ -661,73 +676,61 @@ impl JavascriptParserPlugin for NodeStuffPlugin {
     &self,
     parser: &mut JavascriptParser,
     expr: &'a swc_core::ecma::ast::UnaryExpr,
-    for_name: &str,
+    for_name: ParserHookName<'_>,
   ) -> Option<eval::BasicEvaluatedExpression<'a>> {
     use crate::visitors::expr_name;
 
-    match for_name {
-      expr_name::IMPORT_META_FILENAME => {
-        // Skip processing if importMeta is disabled
-        if matches!(
-          parser.javascript_options.import_meta,
-          Some(ImportMeta::Disabled)
-        ) {
-          return None;
-        }
-        // Skip processing if node: false or node.filename is disabled
-        if parser.compiler_options.node.is_none()
-          || parser
-            .compiler_options
-            .node
-            .as_ref()
-            .is_some_and(|node_option| matches!(node_option.filename, NodeFilenameOption::False))
-        {
-          return None;
-        }
-        Some(eval::evaluate_to_string(
-          "string".to_string(),
-          expr.span.real_lo(),
-          expr.span.real_hi(),
-        ))
-      }
-      expr_name::IMPORT_META_DIRNAME => {
-        // Skip processing if importMeta is disabled
-        if matches!(
-          parser.javascript_options.import_meta,
-          Some(ImportMeta::Disabled)
-        ) {
-          return None;
-        }
-        // Skip processing if node: false or node.dirname is disabled
-        if parser.compiler_options.node.is_none()
-          || parser
-            .compiler_options
-            .node
-            .as_ref()
-            .is_some_and(|node_option| matches!(node_option.dirname, NodeDirnameOption::False))
-        {
-          return None;
-        }
-        Some(eval::evaluate_to_string(
-          "string".to_string(),
-          expr.span.real_lo(),
-          expr.span.real_hi(),
-        ))
-      }
-      _ => None,
+    let Some(is_filename) = (if for_name.is_member_chain(expr_name::IMPORT_META_FILENAME) {
+      Some(true)
+    } else if for_name.is_member_chain(expr_name::IMPORT_META_DIRNAME) {
+      Some(false)
+    } else {
+      None
+    }) else {
+      return None;
+    };
+
+    // Skip processing if importMeta is disabled
+    if matches!(
+      parser.javascript_options.import_meta,
+      Some(ImportMeta::Disabled)
+    ) {
+      return None;
     }
+    // Skip processing if node: false or node.filename/node.dirname is disabled
+    if parser.compiler_options.node.is_none()
+      || parser
+        .compiler_options
+        .node
+        .as_ref()
+        .is_some_and(|node_option| {
+          if is_filename {
+            matches!(node_option.filename, NodeFilenameOption::False)
+          } else {
+            matches!(node_option.dirname, NodeDirnameOption::False)
+          }
+        })
+    {
+      return None;
+    }
+
+    Some(eval::evaluate_to_string(
+      "string".to_string(),
+      expr.span.real_lo(),
+      expr.span.real_hi(),
+    ))
   }
 
   fn evaluate_identifier(
     &self,
     parser: &mut JavascriptParser,
-    for_name: &str,
+    for_name: ParserHookName<'_>,
     start: u32,
     end: u32,
   ) -> Option<crate::utils::eval::BasicEvaluatedExpression<'static>> {
     use crate::visitors::expr_name;
 
-    if for_name == DIRNAME {
+    if is_dirname(for_name) {
       // Skip CJS handling if not enabled
       if !self.handle_cjs {
         return None;
@@ -747,7 +750,7 @@ impl JavascriptParserPlugin for NodeStuffPlugin {
         start,
         end,
       ))
-    } else if for_name == FILENAME {
+    } else if is_filename(for_name) {
       // Skip CJS handling if not enabled
       if !self.handle_cjs {
         return None;
@@ -768,8 +771,8 @@ impl JavascriptParserPlugin for NodeStuffPlugin {
         start,
         end,
       ))
-    } else if for_name == expr_name::IMPORT_META_FILENAME
-      || for_name == expr_name::IMPORT_META_DIRNAME
+    } else if for_name.is_member_chain(expr_name::IMPORT_META_FILENAME)
+      || for_name.is_member_chain(expr_name::IMPORT_META_DIRNAME)
     {
       // Skip ESM handling if not enabled
       if !self.handle_esm {
@@ -782,7 +785,7 @@ impl JavascriptParserPlugin for NodeStuffPlugin {
       ) {
         return None;
       }
-      let property = if for_name == expr_name::IMPORT_META_FILENAME {
+      let property = if for_name.is_member_chain(expr_name::IMPORT_META_FILENAME) {
         NodeMetaProperty::Filename
       } else {
         NodeMetaProperty::Dirname

@@ -78,9 +78,9 @@ impl JavascriptParserPlugin for AMDParserPlugin {
     &self,
     parser: &mut JavascriptParser,
     expr: &UnaryExpr,
-    for_name: &str,
+    for_name: ParserHookName<'_>,
   ) -> Option<bool> {
-    if for_name == DEFINE || for_name == REQUIRE {
+    if for_name.is_identifier(&atom!(DEFINE)) || for_name.is_identifier(&atom!(REQUIRE)) {
       parser.add_presentational_dependency(Box::new(ConstDependency::new(
         expr.span.into(),
         "\"function\"".into(),
@@ -88,7 +88,7 @@ impl JavascriptParserPlugin for AMDParserPlugin {
       return Some(true);
     }
 
-    if for_name == DEFINE_AMD || for_name == REQUIRE_AMD {
+    if for_name.is_member_chain(DEFINE_AMD) || for_name.is_member_chain(REQUIRE_AMD) {
       parser.add_presentational_dependency(Box::new(ConstDependency::new(
         expr.span.into(),
         "\"object\"".into(),
@@ -103,9 +103,9 @@ impl JavascriptParserPlugin for AMDParserPlugin {
     &self,
     _parser: &mut JavascriptParser,
     expr: &'a UnaryExpr,
-    for_name: &str,
+    for_name: ParserHookName<'_>,
   ) -> Option<BasicEvaluatedExpression<'a>> {
-    if for_name == DEFINE || for_name == REQUIRE {
+    if for_name.is_identifier(&atom!(DEFINE)) || for_name.is_identifier(&atom!(REQUIRE)) {
       return Some(evaluate_to_string(
         "function".to_string(),
         expr.span.real_lo(),
@@ -113,7 +113,7 @@ impl JavascriptParserPlugin for AMDParserPlugin {
       ));
     }
 
-    if for_name == DEFINE_AMD || for_name == REQUIRE_AMD {
+    if for_name.is_member_chain(DEFINE_AMD) || for_name.is_member_chain(REQUIRE_AMD) {
       return Some(evaluate_to_string(
         "object".to_string(),
         expr.span.real_lo(),
@@ -128,9 +128,9 @@ impl JavascriptParserPlugin for AMDParserPlugin {
     &self,
     parser: &mut JavascriptParser,
     ident: &swc_core::ecma::ast::Ident,
-    for_name: &str,
+    for_name: ParserHookName<'_>,
   ) -> Option<bool> {
-    if for_name == DEFINE {
+    if for_name.is_identifier(&atom!(DEFINE)) {
       parser.add_presentational_dependency(Box::new(RuntimeRequirementsDependency::new(
         ident.span().into(),
         RuntimeGlobals::AMD_DEFINE,
@@ -143,13 +143,13 @@ impl JavascriptParserPlugin for AMDParserPlugin {
   fn evaluate_identifier(
     &self,
     _parser: &mut JavascriptParser,
-    for_name: &str,
+    for_name: ParserHookName<'_>,
     start: u32,
     end: u32,
   ) -> Option<BasicEvaluatedExpression<'static>> {
-    if for_name == DEFINE_AMD {
+    if for_name.is_member_chain(DEFINE_AMD) {
       return Some(evaluate_to_identifier(
-        for_name.into(),
+        for_name.as_str().into(),
         "define".into(),
         Some(true),
         start,
@@ -157,9 +157,9 @@ impl JavascriptParserPlugin for AMDParserPlugin {
       ));
     }
 
-    if for_name == REQUIRE_AMD {
+    if for_name.is_member_chain(REQUIRE_AMD) {
       return Some(evaluate_to_identifier(
-        for_name.into(),
+        for_name.as_str().into(),
         "require".into(),
         Some(true),
         start,

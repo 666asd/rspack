@@ -99,10 +99,10 @@ impl JavascriptParserPlugin for ProvideParserPlugin {
     &self,
     parser: &mut JavascriptParser,
     ident: &swc_core::ecma::ast::Ident,
-    for_name: &str,
+    for_name: ParserHookName<'_>,
   ) -> Option<bool> {
     self
-      .add_provide_dep(for_name, ident.span, parser)
+      .add_provide_dep(for_name.as_str(), ident.span, parser)
       .then_some(true)
   }
 }

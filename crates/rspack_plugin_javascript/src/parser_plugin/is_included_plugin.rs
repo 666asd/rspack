@@ -1,14 +1,27 @@
 use rspack_core::ConstDependency;
 use rspack_util::SpanExt;
 use swc_core::{
+  atoms::Atom,
   common::Spanned,
   ecma::ast::{CallExpr, UnaryExpr},
 };
 
 use super::JavascriptParserPlugin;
-use crate::{dependency::IsIncludeDependency, visitors::JavascriptParser};
+use crate::{
+  dependency::IsIncludeDependency,
+  visitors::{JavascriptParser, ParserHookName},
+};
 
 const IS_INCLUDED: &str = "__webpack_is_included__";
+
+thread_local! {
+  static IS_INCLUDED_ATOM: Atom = Atom::from(IS_INCLUDED);
+}
+
+#[inline]
+fn is_included_identifier(for_name: ParserHookName<'_>) -> bool {
+  IS_INCLUDED_ATOM.with(|atom| for_name.is_identifier(atom))
+}
 
 pub struct IsIncludedPlugin;
 
@@ -36,9 +49,9 @@ impl JavascriptParserPlugin for IsIncludedPlugin {
     &self,
     parser: &mut JavascriptParser<'_>,
     expr: &UnaryExpr,
-    for_name: &str,
+    for_name: ParserHookName<'_>,
   ) -> Option<bool> {
-    (for_name == IS_INCLUDED).then(|| {
+    is_included_identifier(for_name).then(|| {
       parser.add_presentational_dependency(Box::new(ConstDependency::new(
         (expr.span().real_lo(), expr.span().real_hi()).into(),
         "'function'".into(),

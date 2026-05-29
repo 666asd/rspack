@@ -72,8 +72,9 @@ impl JavascriptParserPlugin for DefineParserPlugin {
     &self,
     parser: &mut JavascriptParser,
     expr: &'a swc_core::ecma::ast::UnaryExpr,
-    for_name: &str,
+    for_name: ParserHookName<'_>,
   ) -> Option<BasicEvaluatedExpression<'a>> {
+    let for_name = for_name.as_str();
     if let Some(record) = self.get_define_record(for_name)
       && let Some(on_evaluate_typeof) = &record.on_evaluate_typeof
     {
@@ -100,10 +101,11 @@ impl JavascriptParserPlugin for DefineParserPlugin {
   fn evaluate_identifier(
     &self,
     parser: &mut JavascriptParser,
-    for_name: &str,
+    for_name: ParserHookName<'_>,
     start: u32,
     end: u32,
   ) -> Option<crate::utils::eval::BasicEvaluatedExpression<'static>> {
+    let for_name = for_name.as_str();
     if let Some(record) = self.get_define_record(for_name)
       && let Some(on_evaluate_identifier) = &record.on_evaluate_identifier
     {
@@ -128,8 +130,9 @@ impl JavascriptParserPlugin for DefineParserPlugin {
     &self,
     parser: &mut JavascriptParser,
     expr: &swc_core::ecma::ast::UnaryExpr,
-    for_name: &str,
+    for_name: ParserHookName<'_>,
   ) -> Option<bool> {
+    let for_name = for_name.as_str();
     if let Some(record) = self.get_define_record(for_name)
       && let Some(on_typeof) = &record.on_typeof
     {
@@ -212,8 +215,9 @@ impl JavascriptParserPlugin for DefineParserPlugin {
     &self,
     parser: &mut JavascriptParser,
     ident: &swc_core::ecma::ast::Ident,
-    for_name: &str,
+    for_name: ParserHookName<'_>,
   ) -> Option<bool> {
+    let for_name = for_name.as_str();
     if let Some(record) = self.get_define_record(for_name)
       && let Some(on_expression) = &record.on_expression
     {

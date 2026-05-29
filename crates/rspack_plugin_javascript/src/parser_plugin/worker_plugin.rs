@@ -27,7 +27,7 @@ use crate::{
   magic_comment::try_extract_magic_comment,
   parser_plugin::url_plugin::is_meta_url,
   utils::object_properties::get_literal_str_by_obj_prop,
-  visitors::{JavascriptParser, TagInfoData, VariableDeclaration},
+  visitors::{JavascriptParser, ParserHookName, TagInfoData, VariableDeclaration},
 };
 
 #[derive(Debug)]
@@ -376,8 +376,13 @@ impl JavascriptParserPlugin for WorkerPlugin {
     None
   }
 
-  fn pattern(&self, parser: &mut JavascriptParser, ident: &Ident, for_name: &str) -> Option<bool> {
-    if self.inner.pattern_syntax.contains_key(for_name) {
+  fn pattern(
+    &self,
+    parser: &mut JavascriptParser,
+    ident: &Ident,
+    for_name: ParserHookName<'_>,
+  ) -> Option<bool> {
+    if self.inner.pattern_syntax.contains_key(for_name.as_str()) {
       parser.tag_variable(
         ident.sym.clone(),
         WORKER_SPECIFIER_TAG,
@@ -499,9 +504,9 @@ impl JavascriptParserPlugin for WorkerPlugin {
     &self,
     parser: &mut JavascriptParser,
     new_expr: &NewExpr,
-    for_name: &str,
+    for_name: ParserHookName<'_>,
   ) -> Option<bool> {
-    if for_name == ESM_SPECIFIER_TAG {
+    if for_name.is_member_chain(ESM_SPECIFIER_TAG) {
       let tag_info = parser
         .definitions_db
         .expect_get_tag_info(parser.current_tag_info?);
@@ -536,7 +541,7 @@ impl JavascriptParserPlugin for WorkerPlugin {
       }
       return None;
     }
-    if !self.inner.new_syntax.contains(for_name) {
+    if !self.inner.new_syntax.contains(for_name.as_str()) {
       return None;
     }
     new_expr

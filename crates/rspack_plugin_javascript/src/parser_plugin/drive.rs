@@ -313,7 +313,7 @@ impl JavascriptParserPlugin for JavaScriptParserPluginDrive {
     &self,
     parser: &mut JavascriptParser,
     expr: &AssignExpr,
-    for_name: &str,
+    for_name: ParserHookName<'_>,
   ) -> Option<bool> {
     for plugin in self.plugins_for(JavascriptParserPluginHook::Assign) {
       let res = plugin.assign(parser, expr, for_name);
@@ -346,7 +346,7 @@ impl JavascriptParserPlugin for JavaScriptParserPluginDrive {
     &self,
     parser: &mut JavascriptParser,
     expr: &UnaryExpr,
-    for_name: &str,
+    for_name: ParserHookName<'_>,
   ) -> Option<bool> {
     assert!(expr.op == UnaryOp::TypeOf);
     for plugin in self.plugins_for(JavascriptParserPluginHook::Typeof) {
@@ -440,7 +440,7 @@ impl JavascriptParserPlugin for JavaScriptParserPluginDrive {
     &self,
     parser: &mut JavascriptParser,
     expr: &swc_core::ecma::ast::NewExpr,
-    for_name: &str,
+    for_name: ParserHookName<'_>,
   ) -> Option<bool> {
     for plugin in self.plugins_for(JavascriptParserPluginHook::NewExpression) {
       let res = plugin.new_expression(parser, expr, for_name);
@@ -456,7 +456,7 @@ impl JavascriptParserPlugin for JavaScriptParserPluginDrive {
     &self,
     parser: &mut JavascriptParser,
     expr: &swc_core::ecma::ast::Ident,
-    for_name: &str,
+    for_name: ParserHookName<'_>,
   ) -> Option<bool> {
     for plugin in self.plugins_for(JavascriptParserPluginHook::Identifier) {
       let res = plugin.identifier(parser, expr, for_name);
@@ -552,7 +552,7 @@ impl JavascriptParserPlugin for JavaScriptParserPluginDrive {
     &self,
     parser: &mut JavascriptParser,
     expr: &'a UnaryExpr,
-    for_name: &str,
+    for_name: ParserHookName<'_>,
   ) -> Option<BasicEvaluatedExpression<'a>> {
     for plugin in self.plugins_for(JavascriptParserPluginHook::EvaluateTypeof) {
       let res = plugin.evaluate_typeof(parser, expr, for_name);
@@ -599,7 +599,7 @@ impl JavascriptParserPlugin for JavaScriptParserPluginDrive {
   fn evaluate_identifier(
     &self,
     parser: &mut JavascriptParser,
-    for_name: &str,
+    for_name: ParserHookName<'_>,
     start: u32,
     end: u32,
   ) -> Option<BasicEvaluatedExpression<'static>> {
@@ -634,7 +634,7 @@ impl JavascriptParserPlugin for JavaScriptParserPluginDrive {
     &self,
     parser: &mut JavascriptParser,
     ident: &swc_core::ecma::ast::Ident,
-    for_name: &str,
+    for_name: ParserHookName<'_>,
   ) -> Option<bool> {
     for plugin in self.plugins_for(JavascriptParserPluginHook::Pattern) {
       let res = plugin.pattern(parser, ident, for_name);

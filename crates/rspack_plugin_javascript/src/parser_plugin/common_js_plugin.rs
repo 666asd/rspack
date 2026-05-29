@@ -1,10 +1,10 @@
 use rspack_core::{ConstDependency, RuntimeGlobals, RuntimeRequirementsDependency};
-use swc_core::ecma::ast::MemberExpr;
+use swc_core::{atoms::atom, ecma::ast::MemberExpr};
 
 use super::JavascriptParserPlugin;
 use crate::{
   utils::eval::{BasicEvaluatedExpression, evaluate_to_identifier},
-  visitors::{JavascriptParser, expr_name},
+  visitors::{JavascriptParser, ParserHookName, expr_name},
 };
 
 pub struct CommonJsPlugin;
@@ -14,11 +14,11 @@ impl JavascriptParserPlugin for CommonJsPlugin {
   fn evaluate_identifier(
     &self,
     _parser: &mut JavascriptParser,
-    for_name: &str,
+    for_name: ParserHookName<'_>,
     start: u32,
     end: u32,
   ) -> Option<BasicEvaluatedExpression<'static>> {
-    if for_name == expr_name::MODULE_HOT {
+    if for_name.is_member_chain(expr_name::MODULE_HOT) {
       Some(evaluate_to_identifier(
         expr_name::MODULE_HOT.into(),
         expr_name::MODULE.into(),
@@ -35,9 +35,9 @@ impl JavascriptParserPlugin for CommonJsPlugin {
     &self,
     parser: &mut JavascriptParser,
     expr: &swc_core::ecma::ast::UnaryExpr,
-    for_name: &str,
+    for_name: ParserHookName<'_>,
   ) -> Option<bool> {
-    if for_name == expr_name::MODULE {
+    if for_name.is_identifier(&atom!("module")) {
       parser.add_presentational_dependency(Box::new(ConstDependency::new(
         expr.span.into(),
         "'object'".into(),

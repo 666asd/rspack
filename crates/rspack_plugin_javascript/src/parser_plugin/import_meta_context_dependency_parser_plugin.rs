@@ -25,8 +25,8 @@ use crate::{
     },
   },
   visitors::{
-    JavascriptParser, clean_regexp_in_context_module, default_context_reg_exp, expr_name,
-    static_string_from_expr,
+    JavascriptParser, ParserHookName, clean_regexp_in_context_module, default_context_reg_exp,
+    expr_name, static_string_from_expr,
   },
 };
 
@@ -429,14 +429,16 @@ impl JavascriptParserPlugin for ImportMetaContextDependencyParserPlugin {
   fn evaluate_identifier(
     &self,
     _parser: &mut JavascriptParser,
-    for_name: &str,
+    for_name: ParserHookName<'_>,
     start: u32,
     end: u32,
   ) -> Option<BasicEvaluatedExpression<'static>> {
-    let name = match for_name {
-      expr_name::IMPORT_META_CONTEXT => expr_name::IMPORT_META_CONTEXT,
-      expr_name::IMPORT_META_GLOB => expr_name::IMPORT_META_GLOB,
-      _ => return None,
+    let name = if for_name.is_member_chain(expr_name::IMPORT_META_CONTEXT) {
+      expr_name::IMPORT_META_CONTEXT
+    } else if for_name.is_member_chain(expr_name::IMPORT_META_GLOB) {
+      expr_name::IMPORT_META_GLOB
+    } else {
+      return None;
     };
 
     Some(eval::evaluate_to_identifier(

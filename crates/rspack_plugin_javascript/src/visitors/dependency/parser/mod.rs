@@ -31,7 +31,7 @@ use rspack_util::{SpanExt, fx_hash::FxIndexSet};
 use rustc_hash::{FxHashMap, FxHashSet};
 use smallvec::SmallVec;
 use swc_core::{
-  atoms::Atom,
+  atoms::{Atom, atom},
   common::{BytePos, Mark, Span, Spanned, comments::Comments},
   ecma::{
     ast::{
@@ -1148,7 +1148,7 @@ impl<'parser> JavascriptParser<'parser> {
     if !ident
       .sym
       .call_hooks_name(self, |parser, for_name| {
-        drive.pattern(parser, ident, for_name.as_str())
+        drive.pattern(parser, ident, for_name)
       })
       .unwrap_or_default()
     {
@@ -1454,12 +1454,7 @@ impl JavascriptParser<'_> {
         let drive = self.plugin_drive.clone();
         name
           .call_hooks_name(self, |parser, name| {
-            drive.evaluate_identifier(
-              parser,
-              name.as_str(),
-              ident.span.real_lo(),
-              ident.span.real_hi(),
-            )
+            drive.evaluate_identifier(parser, name, ident.span.real_lo(), ident.span.real_hi())
           })
           .or_else(|| {
             let info = self.get_variable_info(name);
@@ -1510,8 +1505,14 @@ impl JavascriptParser<'_> {
         };
         let Some(info) = self.get_variable_info(&"this".into()) else {
           // use `ident.sym` as fallback for global variable(or maybe just a undefined variable)
+          let this_atom = atom!("this");
           return drive
-            .evaluate_identifier(self, "this", this.span.real_lo(), this.span.real_hi())
+            .evaluate_identifier(
+              self,
+              ParserHookName::Identifier(&this_atom),
+              this.span.real_lo(),
+              this.span.real_hi(),
+            )
             .or_else(default_eval);
         };
         if let Some(name) = &info.name
@@ -1519,7 +1520,12 @@ impl JavascriptParser<'_> {
         {
           let name = name.clone();
           return drive
-            .evaluate_identifier(self, &name, this.span.real_lo(), this.span.real_hi())
+            .evaluate_identifier(
+              self,
+              ParserHookName::Identifier(&name),
+              this.span.real_lo(),
+              this.span.real_hi(),
+            )
             .or_else(default_eval);
         }
         None

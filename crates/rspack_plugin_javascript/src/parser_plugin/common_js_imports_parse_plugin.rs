@@ -645,9 +645,9 @@ impl JavascriptParserPlugin for CommonJsImportsParserPlugin {
     &self,
     parser: &mut JavascriptParser,
     ident: &Ident,
-    for_name: &str,
+    for_name: ParserHookName<'_>,
   ) -> Option<bool> {
-    if for_name == COMMONJS_REQUIRE_TAG {
+    if for_name.is_member_chain(COMMONJS_REQUIRE_TAG) {
       let tag_info = parser
         .definitions_db
         .expect_get_tag_info(parser.current_tag_info?);
@@ -675,7 +675,7 @@ impl JavascriptParserPlugin for CommonJsImportsParserPlugin {
       return Some(true);
     }
 
-    if for_name == expr_name::REQUIRE {
+    if for_name.is_identifier(&atom!("require")) {
       return self.require_as_expression_handler(parser, ident);
     }
 
@@ -780,50 +780,53 @@ impl JavascriptParserPlugin for CommonJsImportsParserPlugin {
     &self,
     _parser: &mut JavascriptParser,
     expr: &'a UnaryExpr,
-    for_name: &str,
+    for_name: ParserHookName<'_>,
   ) -> Option<BasicEvaluatedExpression<'a>> {
-    (for_name == expr_name::REQUIRE
-      || for_name == expr_name::REQUIRE_RESOLVE
-      || for_name == expr_name::REQUIRE_RESOLVE_WEAK)
-      .then(|| {
-        eval::evaluate_to_string(
-          "function".to_string(),
-          expr.span.real_lo(),
-          expr.span.real_hi(),
-        )
-      })
+    (for_name.is_identifier(&atom!("require"))
+      || for_name.is_member_chain(expr_name::REQUIRE_RESOLVE)
+      || for_name.is_member_chain(expr_name::REQUIRE_RESOLVE_WEAK))
+    .then(|| {
+      eval::evaluate_to_string(
+        "function".to_string(),
+        expr.span.real_lo(),
+        expr.span.real_hi(),
+      )
+    })
   }
 
   fn evaluate_identifier(
     &self,
     _parser: &mut JavascriptParser,
-    for_name: &str,
+    for_name: ParserHookName<'_>,
     start: u32,
     end: u32,
   ) -> Option<BasicEvaluatedExpression<'static>> {
-    match for_name {
-      expr_name::REQUIRE => Some(eval::evaluate_to_identifier(
+    if for_name.is_identifier(&atom!("require")) {
+      Some(eval::evaluate_to_identifier(
         expr_name::REQUIRE.into(),
         expr_name::REQUIRE.into(),
         Some(true),
         start,
         end,
-      )),
-      expr_name::REQUIRE_RESOLVE => Some(eval::evaluate_to_identifier(
+      ))
+    } else if for_name.is_member_chain(expr_name::REQUIRE_RESOLVE) {
+      Some(eval::evaluate_to_identifier(
         expr_name::REQUIRE_RESOLVE.into(),
         expr_name::REQUIRE_RESOLVE.into(),
         Some(true),
         start,
         end,
-      )),
-      expr_name::REQUIRE_RESOLVE_WEAK => Some(eval::evaluate_to_identifier(
+      ))
+    } else if for_name.is_member_chain(expr_name::REQUIRE_RESOLVE_WEAK) {
+      Some(eval::evaluate_to_identifier(
         expr_name::REQUIRE_RESOLVE_WEAK.into(),
         expr_name::REQUIRE_RESOLVE_WEAK.into(),
         Some(true),
         start,
         end,
-      )),
-      _ => None,
+      ))
+    } else {
+      None
     }
   }
 
@@ -831,12 +834,12 @@ impl JavascriptParserPlugin for CommonJsImportsParserPlugin {
     &self,
     parser: &mut JavascriptParser,
     expr: &swc_core::ecma::ast::UnaryExpr,
-    for_name: &str,
+    for_name: ParserHookName<'_>,
   ) -> Option<bool> {
     // same as webpack/tagRequireExpression
-    if for_name == expr_name::REQUIRE
-      || for_name == expr_name::REQUIRE_RESOLVE
-      || for_name == expr_name::REQUIRE_RESOLVE_WEAK
+    if for_name.is_identifier(&atom!("require"))
+      || for_name.is_member_chain(expr_name::REQUIRE_RESOLVE)
+      || for_name.is_member_chain(expr_name::REQUIRE_RESOLVE_WEAK)
     {
       parser.add_presentational_dependency(Box::new(ConstDependency::new(
         expr.span().into(),
@@ -881,9 +884,11 @@ impl JavascriptParserPlugin for CommonJsImportsParserPlugin {
     &self,
     parser: &mut JavascriptParser,
     new_expr: &NewExpr,
-    for_name: &str,
+    for_name: ParserHookName<'_>,
   ) -> Option<bool> {
-    if for_name == expr_name::REQUIRE || for_name == expr_name::MODULE_REQUIRE {
+    if for_name.is_identifier(&atom!("require"))
+      || for_name.is_member_chain(expr_name::MODULE_REQUIRE)
+    {
       self.require_handler(parser, CallOrNewExpr::New(new_expr))
     } else {
       None
@@ -937,9 +942,9 @@ impl JavascriptParserPlugin for CommonJsImportsParserPlugin {
     &self,
     parser: &mut JavascriptParser,
     _expr: &AssignExpr,
-    for_name: &str,
+    for_name: ParserHookName<'_>,
   ) -> Option<bool> {
-    if for_name == expr_name::REQUIRE {
+    if for_name.is_identifier(&atom!("require")) {
       parser.add_presentational_dependency(Box::new(ConstDependency::new(
         (0, 0).into(),
         "var require;".into(),

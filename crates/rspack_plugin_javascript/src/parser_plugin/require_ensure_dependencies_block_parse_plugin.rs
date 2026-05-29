@@ -15,7 +15,7 @@ use super::JavascriptParserPlugin;
 use crate::{
   dependency::{RequireEnsureDependency, RequireEnsureItemDependency},
   utils::eval::{self, BasicEvaluatedExpression},
-  visitors::{JavascriptParser, Statement},
+  visitors::{JavascriptParser, ParserHookName, Statement},
 };
 
 pub struct RequireEnsureDependenciesBlockParserPlugin;
@@ -26,9 +26,9 @@ impl JavascriptParserPlugin for RequireEnsureDependenciesBlockParserPlugin {
     &self,
     _parser: &mut JavascriptParser,
     expr: &'a UnaryExpr,
-    for_name: &str,
+    for_name: ParserHookName<'_>,
   ) -> Option<BasicEvaluatedExpression<'a>> {
-    (for_name == "require.ensure").then(|| {
+    for_name.is_member_chain("require.ensure").then(|| {
       eval::evaluate_to_string(
         "function".to_string(),
         expr.span.real_lo(),
@@ -41,9 +41,9 @@ impl JavascriptParserPlugin for RequireEnsureDependenciesBlockParserPlugin {
     &self,
     parser: &mut JavascriptParser,
     expr: &swc_core::ecma::ast::UnaryExpr,
-    for_name: &str,
+    for_name: ParserHookName<'_>,
   ) -> Option<bool> {
-    (for_name == "require.ensure").then(|| {
+    for_name.is_member_chain("require.ensure").then(|| {
       parser.add_presentational_dependency(Box::new(ConstDependency::new(
         expr.span().into(),
         "'function'".into(),

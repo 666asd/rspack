@@ -9,7 +9,9 @@ use swc_core::{
 use super::JavascriptParserPlugin;
 use crate::{
   dependency::CommonJsRequireContextDependency,
-  visitors::{JavascriptParser, Statement, TagInfoData, VariableDeclaration, expr_name},
+  visitors::{
+    JavascriptParser, ParserHookName, Statement, TagInfoData, VariableDeclaration, expr_name,
+  },
 };
 
 pub const NESTED_IDENTIFIER_TAG: &str = "_identifier__nested_rspack_identifier__";
@@ -139,9 +141,9 @@ impl JavascriptParserPlugin for CompatibilityPlugin {
     &self,
     parser: &mut JavascriptParser,
     ident: &swc_core::ecma::ast::Ident,
-    for_name: &str,
+    for_name: ParserHookName<'_>,
   ) -> Option<bool> {
-    if for_name == parser.parser_runtime_requirements.exports {
+    if for_name.as_str() == parser.parser_runtime_requirements.exports {
       self.tag_nested_require_data(
         parser,
         ident.sym.clone(),
@@ -151,7 +153,7 @@ impl JavascriptParserPlugin for CompatibilityPlugin {
         ident.span().real_hi(),
       );
       return Some(true);
-    } else if for_name == parser.parser_runtime_requirements.require {
+    } else if for_name.as_str() == parser.parser_runtime_requirements.require {
       let start = ident.span().real_lo();
       let end = ident.span().real_hi();
       self.tag_nested_require_data(
@@ -200,9 +202,9 @@ impl JavascriptParserPlugin for CompatibilityPlugin {
     &self,
     parser: &mut JavascriptParser,
     ident: &swc_core::ecma::ast::Ident,
-    for_name: &str,
+    for_name: ParserHookName<'_>,
   ) -> Option<bool> {
-    if for_name != NESTED_IDENTIFIER_TAG {
+    if !for_name.is_member_chain(NESTED_IDENTIFIER_TAG) {
       return None;
     }
     let tag_info = parser

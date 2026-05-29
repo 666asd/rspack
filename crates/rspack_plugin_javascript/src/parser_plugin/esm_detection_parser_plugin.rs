@@ -11,7 +11,7 @@ use super::JavascriptParserPlugin;
 use crate::{
   dependency::ESMCompatibilityDependency,
   utils::eval::BasicEvaluatedExpression,
-  visitors::{JavascriptParser, create_traceable_error},
+  visitors::{JavascriptParser, ParserHookName, create_traceable_error},
 };
 
 impl JavascriptParser<'_> {
@@ -98,9 +98,9 @@ impl JavascriptParserPlugin for ESMDetectionParserPlugin {
     &self,
     parser: &mut JavascriptParser,
     expr: &'a UnaryExpr,
-    for_name: &str,
+    for_name: ParserHookName<'_>,
   ) -> Option<BasicEvaluatedExpression<'a>> {
-    (parser.is_esm && is_non_esm_identifier(for_name))
+    (parser.is_esm && is_non_esm_identifier(for_name.as_str()))
       .then(|| BasicEvaluatedExpression::with_range(expr.span().real_lo(), expr.span().real_hi()))
   }
 
@@ -108,18 +108,18 @@ impl JavascriptParserPlugin for ESMDetectionParserPlugin {
     &self,
     parser: &mut JavascriptParser,
     _expr: &UnaryExpr,
-    for_name: &str,
+    for_name: ParserHookName<'_>,
   ) -> Option<bool> {
-    (parser.is_esm && is_non_esm_identifier(for_name)).then_some(true)
+    (parser.is_esm && is_non_esm_identifier(for_name.as_str())).then_some(true)
   }
 
   fn identifier(
     &self,
     parser: &mut JavascriptParser,
     _ident: &Ident,
-    for_name: &str,
+    for_name: ParserHookName<'_>,
   ) -> Option<bool> {
-    (parser.is_esm && is_non_esm_identifier(for_name)).then_some(true)
+    (parser.is_esm && is_non_esm_identifier(for_name.as_str())).then_some(true)
   }
 
   fn call(

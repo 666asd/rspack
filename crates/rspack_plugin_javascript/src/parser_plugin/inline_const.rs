@@ -13,7 +13,7 @@ use crate::{
     evaluate_to_string, evaluate_to_undefined,
   },
   visitors::{
-    JavascriptParser, TagInfoData, VariableDeclaration, VariableDeclarationKind,
+    JavascriptParser, ParserHookName, TagInfoData, VariableDeclaration, VariableDeclarationKind,
     scope_info::VariableInfoFlags,
   },
 };
@@ -57,11 +57,11 @@ impl JavascriptParserPlugin for ConstValuePlugin {
   fn evaluate_identifier(
     &self,
     parser: &mut JavascriptParser,
-    for_name: &str,
+    for_name: ParserHookName<'_>,
     start: u32,
     end: u32,
   ) -> Option<BasicEvaluatedExpression<'static>> {
-    if for_name != INLINABLE_CONST_TAG {
+    if !for_name.is_member_chain(INLINABLE_CONST_TAG) {
       return None;
     }
     // Propagate inlinable constants. Help the rest const variable declarations that referencing the

@@ -7,9 +7,21 @@ use swc_core::{
 };
 
 use super::JavascriptParserPlugin;
-use crate::{dependency::ExportInfoDependency, visitors::JavascriptParser};
+use crate::{
+  dependency::ExportInfoDependency,
+  visitors::{JavascriptParser, ParserHookName},
+};
 
 const EXPORTS_INFO: &str = "__webpack_exports_info__";
+
+thread_local! {
+  static EXPORTS_INFO_ATOM: Atom = Atom::from(EXPORTS_INFO);
+}
+
+#[inline]
+fn is_exports_info_identifier(for_name: ParserHookName<'_>) -> bool {
+  EXPORTS_INFO_ATOM.with(|atom| for_name.is_identifier(atom))
+}
 
 pub struct ExportsInfoApiPlugin;
 
@@ -44,9 +56,9 @@ impl JavascriptParserPlugin for ExportsInfoApiPlugin {
     &self,
     parser: &mut crate::visitors::JavascriptParser,
     expr: &Ident,
-    for_name: &str,
+    for_name: ParserHookName<'_>,
   ) -> Option<bool> {
-    if for_name == EXPORTS_INFO {
+    if is_exports_info_identifier(for_name) {
       let dep = Box::new(ConstDependency::new(expr.span.into(), "true".into()));
       parser.add_presentational_dependency(dep);
       Some(true)

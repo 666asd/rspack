@@ -24,8 +24,8 @@ use crate::{
     is_pure_class, is_pure_class_member, is_pure_expression, is_pure_function,
   },
   visitors::{
-    ExportedVariableInfo, JavascriptParser, Statement, TagInfoData, VariableDeclaration,
-    scope_info::VariableInfoFlags,
+    ExportedVariableInfo, JavascriptParser, ParserHookName, Statement, TagInfoData,
+    VariableDeclaration, scope_info::VariableInfoFlags,
   },
 };
 
@@ -865,9 +865,9 @@ impl JavascriptParserPlugin for InnerGraphParserPlugin {
     &self,
     parser: &mut JavascriptParser,
     expr: &swc_core::ecma::ast::AssignExpr,
-    for_name: &str,
+    for_name: ParserHookName<'_>,
   ) -> Option<bool> {
-    if !parser.inner_graph.is_enabled() || for_name != TOP_LEVEL_SYMBOL {
+    if !parser.inner_graph.is_enabled() || !for_name.is_member_chain(TOP_LEVEL_SYMBOL) {
       return None;
     }
     if matches!(expr.op, AssignOp::Assign) {
@@ -880,9 +880,9 @@ impl JavascriptParserPlugin for InnerGraphParserPlugin {
     &self,
     parser: &mut JavascriptParser,
     _ident: &swc_core::ecma::ast::Ident,
-    for_name: &str,
+    for_name: ParserHookName<'_>,
   ) -> Option<bool> {
-    Self::for_each_expression(parser, for_name);
+    Self::for_each_expression(parser, for_name.as_str());
     None
   }
 

@@ -305,7 +305,7 @@ Please annotate your `impl JavascriptParserPlugin for ...` block with `#[rspack_
     &self,
     _parser: &mut JavascriptParser,
     _expr: &'a UnaryExpr,
-    _for_name: &str,
+    _for_name: ParserHookName<'_>,
   ) -> Option<BasicEvaluatedExpression<'a>> {
     None
   }
@@ -313,7 +313,7 @@ Please annotate your `impl JavascriptParserPlugin for ...` block with `#[rspack_
   fn evaluate_identifier(
     &self,
     _parser: &mut JavascriptParser,
-    _for_name: &str,
+    _for_name: ParserHookName<'_>,
     _start: u32,
     _end: u32,
   ) -> Option<BasicEvaluatedExpression<'static>> {
@@ -353,7 +353,7 @@ Please annotate your `impl JavascriptParserPlugin for ...` block with `#[rspack_
     &self,
     _parser: &mut JavascriptParser,
     _ident: &Ident,
-    _for_name: &str,
+    _for_name: ParserHookName<'_>,
   ) -> Option<bool> {
     None
   }
@@ -441,7 +441,7 @@ Please annotate your `impl JavascriptParserPlugin for ...` block with `#[rspack_
     &self,
     _parser: &mut JavascriptParser,
     _expr: &UnaryExpr,
-    _for_name: &str,
+    _for_name: ParserHookName<'_>,
   ) -> Option<bool> {
     None
   }
@@ -513,7 +513,7 @@ Please annotate your `impl JavascriptParserPlugin for ...` block with `#[rspack_
     &self,
     _parser: &mut JavascriptParser,
     _expr: &NewExpr,
-    _for_name: &str,
+    _for_name: ParserHookName<'_>,
   ) -> Option<bool> {
     None
   }
@@ -522,7 +522,7 @@ Please annotate your `impl JavascriptParserPlugin for ...` block with `#[rspack_
     &self,
     _parser: &mut JavascriptParser,
     _ident: &Ident,
-    _for_name: &str,
+    _for_name: ParserHookName<'_>,
   ) -> Option<bool> {
     None
   }
@@ -540,7 +540,7 @@ Please annotate your `impl JavascriptParserPlugin for ...` block with `#[rspack_
     &self,
     _parser: &mut JavascriptParser,
     _expr: &AssignExpr,
-    _for_name: &str,
+    _for_name: ParserHookName<'_>,
   ) -> Option<bool> {
     None
   }

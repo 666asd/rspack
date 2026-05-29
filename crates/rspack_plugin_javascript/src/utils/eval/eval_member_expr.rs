@@ -4,7 +4,7 @@ use swc_core::ecma::ast::{Expr, MemberExpr};
 use super::BasicEvaluatedExpression;
 use crate::{
   parser_plugin::JavascriptParserPlugin,
-  visitors::{AllowedMemberTypes, ExprRef, JavascriptParser, MemberExpressionInfo},
+  visitors::{AllowedMemberTypes, ExprRef, JavascriptParser, MemberExpressionInfo, ParserHookName},
 };
 
 pub fn eval_member_expression<'a>(
@@ -19,7 +19,7 @@ pub fn eval_member_expression<'a>(
     drive
       .evaluate_identifier(
         parser,
-        &info.name,
+        ParserHookName::MemberChain(&info.name),
         member.span.real_lo(),
         member.span.real_hi(),
       )

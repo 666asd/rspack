@@ -10,7 +10,10 @@ use rspack_plugin_javascript::{
     self,
     eval::{self},
   },
-  visitors::{JavascriptParser, Statement, VariableDeclaration, create_traceable_error, expr_name},
+  visitors::{
+    JavascriptParser, ParserHookName, Statement, VariableDeclaration, create_traceable_error,
+    expr_name,
+  },
 };
 use rspack_util::{SpanExt, atom::Atom, json_stringify_str, swc::get_swc_comments};
 use swc_core::{
@@ -33,6 +36,21 @@ const FILE_NAME: &str = "__filename";
 const IMPORT_META_DIRNAME: &str = "import.meta.dirname";
 const IMPORT_META_FILENAME: &str = "import.meta.filename";
 pub(crate) const MOCK_TARGET_REQUEST_PREFIX: &str = "\0rstest_mock_target:\0";
+
+thread_local! {
+  static DIR_NAME_ATOM: Atom = Atom::from(DIR_NAME);
+  static FILE_NAME_ATOM: Atom = Atom::from(FILE_NAME);
+}
+
+#[inline]
+fn is_dir_name(for_name: ParserHookName<'_>) -> bool {
+  DIR_NAME_ATOM.with(|atom| for_name.is_identifier(atom))
+}
+
+#[inline]
+fn is_file_name(for_name: ParserHookName<'_>) -> bool {
+  FILE_NAME_ATOM.with(|atom| for_name.is_identifier(atom))
+}
 
 #[derive(PartialEq)]
 enum ModulePathType {
@@ -923,23 +941,21 @@ impl JavascriptParserPlugin for RstestParserPlugin {
     &self,
     parser: &mut rspack_plugin_javascript::visitors::JavascriptParser,
     _ident: &Ident,
-    for_name: &str,
+    for_name: ParserHookName<'_>,
   ) -> Option<bool> {
     if self.options.module_path_name {
-      match for_name {
-        DIR_NAME => {
-          parser.add_presentational_dependency(Box::new(ModulePathNameDependency::new(
-            NameType::DirName,
-          )));
-          return Some(true);
-        }
-        FILE_NAME => {
-          parser.add_presentational_dependency(Box::new(ModulePathNameDependency::new(
-            NameType::FileName,
-          )));
-          return Some(true);
-        }
-        _ => return None,
+      if is_dir_name(for_name) {
+        parser.add_presentational_dependency(Box::new(ModulePathNameDependency::new(
+          NameType::DirName,
+        )));
+        return Some(true);
+      } else if is_file_name(for_name) {
+        parser.add_presentational_dependency(Box::new(ModulePathNameDependency::new(
+          NameType::FileName,
+        )));
+        return Some(true);
+      } else {
+        return None;
       }
     }
 
@@ -950,11 +966,13 @@ impl JavascriptParserPlugin for RstestParserPlugin {
     &self,
     _parser: &mut JavascriptParser,
     expr: &'a UnaryExpr,
-    for_name: &str,
+    for_name: ParserHookName<'_>,
   ) -> Option<utils::eval::BasicEvaluatedExpression<'a>> {
     if self.options.import_meta_path_name {
       let mut evaluated = None;
-      if for_name == IMPORT_META_DIRNAME || for_name == IMPORT_META_FILENAME {
+      if for_name.is_member_chain(IMPORT_META_DIRNAME)
+        || for_name.is_member_chain(IMPORT_META_FILENAME)
+      {
         evaluated = Some("string".to_string());
       }
       return evaluated
@@ -967,11 +985,13 @@ impl JavascriptParserPlugin for RstestParserPlugin {
   fn evaluate_identifier(
     &self,
     parser: &mut JavascriptParser,
-    for_name: &str,
+    for_name: ParserHookName<'_>,
     start: u32,
     end: u32,
   ) -> Option<eval::BasicEvaluatedExpression<'static>> {
-    if self.options.inject_require_resolve_origin && for_name == expr_name::REQUIRE_RESOLVE {
+    if self.options.inject_require_resolve_origin
+      && for_name.is_member_chain(expr_name::REQUIRE_RESOLVE)
+    {
       return Some(eval::evaluate_to_identifier(
         expr_name::REQUIRE_RESOLVE.into(),
         expr_name::REQUIRE_RESOLVE.into(),
@@ -982,13 +1002,13 @@ impl JavascriptParserPlugin for RstestParserPlugin {
     }
 
     if self.options.import_meta_path_name {
-      if for_name == IMPORT_META_DIRNAME {
+      if for_name.is_member_chain(IMPORT_META_DIRNAME) {
         return Some(eval::evaluate_to_string(
           self.process_import_meta(parser, ModulePathType::DirName),
           start,
           end,
         ));
-      } else if for_name == IMPORT_META_FILENAME {
+      } else if for_name.is_member_chain(IMPORT_META_FILENAME) {
         return Some(eval::evaluate_to_string(
           self.process_import_meta(parser, ModulePathType::FileName),
           start,
@@ -1005,10 +1025,12 @@ impl JavascriptParserPlugin for RstestParserPlugin {
     &self,
     parser: &mut JavascriptParser,
     unary_expr: &UnaryExpr,
-    for_name: &str,
+    for_name: ParserHookName<'_>,
   ) -> Option<bool> {
     if self.options.import_meta_path_name {
-      if for_name == IMPORT_META_DIRNAME || for_name == IMPORT_META_FILENAME {
+      if for_name.is_member_chain(IMPORT_META_DIRNAME)
+        || for_name.is_member_chain(IMPORT_META_FILENAME)
+      {
         parser.add_presentational_dependency(Box::new(ConstDependency::new(
           unary_expr.span().into(),
           "'string'".into(),

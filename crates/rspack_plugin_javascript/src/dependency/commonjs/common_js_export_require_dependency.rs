@@ -14,10 +14,24 @@ use rspack_core::{
   to_normal_comment,
 };
 use rustc_hash::FxHashSet;
-use swc_core::atoms::{Atom, atom};
+use swc_core::atoms::Atom;
 
 use super::ExportsBase;
 use crate::dependency::commonjs::OBJECT_PROTOTYPE_METHODS;
+
+thread_local! {
+  static ES_MODULE_ATOM: Atom = Atom::from("__esModule");
+}
+
+#[inline]
+fn is_es_module(name: &Atom) -> bool {
+  ES_MODULE_ATOM.with(|atom| name == atom)
+}
+
+#[inline]
+fn es_module_atom() -> Atom {
+  ES_MODULE_ATOM.with(|atom| atom.clone())
+}
 
 #[cacheable]
 #[allow(unused)]
@@ -139,7 +153,7 @@ impl CommonJsExportRequireDependency {
           continue;
         }
         if let Some(name) = name {
-          if name == &atom!("__esModule") && is_namespace_import {
+          if is_es_module(name) && is_namespace_import {
             exports.insert(name.to_owned());
           } else if let Some(imported_exports_info) = &imported_exports_info {
             let imported_export_info = imported_exports_info.get_read_only_export_info(name);
@@ -179,7 +193,7 @@ impl CommonJsExportRequireDependency {
         }
       }
       if is_namespace_import {
-        exports.insert(atom!("__esModule"));
+        exports.insert(es_module_atom());
       }
     }
 
