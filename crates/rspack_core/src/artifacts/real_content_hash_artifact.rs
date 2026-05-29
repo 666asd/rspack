@@ -23,6 +23,32 @@ impl AssetHashRecord {
   }
 }
 
+pub fn record_manifest_owned_content_hash(
+  record: &mut AssetHashRecord,
+  content_hash: Option<&str>,
+) {
+  if let Some(content_hash) = content_hash {
+    record.own_hashes.insert(content_hash.to_string());
+  }
+}
+
+pub fn record_manifest_filename_content_hashes<'a>(
+  record: &mut AssetHashRecord,
+  content_hashes: impl IntoIterator<Item = &'a String>,
+) {
+  record
+    .replacements
+    .extend(
+      content_hashes
+        .into_iter()
+        .map(|content_hash| ContentHashReplacement {
+          old_hash: content_hash.to_string(),
+          range: None,
+          kind: ContentHashReplacementKind::Filename,
+        }),
+    );
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ContentHashReference {
   pub referenced_hash: String,
@@ -168,7 +194,9 @@ impl RealContentHashArtifact {
     if let Some(existing_record) = self.asset_records.get_mut(new_name) {
       existing_record.own_hashes.extend(record.own_hashes);
       existing_record.references.append(&mut record.references);
-      existing_record.replacements.append(&mut record.replacements);
+      existing_record
+        .replacements
+        .append(&mut record.replacements);
     } else {
       self.asset_records.insert(new_name.to_string(), record);
     }
@@ -197,10 +225,7 @@ mod tests {
   fn records_owned_hashes_and_reverse_index() {
     let mut artifact = RealContentHashArtifact::default();
 
-    artifact.record_asset_hashes(
-      "main.aaaa.js",
-      ["aaaa".to_string(), "bbbb".to_string()],
-    );
+    artifact.record_asset_hashes("main.aaaa.js", ["aaaa".to_string(), "bbbb".to_string()]);
 
     assert_eq!(
       artifact
@@ -303,6 +328,39 @@ mod tests {
   }
 
   #[test]
+  fn manifest_content_hash_helpers_separate_owned_hashes_from_filename_replacements() {
+    let mut record = AssetHashRecord::default();
+
+    record_manifest_owned_content_hash(&mut record, Some("abcdef123456"));
+
+    assert!(record.own_hashes.contains("abcdef123456"));
+    assert!(record.replacements.is_empty());
+  }
+
+  #[test]
+  fn manifest_filename_content_hashes_use_rendered_asset_info_values() {
+    let mut record = AssetHashRecord::default();
+    let content_hashes = ["abcdef12".to_string(), "YWJjZGVm".to_string()];
+
+    record_manifest_filename_content_hashes(&mut record, content_hashes.iter());
+
+    assert!(record.own_hashes.is_empty());
+    assert_eq!(record.replacements.len(), 2);
+    assert_eq!(record.replacements[0].old_hash, "abcdef12");
+    assert_eq!(record.replacements[0].range, None);
+    assert_eq!(
+      record.replacements[0].kind,
+      ContentHashReplacementKind::Filename
+    );
+    assert_eq!(record.replacements[1].old_hash, "YWJjZGVm");
+    assert_eq!(record.replacements[1].range, None);
+    assert_eq!(
+      record.replacements[1].kind,
+      ContentHashReplacementKind::Filename
+    );
+  }
+
+  #[test]
   fn merge_asset_record_extends_existing_record_without_duplicate_reverse_index() {
     let mut artifact = RealContentHashArtifact::default();
     artifact.record_asset_hashes("main.js", ["aaaa".to_string(), "shared".to_string()]);
@@ -365,7 +423,10 @@ mod tests {
       &vec!["main.js".to_string()]
     );
     assert_eq!(
-      artifact.hash_to_assets.get("shared").expect("shared hash owner"),
+      artifact
+        .hash_to_assets
+        .get("shared")
+        .expect("shared hash owner"),
       &vec!["main.js".to_string()]
     );
   }
@@ -453,7 +514,10 @@ mod tests {
       &vec!["new.js".to_string()]
     );
     assert_eq!(
-      artifact.hash_to_assets.get("shared").expect("shared hash owner"),
+      artifact
+        .hash_to_assets
+        .get("shared")
+        .expect("shared hash owner"),
       &vec!["new.js".to_string()]
     );
   }

@@ -1,13 +1,14 @@
 use std::{hash::Hash, sync::Arc};
 
 use rspack_core::{
-  AssetInfo, CachedConstDependencyTemplate, ChunkGraph, ChunkKind, ChunkUkey, Compilation,
-  CompilationAdditionalTreeRuntimeRequirements, CompilationChunkHash, CompilationContentHash,
-  CompilationId, CompilationParams, CompilationRenderManifest, CompilerCompilation,
-  ConstDependencyTemplate, DependencyType, IgnoreErrorModuleFactory, ManifestAssetType,
-  ModuleGraph, ModuleType, ParserAndGenerator, PathData, Plugin, RenderManifestEntry,
-  RuntimeGlobals, RuntimeModule, RuntimeRequirementsDependencyTemplate, SelfModuleFactory,
-  SourceType, get_js_chunk_filename_template,
+  AssetHashRecord, AssetInfo, CachedConstDependencyTemplate, ChunkGraph, ChunkKind, ChunkUkey,
+  Compilation, CompilationAdditionalTreeRuntimeRequirements, CompilationChunkHash,
+  CompilationContentHash, CompilationId, CompilationParams, CompilationRenderManifest,
+  CompilerCompilation, ConstDependencyTemplate, DependencyType, IgnoreErrorModuleFactory,
+  ManifestAssetType, ModuleGraph, ModuleType, ParserAndGenerator, PathData, Plugin,
+  RenderManifestEntry, RuntimeGlobals, RuntimeModule, RuntimeRequirementsDependencyTemplate,
+  SelfModuleFactory, SourceType, get_js_chunk_filename_template,
+  record_manifest_filename_content_hashes, record_manifest_owned_content_hash,
   rspack_sources::{BoxSource, CachedSource, SourceExt},
 };
 use rspack_error::{Diagnostic, Result};
@@ -591,6 +592,11 @@ async fn render_manifest(
   );
   let mut asset_info = AssetInfo::default().with_asset_type(ManifestAssetType::JavaScript);
   asset_info.set_javascript_module(compilation.options.output.module);
+  let rendered_content_hash = chunk.rendered_content_hash_by_source_type(
+    &compilation.chunk_hashes_artifact,
+    &SourceType::JavaScript,
+    compilation.options.output.hash_digest_length,
+  );
   let output_path = compilation
     .get_path_with_info(
       &filename_template,
@@ -601,11 +607,7 @@ async fn render_manifest(
         ))
         .chunk_id_optional(chunk.id().map(|id| id.as_str()))
         .chunk_name_optional(chunk.name_for_filename_template())
-        .content_hash_optional(chunk.rendered_content_hash_by_source_type(
-          &compilation.chunk_hashes_artifact,
-          &SourceType::JavaScript,
-          compilation.options.output.hash_digest_length,
-        ))
+        .content_hash_optional(rendered_content_hash)
         .runtime(chunk.runtime().as_str()),
       &mut asset_info,
     )
@@ -640,13 +642,13 @@ async fn render_manifest(
     })
     .await?;
 
-  manifest.push(RenderManifestEntry::new(
-    source,
-    output_path,
-    false,
-    asset_info,
-    false,
-  ));
+  let mut real_content_hashes = AssetHashRecord::default();
+  record_manifest_owned_content_hash(&mut real_content_hashes, rendered_content_hash);
+  record_manifest_filename_content_hashes(&mut real_content_hashes, asset_info.content_hash.iter());
+  manifest.push(
+    RenderManifestEntry::new(source, output_path, false, asset_info, false)
+      .with_real_content_hashes(real_content_hashes),
+  );
   Ok(())
 }
 

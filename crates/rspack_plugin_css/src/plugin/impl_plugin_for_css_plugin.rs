@@ -8,12 +8,14 @@ use std::{
 
 use atomic_refcell::AtomicRefCell;
 use rspack_core::{
-  AssetInfo, Chunk, ChunkGraph, ChunkKind, ChunkLoading, ChunkLoadingType, ChunkUkey, Compilation,
-  CompilationContentHash, CompilationId, CompilationParams, CompilationRenderManifest,
-  CompilationRuntimeRequirementInTree, CompilerCompilation, CssModuleGeneratorOptions,
-  CssModuleParserOptions, DependencyType, ManifestAssetType, Module, ModuleGraph, ModuleType,
-  ParserAndGenerator, PathData, Plugin, PublicPath, RenderManifestEntry, RuntimeGlobals,
-  RuntimeModule, RuntimeModuleExt, SelfModuleFactory, SourceType, get_css_chunk_filename_template,
+  AssetHashRecord, AssetInfo, Chunk, ChunkGraph, ChunkKind, ChunkLoading, ChunkLoadingType,
+  ChunkUkey, Compilation, CompilationContentHash, CompilationId, CompilationParams,
+  CompilationRenderManifest, CompilationRuntimeRequirementInTree, CompilerCompilation,
+  CssModuleGeneratorOptions, CssModuleParserOptions, DependencyType, ManifestAssetType, Module,
+  ModuleGraph, ModuleType, ParserAndGenerator, PathData, Plugin, PublicPath, RenderManifestEntry,
+  RuntimeGlobals, RuntimeModule, RuntimeModuleExt, SelfModuleFactory, SourceType,
+  get_css_chunk_filename_template, record_manifest_filename_content_hashes,
+  record_manifest_owned_content_hash,
   rspack_sources::{
     BoxSource, CachedSource, ConcatSource, RawStringSource, ReplaceSource, Source, SourceExt,
   },
@@ -449,6 +451,11 @@ async fn render_manifest(
   let mut asset_info = AssetInfo::default().with_asset_type(ManifestAssetType::Css);
   let unused_idents = Self::get_chunk_unused_local_idents(compilation, chunk, &css_modules);
   asset_info.set_css_unused_idents(unused_idents);
+  let rendered_content_hash = chunk.rendered_content_hash_by_source_type(
+    &compilation.chunk_hashes_artifact,
+    &SourceType::Css,
+    compilation.options.output.hash_digest_length,
+  );
   let output_path = compilation
     .get_path_with_info(
       filename_template,
@@ -459,11 +466,7 @@ async fn render_manifest(
           compilation.options.output.hash_digest_length,
         ))
         .chunk_name_optional(chunk.name_for_filename_template())
-        .content_hash_optional(chunk.rendered_content_hash_by_source_type(
-          &compilation.chunk_hashes_artifact,
-          &SourceType::Css,
-          compilation.options.output.hash_digest_length,
-        ))
+        .content_hash_optional(rendered_content_hash)
         .runtime(chunk.runtime().as_str()),
       &mut asset_info,
     )
@@ -487,13 +490,13 @@ async fn render_manifest(
     .await?;
 
   diagnostics.extend(more_diagnostics);
-  manifest.push(RenderManifestEntry::new(
-    source.boxed(),
-    output_path,
-    false,
-    asset_info,
-    false,
-  ));
+  let mut real_content_hashes = AssetHashRecord::default();
+  record_manifest_owned_content_hash(&mut real_content_hashes, rendered_content_hash);
+  record_manifest_filename_content_hashes(&mut real_content_hashes, asset_info.content_hash.iter());
+  manifest.push(
+    RenderManifestEntry::new(source.boxed(), output_path, false, asset_info, false)
+      .with_real_content_hashes(real_content_hashes),
+  );
   Ok(())
 }
 

@@ -1,9 +1,10 @@
 use std::fmt::Debug;
 
 use rspack_core::{
-  ChunkGraph, ChunkUkey, Compilation, CompilationParams, CompilationRenderManifest,
-  CompilerCompilation, DependencyType, ManifestAssetType, ModuleType, ParserAndGenerator, PathData,
-  Plugin, RenderManifestEntry, SourceType,
+  AssetHashRecord, ChunkGraph, ChunkUkey, Compilation, CompilationParams,
+  CompilationRenderManifest, CompilerCompilation, DependencyType, ManifestAssetType, ModuleType,
+  ParserAndGenerator, PathData, Plugin, RenderManifestEntry, SourceType,
+  record_manifest_filename_content_hashes, record_manifest_owned_content_hash,
 };
 use rspack_error::{Diagnostic, Result};
 use rspack_hook::{plugin, plugin_hook};
@@ -66,22 +67,25 @@ async fn render_manifest(
     let module_id = ChunkGraph::get_module_id(&compilation.module_ids_artifact, m.identifier())
       .map(|s| PathData::prepare_id(s.as_str()));
     let mut path_data = PathData::default().module_id_optional(module_id.as_deref());
+    let mut real_content_hashes = AssetHashRecord::default();
     if let Some(hash) = &m.build_info().hash {
       let hash = hash.rendered(16);
       path_data = path_data.content_hash(hash).hash(hash);
+      record_manifest_owned_content_hash(&mut real_content_hashes, Some(hash));
     }
     let (output_path, asset_info) = compilation
       .get_asset_path_with_info(wasm_filename_template, path_data)
       .await?;
 
+    record_manifest_filename_content_hashes(
+      &mut real_content_hashes,
+      asset_info.content_hash.iter(),
+    );
     let asset_info = asset_info.with_asset_type(ManifestAssetType::Wasm);
-    manifest.push(RenderManifestEntry::new(
-      source.clone(),
-      output_path,
-      true,
-      asset_info,
-      false,
-    ))
+    manifest.push(
+      RenderManifestEntry::new(source.clone(), output_path, true, asset_info, false)
+        .with_real_content_hashes(real_content_hashes),
+    )
   }
 
   Ok(())

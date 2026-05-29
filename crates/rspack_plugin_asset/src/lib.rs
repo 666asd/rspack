@@ -4,14 +4,15 @@ use asset_exports_dependency::AssetExportsDependency;
 use rayon::prelude::*;
 use rspack_cacheable::{cacheable, cacheable_dyn};
 use rspack_core::{
-  AssetGeneratorDataUrl, AssetGeneratorDataUrlFnCtx, AssetGeneratorImportMode, AssetInfo,
-  AssetParserDataUrl, BuildMetaDefaultObject, BuildMetaExportsType, ChunkGraph, ChunkUkey,
-  CodeGenerationDataAssetInfo, CodeGenerationDataFilename, CodeGenerationDataUrl,
+  AssetGeneratorDataUrl, AssetGeneratorDataUrlFnCtx, AssetGeneratorImportMode, AssetHashRecord,
+  AssetInfo, AssetParserDataUrl, BuildMetaDefaultObject, BuildMetaExportsType, ChunkGraph,
+  ChunkUkey, CodeGenerationDataAssetInfo, CodeGenerationDataFilename, CodeGenerationDataUrl,
   CodeGenerationPublicPathAutoReplace, Compilation, CompilationRenderManifest, CompilerOptions,
   DependencyType, Filename, GenerateContext, GeneratorOptions, ManifestAssetType, Module,
   ModuleArgument, ModuleGraph, NAMESPACE_OBJECT_EXPORT, NormalModule, ParseContext,
   ParserAndGenerator, PathData, Plugin, PublicPath, RenderManifestEntry, ResourceData,
-  RuntimeGlobals, RuntimeSpec, SourceType,
+  RuntimeGlobals, RuntimeSpec, SourceType, record_manifest_filename_content_hashes,
+  record_manifest_owned_content_hash,
   rspack_sources::{BoxSource, RawStringSource, SourceExt},
 };
 use rspack_error::{Diagnostic, IntoTWithDiagnosticArray, Result, error};
@@ -24,6 +25,21 @@ mod asset_exports_dependency;
 pub use rspack_core::CanonicalizedDataUrlOption;
 
 pub const AUTO_PUBLIC_PATH_PLACEHOLDER: &str = "__RSPACK_PLUGIN_ASSET_AUTO_PUBLIC_PATH__";
+
+#[derive(Clone, Debug)]
+struct CodeGenerationDataFilenameContentHashes {
+  inner: Vec<String>,
+}
+
+impl CodeGenerationDataFilenameContentHashes {
+  fn new(inner: Vec<String>) -> Self {
+    Self { inner }
+  }
+
+  fn inner(&self) -> &[String] {
+    &self.inner
+  }
+}
 
 #[plugin]
 #[derive(Debug, Default)]
@@ -566,6 +582,7 @@ impl ParserAndGenerator for AssetParserAndGenerator {
               true,
             )
             .await?;
+          let filename_content_hashes = asset_info.content_hash.iter().cloned().collect();
 
           let asset_path = if import_mode.is_preserve() {
             generate_context
@@ -617,6 +634,11 @@ impl ParserAndGenerator for AssetParserAndGenerator {
                 PublicPath::Filename(p) => PublicPath::render_filename(compilation, p).await,
                 PublicPath::Auto => AUTO_PUBLIC_PATH_PLACEHOLDER.to_string(),
               },
+            ));
+          generate_context
+            .data
+            .insert(CodeGenerationDataFilenameContentHashes::new(
+              filename_content_hashes,
             ));
           generate_context
             .data
@@ -708,6 +730,7 @@ impl ParserAndGenerator for AssetParserAndGenerator {
               true,
             )
             .await?;
+          let filename_content_hashes = asset_info.content_hash.iter().cloned().collect();
 
           generate_context
             .data
@@ -720,6 +743,11 @@ impl ParserAndGenerator for AssetParserAndGenerator {
                 PublicPath::Filename(p) => PublicPath::render_filename(compilation, p).await,
                 PublicPath::Auto => AUTO_PUBLIC_PATH_PLACEHOLDER.to_string(),
               },
+            ));
+          generate_context
+            .data
+            .insert(CodeGenerationDataFilenameContentHashes::new(
+              filename_content_hashes,
             ));
 
           asset_info.set_source_filename(source_file_name);
@@ -833,6 +861,21 @@ async fn render_manifest(
           .inner()
           .to_owned()
           .with_asset_type(ManifestAssetType::Asset);
+        let mut hasher = RspackHash::from(&compilation.options.output);
+        hasher.write(&source.buffer());
+        let contenthash = hasher.digest(&compilation.options.output.hash_digest);
+        let contenthash = contenthash.rendered(compilation.options.output.hash_digest_length);
+        let mut real_content_hashes = AssetHashRecord::default();
+        record_manifest_owned_content_hash(&mut real_content_hashes, Some(contenthash));
+        if let Some(filename_content_hashes) = code_gen_result
+          .data
+          .get::<CodeGenerationDataFilenameContentHashes>()
+        {
+          record_manifest_filename_content_hashes(
+            &mut real_content_hashes,
+            filename_content_hashes.inner().iter(),
+          );
+        }
         RenderManifestEntry::new(
           source.clone(),
           asset_filename.to_owned(),
@@ -840,6 +883,7 @@ async fn render_manifest(
           asset_info,
           true,
         )
+        .with_real_content_hashes(real_content_hashes)
       });
 
       Ok(result)

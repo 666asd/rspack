@@ -9,12 +9,13 @@ use regex::Regex;
 use rspack_cacheable::cacheable;
 use rspack_collections::{IdentifierMap, IdentifierSet};
 use rspack_core::{
-  AssetInfo, Chunk, ChunkGraph, ChunkGroupUkey, ChunkKind, ChunkUkey, Compilation,
+  AssetHashRecord, AssetInfo, Chunk, ChunkGraph, ChunkGroupUkey, ChunkKind, ChunkUkey, Compilation,
   CompilationContentHash, CompilationParams, CompilationRenderManifest,
   CompilationRuntimeRequirementInTree, CompilerCompilation, DependencyType, Filename,
   ManifestAssetType, Module, ModuleGraph, ModuleIdentifier, ModuleType, NormalModuleFactoryParser,
   ParserAndGenerator, ParserOptions, PathData, Plugin, RenderManifestEntry, RuntimeGlobals,
-  RuntimeModule, SourceType, get_undo_path,
+  RuntimeModule, SourceType, get_undo_path, record_manifest_filename_content_hashes,
+  record_manifest_owned_content_hash,
   rspack_sources::{
     BoxSource, CachedSource, ConcatSource, RawStringSource, SourceExt, SourceMap, SourceMapSource,
     WithoutOriginalOptions,
@@ -678,6 +679,11 @@ async fn render_manifest(
 
   let mut asset_info =
     AssetInfo::default().with_asset_type(ManifestAssetType::Custom("extract-css".into()));
+  let rendered_content_hash = chunk.rendered_content_hash_by_source_type(
+    &compilation.chunk_hashes_artifact,
+    &SOURCE_TYPE[0],
+    compilation.options.output.hash_digest_length,
+  );
   let filename = compilation
     .get_path_with_info(
       filename_template,
@@ -688,11 +694,7 @@ async fn render_manifest(
           compilation.options.output.hash_digest_length,
         ))
         .chunk_name_optional(chunk.name_for_filename_template())
-        .content_hash_optional(chunk.rendered_content_hash_by_source_type(
-          &compilation.chunk_hashes_artifact,
-          &SOURCE_TYPE[0],
-          compilation.options.output.hash_digest_length,
-        )),
+        .content_hash_optional(rendered_content_hash),
       &mut asset_info,
     )
     .await?;
@@ -708,13 +710,13 @@ async fn render_manifest(
     .await?;
 
   diagnostics.extend(more_diagnostics);
-  manifest.push(RenderManifestEntry::new(
-    source,
-    filename,
-    false,
-    asset_info,
-    false,
-  ));
+  let mut real_content_hashes = AssetHashRecord::default();
+  record_manifest_owned_content_hash(&mut real_content_hashes, rendered_content_hash);
+  record_manifest_filename_content_hashes(&mut real_content_hashes, asset_info.content_hash.iter());
+  manifest.push(
+    RenderManifestEntry::new(source, filename, false, asset_info, false)
+      .with_real_content_hashes(real_content_hashes),
+  );
 
   Ok(())
 }
