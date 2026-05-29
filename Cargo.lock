@@ -3967,6 +3967,7 @@ dependencies = [
  "rspack_hook",
  "rspack_util",
  "rustc-hash",
+ "serde_json",
  "tracing",
 ]
 

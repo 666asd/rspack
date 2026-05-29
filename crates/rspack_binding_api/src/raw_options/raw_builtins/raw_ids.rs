@@ -6,7 +6,7 @@ use rspack_core::{CompilerId, Module};
 use rspack_hash::{HashDigest, HashFunction};
 use rspack_ids::{
   DeterministicModuleIdsPluginOptions, HashedModuleIdsPluginOptions, ModuleFilterFn,
-  OccurrenceChunkIdsPluginOptions,
+  OccurrenceChunkIdsPluginOptions, SyncModuleIdsPluginMode, SyncModuleIdsPluginOptions,
 };
 
 use crate::{
@@ -92,6 +92,31 @@ impl From<RawDeterministicModuleIdsPluginOptions> for DeterministicModuleIdsPlug
       salt: value.salt.map(|n| n as usize),
       fixed_length: value.fixed_length,
       fail_on_conflict: value.fail_on_conflict,
+    }
+  }
+}
+
+#[derive(Debug)]
+#[napi(object, object_to_js = false)]
+pub struct RawSyncModuleIdsPluginOptions {
+  pub path: String,
+  pub context: Option<String>,
+  pub test: Option<RawModuleFilter>,
+  pub mode: Option<String>,
+}
+
+impl From<RawSyncModuleIdsPluginOptions> for SyncModuleIdsPluginOptions {
+  fn from(value: RawSyncModuleIdsPluginOptions) -> Self {
+    Self {
+      path: value.path,
+      context: value.context,
+      test: value.test.map(into_module_filter),
+      mode: match value.mode.as_deref() {
+        Some("read") => SyncModuleIdsPluginMode::Read,
+        Some("create") => SyncModuleIdsPluginMode::Create,
+        Some("update") => SyncModuleIdsPluginMode::Update,
+        _ => SyncModuleIdsPluginMode::Merge,
+      },
     }
   }
 }

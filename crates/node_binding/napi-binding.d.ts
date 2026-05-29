@@ -566,6 +566,7 @@ export declare enum BuiltinPluginName {
   NamedModuleIdsPlugin = 'NamedModuleIdsPlugin',
   NaturalModuleIdsPlugin = 'NaturalModuleIdsPlugin',
   DeterministicModuleIdsPlugin = 'DeterministicModuleIdsPlugin',
+  SyncModuleIdsPlugin = 'SyncModuleIdsPlugin',
   HashedModuleIdsPlugin = 'HashedModuleIdsPlugin',
   NaturalChunkIdsPlugin = 'NaturalChunkIdsPlugin',
   NamedChunkIdsPlugin = 'NamedChunkIdsPlugin',
@@ -3080,6 +3081,13 @@ export interface RawSwcJsMinimizerRspackPluginOptions {
   exclude?: string | RegExp | (string | RegExp)[]
   extractComments?: RawExtractComments
   minimizerOptions: RawSwcJsMinimizerOptions
+}
+
+export interface RawSyncModuleIdsPluginOptions {
+  path: string
+  context?: string
+  test?: RawModuleFilter
+  mode?: string
 }
 
 export interface RawToOptions {

@@ -2,6 +2,8 @@ mod deterministic_module_ids_plugin;
 pub use deterministic_module_ids_plugin::*;
 mod hashed_module_ids_plugin;
 pub use hashed_module_ids_plugin::*;
+mod sync_module_ids_plugin;
+pub use sync_module_ids_plugin::*;
 mod named_module_ids_plugin;
 pub use named_module_ids_plugin::*;
 pub mod id_helpers;

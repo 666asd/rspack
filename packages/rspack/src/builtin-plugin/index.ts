@@ -20,6 +20,7 @@ export * from './DataUriPlugin';
 export * from './DefinePlugin';
 export * from './DeterministicChunkIdsPlugin';
 export * from './DeterministicModuleIdsPlugin';
+export * from './SyncModuleIdsPlugin';
 export * from './DllEntryPlugin';
 export * from './DllReferenceAgencyPlugin';
 export * from './DynamicEntryPlugin';

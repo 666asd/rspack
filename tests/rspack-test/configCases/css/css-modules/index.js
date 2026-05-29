@@ -6,7 +6,18 @@ it("should allow to create css modules", async () => {
 
 	const fs = __non_webpack_require__("fs");
 	const path = __non_webpack_require__("path");
-	const cssOutputFilename = prod ? "142.bundle1.css" : "use-style_js.bundle0.css";
+	let cssOutputFilename;
+	if (prod) {
+		const files = fs.readdirSync(__dirname);
+		cssOutputFilename = files.find((f) => /^\d+\.bundle1\.css$/.test(f));
+		if (!cssOutputFilename) {
+			throw new Error(
+				`No production CSS chunk matching /^\\d+\\.bundle1\\.css$/ found in ${__dirname}. Files: ${files.join(", ")}`
+			);
+		}
+	} else {
+		cssOutputFilename = "use-style_js.bundle0.css";
+	}
 
 	const cssContent = fs.readFileSync(
 		path.join(__dirname, cssOutputFilename),

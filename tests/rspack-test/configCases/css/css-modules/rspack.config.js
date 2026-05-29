@@ -12,6 +12,14 @@ module.exports = (env, { testPath }) => [
     module: {
       rules: [
         {
+          test: /\.module\.css$/i,
+          type: 'css/module',
+        },
+        {
+          test: /\.modules\.css$/i,
+          type: 'css/module',
+        },
+        {
           test: /\.my-css$/i,
           type: 'css/auto',
         },
@@ -35,6 +43,14 @@ module.exports = (env, { testPath }) => [
 
     module: {
       rules: [
+        {
+          test: /\.module\.css$/i,
+          type: 'css/module',
+        },
+        {
+          test: /\.modules\.css$/i,
+          type: 'css/module',
+        },
         {
           test: /\.my-css$/i,
           type: 'css/auto',
