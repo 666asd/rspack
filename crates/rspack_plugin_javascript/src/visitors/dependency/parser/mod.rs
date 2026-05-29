@@ -15,7 +15,7 @@ use std::{
 };
 
 use bitflags::bitflags;
-pub use call_hooks_name::CallHooksName;
+pub use call_hooks_name::{CallHooksName, ParserHookName};
 use rspack_cacheable::{
   cacheable,
   with::{AsCacheable, AsOption, AsPreset, AsVec},
@@ -1148,7 +1148,7 @@ impl<'parser> JavascriptParser<'parser> {
     if !ident
       .sym
       .call_hooks_name(self, |parser, for_name| {
-        drive.pattern(parser, ident, for_name)
+        drive.pattern(parser, ident, for_name.as_str())
       })
       .unwrap_or_default()
     {
@@ -1454,7 +1454,12 @@ impl JavascriptParser<'_> {
         let drive = self.plugin_drive.clone();
         name
           .call_hooks_name(self, |parser, name| {
-            drive.evaluate_identifier(parser, name, ident.span.real_lo(), ident.span.real_hi())
+            drive.evaluate_identifier(
+              parser,
+              name.as_str(),
+              ident.span.real_lo(),
+              ident.span.real_hi(),
+            )
           })
           .or_else(|| {
             let info = self.get_variable_info(name);

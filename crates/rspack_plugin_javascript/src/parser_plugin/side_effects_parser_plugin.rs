@@ -251,7 +251,7 @@ fn collect_defined_configured_side_effects_free(
     .iter()
     .filter_map(|name| {
       let atom = Atom::from(name.as_str());
-      acceptable.contains(&atom).then_some(atom)
+      acceptable.get(&atom).cloned()
     })
     .collect()
 }
@@ -698,7 +698,7 @@ impl JavascriptParserPlugin for SideEffectsParserPlugin {
         } else {
           // record all potential pure callee
           for (callee, span) in callees {
-            if let Some(deferred_check) = try_extract_deferred_check(parser, callee, span) {
+            if let Some(deferred_check) = try_extract_deferred_check(parser, &callee, span) {
               parser
                 .build_info
                 .deferred_pure_checks
@@ -735,7 +735,7 @@ impl JavascriptParserPlugin for SideEffectsParserPlugin {
           ));
         }
         for (callee, span) in callees {
-          if let Some(deferred_check) = try_extract_deferred_check(parser, callee, span) {
+          if let Some(deferred_check) = try_extract_deferred_check(parser, &callee, span) {
             parser
               .build_info
               .deferred_pure_checks
@@ -935,7 +935,7 @@ fn resolve_explicit_side_effects_free_callee(
 
   // For non-imports the deferred path doesn't apply at all, so we skip the
   // user-config lookup and fall straight through to Direct/Invalid.
-  if try_extract_deferred_check(parser, ident.clone(), span).is_some() {
+  if try_extract_deferred_check(parser, ident, span).is_some() {
     // When the user explicitly listed this name in `pureFunctions`, trust the
     // assertion at the call site instead of deferring to the import target.
     // This lets users mark imported helpers (e.g. `import { cva } from 'cva'`)
@@ -959,10 +959,10 @@ fn resolve_explicit_side_effects_free_callee(
 
 fn try_extract_deferred_check(
   parser: &mut JavascriptParser,
-  ident: Atom,
+  ident: &Atom,
   span: Span,
 ) -> Option<DeferredPureCheck> {
-  let info = parser.get_variable_info(&ident)?;
+  let info = parser.get_variable_info(ident)?;
 
   let tag_info_id = info.tag_info?;
   let tag_info = parser.definitions_db.expect_get_tag_info(tag_info_id);
@@ -1300,7 +1300,7 @@ impl SideEffectsParserPlugin {
 
     if parser.side_effects_item.is_none() {
       for (callee, span) in callees {
-        if let Some(deferred_check) = try_extract_deferred_check(parser, callee, span) {
+        if let Some(deferred_check) = try_extract_deferred_check(parser, &callee, span) {
           parser
             .build_info
             .deferred_pure_checks

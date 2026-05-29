@@ -10,7 +10,10 @@ use swc_core::{
 };
 
 use super::{super::JavascriptParserPlugin, ProvideValue, VALUE_DEP_PREFIX};
-use crate::{dependency::ProvideDependency, visitors::JavascriptParser};
+use crate::{
+  dependency::ProvideDependency,
+  visitors::{JavascriptParser, ParserHookName},
+};
 
 const SOURCE_DOT: &str = r#"."#;
 const MODULE_DOT: &str = r#"_dot_"#;
@@ -63,8 +66,8 @@ impl ProvideParserPlugin {
 
 #[rspack_macros::implemented_javascript_parser_hooks]
 impl JavascriptParserPlugin for ProvideParserPlugin {
-  fn can_rename(&self, _parser: &mut JavascriptParser, str: &str) -> Option<bool> {
-    self.names.contains(str).then_some(true)
+  fn can_rename(&self, _parser: &mut JavascriptParser, name: ParserHookName<'_>) -> Option<bool> {
+    self.names.contains(name.as_str()).then_some(true)
   }
 
   fn call(

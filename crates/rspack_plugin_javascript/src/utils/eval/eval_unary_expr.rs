@@ -21,7 +21,7 @@ fn eval_typeof<'a>(
       parser
         .plugin_drive
         .clone()
-        .evaluate_typeof(parser, expr, for_name)
+        .evaluate_typeof(parser, expr, for_name.as_str())
     })
   {
     return Some(res);
@@ -31,7 +31,7 @@ fn eval_typeof<'a>(
         parser
           .plugin_drive
           .clone()
-          .evaluate_typeof(parser, expr, for_name)
+          .evaluate_typeof(parser, expr, for_name.as_str())
       })
     })
   {
@@ -41,7 +41,7 @@ fn eval_typeof<'a>(
       parser
         .plugin_drive
         .clone()
-        .evaluate_typeof(parser, expr, for_name)
+        .evaluate_typeof(parser, expr, for_name.as_str())
     })
   {
     return Some(res);
@@ -50,7 +50,7 @@ fn eval_typeof<'a>(
       parser
         .plugin_drive
         .clone()
-        .evaluate_typeof(parser, expr, for_name)
+        .evaluate_typeof(parser, expr, for_name.as_str())
     })
   {
     return Some(res);

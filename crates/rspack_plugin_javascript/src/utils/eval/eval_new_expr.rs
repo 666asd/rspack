@@ -1,5 +1,5 @@
 use rspack_util::SpanExt;
-use swc_core::ecma::ast::NewExpr;
+use swc_core::{atoms::atom, ecma::ast::NewExpr};
 
 use super::BasicEvaluatedExpression;
 use crate::{utils::eval, visitors::JavascriptParser};
@@ -10,7 +10,7 @@ pub fn eval_new_expression<'a>(
   expr: &'a NewExpr,
 ) -> Option<BasicEvaluatedExpression<'a>> {
   let ident = expr.callee.as_ident()?;
-  if ident.sym.as_str() != "RegExp" {
+  if ident.sym != atom!("RegExp") {
     // FIXME: call hooks
     return None;
   }

@@ -1,6 +1,12 @@
 [workspace]
+exclude  = ["patches/rust/hstr", "patches/rust/swc_atoms"]
 members  = ["crates/*", "xtask/benchmark", "xtask"]
-resolver = "2"                                      # See https://doc.rust-lang.org/cargo/reference/resolver.html#feature-resolver-version-2
+resolver = "2"                                             # See https://doc.rust-lang.org/cargo/reference/resolver.html#feature-resolver-version-2
+
+[patch.crates-io]
+# Backport swc-project/swc#11902 Atom equality inlining while swc_core is pinned to 66.x.
+hstr      = { path = "patches/rust/hstr" }
+swc_atoms = { path = "patches/rust/swc_atoms" }
 
 [workspace.package]
 authors = ["Rspack Teams"]

@@ -46,6 +46,8 @@ rg -n 'Atom::from|Atom::new|atom!\(|lazy_atom!|FxHash(Map|Set)<Atom|FxIndex(Map|
 ## Preferred Fixes
 
 - Reuse existing AST atoms. Prefer cloning/passing the original `Atom` over `Atom::from(atom.as_str())`, `Atom::from(name.clone())`, or `Atom::new(name)`.
+- Preserve the original symbolic representation and compare like with like. If a hot value is already an `Atom`, compare it with another `Atom` such as `name == atom!("literal")` instead of converting through `as_str()`. Our parser microbenchmarks with the SWC atom equality inlining optimization showed exact `Atom == Atom` literal filters are faster than `atom.as_str() == "literal"` because they keep the raw-handle/inline-atom fast path available.
+- Use `as_str()` equality only when the semantics truly require text equivalence across different sources, or when the caller only has borrowed text and creating an `Atom` would be extra work. If identifier-only semantics are acceptable, prefer exact `Atom == Atom`; if member-chain semantics are needed, keep the borrowed `&str` comparison.
 - For cross-thread work, create atoms once and move/clone the handles into workers. If workers must recreate the same process-wide text independently, consider `Ustr`/`Identifier` instead of `Atom`.
 - For Rspack-wide keys, prefer existing `Identifier`, `IdentifierMap`, `IdentifierSet`, `Ustr`, `UstrMap`, or `UstrSet`.
 - For generated-name collision loops, keep a `String` scratch value until the candidate is selected when possible. If membership checks dominate, maintain a parallel cheaper key set rather than interning every failed candidate.

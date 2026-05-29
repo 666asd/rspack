@@ -14,7 +14,7 @@ use crate::{
   JavascriptParserPlugin,
   define_plugin::walk_data::DefineRecord,
   utils::eval::{BasicEvaluatedExpression, evaluate_to_string},
-  visitors::{AllowedMemberTypes, JavascriptParser, MemberExpressionInfo},
+  visitors::{AllowedMemberTypes, JavascriptParser, MemberExpressionInfo, ParserHookName},
 };
 
 pub struct DefineParserPlugin {
@@ -53,9 +53,10 @@ impl DefineParserPlugin {
 
 #[rspack_macros::implemented_javascript_parser_hooks]
 impl JavascriptParserPlugin for DefineParserPlugin {
-  fn can_rename(&self, parser: &mut JavascriptParser, str: &str) -> Option<bool> {
-    if let Some(first_key) = self.walk_data.can_rename.get(str) {
-      self.add_value_dependency(parser, str);
+  fn can_rename(&self, parser: &mut JavascriptParser, name: ParserHookName<'_>) -> Option<bool> {
+    let name = name.as_str();
+    if let Some(first_key) = self.walk_data.can_rename.get(name) {
+      self.add_value_dependency(parser, name);
       if let Some(first_key) = first_key
         && let Some(info) = parser.get_variable_info(&first_key.as_ref().into())
         && !info.is_free()

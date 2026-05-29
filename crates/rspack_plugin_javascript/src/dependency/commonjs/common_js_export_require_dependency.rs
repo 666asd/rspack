@@ -139,7 +139,7 @@ impl CommonJsExportRequireDependency {
           continue;
         }
         if let Some(name) = name {
-          if name == "__esModule" && is_namespace_import {
+          if name == &atom!("__esModule") && is_namespace_import {
             exports.insert(name.to_owned());
           } else if let Some(imported_exports_info) = &imported_exports_info {
             let imported_export_info = imported_exports_info.get_read_only_export_info(name);

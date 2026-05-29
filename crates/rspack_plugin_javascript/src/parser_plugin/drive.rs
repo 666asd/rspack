@@ -14,7 +14,7 @@ use crate::{
   visitors::{
     ClassDeclOrExpr, DestructuringAssignmentProperty, ExportDefaultDeclaration,
     ExportDefaultExpression, ExportImport, ExportLocal, ExportedVariableInfo, JavascriptParser,
-    Statement, VariableDeclaration,
+    ParserHookName, Statement, VariableDeclaration,
   },
 };
 
@@ -662,9 +662,9 @@ impl JavascriptParserPlugin for JavaScriptParserPluginDrive {
     None
   }
 
-  fn can_rename(&self, parser: &mut JavascriptParser, str: &str) -> Option<bool> {
+  fn can_rename(&self, parser: &mut JavascriptParser, name: ParserHookName<'_>) -> Option<bool> {
     for plugin in self.plugins_for(JavascriptParserPluginHook::CanRename) {
-      let res = plugin.can_rename(parser, str);
+      let res = plugin.can_rename(parser, name);
       // `SyncBailHook`
       if res.is_some() {
         return res;
@@ -673,9 +673,14 @@ impl JavascriptParserPlugin for JavaScriptParserPluginDrive {
     None
   }
 
-  fn rename(&self, parser: &mut JavascriptParser, expr: &Expr, str: &str) -> Option<bool> {
+  fn rename(
+    &self,
+    parser: &mut JavascriptParser,
+    expr: &Expr,
+    name: ParserHookName<'_>,
+  ) -> Option<bool> {
     for plugin in self.plugins_for(JavascriptParserPluginHook::Rename) {
-      let res = plugin.rename(parser, expr, str);
+      let res = plugin.rename(parser, expr, name);
       // `SyncBailHook`
       if res.is_some() {
         return res;

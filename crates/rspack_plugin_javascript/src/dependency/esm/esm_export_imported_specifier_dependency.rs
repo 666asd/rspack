@@ -1053,7 +1053,7 @@ impl ESMExportImportedSpecifierDependency {
         let Some(name) = export_info.name() else {
           continue;
         };
-        if name == "default" {
+        if name == &atom!("default") {
           continue;
         }
         if self.active_exports(module_graph).contains(name) {
@@ -1605,7 +1605,7 @@ fn determine_export_assignments(
         // SAFETY: This is safe because a real export can't export empty string
         let export_info_name = export_info.name().expect("export name is empty");
         if matches!(export_info.provided(), Some(ExportProvided::Provided))
-          && export_info_name != "default"
+          && export_info_name != &atom!("default")
         {
           names.insert(export_info_name.clone());
         }

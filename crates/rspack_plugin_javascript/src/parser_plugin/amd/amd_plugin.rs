@@ -1,6 +1,7 @@
 use rspack_core::{ConstDependency, RuntimeGlobals, RuntimeRequirementsDependency};
 use rspack_util::SpanExt;
 use swc_core::{
+  atoms::atom,
   common::Spanned,
   ecma::ast::{CallExpr, Expr, MemberExpr, UnaryExpr},
 };
@@ -8,7 +9,7 @@ use swc_core::{
 use crate::{
   JavascriptParserPlugin,
   utils::eval::{BasicEvaluatedExpression, evaluate_to_identifier, evaluate_to_string},
-  visitors::JavascriptParser,
+  visitors::{JavascriptParser, ParserHookName},
 };
 
 pub struct AMDParserPlugin;
@@ -169,15 +170,24 @@ impl JavascriptParserPlugin for AMDParserPlugin {
     None
   }
 
-  fn can_rename(&self, _parser: &mut JavascriptParser, for_name: &str) -> Option<bool> {
-    if for_name == DEFINE {
+  fn can_rename(
+    &self,
+    _parser: &mut JavascriptParser,
+    for_name: ParserHookName<'_>,
+  ) -> Option<bool> {
+    if for_name.is_identifier(&atom!(DEFINE)) {
       return Some(true);
     }
     None
   }
 
-  fn rename(&self, parser: &mut JavascriptParser, expr: &Expr, for_name: &str) -> Option<bool> {
-    if for_name == DEFINE {
+  fn rename(
+    &self,
+    parser: &mut JavascriptParser,
+    expr: &Expr,
+    for_name: ParserHookName<'_>,
+  ) -> Option<bool> {
+    if for_name.is_identifier(&atom!(DEFINE)) {
       parser.add_presentational_dependency(Box::new(RuntimeRequirementsDependency::new(
         expr.span().into(),
         RuntimeGlobals::AMD_DEFINE,

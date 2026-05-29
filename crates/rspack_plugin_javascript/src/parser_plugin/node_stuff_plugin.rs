@@ -5,14 +5,14 @@ use rspack_core::{
 use rspack_error::{Diagnostic, cyan, yellow};
 use rspack_util::SpanExt;
 use sugar_path::SugarPath;
-use swc_core::{common::Spanned, ecma::ast::Expr};
+use swc_core::{atoms::atom, common::Spanned, ecma::ast::Expr};
 use url::Url;
 
 use crate::{
   JavascriptParserPlugin,
   dependency::ExternalModuleDependency,
   utils::eval,
-  visitors::{DestructuringAssignmentProperty, JavascriptParser},
+  visitors::{DestructuringAssignmentProperty, JavascriptParser, ParserHookName},
 };
 
 const DIRNAME: &str = "__dirname";
@@ -533,14 +533,19 @@ impl JavascriptParserPlugin for NodeStuffPlugin {
     None
   }
 
-  fn rename(&self, parser: &mut JavascriptParser, expr: &Expr, for_name: &str) -> Option<bool> {
+  fn rename(
+    &self,
+    parser: &mut JavascriptParser,
+    expr: &Expr,
+    for_name: ParserHookName<'_>,
+  ) -> Option<bool> {
     // Skip CJS handling if not enabled
     if !self.handle_cjs {
       return None;
     }
 
     let node_option = parser.compiler_options.node.as_ref()?;
-    if for_name == GLOBAL
+    if for_name.is_identifier(&atom!(GLOBAL))
       && matches!(
         node_option.global,
         NodeGlobalOption::True | NodeGlobalOption::Warn

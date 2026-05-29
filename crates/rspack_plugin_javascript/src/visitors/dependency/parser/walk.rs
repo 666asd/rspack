@@ -20,8 +20,8 @@ use swc_core::{
 };
 
 use super::{
-  AllowedMemberTypes, CallHooksName, JavascriptParser, MemberExpressionInfo, RootName,
-  ScopeTerminated, TopLevelScope,
+  AllowedMemberTypes, CallHooksName, JavascriptParser, MemberExpressionInfo, ParserHookName,
+  RootName, ScopeTerminated, TopLevelScope,
   estree::{ClassDeclOrExpr, MaybeNamedClassDecl, MaybeNamedFunctionDecl, Statement},
 };
 use crate::{
@@ -624,11 +624,11 @@ impl JavascriptParser<'_> {
         && let Some(renamed_identifier) = self.get_rename_identifier(init)
         && let Some(ident) = declarator.name.as_ident()
         && drive
-          .can_rename(self, &renamed_identifier)
+          .can_rename(self, ParserHookName::Identifier(&renamed_identifier))
           .unwrap_or_default()
       {
         if !drive
-          .rename(self, init, &renamed_identifier)
+          .rename(self, init, ParserHookName::Identifier(&renamed_identifier))
           .unwrap_or_default()
         {
           self.set_variable(
@@ -719,7 +719,9 @@ impl JavascriptParser<'_> {
       };
       if expr_info
         .name
-        .call_hooks_name(self, |this, for_name| drive.r#typeof(this, expr, for_name))
+        .call_hooks_name(self, |this, for_name| {
+          drive.r#typeof(this, expr, for_name.as_str())
+        })
         .unwrap_or_default()
       {
         return;
@@ -731,7 +733,9 @@ impl JavascriptParser<'_> {
 
   fn walk_this_expression(&mut self, expr: &ThisExpr) {
     let drive = self.plugin_drive.clone();
-    "this".call_hooks_name(self, |this, for_name| drive.this(this, expr, for_name));
+    "this".call_hooks_name(self, |this, for_name| {
+      drive.this(this, expr, for_name.as_str())
+    });
   }
 
   pub(crate) fn walk_template_expression(&mut self, expr: &Tpl) {
@@ -973,14 +977,14 @@ impl JavascriptParser<'_> {
           parser
             .plugin_drive
             .clone()
-            .new_expression(parser, expr, for_name)
+            .new_expression(parser, expr, for_name.as_str())
         })
       } else {
         info.name.call_hooks_name(self, |parser, for_name| {
           parser
             .plugin_drive
             .clone()
-            .new_expression(parser, expr, for_name)
+            .new_expression(parser, expr, for_name.as_str())
         })
       };
       if result.unwrap_or_default() {
@@ -1050,7 +1054,9 @@ impl JavascriptParser<'_> {
         MemberExpressionInfo::Expression(expr_info) => {
           if expr_info
             .name
-            .call_hooks_name(self, |this, for_name| drive.member(this, expr, for_name))
+            .call_hooks_name(self, |this, for_name| {
+              drive.member(this, expr, for_name.as_str())
+            })
             .unwrap_or_default()
           {
             return;
@@ -1061,7 +1067,7 @@ impl JavascriptParser<'_> {
               drive.member_chain(
                 this,
                 expr,
-                for_name,
+                for_name.as_str(),
                 &expr_info.members,
                 &expr_info.members_optionals,
                 &expr_info.member_ranges,
@@ -1091,7 +1097,7 @@ impl JavascriptParser<'_> {
                 expr_info.call,
                 &expr_info.members,
                 &expr_info.member_ranges,
-                for_name,
+                for_name.as_str(),
               )
             })
             .unwrap_or_default()
@@ -1136,10 +1142,7 @@ impl JavascriptParser<'_> {
     {
       let origin = name.len();
       let name = &name[0..origin - 1 - len];
-      if name
-        .call_hooks_name(self, |this, for_name| drive.member(this, member, for_name))
-        .unwrap_or_default()
-      {
+      if drive.member(self, member, name).unwrap_or_default() {
         return;
       }
       self.walk_member_expression_with_expression_name(member, name, on_unhandled);
@@ -1357,7 +1360,7 @@ impl JavascriptParser<'_> {
                     expr_info.call,
                     &expr_info.members,
                     &expr_info.member_ranges,
-                    for_name,
+                    for_name.as_str(),
                   )
               })
               .unwrap_or_default()
@@ -1408,7 +1411,7 @@ impl JavascriptParser<'_> {
                 drive.call_member_chain(
                   parser,
                   expr,
-                  for_name,
+                  for_name.as_str(),
                   &members,
                   &members_optionals,
                   &member_ranges,
@@ -1538,7 +1541,7 @@ impl JavascriptParser<'_> {
   fn walk_identifier(&mut self, identifier: &Ident) {
     let drive = self.plugin_drive.clone();
     identifier.sym.call_hooks_name(self, |this, for_name| {
-      drive.identifier(this, identifier, for_name)
+      drive.identifier(this, identifier, for_name.as_str())
     });
   }
 
@@ -1575,7 +1578,9 @@ impl JavascriptParser<'_> {
         |this, ident| {
           if !ident
             .sym
-            .call_hooks_name(this, |this, for_name| drive.assign(this, expr, for_name))
+            .call_hooks_name(this, |this, for_name| {
+              drive.assign(this, expr, for_name.as_str())
+            })
             .unwrap_or_default()
           {
             // webpack use `walk_expression`, `walk_expression` just walk down the ast, so it's ok to use `walk_identifier`
@@ -1590,7 +1595,9 @@ impl JavascriptParser<'_> {
         |this: &mut JavascriptParser<'_>, ident| {
           if !ident
             .sym
-            .call_hooks_name(this, |this, for_name| drive.assign(this, expr, for_name))
+            .call_hooks_name(this, |this, for_name| {
+              drive.assign(this, expr, for_name.as_str())
+            })
             .unwrap_or_default()
           {
             this.define_variable(ident.sym.clone());
@@ -1604,7 +1611,7 @@ impl JavascriptParser<'_> {
         && expr_name
           .root_info
           .call_hooks_name(self, |parser, for_name| {
-            drive.assign_member_chain(parser, expr, &expr_name.members, for_name)
+            drive.assign_member_chain(parser, expr, &expr_name.members, for_name.as_str())
           })
           .unwrap_or_default()
       {

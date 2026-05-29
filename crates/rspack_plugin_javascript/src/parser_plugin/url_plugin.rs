@@ -4,6 +4,7 @@ use rspack_core::{
 };
 use rspack_util::SpanExt;
 use swc_core::{
+  atoms::atom,
   common::Spanned,
   ecma::{
     ast::{Expr, ExprOrSpread, MemberExpr, MetaPropKind, NewExpr},
@@ -17,7 +18,9 @@ use crate::{
   InnerGraphParserPlugin,
   dependency::{URLContextDependency, URLDependency},
   magic_comment::try_extract_magic_comment,
-  visitors::{ExprRef, JavascriptParser, context_reg_exp, create_context_dependency},
+  visitors::{
+    ExprRef, JavascriptParser, ParserHookName, context_reg_exp, create_context_dependency,
+  },
 };
 
 #[derive(Default)]
@@ -104,8 +107,12 @@ pub struct URLPlugin {
 
 #[rspack_macros::implemented_javascript_parser_hooks]
 impl JavascriptParserPlugin for URLPlugin {
-  fn can_rename(&self, _parser: &mut JavascriptParser, for_name: &str) -> Option<bool> {
-    (for_name == "URL").then_some(true)
+  fn can_rename(
+    &self,
+    _parser: &mut JavascriptParser,
+    for_name: ParserHookName<'_>,
+  ) -> Option<bool> {
+    for_name.is_identifier(&atom!("URL")).then_some(true)
   }
 
   fn new_expression(

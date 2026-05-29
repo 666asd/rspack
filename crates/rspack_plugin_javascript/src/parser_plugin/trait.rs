@@ -170,7 +170,7 @@ use crate::{
   visitors::{
     ClassDeclOrExpr, DestructuringAssignmentProperty, ExportDefaultDeclaration,
     ExportDefaultExpression, ExportImport, ExportLocal, ExportedVariableInfo, JavascriptParser,
-    Statement, VariableDeclaration,
+    ParserHookName, Statement, VariableDeclaration,
   },
 };
 
@@ -235,11 +235,16 @@ Please annotate your `impl JavascriptParserPlugin for ...` block with `#[rspack_
   /// The return value will have no effect.
   fn top_level_for_of_await_stmt(&self, _parser: &mut JavascriptParser, _stmt: &ForOfStmt) {}
 
-  fn can_rename(&self, _parser: &mut JavascriptParser, _str: &str) -> Option<bool> {
+  fn can_rename(&self, _parser: &mut JavascriptParser, _name: ParserHookName<'_>) -> Option<bool> {
     None
   }
 
-  fn rename(&self, _parser: &mut JavascriptParser, _expr: &Expr, _str: &str) -> Option<bool> {
+  fn rename(
+    &self,
+    _parser: &mut JavascriptParser,
+    _expr: &Expr,
+    _name: ParserHookName<'_>,
+  ) -> Option<bool> {
     None
   }
 

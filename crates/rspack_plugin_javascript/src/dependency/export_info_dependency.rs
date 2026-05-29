@@ -7,7 +7,7 @@ use rspack_core::{
   DependencyCodeGeneration, DependencyTemplate, DependencyTemplateType, ExportProvided,
   TemplateContext, TemplateReplaceSource, UsageState, UsedExports, UsedName,
 };
-use swc_core::ecma::atoms::Atom;
+use swc_core::atoms::{Atom, atom};
 
 #[cacheable]
 #[derive(Debug, Clone)]
@@ -50,7 +50,7 @@ impl ExportInfoDependency {
     let prop = &self.property;
     let module_identifier = module.identifier();
 
-    if export_name.is_empty() && prop == "usedExports" {
+    if export_name.is_empty() && prop == &atom!("usedExports") {
       let exports_info = compilation
         .exports_info_artifact
         .get_exports_info_data(&module_identifier);
@@ -75,41 +75,37 @@ impl ExportInfoDependency {
       .exports_info_artifact
       .get_exports_info_data(&module_identifier);
 
-    match prop.to_string().as_str() {
-      "canMangle" => {
-        let can_mangle = if let Some(export_info) = exports_info
-          .get_read_only_export_info_recursive(&compilation.exports_info_artifact, export_name)
-        {
-          export_info.can_mangle()
-        } else {
-          exports_info.other_exports_info().can_mangle()
-        };
-        can_mangle.map(|v| v.to_string())
-      }
-      "canInline" => {
-        let used_name =
-          exports_info.get_used_name(&compilation.exports_info_artifact, *runtime, export_name);
-        Some(matches!(used_name, Some(UsedName::Inlined(_))).to_string())
-      }
-      "used" => {
-        let used = exports_info.get_used(&compilation.exports_info_artifact, export_name, *runtime);
-        Some((!matches!(used, UsageState::Unused)).to_string())
-      }
-      "useInfo" => {
-        let used_state =
-          exports_info.get_used(&compilation.exports_info_artifact, export_name, *runtime);
-        Some(
-          (match used_state {
-            UsageState::Used => "true",
-            UsageState::OnlyPropertiesUsed => "true",
-            UsageState::Unused => "false",
-            UsageState::NoInfo => "undefined",
-            UsageState::Unknown => "null",
-          })
-          .to_owned(),
-        )
-      }
-      "provideInfo" => exports_info
+    if prop == &atom!("canMangle") {
+      let can_mangle = if let Some(export_info) = exports_info
+        .get_read_only_export_info_recursive(&compilation.exports_info_artifact, export_name)
+      {
+        export_info.can_mangle()
+      } else {
+        exports_info.other_exports_info().can_mangle()
+      };
+      can_mangle.map(|v| v.to_string())
+    } else if prop == &atom!("canInline") {
+      let used_name =
+        exports_info.get_used_name(&compilation.exports_info_artifact, *runtime, export_name);
+      Some(matches!(used_name, Some(UsedName::Inlined(_))).to_string())
+    } else if prop == &atom!("used") {
+      let used = exports_info.get_used(&compilation.exports_info_artifact, export_name, *runtime);
+      Some((!matches!(used, UsageState::Unused)).to_string())
+    } else if prop == &atom!("useInfo") {
+      let used_state =
+        exports_info.get_used(&compilation.exports_info_artifact, export_name, *runtime);
+      Some(
+        (match used_state {
+          UsageState::Used => "true",
+          UsageState::OnlyPropertiesUsed => "true",
+          UsageState::Unused => "false",
+          UsageState::NoInfo => "undefined",
+          UsageState::Unknown => "null",
+        })
+        .to_owned(),
+      )
+    } else if prop == &atom!("provideInfo") {
+      exports_info
         .is_export_provided(&compilation.exports_info_artifact, export_name)
         .map(|provided| {
           (match provided {
@@ -118,8 +114,9 @@ impl ExportInfoDependency {
             ExportProvided::Unknown => "null",
           })
           .to_owned()
-        }),
-      _ => None,
+        })
+    } else {
+      None
     }
   }
 }

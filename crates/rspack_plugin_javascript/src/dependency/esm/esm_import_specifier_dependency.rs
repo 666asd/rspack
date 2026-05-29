@@ -16,7 +16,7 @@ use rspack_core::{
 };
 use rspack_error::Diagnostic;
 use rspack_util::{ext::DynHash, json_stringify_str};
-use swc_core::ecma::atoms::Atom;
+use swc_core::atoms::{Atom, atom};
 
 use super::{
   create_resource_identifier_for_esm_dependency,
@@ -298,7 +298,7 @@ impl Dependency for ESMImportSpecifierDependency {
     }
 
     if let Some(id) = ids.first()
-      && id == "default"
+      && id == &atom!("default")
     {
       match exports_type {
         ExportsType::DefaultOnly | ExportsType::DefaultWithNamed => {
@@ -547,9 +547,10 @@ impl ESMImportSpecifierDependencyTemplate {
     let first = ids
       .first()
       .expect("Empty ids is not possible for evaluated in operator esm import specifier");
+    let default_atom = atom!("default");
     let value = match exports_type {
       ExportsType::DefaultWithNamed => {
-        if first == "default" {
+        if first == &default_atom {
           if ids.len() == 1 {
             Some(ExportProvided::Provided)
           } else {
@@ -560,7 +561,7 @@ impl ESMImportSpecifierDependencyTemplate {
         }
       }
       ExportsType::Namespace => {
-        if first == "__esModule" {
+        if first == &atom!("__esModule") {
           if ids.len() == 1 {
             Some(ExportProvided::Provided)
           } else {
@@ -571,7 +572,7 @@ impl ESMImportSpecifierDependencyTemplate {
         }
       }
       ExportsType::Dynamic => {
-        if first != "default" {
+        if first != &default_atom {
           exports_info.is_export_provided(&compilation.exports_info_artifact, ids)
         } else {
           None
@@ -588,7 +589,7 @@ impl ESMImportSpecifierDependencyTemplate {
       }
       _ => {
         let used_name_ids = if matches!(exports_type, ExportsType::DefaultWithNamed)
-          && first == "default"
+          && first == &default_atom
           && ids.len() > 1
         {
           &ids[1..]
@@ -686,7 +687,8 @@ impl DependencyTemplate for ESMImportSpecifierDependencyTemplate {
         return;
       };
 
-      if ids.first().is_some_and(|id| id == "default") {
+      let default_atom = atom!("default");
+      if ids.first().is_some_and(|id| id == &default_atom) {
         let self_module = module_graph
           .get_parent_module(&dep.id)
           .and_then(|id| module_graph.module_by_identifier(id))

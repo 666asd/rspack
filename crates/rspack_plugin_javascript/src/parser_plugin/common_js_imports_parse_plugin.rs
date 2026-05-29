@@ -5,7 +5,7 @@ use rspack_core::{
 use rspack_error::{Diagnostic, Severity};
 use rspack_util::SpanExt;
 use swc_core::{
-  atoms::Atom,
+  atoms::{Atom, atom},
   common::{Span, Spanned},
   ecma::ast::{
     AssignExpr, CallExpr, Callee, Expr, ExprOrSpread, Ident, MemberExpr, NewExpr, UnaryExpr,
@@ -23,9 +23,9 @@ use crate::{
   magic_comment::try_extract_magic_comment,
   utils::eval::{self, BasicEvaluatedExpression},
   visitors::{
-    CallHooksName, JavascriptParser, TagInfoData, VariableDeclaration, VariableDeclarationKind,
-    context_reg_exp, create_context_dependency, create_traceable_error, expr_name,
-    get_non_optional_part,
+    CallHooksName, JavascriptParser, ParserHookName, TagInfoData, VariableDeclaration,
+    VariableDeclarationKind, context_reg_exp, create_context_dependency, create_traceable_error,
+    expr_name, get_non_optional_part,
   },
 };
 
@@ -197,7 +197,7 @@ pub(crate) fn is_require_call_expr(parser: &mut JavascriptParser, call: &CallExp
     return ident
       .sym
       .call_hooks_name(parser, |_, for_name| {
-        (for_name == expr_name::REQUIRE).then_some(true)
+        for_name.is_identifier(&atom!("require")).then_some(true)
       })
       .unwrap_or_default();
   }
@@ -205,7 +205,9 @@ pub(crate) fn is_require_call_expr(parser: &mut JavascriptParser, call: &CallExp
   if let Some(member) = callee.as_member() {
     return member
       .call_hooks_name(parser, |_, for_name| {
-        (for_name == expr_name::MODULE_REQUIRE).then_some(true)
+        for_name
+          .is_member_chain(expr_name::MODULE_REQUIRE)
+          .then_some(true)
       })
       .unwrap_or_default();
   }
@@ -737,16 +739,25 @@ impl JavascriptParserPlugin for CommonJsImportsParserPlugin {
     Some(true)
   }
 
-  fn can_rename(&self, _parser: &mut JavascriptParser, for_name: &str) -> Option<bool> {
-    if for_name == expr_name::REQUIRE {
+  fn can_rename(
+    &self,
+    _parser: &mut JavascriptParser,
+    for_name: ParserHookName<'_>,
+  ) -> Option<bool> {
+    if for_name.is_identifier(&atom!("require")) {
       Some(true)
     } else {
       None
     }
   }
 
-  fn rename(&self, parser: &mut JavascriptParser, expr: &Expr, for_name: &str) -> Option<bool> {
-    if for_name == expr_name::REQUIRE {
+  fn rename(
+    &self,
+    parser: &mut JavascriptParser,
+    expr: &Expr,
+    for_name: ParserHookName<'_>,
+  ) -> Option<bool> {
+    if for_name.is_identifier(&atom!("require")) {
       if parser.javascript_options.require_alias.unwrap_or_default() {
         parser.add_presentational_dependency(Box::new(ConstDependency::new(
           expr.span().into(),
