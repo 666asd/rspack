@@ -54,7 +54,7 @@ pub struct ParserRuntimeRequirementsData {
 }
 
 static LEGACY_REQUIRE_REGEX: LazyLock<Regex> = LazyLock::new(|| {
-  Regex::new("__(?:rspack_require|webpack_require__)\\s*(!?\\.)")
+  Regex::new("__(?:rspack_require|webpack_require__)\\s*(?:!?\\.|\\()")
     .expect("should init `REQUIRE_FUNCTION_REGEX`")
 });
 

@@ -17,7 +17,7 @@ module.exports = [
     },
     plugins: [
       new DefinePlugin({
-        DEFINED_DEP: '__rspack_require(16)',
+        DEFINED_DEP: '__webpack_require__(16)',
       }),
     ],
   },
