@@ -2137,7 +2137,7 @@ checksum = "3640c1c38b8e4e43584d8df18be5fc6b0aa314ce6ebf51b53313d4306cca8e46"
 dependencies = [
  "hermit-abi 0.5.2",
  "libc",
- "windows-sys 0.60.2",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -2721,7 +2721,7 @@ version = "0.50.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7957b9740744892f114936ab4a57b3f487491bbeafaf8083688b16841a4240e5"
 dependencies = [
- "windows-sys 0.60.2",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -3923,7 +3923,6 @@ dependencies = [
  "rspack_error",
  "rspack_paths",
  "rspack_util",
- "simdutf8",
  "tokio",
  "tracing",
 ]
@@ -5633,7 +5632,7 @@ dependencies = [
  "cfg-if",
  "libc",
  "psm",
- "windows-sys 0.60.2",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -6694,8 +6693,9 @@ dependencies = [
 
 [[package]]
 name = "swc_experimental_ast_macros"
-version = "0.6.7"
-source = "git+https://github.com/hardfist/swc-experimental?rev=52fcd2501f2a173414aba1c696bc1bfcb56a7a7c#52fcd2501f2a173414aba1c696bc1bfcb56a7a7c"
+version = "0.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b84de9820debe553b4316c3b12860d6da49a0f4170af49d49496425b9be87d94"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -6705,7 +6705,8 @@ dependencies = [
 [[package]]
 name = "swc_experimental_ecma_ast"
 version = "0.6.7"
-source = "git+https://github.com/hardfist/swc-experimental?rev=52fcd2501f2a173414aba1c696bc1bfcb56a7a7c#52fcd2501f2a173414aba1c696bc1bfcb56a7a7c"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "078f89faf183e8af0817206ed39008c765e35c80a3656c0a0e1dab47f15bd947"
 dependencies = [
  "hashbrown 0.16.1",
  "num-bigint",
@@ -6718,7 +6719,8 @@ dependencies = [
 [[package]]
 name = "swc_experimental_ecma_parser"
 version = "0.6.7"
-source = "git+https://github.com/hardfist/swc-experimental?rev=52fcd2501f2a173414aba1c696bc1bfcb56a7a7c#52fcd2501f2a173414aba1c696bc1bfcb56a7a7c"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8beae6cf921cb8f0cef7433320aeb9cbf9ff877b7bc8bcd35c3a20b8f848c721"
 dependencies = [
  "bitflags 2.11.1",
  "either",
@@ -7080,7 +7082,7 @@ dependencies = [
  "getrandom 0.3.2",
  "once_cell",
  "rustix 1.0.8",
- "windows-sys 0.60.2",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]

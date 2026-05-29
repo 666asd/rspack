@@ -10,7 +10,7 @@ use rustc_hash::FxHashMap as HashMap;
 use crate::{
   MapOptions, SourceMap,
   decoder::MappingsDecoder,
-  encoder::{create_encoder, create_encoder_with_capacity},
+  encoder::create_encoder,
   linear_map::LinearMap,
   object_pool::ObjectPool,
   source::{Mapping, OriginalLocation},
@@ -23,10 +23,7 @@ pub fn get_map<'a>(
   chunks: &'a dyn Chunks,
   options: &MapOptions,
 ) -> Option<SourceMap> {
-  let mut mappings_encoder = create_encoder_with_capacity(
-    options.columns,
-    if options.columns { 16 * 1024 } else { 4096 },
-  );
+  let mut mappings_encoder = create_encoder(options.columns);
   let mut sources: Vec<String> = Vec::new();
   let mut sources_content: Vec<Arc<str>> = Vec::new();
   let mut names: Vec<String> = Vec::new();

@@ -1,6 +1,6 @@
 use crate::Mapping;
 
-const B64_CHARS: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+const B64_CHARS: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
 #[inline(always)]
 pub fn encode_vlq(out: &mut Vec<u8>, a: u32, b: u32) {
@@ -9,7 +9,7 @@ pub fn encode_vlq(out: &mut Vec<u8>, a: u32, b: u32) {
     return;
   }
 
-  let mut num = if a > b {
+  let mut num = if a >= b {
     (a - b) << 1
   } else {
     ((b - a) << 1) + 1
@@ -57,14 +57,10 @@ impl MappingsEncoder {
 }
 
 pub fn create_encoder(columns: bool) -> MappingsEncoder {
-  create_encoder_with_capacity(columns, if columns { 256 } else { 64 })
-}
-
-pub(crate) fn create_encoder_with_capacity(columns: bool, capacity: usize) -> MappingsEncoder {
   if columns {
-    MappingsEncoder::Full(FullMappingsEncoder::with_capacity(capacity))
+    MappingsEncoder::Full(FullMappingsEncoder::new())
   } else {
-    MappingsEncoder::LinesOnly(LinesOnlyMappingsEncoder::with_capacity(capacity))
+    MappingsEncoder::LinesOnly(LinesOnlyMappingsEncoder::new())
   }
 }
 
@@ -82,7 +78,7 @@ pub(crate) struct FullMappingsEncoder {
 }
 
 impl FullMappingsEncoder {
-  pub fn with_capacity(capacity: usize) -> Self {
+  pub fn new() -> Self {
     Self {
       current_line: 1,
       current_column: 0,
@@ -93,7 +89,7 @@ impl FullMappingsEncoder {
       active_mapping: false,
       active_name: false,
       initial: true,
-      mappings: Vec::with_capacity(capacity),
+      mappings: Default::default(),
     }
   }
 }
@@ -101,23 +97,24 @@ impl FullMappingsEncoder {
 impl FullMappingsEncoder {
   #[inline(always)]
   fn encode(&mut self, mapping: &Mapping) {
-    let original = mapping.original.as_ref();
     if self.active_mapping && self.current_line == mapping.generated_line {
       // A mapping is still active
-      if let Some(original) = original {
-        if original.source_index == self.current_source_index
+      if mapping.original.as_ref().is_some_and(|original| {
+        original.source_index == self.current_source_index
           && original.original_line == self.current_original_line
           && original.original_column == self.current_original_column
           && !self.active_name
           && original.name_index.is_none()
-        {
-          // avoid repeating the same original mapping
-          return;
-        }
+      }) {
+        // avoid repeating the same original mapping
+        return;
       }
-    } else if original.is_none() {
-      // No mapping is active: avoid writing unnecessary generated mappings
-      return;
+    } else {
+      // No mapping is active
+      if mapping.original.is_none() {
+        // avoid writing unnecessary generated mappings
+        return;
+      }
     }
 
     if self.current_line < mapping.generated_line {
@@ -138,7 +135,7 @@ impl FullMappingsEncoder {
       self.current_column,
     );
     self.current_column = mapping.generated_column;
-    if let Some(original) = original {
+    if let Some(original) = &mapping.original {
       self.active_mapping = true;
       if original.source_index == self.current_source_index {
         self.mappings.push(b'A');
@@ -201,13 +198,13 @@ pub(crate) struct LinesOnlyMappingsEncoder {
 }
 
 impl LinesOnlyMappingsEncoder {
-  pub fn with_capacity(capacity: usize) -> Self {
+  pub fn new() -> Self {
     Self {
       last_written_line: 0,
       current_line: 1,
       current_source_index: 0,
       current_original_line: 1,
-      mappings: Vec::with_capacity(capacity),
+      mappings: Default::default(),
     }
   }
 }

@@ -240,10 +240,6 @@ rspack_util                            = { version = "=0.100.5", path = "crates/
 rspack_watcher                         = { version = "=0.100.5", path = "crates/rspack_watcher", default-features = false }
 rspack_workspace                       = { version = "=0.100.5", path = "crates/rspack_workspace", default-features = false }
 
-[patch.crates-io]
-swc_experimental_ecma_ast    = { git = "https://github.com/hardfist/swc-experimental", rev = "52fcd2501f2a173414aba1c696bc1bfcb56a7a7c" }
-swc_experimental_ecma_parser = { git = "https://github.com/hardfist/swc-experimental", rev = "52fcd2501f2a173414aba1c696bc1bfcb56a7a7c" }
-
 
 [workspace.metadata.release]
 rate-limit = { existing-packages = 70, new-packages = 70 }
