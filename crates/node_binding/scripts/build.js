@@ -1,5 +1,14 @@
 const path = require("node:path");
-const { readFileSync, writeFileSync, renameSync } = require("node:fs");
+const { tmpdir } = require("node:os");
+const {
+	existsSync,
+	chmodSync,
+	mkdtempSync,
+	readFileSync,
+	renameSync,
+	symlinkSync,
+	writeFileSync
+} = require("node:fs");
 const { values, positionals } = require("node:util").parseArgs({
 	args: process.argv.slice(2),
 	options: {
@@ -14,6 +23,7 @@ const { values, positionals } = require("node:util").parseArgs({
 const { spawn, spawnSync } = require("node:child_process");
 
 const NAPI_BINDING_DTS = "napi-binding.d.ts"
+const SAFE_ICF_PROFILES = new Set(["release", "ci"]);
 const CARGO_SAFELY_EXIT_CODE = 0;
 
 const watch = process.argv.includes("--watch");
@@ -27,6 +37,144 @@ build().then((value) => {
 	console.error(err);
 	process.exit(1);
 });
+
+function addSafeIcfRustflags(rustflags, profile, target) {
+	if (!SAFE_ICF_PROFILES.has(profile)) {
+		return;
+	}
+
+	const normalizedTarget = target || hostRustTarget();
+
+	if (normalizedTarget.includes("wasm")) {
+		return;
+	}
+
+	if (normalizedTarget.includes("windows-msvc")) {
+		// MSVC's /OPT:ICF folds identical COMDAT functions.
+		rustflags.push("-Clink-arg=/OPT:ICF");
+		return;
+	}
+
+	if (normalizedTarget === "aarch64-apple-darwin") {
+		// --icf=safe for Mach-O requires lld; keep x64 macOS on the system linker.
+		// Some native dependencies still pass clang-driver-style -Wl arguments, so
+		// route rust-lld through a small wrapper that translates them for ld64.lld.
+		rustflags.push(
+			"-Zunstable-options",
+			`-Clinker=${darwinRustLldWrapperPath()}`,
+			"-Clinker-flavor=darwin-lld",
+			"-Clink-arg=--icf=safe"
+		);
+		return;
+	}
+
+	if (normalizedTarget.includes("linux")) {
+		if (!process.env.USE_ZIG) {
+			// Some cross GCC wrappers used by napi-cross do not support -fuse-ld=lld.
+			// Use GCC's -B search prefix so the driver selects an ICF-capable linker as `ld`.
+			rustflags.push(`-Clink-arg=-B${linuxIcfLinkerSearchPath(normalizedTarget)}`);
+		}
+
+		rustflags.push("-Clink-arg=-Wl,--icf=safe");
+	}
+}
+
+function darwinRustLldWrapperPath() {
+	const linkerPath = rustLldPath();
+	if (!linkerPath) {
+		throw new Error("safe ICF on macOS arm64 requires rust-lld");
+	}
+
+	console.log(`Using ${linkerPath} for safe ICF`);
+	const linkerDir = mkdtempSync(path.join(tmpdir(), "rspack-icf-linker-"));
+	const wrapperPath = path.join(linkerDir, "rust-lld-darwin");
+	writeFileSync(
+		wrapperPath,
+		`#!/usr/bin/env bash
+set -euo pipefail
+
+args=()
+for arg in "$@"; do
+\tcase "$arg" in
+\t\t-Wl,*) IFS=',' read -ra parts <<< "\${arg#-Wl,}"; args+=("\${parts[@]}") ;;
+\t\t-Wl|-Xlinker) ;;
+\t\t*) args+=("$arg") ;;
+\tesac
+done
+
+exec ${shellQuote(linkerPath)} "\${args[@]}"
+`
+	);
+	chmodSync(wrapperPath, 0o755);
+	return wrapperPath;
+}
+
+function linuxIcfLinkerSearchPath(target) {
+	const linkerPath = linuxIcfLinkerPath(target);
+	if (!linkerPath) {
+		throw new Error("safe ICF on Linux requires ld.gold, ld.lld, or rust-lld");
+	}
+
+	console.log(`Using ${linkerPath} for safe ICF`);
+	const linkerDir = mkdtempSync(path.join(tmpdir(), "rspack-icf-linker-"));
+	symlinkSync(linkerPath, path.join(linkerDir, "ld"));
+	return `${linkerDir}${path.sep}`;
+}
+
+function linuxIcfLinkerPath(target) {
+	if (target === "x86_64-unknown-linux-gnu") {
+		const goldPath = commandPath("ld.gold");
+		if (goldPath) {
+			return goldPath;
+		}
+	}
+
+	return commandPath("ld.lld") || rustLldPath();
+}
+
+function rustLldPath() {
+	const sysroot = commandOutput("rustc", ["--print", "sysroot"]);
+	const version = commandOutput("rustc", ["-vV"]);
+	const host = version?.match(/^host: (.+)$/m)?.[1];
+	if (!sysroot || !host) {
+		return null;
+	}
+
+	const lldPath = path.join(sysroot, "lib", "rustlib", host, "bin", "rust-lld");
+	return existsSync(lldPath) ? lldPath : null;
+}
+
+function commandPath(command) {
+	return commandOutput("which", [command])?.split(/\r?\n/)[0] || null;
+}
+
+function commandOutput(command, args) {
+	const result = spawnSync(command, args, { encoding: "utf8" });
+	return result.status === 0 ? result.stdout.trim() : null;
+}
+
+function shellQuote(value) {
+	return `'${value.replaceAll("'", "'\\''")}'`;
+}
+
+function hostRustTarget() {
+	const arch = {
+		arm64: "aarch64",
+		ia32: "i686",
+		x64: "x86_64"
+	}[process.arch] || process.arch;
+
+	if (process.platform === "darwin") {
+		return `${arch}-apple-darwin`;
+	}
+	if (process.platform === "win32") {
+		return `${arch}-pc-windows-msvc`;
+	}
+	if (process.platform === "freebsd") {
+		return `${arch}-unknown-freebsd`;
+	}
+	return `${arch}-unknown-linux-gnu`;
+}
 
 async function build() {
 	return new Promise((resolve, reject) => {
@@ -86,6 +234,7 @@ async function build() {
 		if (process.env.TRACY) {
 			features.push("tracy-client");
 		}
+		addSafeIcfRustflags(rustflags, values.profile, process.env.RUST_TARGET);
 		if (values.profile === "release") {
 			features.push("info-level");
 			rustflags.push("-Zlocation-detail=none");

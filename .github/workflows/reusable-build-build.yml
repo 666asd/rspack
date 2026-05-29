@@ -165,6 +165,7 @@ jobs:
           export CC=$(xcrun -f clang);
           export CXX=$(xcrun -f clang++);
           SYSROOT=$(xcrun --sdk macosx --show-sdk-path);
+          export SDKROOT="$SYSROOT";
           export CFLAGS="-isysroot $SYSROOT -isystem $SYSROOT";
           RUST_TARGET=${{ inputs.target }} pnpm build:binding:${{ inputs.profile }}
 
