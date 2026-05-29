@@ -14,6 +14,7 @@ use rayon::prelude::*;
 use regex::Regex;
 use rspack_core::{
   AssetInfo, BindingCell, Compilation, CompilationId, CompilationProcessAssets, Logger, Plugin,
+  RealContentHashArtifact,
   rspack_sources::{BoxSource, RawStringSource, SourceExt, SourceValue},
 };
 use rspack_error::{Result, ToStringResultToRspackResultExt};
@@ -79,6 +80,8 @@ impl Plugin for RealContentHashPlugin {
 }
 
 async fn inner_impl(compilation: &mut Compilation) -> Result<()> {
+  validate_artifact(compilation)?;
+
   let logger = compilation.get_logger("rspack.RealContentHashPlugin");
   let start = logger.time("hash to asset names");
   let mut hash_to_asset_names: HashMap<&str, Vec<&str>> = HashMap::default();
@@ -124,7 +127,7 @@ async fn inner_impl(compilation: &mut Compilation) -> Result<()> {
     .collect();
 
   let (ordered_hashes, mut hash_dependencies) =
-    OrderedHashesBuilder::new(&hash_to_asset_names, &assets_data).build();
+    OrderedHashesBuilder::new(&compilation.real_content_hash_artifact, &assets_data).build();
   let mut ordered_hashes_iter = ordered_hashes.into_iter();
 
   logger.time_end(start);
@@ -288,6 +291,125 @@ async fn inner_impl(compilation: &mut Compilation) -> Result<()> {
   Ok(())
 }
 
+fn validate_artifact(compilation: &Compilation) -> Result<()> {
+  for (name, asset) in compilation.assets().iter() {
+    if asset.get_source().is_none() || asset.info.content_hash.is_empty() {
+      continue;
+    }
+
+    let Some(record) = compilation
+      .real_content_hash_artifact
+      .asset_records
+      .get(name)
+    else {
+      return Err(rspack_error::error!(
+        "MissingRealContentHashRecord: asset '{}' has content hashes {:?} but no real content hash artifact record",
+        name,
+        asset.info.content_hash
+      ));
+    };
+
+    for hash in &asset.info.content_hash {
+      if !record.own_hashes.contains(hash) {
+        return Err(rspack_error::error!(
+          "MissingRealContentHashOwnHash: asset '{}' exposes content hash '{}' but the real content hash artifact does not own it",
+          name,
+          hash
+        ));
+      }
+
+      if !compilation
+        .real_content_hash_artifact
+        .hash_to_assets
+        .get(hash)
+        .is_some_and(|asset_names| asset_names.contains(name))
+      {
+        return Err(rspack_error::error!(
+          "MissingRealContentHashReverseIndex: asset '{}' owns content hash '{}' but the real content hash artifact reverse index does not include it",
+          name,
+          hash
+        ));
+      }
+    }
+  }
+
+  validate_artifact_records(&compilation.real_content_hash_artifact)?;
+
+  Ok(())
+}
+
+fn validate_artifact_records(artifact: &RealContentHashArtifact) -> Result<()> {
+  for (hash, asset_names) in &artifact.hash_to_assets {
+    if asset_names.is_empty() {
+      return Err(rspack_error::error!(
+        "InvalidRealContentHashReverseIndex: content hash '{}' has an empty real content hash artifact reverse index",
+        hash
+      ));
+    }
+
+    for asset_name in asset_names {
+      let Some(record) = artifact.asset_records.get(asset_name) else {
+        return Err(rspack_error::error!(
+          "InvalidRealContentHashReverseIndex: content hash '{}' points to asset '{}' but the asset has no real content hash artifact record",
+          hash,
+          asset_name
+        ));
+      };
+
+      if !record.own_hashes.contains(hash) {
+        return Err(rspack_error::error!(
+          "InvalidRealContentHashReverseIndex: content hash '{}' points to asset '{}' but the asset record does not own it",
+          hash,
+          asset_name
+        ));
+      }
+    }
+  }
+
+  for (asset_name, record) in &artifact.asset_records {
+    for hash in &record.own_hashes {
+      if !artifact
+        .hash_to_assets
+        .get(hash)
+        .is_some_and(|asset_names| !asset_names.is_empty() && asset_names.contains(asset_name))
+      {
+        return Err(rspack_error::error!(
+          "MissingRealContentHashReverseIndex: asset '{}' owns content hash '{}' but the real content hash artifact reverse index does not include it",
+          asset_name,
+          hash
+        ));
+      }
+    }
+
+    for reference in &record.references {
+      if let Some(owner_hash) = &reference.owner_hash
+        && !record.own_hashes.contains(owner_hash)
+      {
+        return Err(rspack_error::error!(
+          "InvalidRealContentHashReferenceOwnerHash: asset '{}' references content hash '{}' from owner hash '{}' but the asset record does not own that hash",
+          asset_name,
+          reference.referenced_hash,
+          owner_hash
+        ));
+      }
+
+      if !artifact
+        .hash_to_assets
+        .get(&reference.referenced_hash)
+        .is_some_and(|asset_names| !asset_names.is_empty())
+      {
+        return Err(rspack_error::error!(
+          "MissingRealContentHashReferenceOwner: asset '{}' references unknown content hash '{}'",
+          asset_name,
+          reference.referenced_hash
+        ));
+      }
+    }
+  }
+
+  Ok(())
+}
+
 #[derive(Debug)]
 struct AssetData {
   own_hashes: HashSet<String>,
@@ -376,17 +498,17 @@ impl AssetData {
 }
 
 struct OrderedHashesBuilder<'a> {
-  hash_to_asset_names: &'a HashMap<&'a str, Vec<&'a str>>,
+  artifact: &'a RealContentHashArtifact,
   assets_data: &'a HashMap<&'a str, AssetData>,
 }
 
 impl<'a> OrderedHashesBuilder<'a> {
   pub fn new(
-    hash_to_asset_names: &'a HashMap<&'a str, Vec<&'a str>>,
+    artifact: &'a RealContentHashArtifact,
     assets_data: &'a HashMap<&'a str, AssetData>,
   ) -> Self {
     Self {
-      hash_to_asset_names,
+      artifact,
       assets_data,
     }
   }
@@ -394,7 +516,7 @@ impl<'a> OrderedHashesBuilder<'a> {
   pub fn build(&self) -> (IndexSet<String>, HashMap<String, HashSet<String>>) {
     let mut ordered_hashes = IndexSet::default();
     let mut hash_dependencies = HashMap::default();
-    for hash in self.hash_to_asset_names.keys() {
+    for hash in self.artifact.hash_to_assets.keys() {
       self.add_to_ordered_hashes(
         hash,
         &mut ordered_hashes,
@@ -402,67 +524,104 @@ impl<'a> OrderedHashesBuilder<'a> {
         &mut hash_dependencies,
       );
     }
-    (
-      ordered_hashes,
-      hash_dependencies
-        .into_iter()
-        .map(|(k, v)| {
-          (
-            k.to_string(),
-            v.into_iter().map(|s| s.to_string()).collect(),
-          )
-        })
-        .collect(),
-    )
+    (ordered_hashes, hash_dependencies)
   }
 }
 
 impl OrderedHashesBuilder<'_> {
-  fn get_hash_dependencies(&self, hash: &str) -> HashSet<&str> {
-    let asset_names = self
-      .hash_to_asset_names
-      .get(hash)
-      .expect("RealContentHashPlugin: should have asset_names");
+  fn get_hash_dependencies(&self, hash: &str) -> HashSet<String> {
     let mut hashes = HashSet::default();
+    let Some(asset_names) = self.artifact.hash_to_assets.get(hash) else {
+      return hashes;
+    };
+
     for name in asset_names {
-      if let Some(asset_hash) = self.assets_data.get(name) {
+      if let Some(record) = self.artifact.asset_records.get(name) {
+        for reference in &record.references {
+          if reference
+            .owner_hash
+            .as_deref()
+            .is_none_or(|owner| owner == hash)
+          {
+            hashes.insert(reference.referenced_hash.clone());
+          }
+        }
+      }
+
+      if let Some(asset_hash) = self.assets_data.get(name.as_str()) {
+        // Transitional fallback: source references are still discovered by the
+        // scan-based replacement path until artifact source records are emitted.
         if !asset_hash.own_hashes.contains(hash) {
           for hash in &asset_hash.own_hashes {
-            hashes.insert(hash.as_str());
+            hashes.insert(hash.clone());
           }
         }
         for hash in &asset_hash.referenced_hashes {
-          hashes.insert(hash.as_str());
+          hashes.insert(hash.clone());
         }
       }
     }
     hashes
   }
 
-  fn add_to_ordered_hashes<'b, 'a: 'b>(
-    &'a self,
-    hash: &'b str,
+  fn add_to_ordered_hashes(
+    &self,
+    hash: &str,
     ordered_hashes: &mut IndexSet<String>,
-    stack: &mut HashSet<&'b str>,
-    hash_dependencies: &mut HashMap<&'b str, HashSet<&'b str>>,
+    stack: &mut HashSet<String>,
+    hash_dependencies: &mut HashMap<String, HashSet<String>>,
   ) {
     let deps = hash_dependencies
-      .entry(hash)
+      .entry(hash.to_string())
       .or_insert_with(|| self.get_hash_dependencies(hash))
       .clone();
-    stack.insert(hash);
+    stack.insert(hash.to_string());
     for dep in deps {
-      if ordered_hashes.contains(dep) {
+      if ordered_hashes.contains(dep.as_str()) {
         continue;
       }
-      if stack.contains(dep) {
+      if stack.contains(&dep) {
         // Safety: all chunk-level hash will be collected in runtime chunk
         // so there shouldn't have circular hash dependency between chunks
         panic!("RealContentHashPlugin: circular hash dependency");
       }
-      self.add_to_ordered_hashes(dep, ordered_hashes, stack, hash_dependencies);
+      self.add_to_ordered_hashes(&dep, ordered_hashes, stack, hash_dependencies);
     }
     ordered_hashes.insert(hash.to_string());
     stack.remove(hash);
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use rspack_core::{ContentHashReference, ContentHashReferenceKind, RealContentHashArtifact};
+
+  use super::validate_artifact_records;
+
+  #[test]
+  fn validate_artifact_records_rejects_reference_owner_hash_not_owned_by_asset() {
+    let mut artifact = RealContentHashArtifact::default();
+    artifact.record_asset_hashes("asset.js", ["owned".to_string()]);
+    artifact.record_asset_hashes("referenced.js", ["referenced".to_string()]);
+    artifact
+      .asset_records
+      .get_mut("asset.js")
+      .expect("asset record")
+      .references
+      .push(ContentHashReference {
+        referenced_hash: "referenced".to_string(),
+        owner_hash: Some("typo".to_string()),
+        referenced_chunk: None,
+        referenced_source_type: None,
+        kind: ContentHashReferenceKind::Source,
+      });
+
+    let error = validate_artifact_records(&artifact).expect_err("should reject invalid owner hash");
+
+    assert!(
+      error
+        .to_string()
+        .contains("InvalidRealContentHashReferenceOwnerHash")
+    );
   }
 }

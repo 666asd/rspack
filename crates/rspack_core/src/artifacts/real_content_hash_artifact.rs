@@ -36,17 +36,14 @@ pub fn record_manifest_filename_content_hashes<'a>(
   record: &mut AssetHashRecord,
   content_hashes: impl IntoIterator<Item = &'a String>,
 ) {
-  record
-    .replacements
-    .extend(
-      content_hashes
-        .into_iter()
-        .map(|content_hash| ContentHashReplacement {
-          old_hash: content_hash.to_string(),
-          range: None,
-          kind: ContentHashReplacementKind::Filename,
-        }),
-    );
+  for content_hash in content_hashes {
+    record.own_hashes.insert(content_hash.to_string());
+    record.replacements.push(ContentHashReplacement {
+      old_hash: content_hash.to_string(),
+      range: None,
+      kind: ContentHashReplacementKind::Filename,
+    });
+  }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -344,7 +341,8 @@ mod tests {
 
     record_manifest_filename_content_hashes(&mut record, content_hashes.iter());
 
-    assert!(record.own_hashes.is_empty());
+    assert!(record.own_hashes.contains("abcdef12"));
+    assert!(record.own_hashes.contains("YWJjZGVm"));
     assert_eq!(record.replacements.len(), 2);
     assert_eq!(record.replacements[0].old_hash, "abcdef12");
     assert_eq!(record.replacements[0].range, None);
