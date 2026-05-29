@@ -65,15 +65,44 @@ pub fn record_manifest_owned_content_hash(
 
 pub fn record_manifest_filename_content_hashes<'a>(
   record: &mut AssetHashRecord,
+  filename: &str,
   content_hashes: impl IntoIterator<Item = &'a String>,
 ) {
+  let mut content_hashes = content_hashes.into_iter().collect::<Vec<_>>();
+  content_hashes.sort_by(|a, b| b.len().cmp(&a.len()));
+  content_hashes.dedup();
+
+  let mut occupied_ranges: Vec<Range<u32>> = Vec::new();
   for content_hash in content_hashes {
     record.own_hashes.insert(content_hash.to_string());
-    record.replacements.push(ContentHashReplacement {
-      old_hash: content_hash.to_string(),
-      range: None,
-      kind: ContentHashReplacementKind::Filename,
-    });
+
+    let mut remaining = filename;
+    let mut offset = 0usize;
+    while let Some((before, after)) = remaining.split_once(content_hash) {
+      let start = offset + before.len();
+      let end = start + content_hash.len();
+      let (Ok(start_u32), Ok(end_u32)) = (u32::try_from(start), u32::try_from(end)) else {
+        remaining = after;
+        offset = end;
+        continue;
+      };
+      if occupied_ranges
+        .iter()
+        .any(|range| range.start < end_u32 && start_u32 < range.end)
+      {
+        remaining = after;
+        offset = end;
+        continue;
+      }
+      record.replacements.push(ContentHashReplacement {
+        old_hash: content_hash.to_string(),
+        range: Some(start_u32..end_u32),
+        kind: ContentHashReplacementKind::Filename,
+      });
+      occupied_ranges.push(start_u32..end_u32);
+      remaining = after;
+      offset = end;
+    }
   }
 }
 
@@ -370,23 +399,45 @@ mod tests {
     let mut record = AssetHashRecord::default();
     let content_hashes = ["abcdef12".to_string(), "YWJjZGVm".to_string()];
 
-    record_manifest_filename_content_hashes(&mut record, content_hashes.iter());
+    record_manifest_filename_content_hashes(
+      &mut record,
+      "assets/abcdef12.YWJjZGVm.js",
+      content_hashes.iter(),
+    );
 
     assert!(record.own_hashes.contains("abcdef12"));
     assert!(record.own_hashes.contains("YWJjZGVm"));
     assert_eq!(record.replacements.len(), 2);
     assert_eq!(record.replacements[0].old_hash, "abcdef12");
-    assert_eq!(record.replacements[0].range, None);
+    assert_eq!(record.replacements[0].range, Some(7..15));
     assert_eq!(
       record.replacements[0].kind,
       ContentHashReplacementKind::Filename
     );
     assert_eq!(record.replacements[1].old_hash, "YWJjZGVm");
-    assert_eq!(record.replacements[1].range, None);
+    assert_eq!(record.replacements[1].range, Some(16..24));
     assert_eq!(
       record.replacements[1].kind,
       ContentHashReplacementKind::Filename
     );
+  }
+
+  #[test]
+  fn manifest_filename_content_hashes_skip_overlapping_truncated_hash_ranges() {
+    let mut record = AssetHashRecord::default();
+    let content_hashes = ["68b4d5b068f0d433".to_string(), "68b4d5".to_string()];
+
+    record_manifest_filename_content_hashes(
+      &mut record,
+      "index.68b4d5b068f0d433-68b4d5.js",
+      content_hashes.iter(),
+    );
+
+    assert_eq!(record.replacements.len(), 2);
+    assert_eq!(record.replacements[0].old_hash, "68b4d5b068f0d433");
+    assert_eq!(record.replacements[0].range, Some(6..22));
+    assert_eq!(record.replacements[1].old_hash, "68b4d5");
+    assert_eq!(record.replacements[1].range, Some(23..29));
   }
 
   #[test]

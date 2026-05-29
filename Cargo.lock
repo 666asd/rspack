@@ -4762,13 +4762,10 @@ dependencies = [
 name = "rspack_plugin_real_content_hash"
 version = "0.100.5"
 dependencies = [
- "aho-corasick",
  "atomic_refcell",
  "derive_more",
  "indexmap",
- "once_cell",
  "rayon",
- "regex",
  "rspack_core",
  "rspack_error",
  "rspack_hash",

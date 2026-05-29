@@ -79,6 +79,7 @@ async fn render_manifest(
 
     record_manifest_filename_content_hashes(
       &mut real_content_hashes,
+      &output_path,
       asset_info.content_hash.iter(),
     );
     let asset_info = asset_info.with_asset_type(ManifestAssetType::Wasm);

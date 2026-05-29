@@ -1026,28 +1026,28 @@ export interface JsPathDataChunkLike {
   id?: string
 }
 
-interface JsRealContentHashReferenceBaseOptions {
+export type JsRealContentHashReferenceOptions = {
   asset: string
   referencedHash: string
   ownerHash?: string
+  /** UTF-8 byte offsets in the final source. */
+  range: [number, number]
+  kind?: "source"
+} | {
+  asset: string
+  referencedHash: string
+  ownerHash?: string
+  /** UTF-8 byte offsets in the final source. */
+  range: [number, number]
+  kind: "custom"
+} | {
+  asset: string
+  referencedHash: string
+  ownerHash?: string
+  /** UTF-8 byte offsets in the final filename. */
+  range?: [number, number]
+  kind: "filename"
 }
-
-export type JsRealContentHashReferenceOptions =
-  | (JsRealContentHashReferenceBaseOptions & {
-    kind?: "source"
-    /** UTF-8 byte offsets in the final source. */
-    range: [number, number]
-  })
-  | (JsRealContentHashReferenceBaseOptions & {
-    kind: "custom"
-    /** UTF-8 byte offsets in the final source. */
-    range: [number, number]
-  })
-  | (JsRealContentHashReferenceBaseOptions & {
-    kind: "filename"
-    /** UTF-8 byte offsets in the final source. */
-    range?: [number, number]
-  })
 
 export interface JsResolveData {
   request: string

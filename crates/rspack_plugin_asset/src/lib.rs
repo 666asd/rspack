@@ -873,6 +873,7 @@ async fn render_manifest(
         {
           record_manifest_filename_content_hashes(
             &mut real_content_hashes,
+            asset_filename,
             filename_content_hashes.inner().iter(),
           );
         }

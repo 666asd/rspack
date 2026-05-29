@@ -1,5 +1,6 @@
 use std::{
   hash::{Hash, Hasher},
+  ops::Range,
   path::Path,
   sync::{LazyLock, Mutex, mpsc},
 };
@@ -9,15 +10,15 @@ use once_cell::sync::OnceCell;
 use rayon::prelude::*;
 use regex::Regex;
 use rspack_core::{
-  AssetInfo, ChunkUkey, Compilation, CompilationAsset, CompilationParams, CompilationProcessAssets,
-  CompilerCompilation, Logger, Plugin,
+  AssetHashRecord, AssetInfo, ChunkUkey, Compilation, CompilationAsset, CompilationParams,
+  CompilationProcessAssets, CompilerCompilation, ContentHashReplacementKind, Logger, Plugin,
   cache::persistent::occasion::minimize::{
     CachedExtractedComments, CachedMinimizeEntry, MinimizeCacheKey,
   },
   diagnostics::MinifyError,
   rspack_sources::{
-    ConcatSource, MapOptions, ObjectPool, RawStringSource, Source, SourceExt, SourceMapSource,
-    SourceMapSourceOptions,
+    BoxSource, ConcatSource, MapOptions, ObjectPool, RawStringSource, ReplaceSource, Source,
+    SourceExt, SourceMapSource, SourceMapSourceOptions,
   },
 };
 use rspack_error::{Diagnostic, Result};
@@ -182,6 +183,8 @@ async fn process_assets(&self, compilation: &mut Compilation) -> Result<()> {
   let minimize_cache_counter = minimize_persistent_cache
     .as_ref()
     .map(|_| logger.cache("minimize persistent cache"));
+  let real_content_hash_records = compilation.real_content_hash_artifact.asset_records.clone();
+  let updated_real_content_hash_records = Mutex::new(FxHashMap::default());
 
   let (tx, rx) = mpsc::channel::<Vec<Diagnostic>>();
   // collect all extracted comments info
@@ -230,11 +233,20 @@ async fn process_assets(&self, compilation: &mut Compilation) -> Result<()> {
           None
         };
 
-        // Compute cache key and check persistent cache (only when enabled)
-        let cache_key = if let Some(cache) = &minimize_persistent_cache {
+        let input = original_source.source().into_string_lossy().into_owned();
+        let record = real_content_hash_records.get(filename);
+        let (input, real_content_hash_markers) =
+          mark_real_content_hash_replacements(record, input, filename)?;
+
+        // Compute cache key and check persistent cache (only when enabled).
+        // Marked inputs carry per-compilation range metadata, so skip the
+        // persistent source cache for them.
+        let cache_key = if real_content_hash_markers.is_empty()
+          && let Some(cache) = &minimize_persistent_cache
+        {
           let key = {
             let mut hasher = FxHasher::default();
-            original_source.buffer().hash(&mut hasher);
+            input.as_bytes().hash(&mut hasher);
             self.options_hash.hash(&mut hasher);
             filename.hash(&mut hasher);
             is_module.hash(&mut hasher);
@@ -270,7 +282,6 @@ async fn process_assets(&self, compilation: &mut Compilation) -> Result<()> {
         } else {
           None
         };
-        let input = original_source.source().into_string_lossy().into_owned();
         let object_pool = tls.get_or(ObjectPool::default);
         let input_source_map = original_source.map(object_pool, &MapOptions::default());
 
@@ -391,7 +402,7 @@ async fn process_assets(&self, compilation: &mut Compilation) -> Result<()> {
             None
           };
 
-        let source = match banner {
+        let mut source = match banner {
             Some(banner) => {
               // There are two cases with banner:
               // 1. There's no shebang, we just prepend the banner to the code.
@@ -399,9 +410,9 @@ async fn process_assets(&self, compilation: &mut Compilation) -> Result<()> {
 
               let mut shebang = None;
               if output.code.starts_with("#!") {
-                if let Some(line_pos) = output.code.find('\n') {
-                  shebang = Some(output.code[0..line_pos + 1].to_string());
-                  output.code = output.code[line_pos + 1..].to_string();
+                if let Some((shebang_line, code)) = output.code.split_once('\n') {
+                  shebang = Some(format!("{shebang_line}\n"));
+                  output.code = code.to_string();
                 } else {
                   // Handle shebang without newline - treat entire content as shebang
                   shebang = Some(output.code.clone());
@@ -456,6 +467,14 @@ async fn process_assets(&self, compilation: &mut Compilation) -> Result<()> {
             },
         };
 
+        let mut updated_real_content_hash_record = None;
+        if let Some(record) = record {
+          let (restored_source, updated_record) =
+            restore_real_content_hash_markers(source, record, &real_content_hash_markers)?;
+          source = restored_source;
+          updated_real_content_hash_record = updated_record;
+        }
+
         // Store result in persistent cache (only when enabled)
         if let Some(cache_key) = cache_key {
           let extracted_comments_for_cache = all_extracted_comments
@@ -481,6 +500,12 @@ async fn process_assets(&self, compilation: &mut Compilation) -> Result<()> {
 
         original.set_source(Some(source));
         original.get_info_mut().minimized.replace(true);
+        if let Some(record) = updated_real_content_hash_record {
+          updated_real_content_hash_records
+            .lock()
+            .expect("updated_real_content_hash_records lock failed")
+            .insert(filename.to_string(), record);
+        }
       }
 
       Ok(())
@@ -502,6 +527,18 @@ async fn process_assets(&self, compilation: &mut Compilation) -> Result<()> {
   }
 
   compilation.extend_diagnostics(rx.into_iter().flatten().collect::<Vec<_>>());
+  for (filename, record) in updated_real_content_hash_records
+    .into_inner()
+    .expect("updated_real_content_hash_records lock failed")
+  {
+    if let Some(existing) = compilation
+      .real_content_hash_artifact
+      .asset_records
+      .get_mut(&filename)
+    {
+      *existing = record;
+    }
+  }
 
   // write all extracted comments to assets
   all_extracted_comments
@@ -523,6 +560,336 @@ async fn process_assets(&self, compilation: &mut Compilation) -> Result<()> {
     });
 
   Ok(())
+}
+
+#[derive(Debug)]
+struct RealContentHashMarker {
+  replacement_index: usize,
+  old_hash: String,
+  marker: String,
+}
+
+fn mark_real_content_hash_replacements(
+  record: Option<&AssetHashRecord>,
+  mut input: String,
+  filename: &str,
+) -> Result<(String, Vec<RealContentHashMarker>)> {
+  let Some(record) = record else {
+    return Ok((input, Vec::new()));
+  };
+
+  let mut markers = Vec::new();
+  for (replacement_index, replacement) in record.replacements.iter().enumerate() {
+    if !matches!(
+      replacement.kind,
+      ContentHashReplacementKind::Source | ContentHashReplacementKind::Custom
+    ) {
+      continue;
+    }
+    let Some(range) = &replacement.range else {
+      return Err(rspack_error::error!(
+        "InvalidRealContentHashReplacementCoverage: asset '{}' has a {:?} content hash replacement for '{}' without a source range before minimization",
+        filename,
+        replacement.kind,
+        replacement.old_hash
+      ));
+    };
+    let (Ok(start), Ok(end)) = (usize::try_from(range.start), usize::try_from(range.end)) else {
+      return Err(rspack_error::error!(
+        "InvalidRealContentHashReplacementCoverage: asset '{}' has an invalid {:?} content hash replacement range for '{}' before minimization",
+        filename,
+        replacement.kind,
+        replacement.old_hash
+      ));
+    };
+    if input.get(start..end) != Some(replacement.old_hash.as_str()) {
+      return Err(rspack_error::error!(
+        "InvalidRealContentHashReplacementCoverage: asset '{}' has a stale {:?} content hash replacement range for '{}' before minimization",
+        filename,
+        replacement.kind,
+        replacement.old_hash
+      ));
+    }
+    let Some(marker) =
+      real_content_hash_marker(&input, replacement_index, start..end, &replacement.old_hash)
+    else {
+      return Ok((input, Vec::new()));
+    };
+    markers.push((
+      start..end,
+      RealContentHashMarker {
+        replacement_index,
+        old_hash: replacement.old_hash.clone(),
+        marker,
+      },
+    ));
+  }
+
+  markers.sort_unstable_by(|(a, _), (b, _)| b.start.cmp(&a.start).then_with(|| b.end.cmp(&a.end)));
+  for (range, marker) in &markers {
+    input.replace_range(range.clone(), &marker.marker);
+  }
+
+  Ok((
+    input,
+    markers.into_iter().map(|(_, marker)| marker).collect(),
+  ))
+}
+
+fn restore_real_content_hash_markers(
+  source: BoxSource,
+  record: &AssetHashRecord,
+  markers: &[RealContentHashMarker],
+) -> Result<(BoxSource, Option<AssetHashRecord>)> {
+  if markers.is_empty() {
+    return Ok((source, None));
+  }
+
+  let content = source.buffer();
+  let mut marker_ranges = Vec::new();
+  for marker in markers {
+    let ranges = find_marker_ranges(&content, marker.marker.as_bytes());
+    if ranges.len() != 1 {
+      return Err(rspack_error::error!(
+        "InvalidRealContentHashReplacementCoverage: expected exactly one preserved minimizer marker for content hash '{}' but found {}",
+        marker.old_hash,
+        ranges.len()
+      ));
+    }
+    for range in ranges {
+      marker_ranges.push((range, marker));
+    }
+  }
+  marker_ranges.sort_unstable_by_key(|(range, _)| (range.start, range.end));
+
+  let mut replace_source = ReplaceSource::new(source);
+  let mut updated = record.clone();
+  let mut removed_bytes = 0usize;
+  for (range, marker) in marker_ranges {
+    replace_source.replace(
+      u32::try_from(range.start).expect("marker range start should fit in u32"),
+      u32::try_from(range.end).expect("marker range end should fit in u32"),
+      marker.old_hash.clone(),
+      None,
+    );
+    let final_start = range.start - removed_bytes;
+    let final_end = final_start + marker.old_hash.len();
+    if let Some(replacement) = updated.replacements.get_mut(marker.replacement_index) {
+      replacement.range = Some(
+        u32::try_from(final_start).expect("replacement range start should fit in u32")
+          ..u32::try_from(final_end).expect("replacement range end should fit in u32"),
+      );
+    }
+    removed_bytes += marker.marker.len() - marker.old_hash.len();
+  }
+
+  Ok((replace_source.boxed(), Some(updated)))
+}
+
+fn real_content_hash_marker(
+  input: &str,
+  index: usize,
+  range: Range<usize>,
+  old_hash: &str,
+) -> Option<String> {
+  for salt in 0..32 {
+    let mut hasher = FxHasher::default();
+    input.hash(&mut hasher);
+    index.hash(&mut hasher);
+    range.start.hash(&mut hasher);
+    range.end.hash(&mut hasher);
+    old_hash.hash(&mut hasher);
+    salt.hash(&mut hasher);
+
+    let mut marker = format!(
+      "__RSPACK_REAL_CONTENT_HASH_MARKER_{index}_{:016x}_{salt}__",
+      hasher.finish()
+    );
+    while marker.len() <= old_hash.len() {
+      marker.push_str("RCHMARKER");
+    }
+    if !input.contains(&marker) {
+      return Some(marker);
+    }
+  }
+  None
+}
+
+#[cfg(test)]
+fn deterministic_real_content_hash_marker(index: usize, old_hash_len: usize) -> String {
+  let mut marker = format!("__RSPACK_REAL_CONTENT_HASH_MARKER_{index}__");
+  while marker.len() <= old_hash_len {
+    marker.push_str("RCHMARKER");
+  }
+  marker
+}
+
+fn find_marker_ranges(content: &[u8], marker: &[u8]) -> Vec<Range<usize>> {
+  let mut ranges = Vec::new();
+  if marker.is_empty() || marker.len() > content.len() {
+    return ranges;
+  }
+
+  let mut index = 0;
+  while index + marker.len() <= content.len() {
+    if content[index..].starts_with(marker) {
+      ranges.push(index..index + marker.len());
+      index += marker.len();
+      continue;
+    }
+    index += 1;
+  }
+  ranges
+}
+
+#[cfg(test)]
+mod tests {
+  use rspack_core::{
+    AssetHashRecord, ContentHashReplacement, ContentHashReplacementKind,
+    rspack_sources::{RawStringSource, Source, SourceExt},
+  };
+
+  use super::{
+    deterministic_real_content_hash_marker, mark_real_content_hash_replacements,
+    restore_real_content_hash_markers,
+  };
+
+  #[test]
+  fn real_content_hash_markers_preserve_duplicate_hash_ranges() {
+    let input = "var a='hhhh';var b='hhhh';".to_string();
+    let mut record = AssetHashRecord::default();
+    record.replacements.push(ContentHashReplacement {
+      old_hash: "hhhh".to_string(),
+      range: Some(7..11),
+      kind: ContentHashReplacementKind::Source,
+    });
+    record.replacements.push(ContentHashReplacement {
+      old_hash: "hhhh".to_string(),
+      range: Some(20..24),
+      kind: ContentHashReplacementKind::Source,
+    });
+
+    let (marked, markers) =
+      mark_real_content_hash_replacements(Some(&record), input.clone(), "asset.js")
+        .expect("valid source range should markerize");
+    assert_eq!(markers.len(), 2);
+    assert_ne!(marked, input);
+
+    let (restored, updated_record) =
+      restore_real_content_hash_markers(RawStringSource::from(marked).boxed(), &record, &markers)
+        .expect("markers should restore");
+
+    assert_eq!(restored.source().into_string_lossy(), input);
+    let updated_record = updated_record.expect("markers should update replacement ranges");
+    assert_eq!(updated_record.replacements[0].range, Some(7..11));
+    assert_eq!(updated_record.replacements[1].range, Some(20..24));
+  }
+
+  #[test]
+  fn real_content_hash_markers_handle_hashes_longer_than_base_marker() {
+    let old_hash = "a".repeat(64);
+    let input = format!("var h='{old_hash}';");
+    let mut record = AssetHashRecord::default();
+    record.replacements.push(ContentHashReplacement {
+      old_hash: old_hash.clone(),
+      range: Some(7..71),
+      kind: ContentHashReplacementKind::Source,
+    });
+
+    let (marked, markers) =
+      mark_real_content_hash_replacements(Some(&record), input.clone(), "asset.js")
+        .expect("valid source range should markerize");
+    assert_eq!(markers.len(), 1);
+    assert!(markers[0].marker.len() > old_hash.len());
+
+    let (restored, updated_record) =
+      restore_real_content_hash_markers(RawStringSource::from(marked).boxed(), &record, &markers)
+        .expect("markers should restore");
+
+    assert_eq!(restored.source().into_string_lossy(), input);
+    let updated_record = updated_record.expect("marker should update replacement range");
+    assert_eq!(updated_record.replacements[0].range, Some(7..71));
+  }
+
+  #[test]
+  fn real_content_hash_markers_ignore_user_marker_like_strings() {
+    let old_hash = "hhhh";
+    let user_marker = deterministic_real_content_hash_marker(0, old_hash.len());
+    let prefix = format!("var user='{user_marker}';var h='");
+    let input = format!("{prefix}{old_hash}';");
+    let range_start = u32::try_from(prefix.len()).expect("range start should fit");
+    let range_end = range_start + u32::try_from(old_hash.len()).expect("hash len should fit");
+    let mut record = AssetHashRecord::default();
+    record.replacements.push(ContentHashReplacement {
+      old_hash: old_hash.to_string(),
+      range: Some(range_start..range_end),
+      kind: ContentHashReplacementKind::Source,
+    });
+
+    let (marked, markers) =
+      mark_real_content_hash_replacements(Some(&record), input.clone(), "asset.js")
+        .expect("valid source range should markerize");
+    assert_eq!(markers.len(), 1);
+
+    let (restored, updated_record) =
+      restore_real_content_hash_markers(RawStringSource::from(marked).boxed(), &record, &markers)
+        .expect("markers should restore");
+
+    assert_eq!(restored.source().into_string_lossy(), input);
+    assert!(updated_record.is_some());
+  }
+
+  #[test]
+  fn real_content_hash_marker_restore_rejects_missing_markers() {
+    let input = "var a='aaaa';var b='bbbb';".to_string();
+    let mut record = AssetHashRecord::default();
+    record.replacements.push(ContentHashReplacement {
+      old_hash: "aaaa".to_string(),
+      range: Some(7..11),
+      kind: ContentHashReplacementKind::Source,
+    });
+    record.replacements.push(ContentHashReplacement {
+      old_hash: "bbbb".to_string(),
+      range: Some(20..24),
+      kind: ContentHashReplacementKind::Source,
+    });
+
+    let (mut marked, markers) =
+      mark_real_content_hash_replacements(Some(&record), input, "asset.js")
+        .expect("valid source range should markerize");
+    assert_eq!(markers.len(), 2);
+    marked = marked.replace(&markers[0].marker, &markers[0].old_hash);
+
+    let err =
+      restore_real_content_hash_markers(RawStringSource::from(marked).boxed(), &record, &markers)
+        .expect_err("missing marker should fail");
+
+    assert!(
+      err
+        .to_string()
+        .contains("InvalidRealContentHashReplacementCoverage")
+    );
+  }
+
+  #[test]
+  fn real_content_hash_markerize_rejects_stale_source_ranges() {
+    let mut record = AssetHashRecord::default();
+    record.replacements.push(ContentHashReplacement {
+      old_hash: "hhhh".to_string(),
+      range: Some(0..4),
+      kind: ContentHashReplacementKind::Source,
+    });
+
+    let err =
+      mark_real_content_hash_replacements(Some(&record), "var h='hhhh';".to_string(), "asset.js")
+        .expect_err("stale source range should fail before minimization");
+
+    assert!(
+      err
+        .to_string()
+        .contains("InvalidRealContentHashReplacementCoverage")
+    );
+  }
 }
 
 pub fn match_object(obj: &PluginOptions, str: &str) -> bool {

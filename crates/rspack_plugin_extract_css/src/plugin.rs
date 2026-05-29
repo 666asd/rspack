@@ -712,7 +712,11 @@ async fn render_manifest(
   diagnostics.extend(more_diagnostics);
   let mut real_content_hashes = AssetHashRecord::default();
   record_manifest_owned_content_hash(&mut real_content_hashes, rendered_content_hash);
-  record_manifest_filename_content_hashes(&mut real_content_hashes, asset_info.content_hash.iter());
+  record_manifest_filename_content_hashes(
+    &mut real_content_hashes,
+    &filename,
+    asset_info.content_hash.iter(),
+  );
   manifest.push(
     RenderManifestEntry::new(source, filename, false, asset_info, false)
       .with_real_content_hashes(real_content_hashes),

@@ -5,17 +5,14 @@ use std::{
   sync::{Arc, LazyLock},
 };
 
-use aho_corasick::{AhoCorasick, MatchKind};
 use atomic_refcell::AtomicRefCell;
 use derive_more::Debug;
 pub use drive::*;
-use once_cell::sync::OnceCell;
 use rayon::prelude::*;
-use regex::Regex;
 use rspack_core::{
   AssetHashRecord, AssetInfo, BindingCell, Compilation, CompilationId, CompilationProcessAssets,
   ContentHashReplacementKind, Logger, Plugin, RealContentHashArtifact,
-  rspack_sources::{BoxSource, RawStringSource, ReplaceSource, SourceExt, SourceValue},
+  rspack_sources::{BoxSource, ReplaceSource, SourceExt},
 };
 use rspack_error::{Result, ToStringResultToRspackResultExt};
 use rspack_hash::RspackHash;
@@ -24,9 +21,6 @@ use rspack_util::fx_hash::FxDashMap;
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet, FxHasher};
 
 type IndexSet<T> = indexmap::IndexSet<T, BuildHasherDefault<FxHasher>>;
-
-pub static QUOTE_META: LazyLock<Regex> =
-  LazyLock::new(|| Regex::new(r"[-\[\]\\/{}()*+?.^$|]").expect("Invalid regex"));
 
 /// Safety with [atomic_refcell::AtomicRefCell]:
 ///
@@ -102,15 +96,6 @@ async fn inner_impl(compilation: &mut Compilation) -> Result<()> {
   if hash_to_asset_names.is_empty() {
     return Ok(());
   }
-  let start = logger.time("create hash regexp");
-  // use LeftmostLongest here:
-  // e.g. 4afc|4afcbe match xxx.4afcbe-4afc.js -> xxx.[4afc]be-[4afc].js
-  //      4afcbe|4afc match xxx.4afcbe-4afc.js -> xxx.[4afcbe]-[4afc].js
-  let hash_ac = AhoCorasick::builder()
-    .match_kind(MatchKind::LeftmostLongest)
-    .build(hash_to_asset_names.keys().map(|s| s.as_bytes()))
-    .expect("Invalid patterns");
-  logger.time_end(start);
 
   let start = logger.time("create ordered hashes");
   let assets_data: HashMap<&str, AssetData> = compilation
@@ -120,14 +105,14 @@ async fn inner_impl(compilation: &mut Compilation) -> Result<()> {
       asset.get_source().map(|source| {
         (
           name.as_str(),
-          AssetData::new(source.clone(), asset.get_info(), &hash_ac),
+          AssetData::new(source.clone(), asset.get_info()),
         )
       })
     })
     .collect();
 
   let (ordered_hashes, mut hash_dependencies) =
-    OrderedHashesBuilder::new(&compilation.real_content_hash_artifact, &assets_data).build();
+    OrderedHashesBuilder::new(&compilation.real_content_hash_artifact).build();
   let mut ordered_hashes_iter = ordered_hashes.into_iter();
 
   logger.time_end(start);
@@ -181,7 +166,6 @@ async fn inner_impl(compilation: &mut Compilation) -> Result<()> {
           data,
           &compilation.real_content_hash_artifact,
           &hash_to_new_hash,
-          &hash_ac,
           Some(hash),
         )?;
         Ok(((hash, name), new_source))
@@ -255,18 +239,17 @@ async fn inner_impl(compilation: &mut Compilation) -> Result<()> {
         &data,
         &compilation.real_content_hash_artifact,
         &hash_to_new_hash,
-        &hash_ac,
         None,
       )?;
-      let mut new_name = String::with_capacity(name.len());
-      hash_ac.replace_all_with(name, &mut new_name, |_, hash, dst| {
-        let replace_to = hash_to_new_hash
-          .get(hash)
-          .expect("RealContentHashPlugin: should have new hash");
-        dst.push_str(replace_to);
-        true
-      });
-      let new_name = (name != new_name).then_some(new_name);
+      let new_name = compute_new_name(
+        name,
+        &data,
+        compilation
+          .real_content_hash_artifact
+          .asset_records
+          .get(name),
+        &hash_to_new_hash,
+      )?;
       Ok((name.to_owned(), new_source, new_name))
     })
     .collect::<Result<Vec<_>>>()?;
@@ -443,52 +426,121 @@ fn compute_new_source(
   data: &AssetData,
   artifact: &RealContentHashArtifact,
   hash_to_new_hash: &HashMap<String, String>,
-  hash_ac: &AhoCorasick,
   without_own: Option<&str>,
 ) -> Result<BoxSource> {
-  if let Some(record) = artifact.asset_records.get(name)
-    && has_recorded_source_replacements(record)
-  {
-    match get_recorded_replacement_coverage(record, data, hash_to_new_hash, without_own) {
-      RecordedReplacementCoverage::Complete => {
-        return apply_recorded_replacements(
-          data.old_source.clone(),
-          record,
-          &data.own_hashes,
-          hash_to_new_hash,
-          without_own.is_some_and(|hash| data.own_hashes.contains(hash)),
-        );
-      }
-      RecordedReplacementCoverage::NoReplacementNeeded => return Ok(data.old_source.clone()),
-      RecordedReplacementCoverage::Incomplete => {}
-      RecordedReplacementCoverage::Invalid => {
-        return Err(rspack_error::error!(
-          "InvalidRealContentHashReplacementCoverage: recorded real content hash source byte ranges for asset '{}' do not match the asset source, are duplicated, or are extra for the current hash view",
+  if let Some(record) = artifact.asset_records.get(name) {
+    return match get_recorded_replacement_coverage(record, data, hash_to_new_hash, without_own) {
+      RecordedReplacementCoverage::Complete(plan) => apply_recorded_replacements(
+        data.old_source.clone(),
+        record,
+        &plan,
+        &data.own_hashes,
+        hash_to_new_hash,
+        without_own,
+      ),
+      RecordedReplacementCoverage::NoReplacementNeeded => Ok(data.old_source.clone()),
+      RecordedReplacementCoverage::Incomplete | RecordedReplacementCoverage::Invalid => {
+        Err(rspack_error::error!(
+          "InvalidRealContentHashReplacementCoverage: recorded real content hash source byte ranges for asset '{}' do not match the asset source, are duplicated, or are incomplete for the current hash view",
           name
-        ));
+        ))
       }
-    }
+    };
   }
 
-  Ok(data.compute_new_source(
-    without_own.is_some_and(|hash| data.own_hashes.contains(hash)),
-    hash_to_new_hash,
-    hash_ac,
-  ))
+  if without_own.is_some_and(|hash| data.own_hashes.contains(hash)) {
+    return Err(rspack_error::error!(
+      "InvalidRealContentHashReplacementCoverage: asset '{}' needs own content hash replacement but has no real content hash artifact record",
+      name
+    ));
+  }
+
+  Ok(data.old_source.clone())
 }
 
-fn has_recorded_source_replacements(record: &AssetHashRecord) -> bool {
-  record
+fn compute_new_name(
+  name: &str,
+  _data: &AssetData,
+  record: Option<&AssetHashRecord>,
+  hash_to_new_hash: &HashMap<String, String>,
+) -> Result<Option<String>> {
+  let Some(record) = record else {
+    return Ok(None);
+  };
+  let mut ranges = record
     .replacements
     .iter()
-    .any(|replacement| is_source_replacement_kind(replacement.kind))
+    .filter(|replacement| replacement.kind == ContentHashReplacementKind::Filename)
+    .filter_map(|replacement| {
+      let new_hash = hash_to_new_hash.get(&replacement.old_hash)?;
+      (new_hash != &replacement.old_hash).then_some((replacement, new_hash))
+    })
+    .map(|(replacement, new_hash)| {
+      let range = replacement.range.as_ref().ok_or_else(|| {
+        rspack_error::error!(
+          "InvalidRealContentHashFilenameReplacementRange: asset '{}' has a filename content hash replacement for '{}' without a filename byte range",
+          name,
+          replacement.old_hash
+        )
+      })?;
+      let start = usize::try_from(range.start).map_err(|_| {
+        rspack_error::error!(
+          "InvalidRealContentHashFilenameReplacementRange: asset '{}' has an invalid filename range for '{}'",
+          name,
+          replacement.old_hash
+        )
+      })?;
+      let end = usize::try_from(range.end).map_err(|_| {
+        rspack_error::error!(
+          "InvalidRealContentHashFilenameReplacementRange: asset '{}' has an invalid filename range for '{}'",
+          name,
+          replacement.old_hash
+        )
+      })?;
+      if start > end || name.get(start..end) != Some(replacement.old_hash.as_str()) {
+        return Err(rspack_error::error!(
+          "InvalidRealContentHashFilenameReplacementRange: asset '{}' has a filename range that does not match content hash '{}'",
+          name,
+          replacement.old_hash
+        ));
+      }
+      Ok((start..end, new_hash.as_str()))
+    })
+    .collect::<Result<Vec<_>>>()?;
+
+  if ranges.is_empty() {
+    return Ok(None);
+  }
+
+  ranges.sort_unstable_by_key(|(range, _)| (range.start, range.end));
+
+  let mut new_name = String::with_capacity(name.len());
+  let mut cursor = 0usize;
+  for (range, new_hash) in ranges {
+    if cursor > range.start {
+      return Err(rspack_error::error!(
+        "InvalidRealContentHashFilenameReplacementRange: asset '{}' has overlapping filename content hash ranges",
+        name
+      ));
+    }
+    new_name.push_str(&name[cursor..range.start]);
+    new_name.push_str(new_hash);
+    cursor = range.end;
+  }
+  new_name.push_str(&name[cursor..]);
+
+  Ok((new_name != name).then_some(new_name))
 }
 
 enum RecordedReplacementCoverage {
-  Complete,
+  Complete(RecordedReplacementPlan),
   Incomplete,
   Invalid,
   NoReplacementNeeded,
+}
+
+struct RecordedReplacementPlan {
+  selected_replacements: HashSet<usize>,
 }
 
 fn get_recorded_replacement_coverage(
@@ -497,48 +549,15 @@ fn get_recorded_replacement_coverage(
   hash_to_new_hash: &HashMap<String, String>,
   without_own: Option<&str>,
 ) -> RecordedReplacementCoverage {
-  let mut needed_hashes = HashSet::default();
-  if without_own.is_some_and(|hash| data.own_hashes.contains(hash)) {
-    needed_hashes.extend(data.own_hashes.iter().map(String::as_str));
-  } else {
-    needed_hashes.extend(data.own_hashes.iter().filter_map(|hash| {
-      hash_to_new_hash
-        .get(hash)
-        .is_some_and(|new_hash| new_hash != hash)
-        .then_some(hash.as_str())
-    }));
-  }
-  needed_hashes.extend(data.referenced_hashes.iter().filter_map(|hash| {
-    hash_to_new_hash
-      .get(hash)
-      .is_some_and(|new_hash| new_hash != hash)
-      .then_some(hash.as_str())
-  }));
+  let content = data.old_source.buffer();
+  let mut ranges = Vec::new();
+  let mut selected_replacements = HashSet::default();
 
-  if needed_hashes.is_empty() {
-    return RecordedReplacementCoverage::NoReplacementNeeded;
-  }
-
-  let AssetDataContent::String(content) = &data.content else {
-    return RecordedReplacementCoverage::Invalid;
-  };
-
-  let mut needed_occurrence_ranges = HashSet::default();
-  for occurrence in &data.hash_occurrences {
-    if needed_hashes.contains(occurrence.hash.as_str()) {
-      needed_occurrence_ranges.insert(occurrence.range.clone());
-    }
-  }
-
-  if needed_occurrence_ranges.is_empty() {
-    return RecordedReplacementCoverage::NoReplacementNeeded;
-  }
-
-  let mut covered_occurrence_ranges = HashSet::default();
-  for replacement in record
+  for (_, replacement) in record
     .replacements
     .iter()
-    .filter(|replacement| is_source_replacement_kind(replacement.kind))
+    .enumerate()
+    .filter(|(_, replacement)| is_source_replacement_kind(replacement.kind))
   {
     let Some(range) = &replacement.range else {
       return RecordedReplacementCoverage::Invalid;
@@ -549,25 +568,214 @@ fn get_recorded_replacement_coverage(
     let Ok(end) = usize::try_from(range.end) else {
       return RecordedReplacementCoverage::Invalid;
     };
-    if start > end || content.get(start..end) != Some(replacement.old_hash.as_str()) {
+    if start > end || content.get(start..end) != Some(replacement.old_hash.as_bytes()) {
       return RecordedReplacementCoverage::Invalid;
     }
-    let range = start..end;
-    if !needed_hashes.contains(replacement.old_hash.as_str())
-      || !needed_occurrence_ranges.contains(&range)
-      || !covered_occurrence_ranges.insert(range)
-    {
+    ranges.push(start..end);
+  }
+
+  ranges.sort_unstable_by_key(|range| (range.start, range.end));
+  let mut previous_end = None;
+  for range in ranges {
+    if previous_end.is_some_and(|end| end > range.start) {
       return RecordedReplacementCoverage::Invalid;
+    }
+    previous_end = Some(range.end);
+  }
+
+  let mut required_references = Vec::new();
+  for reference in &record.references {
+    if !is_source_reference_kind(reference.kind)
+      || !reference_applies_to_view(reference.owner_hash.as_deref(), without_own)
+      || !hash_needs_update(
+        &reference.referenced_hash,
+        data,
+        hash_to_new_hash,
+        without_own,
+      )
+    {
+      continue;
+    }
+    increment_replacement_count(
+      &mut required_references,
+      &reference.referenced_hash,
+      reference_replacement_kind(reference.kind).expect("source reference kind should map"),
+    );
+  }
+
+  if has_ambiguous_owner_scoped_references(record, &required_references, without_own) {
+    return RecordedReplacementCoverage::Incomplete;
+  }
+
+  let mut covered_references = Vec::new();
+  for (index, replacement) in record
+    .replacements
+    .iter()
+    .enumerate()
+    .filter(|(_, replacement)| is_source_replacement_kind(replacement.kind))
+  {
+    if data.own_hashes.contains(&replacement.old_hash) {
+      if replacement_needs_update_with_own(
+        &replacement.old_hash,
+        &data.own_hashes,
+        hash_to_new_hash,
+        without_own.is_some_and(|hash| data.own_hashes.contains(hash)),
+      ) {
+        selected_replacements.insert(index);
+      }
+      continue;
+    }
+
+    let required_count = get_replacement_count(
+      &required_references,
+      &replacement.old_hash,
+      replacement.kind,
+    );
+    let covered_count =
+      get_replacement_count(&covered_references, &replacement.old_hash, replacement.kind);
+
+    if covered_count < required_count {
+      selected_replacements.insert(index);
+      increment_replacement_count(
+        &mut covered_references,
+        &replacement.old_hash,
+        replacement.kind,
+      );
+      continue;
+    }
+
+    let all_reference_count = count_matching_source_references(record, replacement);
+    let changed = hash_to_new_hash
+      .get(&replacement.old_hash)
+      .is_some_and(|new_hash| new_hash != &replacement.old_hash);
+    if changed
+      && (all_reference_count == 0 || without_own.is_none() || all_reference_count <= covered_count)
+    {
+      return RecordedReplacementCoverage::Incomplete;
     }
   }
 
-  if needed_occurrence_ranges
+  if required_references
     .iter()
-    .all(|range| covered_occurrence_ranges.contains(range))
+    .any(|(hash, kind, count)| get_replacement_count(&covered_references, hash, *kind) < *count)
   {
-    RecordedReplacementCoverage::Complete
-  } else {
-    RecordedReplacementCoverage::Incomplete
+    return RecordedReplacementCoverage::Incomplete;
+  }
+
+  if selected_replacements.is_empty() && required_references.is_empty() {
+    return RecordedReplacementCoverage::NoReplacementNeeded;
+  }
+
+  RecordedReplacementCoverage::Complete(RecordedReplacementPlan {
+    selected_replacements,
+  })
+}
+
+fn has_ambiguous_owner_scoped_references(
+  record: &AssetHashRecord,
+  required_references: &[(String, ContentHashReplacementKind, usize)],
+  without_own: Option<&str>,
+) -> bool {
+  let Some(owner) = without_own else {
+    return false;
+  };
+
+  required_references.iter().any(|(hash, kind, _)| {
+    record.references.iter().any(|reference| {
+      reference
+        .owner_hash
+        .as_deref()
+        .is_some_and(|other| other != owner)
+        && reference.referenced_hash == *hash
+        && reference_replacement_kind(reference.kind) == Some(*kind)
+    })
+  })
+}
+
+fn increment_replacement_count(
+  counts: &mut Vec<(String, ContentHashReplacementKind, usize)>,
+  hash: &str,
+  kind: ContentHashReplacementKind,
+) {
+  for (counted_hash, counted_kind, count) in counts.iter_mut() {
+    if counted_hash == hash && *counted_kind == kind {
+      *count += 1;
+      return;
+    }
+  }
+
+  counts.push((hash.to_string(), kind, 1));
+}
+
+fn get_replacement_count(
+  counts: &[(String, ContentHashReplacementKind, usize)],
+  hash: &str,
+  kind: ContentHashReplacementKind,
+) -> usize {
+  for (counted_hash, counted_kind, count) in counts {
+    if counted_hash == hash && *counted_kind == kind {
+      return *count;
+    }
+  }
+  0
+}
+
+fn count_matching_source_references(
+  record: &AssetHashRecord,
+  replacement: &rspack_core::ContentHashReplacement,
+) -> usize {
+  record
+    .references
+    .iter()
+    .filter(|reference| {
+      reference.referenced_hash == replacement.old_hash
+        && reference_replacement_kind(reference.kind) == Some(replacement.kind)
+    })
+    .count()
+}
+
+fn reference_applies_to_view(owner_hash: Option<&str>, without_own: Option<&str>) -> bool {
+  without_own.is_none_or(|hash| owner_hash.is_none_or(|owner| owner == hash))
+}
+
+fn hash_needs_update(
+  hash: &str,
+  data: &AssetData,
+  hash_to_new_hash: &HashMap<String, String>,
+  without_own: Option<&str>,
+) -> bool {
+  without_own.is_some_and(|owner| data.own_hashes.contains(owner) && data.own_hashes.contains(hash))
+    || hash_to_new_hash
+      .get(hash)
+      .is_none_or(|new_hash| new_hash != hash)
+}
+
+fn replacement_needs_update_with_own(
+  old_hash: &str,
+  own_hashes: &HashSet<String>,
+  hash_to_new_hash: &HashMap<String, String>,
+  without_own: bool,
+) -> bool {
+  (without_own && own_hashes.contains(old_hash))
+    || hash_to_new_hash
+      .get(old_hash)
+      .is_none_or(|new_hash| new_hash != old_hash)
+}
+
+fn is_source_reference_kind(kind: rspack_core::ContentHashReferenceKind) -> bool {
+  matches!(
+    kind,
+    rspack_core::ContentHashReferenceKind::Source | rspack_core::ContentHashReferenceKind::Custom
+  )
+}
+
+fn reference_replacement_kind(
+  kind: rspack_core::ContentHashReferenceKind,
+) -> Option<ContentHashReplacementKind> {
+  match kind {
+    rspack_core::ContentHashReferenceKind::Source => Some(ContentHashReplacementKind::Source),
+    rspack_core::ContentHashReferenceKind::Custom => Some(ContentHashReplacementKind::Custom),
+    rspack_core::ContentHashReferenceKind::Filename => None,
   }
 }
 
@@ -581,20 +789,26 @@ fn is_source_replacement_kind(kind: ContentHashReplacementKind) -> bool {
 fn apply_recorded_replacements(
   source: BoxSource,
   record: &AssetHashRecord,
+  plan: &RecordedReplacementPlan,
   own_hashes: &HashSet<String>,
   hash_to_new_hash: &HashMap<String, String>,
-  without_own: bool,
+  without_own: Option<&str>,
 ) -> Result<BoxSource> {
   let mut replace_source = ReplaceSource::new(source);
 
-  for replacement in &record.replacements {
+  for (index, replacement) in record.replacements.iter().enumerate() {
     if !is_source_replacement_kind(replacement.kind) {
+      continue;
+    }
+    if !plan.selected_replacements.contains(&index) {
       continue;
     }
     let Some(range) = &replacement.range else {
       continue;
     };
-    let replacement_value = if without_own && own_hashes.contains(&replacement.old_hash) {
+    let replacement_value = if without_own.is_some_and(|hash| own_hashes.contains(hash))
+      && own_hashes.contains(&replacement.old_hash)
+    {
       ""
     } else {
       hash_to_new_hash
@@ -617,118 +831,28 @@ fn apply_recorded_replacements(
 #[derive(Debug)]
 struct AssetData {
   own_hashes: HashSet<String>,
-  referenced_hashes: HashSet<String>,
-  hash_occurrences: Vec<SourceHashOccurrence>,
   #[debug(skip)]
   old_source: BoxSource,
-  #[debug(skip)]
-  content: AssetDataContent,
-  #[debug(skip)]
-  new_source: OnceCell<BoxSource>,
-  #[debug(skip)]
-  new_source_without_own: OnceCell<BoxSource>,
-}
-
-#[derive(Debug)]
-struct SourceHashOccurrence {
-  hash: String,
-  range: std::ops::Range<usize>,
-}
-
-#[derive(Debug)]
-enum AssetDataContent {
-  Buffer,
-  String(String),
 }
 
 impl AssetData {
-  pub fn new(source: BoxSource, info: &AssetInfo, hash_ac: &AhoCorasick) -> Self {
-    let mut own_hashes = HashSet::default();
-    let mut referenced_hashes = HashSet::default();
-    let mut hash_occurrences = Vec::new();
-    let content = if let SourceValue::String(content) = source.source() {
-      for hash_match in hash_ac.find_iter(content.as_ref()) {
-        let range = hash_match.range();
-        let hash = &content[range.clone()];
-        hash_occurrences.push(SourceHashOccurrence {
-          hash: hash.to_string(),
-          range,
-        });
-        if info.content_hash.contains(hash) {
-          own_hashes.insert(hash.to_string());
-          continue;
-        }
-        referenced_hashes.insert(hash.to_string());
-      }
-      AssetDataContent::String(content.into_owned())
-    } else {
-      AssetDataContent::Buffer
-    };
+  pub fn new(source: BoxSource, info: &AssetInfo) -> Self {
+    let own_hashes = info.content_hash.iter().cloned().collect();
 
     Self {
       own_hashes,
-      referenced_hashes,
-      hash_occurrences,
       old_source: source,
-      content,
-      new_source: OnceCell::new(),
-      new_source_without_own: OnceCell::new(),
     }
-  }
-
-  pub fn compute_new_source(
-    &self,
-    without_own: bool,
-    hash_to_new_hash: &HashMap<String, String>,
-    hash_ac: &AhoCorasick,
-  ) -> BoxSource {
-    (if without_own {
-      &self.new_source_without_own
-    } else {
-      &self.new_source
-    })
-    .get_or_init(|| {
-      if let AssetDataContent::String(content) = &self.content
-        && (!self.own_hashes.is_empty()
-          || self
-            .referenced_hashes
-            .iter()
-            .any(|hash| matches!(hash_to_new_hash.get(hash.as_str()), Some(h) if h != hash)))
-      {
-        let mut new_content = String::with_capacity(content.len());
-        hash_ac.replace_all_with(content, &mut new_content, |_, hash, dst| {
-          let replace_to = if without_own && self.own_hashes.contains(hash) {
-            ""
-          } else {
-            hash_to_new_hash
-              .get(hash)
-              .expect("RealContentHashPlugin: should have new hash")
-          };
-          dst.push_str(replace_to);
-          true
-        });
-        return RawStringSource::from(new_content).boxed();
-      }
-      self.old_source.clone()
-    })
-    .clone()
   }
 }
 
 struct OrderedHashesBuilder<'a> {
   artifact: &'a RealContentHashArtifact,
-  assets_data: &'a HashMap<&'a str, AssetData>,
 }
 
 impl<'a> OrderedHashesBuilder<'a> {
-  pub fn new(
-    artifact: &'a RealContentHashArtifact,
-    assets_data: &'a HashMap<&'a str, AssetData>,
-  ) -> Self {
-    Self {
-      artifact,
-      assets_data,
-    }
+  pub fn new(artifact: &'a RealContentHashArtifact) -> Self {
+    Self { artifact }
   }
 
   pub fn build(&self) -> (IndexSet<String>, HashMap<String, HashSet<String>>) {
@@ -765,19 +889,6 @@ impl OrderedHashesBuilder<'_> {
           }
         }
       }
-
-      if let Some(asset_hash) = self.assets_data.get(name.as_str()) {
-        // Transitional fallback: source references are still discovered by the
-        // scan-based replacement path until artifact source records are emitted.
-        if !asset_hash.own_hashes.contains(hash) {
-          for hash in &asset_hash.own_hashes {
-            hashes.insert(hash.clone());
-          }
-        }
-        for hash in &asset_hash.referenced_hashes {
-          hashes.insert(hash.clone());
-        }
-      }
     }
     hashes
   }
@@ -812,17 +923,26 @@ impl OrderedHashesBuilder<'_> {
 
 #[cfg(test)]
 mod tests {
-  use aho_corasick::AhoCorasick;
   use rspack_core::{
     AssetInfo, ContentHashReference, ContentHashReferenceKind, ContentHashReplacement,
     ContentHashReplacementKind, RealContentHashArtifact,
-    rspack_sources::{RawStringSource, Source, SourceExt},
+    rspack_sources::{BoxSource, RawBufferSource, Source, SourceExt},
   };
 
   use super::{
-    AssetData, HashMap, HashSet, apply_recorded_replacements, compute_new_source,
-    validate_artifact_records,
+    AssetData, HashMap, HashSet, RecordedReplacementPlan, apply_recorded_replacements,
+    compute_new_name, compute_new_source, validate_artifact_records,
   };
+
+  fn source(value: &str) -> BoxSource {
+    RawBufferSource::from(value.as_bytes()).boxed()
+  }
+
+  fn replacement_plan(indexes: impl IntoIterator<Item = usize>) -> RecordedReplacementPlan {
+    RecordedReplacementPlan {
+      selected_replacements: HashSet::from_iter(indexes),
+    }
+  }
 
   #[test]
   fn validate_artifact_records_rejects_reference_owner_hash_not_owned_by_asset() {
@@ -917,11 +1037,12 @@ mod tests {
     let hash_to_new_hash = HashMap::from_iter([("aaaa".to_string(), "cccc".to_string())]);
 
     let source = apply_recorded_replacements(
-      RawStringSource::from("url: aaaa bbbb").boxed(),
+      source("url: aaaa bbbb"),
       &record,
+      &replacement_plan([0]),
       &HashSet::default(),
       &hash_to_new_hash,
-      false,
+      None,
     )
     .expect("range replacement should apply");
 
@@ -939,11 +1060,12 @@ mod tests {
     let hash_to_new_hash = HashMap::from_iter([("aaaa".to_string(), "cccc".to_string())]);
 
     let source = apply_recorded_replacements(
-      RawStringSource::from("url: aaaa").boxed(),
+      source("url: aaaa"),
       &record,
+      &replacement_plan([0]),
       &HashSet::default(),
       &hash_to_new_hash,
-      false,
+      None,
     )
     .expect("filename replacement should be ignored for source");
 
@@ -962,11 +1084,12 @@ mod tests {
     let own_hashes = HashSet::from_iter(["aaaa".to_string()]);
 
     let source = apply_recorded_replacements(
-      RawStringSource::from("url: aaaa").boxed(),
+      source("url: aaaa"),
       &record,
+      &replacement_plan([0]),
       &own_hashes,
       &hash_to_new_hash,
-      true,
+      Some("aaaa"),
     )
     .expect("own replacement should apply");
 
@@ -975,14 +1098,9 @@ mod tests {
 
   #[test]
   fn compute_new_source_removes_all_own_hashes_for_recorded_without_own_view() {
-    let hash_ac = AhoCorasick::new(["aaaa", "bbbb"]).expect("valid hashes");
     let info = AssetInfo::default()
       .with_content_hashes(HashSet::from_iter(["aaaa".to_string(), "bbbb".to_string()]));
-    let data = AssetData::new(
-      RawStringSource::from("own aaaa and bbbb").boxed(),
-      &info,
-      &hash_ac,
-    );
+    let data = AssetData::new(source("own aaaa and bbbb"), &info);
     let mut artifact = RealContentHashArtifact::default();
     artifact.record_asset_hashes("asset.js", ["aaaa".to_string(), "bbbb".to_string()]);
     artifact.record_replacement(
@@ -1004,7 +1122,6 @@ mod tests {
       &data,
       &artifact,
       &hash_to_new_hash,
-      &hash_ac,
       Some("aaaa"),
     )
     .expect("source update should succeed");
@@ -1013,18 +1130,80 @@ mod tests {
   }
 
   #[test]
-  fn compute_new_source_falls_back_to_scan_without_recorded_source_ranges() {
-    let hash_ac = AhoCorasick::new(["aaaa", "bbbb"]).expect("valid hashes");
+  fn compute_new_source_rejects_missing_recorded_source_ranges() {
     let info = AssetInfo::default().with_content_hashes(HashSet::from_iter(["aaaa".to_string()]));
-    let data = AssetData::new(
-      RawStringSource::from("own aaaa ref bbbb").boxed(),
-      &info,
-      &hash_ac,
-    );
-    let artifact = RealContentHashArtifact::default();
+    let data = AssetData::new(source("own aaaa ref bbbb"), &info);
+    let mut artifact = RealContentHashArtifact::default();
+    artifact.record_asset_hashes("asset.js", ["aaaa".to_string()]);
+    artifact
+      .asset_records
+      .get_mut("asset.js")
+      .expect("asset record")
+      .references
+      .push(ContentHashReference {
+        referenced_hash: "bbbb".to_string(),
+        owner_hash: Some("aaaa".to_string()),
+        referenced_chunk: None,
+        referenced_source_type: None,
+        kind: ContentHashReferenceKind::Source,
+      });
     let hash_to_new_hash = HashMap::from_iter([
       ("aaaa".to_string(), "cccc".to_string()),
       ("bbbb".to_string(), "dddd".to_string()),
+    ]);
+
+    let error = compute_new_source(
+      "asset.js",
+      &data,
+      &artifact,
+      &hash_to_new_hash,
+      Some("aaaa"),
+    )
+    .expect_err("missing source records should be rejected");
+
+    assert!(
+      error
+        .to_string()
+        .contains("InvalidRealContentHashReplacementCoverage")
+    );
+  }
+
+  #[test]
+  fn compute_new_source_skips_owner_scoped_reference_for_unrelated_without_own_view() {
+    let info = AssetInfo::default()
+      .with_content_hashes(HashSet::from_iter(["aaaa".to_string(), "cccc".to_string()]));
+    let data = AssetData::new(source("own aaaa and cccc ref bbbb"), &info);
+    let mut artifact = RealContentHashArtifact::default();
+    artifact.record_asset_hashes("asset.js", ["aaaa".to_string(), "cccc".to_string()]);
+    let record = artifact
+      .asset_records
+      .get_mut("asset.js")
+      .expect("asset record");
+    record.references.push(ContentHashReference {
+      referenced_hash: "bbbb".to_string(),
+      owner_hash: Some("aaaa".to_string()),
+      referenced_chunk: None,
+      referenced_source_type: None,
+      kind: ContentHashReferenceKind::Source,
+    });
+    record.replacements.push(ContentHashReplacement {
+      old_hash: "aaaa".to_string(),
+      range: Some(4..8),
+      kind: ContentHashReplacementKind::Source,
+    });
+    record.replacements.push(ContentHashReplacement {
+      old_hash: "cccc".to_string(),
+      range: Some(13..17),
+      kind: ContentHashReplacementKind::Source,
+    });
+    record.replacements.push(ContentHashReplacement {
+      old_hash: "bbbb".to_string(),
+      range: Some(22..26),
+      kind: ContentHashReplacementKind::Source,
+    });
+    let hash_to_new_hash = HashMap::from_iter([
+      ("aaaa".to_string(), "eeee".to_string()),
+      ("cccc".to_string(), "ffff".to_string()),
     ]);
 
     let source = compute_new_source(
@@ -1032,19 +1211,151 @@ mod tests {
       &data,
       &artifact,
       &hash_to_new_hash,
-      &hash_ac,
-      Some("aaaa"),
+      Some("cccc"),
     )
-    .expect("source update should succeed");
+    .expect("unrelated owner-scoped reference should not be required");
 
-    assert_eq!(source.source().into_string_lossy(), "own  ref dddd");
+    assert_eq!(source.source().into_string_lossy(), "own  and  ref bbbb");
   }
 
   #[test]
-  fn compute_new_source_falls_back_to_scan_with_filename_only_records() {
-    let hash_ac = AhoCorasick::new(["aaaa"]).expect("valid hashes");
+  fn compute_new_source_rejects_ambiguous_same_hash_owner_scoped_replacements() {
+    let info = AssetInfo::default()
+      .with_content_hashes(HashSet::from_iter(["aaaa".to_string(), "cccc".to_string()]));
+    let data = AssetData::new(source("own aaaa and cccc refs hhhh then hhhh"), &info);
+    let mut artifact = RealContentHashArtifact::default();
+    artifact.record_asset_hashes("asset.js", ["aaaa".to_string(), "cccc".to_string()]);
+    let record = artifact
+      .asset_records
+      .get_mut("asset.js")
+      .expect("asset record");
+    record.references.push(ContentHashReference {
+      referenced_hash: "hhhh".to_string(),
+      owner_hash: Some("aaaa".to_string()),
+      referenced_chunk: None,
+      referenced_source_type: None,
+      kind: ContentHashReferenceKind::Source,
+    });
+    record.references.push(ContentHashReference {
+      referenced_hash: "hhhh".to_string(),
+      owner_hash: Some("cccc".to_string()),
+      referenced_chunk: None,
+      referenced_source_type: None,
+      kind: ContentHashReferenceKind::Source,
+    });
+    record.replacements.push(ContentHashReplacement {
+      old_hash: "aaaa".to_string(),
+      range: Some(4..8),
+      kind: ContentHashReplacementKind::Source,
+    });
+    record.replacements.push(ContentHashReplacement {
+      old_hash: "cccc".to_string(),
+      range: Some(13..17),
+      kind: ContentHashReplacementKind::Source,
+    });
+    record.replacements.push(ContentHashReplacement {
+      old_hash: "hhhh".to_string(),
+      range: Some(23..27),
+      kind: ContentHashReplacementKind::Source,
+    });
+    record.replacements.push(ContentHashReplacement {
+      old_hash: "hhhh".to_string(),
+      range: Some(33..37),
+      kind: ContentHashReplacementKind::Source,
+    });
+    let hash_to_new_hash = HashMap::from_iter([
+      ("aaaa".to_string(), "eeee".to_string()),
+      ("cccc".to_string(), "ffff".to_string()),
+      ("hhhh".to_string(), "iiii".to_string()),
+    ]);
+
+    let error = compute_new_source(
+      "asset.js",
+      &data,
+      &artifact,
+      &hash_to_new_hash,
+      Some("cccc"),
+    )
+    .expect_err("ambiguous owner-scoped same-hash source records should be rejected");
+
+    assert!(
+      error
+        .to_string()
+        .contains("InvalidRealContentHashReplacementCoverage")
+    );
+  }
+
+  #[test]
+  fn compute_new_source_applies_distinct_owner_scoped_referenced_hashes() {
+    let info = AssetInfo::default()
+      .with_content_hashes(HashSet::from_iter(["aaaa".to_string(), "cccc".to_string()]));
+    let data = AssetData::new(source("own aaaa and cccc refs bbbb then dddd"), &info);
+    let mut artifact = RealContentHashArtifact::default();
+    artifact.record_asset_hashes("asset.js", ["aaaa".to_string(), "cccc".to_string()]);
+    let record = artifact
+      .asset_records
+      .get_mut("asset.js")
+      .expect("asset record");
+    record.references.push(ContentHashReference {
+      referenced_hash: "bbbb".to_string(),
+      owner_hash: Some("aaaa".to_string()),
+      referenced_chunk: None,
+      referenced_source_type: None,
+      kind: ContentHashReferenceKind::Source,
+    });
+    record.references.push(ContentHashReference {
+      referenced_hash: "dddd".to_string(),
+      owner_hash: Some("cccc".to_string()),
+      referenced_chunk: None,
+      referenced_source_type: None,
+      kind: ContentHashReferenceKind::Source,
+    });
+    record.replacements.push(ContentHashReplacement {
+      old_hash: "aaaa".to_string(),
+      range: Some(4..8),
+      kind: ContentHashReplacementKind::Source,
+    });
+    record.replacements.push(ContentHashReplacement {
+      old_hash: "cccc".to_string(),
+      range: Some(13..17),
+      kind: ContentHashReplacementKind::Source,
+    });
+    record.replacements.push(ContentHashReplacement {
+      old_hash: "bbbb".to_string(),
+      range: Some(23..27),
+      kind: ContentHashReplacementKind::Source,
+    });
+    record.replacements.push(ContentHashReplacement {
+      old_hash: "dddd".to_string(),
+      range: Some(33..37),
+      kind: ContentHashReplacementKind::Source,
+    });
+    let hash_to_new_hash = HashMap::from_iter([
+      ("aaaa".to_string(), "eeee".to_string()),
+      ("cccc".to_string(), "ffff".to_string()),
+      ("bbbb".to_string(), "gggg".to_string()),
+      ("dddd".to_string(), "iiii".to_string()),
+    ]);
+
+    let source = compute_new_source(
+      "asset.js",
+      &data,
+      &artifact,
+      &hash_to_new_hash,
+      Some("cccc"),
+    )
+    .expect("distinct owner-scoped source records should be selectable");
+
+    assert_eq!(
+      source.source().into_string_lossy(),
+      "own  and  refs bbbb then iiii"
+    );
+  }
+
+  #[test]
+  fn compute_new_source_ignores_filename_only_records() {
     let info = AssetInfo::default();
-    let data = AssetData::new(RawStringSource::from("ref aaaa").boxed(), &info, &hash_ac);
+    let data = AssetData::new(source("ref aaaa"), &info);
     let mut artifact = RealContentHashArtifact::default();
     artifact.record_replacement(
       "asset.js",
@@ -1054,30 +1365,119 @@ mod tests {
     );
     let hash_to_new_hash = HashMap::from_iter([("aaaa".to_string(), "cccc".to_string())]);
 
-    let source = compute_new_source(
-      "asset.js",
-      &data,
-      &artifact,
-      &hash_to_new_hash,
-      &hash_ac,
-      None,
-    )
-    .expect("source update should succeed");
+    let source = compute_new_source("asset.js", &data, &artifact, &hash_to_new_hash, None)
+      .expect("source update should succeed");
 
-    assert_eq!(source.source().into_string_lossy(), "ref cccc");
+    assert_eq!(source.source().into_string_lossy(), "ref aaaa");
   }
 
   #[test]
-  fn compute_new_source_falls_back_to_scan_when_recorded_source_ranges_are_incomplete() {
-    let hash_ac = AhoCorasick::new(["aaaa", "bbbb"]).expect("valid hashes");
-    let info = AssetInfo::default().with_content_hashes(HashSet::from_iter(["aaaa".to_string()]));
-    let data = AssetData::new(
-      RawStringSource::from("own aaaa ref bbbb").boxed(),
-      &info,
-      &hash_ac,
+  fn compute_new_name_replaces_recorded_filename_hashes_without_cascading() {
+    let info = AssetInfo::default()
+      .with_content_hashes(HashSet::from_iter(["aaaa".to_string(), "bbbb".to_string()]));
+    let data = AssetData::new(source("asset"), &info);
+    let mut record = rspack_core::AssetHashRecord::default();
+    record.replacements.push(ContentHashReplacement {
+      old_hash: "aaaa".to_string(),
+      range: Some(6..10),
+      kind: ContentHashReplacementKind::Filename,
+    });
+    record.replacements.push(ContentHashReplacement {
+      old_hash: "bbbb".to_string(),
+      range: Some(11..15),
+      kind: ContentHashReplacementKind::Filename,
+    });
+    let hash_to_new_hash = HashMap::from_iter([
+      ("aaaa".to_string(), "bbbb".to_string()),
+      ("bbbb".to_string(), "cccc".to_string()),
+    ]);
+
+    let name = compute_new_name(
+      "asset.aaaa.bbbb.js",
+      &data,
+      Some(&record),
+      &hash_to_new_hash,
+    )
+    .expect("recorded filename ranges should be valid");
+
+    assert_eq!(name.as_deref(), Some("asset.bbbb.cccc.js"));
+  }
+
+  #[test]
+  fn compute_new_name_ignores_unrecorded_filename_substrings() {
+    let info = AssetInfo::default();
+    let data = AssetData::new(source("asset"), &info);
+    let record = rspack_core::AssetHashRecord::default();
+    let hash_to_new_hash = HashMap::from_iter([("aaaa".to_string(), "bbbb".to_string())]);
+
+    let name = compute_new_name("asset.aaaa.js", &data, Some(&record), &hash_to_new_hash);
+
+    assert_eq!(name.expect("empty record should be valid"), None);
+  }
+
+  #[test]
+  fn compute_new_name_only_replaces_recorded_filename_ranges() {
+    let info = AssetInfo::default();
+    let data = AssetData::new(source("asset"), &info);
+    let mut record = rspack_core::AssetHashRecord::default();
+    record.replacements.push(ContentHashReplacement {
+      old_hash: "aaaa".to_string(),
+      range: Some(16..20),
+      kind: ContentHashReplacementKind::Filename,
+    });
+    let hash_to_new_hash = HashMap::from_iter([("aaaa".to_string(), "bbbb".to_string())]);
+
+    let name = compute_new_name(
+      "asset.aaaa.copy.aaaa.js",
+      &data,
+      Some(&record),
+      &hash_to_new_hash,
+    )
+    .expect("recorded filename range should be valid");
+
+    assert_eq!(name.as_deref(), Some("asset.aaaa.copy.bbbb.js"));
+  }
+
+  #[test]
+  fn compute_new_name_rejects_stale_filename_ranges() {
+    let info = AssetInfo::default();
+    let data = AssetData::new(source("asset"), &info);
+    let mut record = rspack_core::AssetHashRecord::default();
+    record.replacements.push(ContentHashReplacement {
+      old_hash: "aaaa".to_string(),
+      range: Some(0..4),
+      kind: ContentHashReplacementKind::Filename,
+    });
+    let hash_to_new_hash = HashMap::from_iter([("aaaa".to_string(), "bbbb".to_string())]);
+
+    let err = compute_new_name("asset.aaaa.js", &data, Some(&record), &hash_to_new_hash)
+      .expect_err("stale filename range should fail");
+
+    assert!(
+      err
+        .to_string()
+        .contains("InvalidRealContentHashFilenameReplacementRange")
     );
+  }
+
+  #[test]
+  fn compute_new_source_rejects_incomplete_recorded_source_ranges() {
+    let info = AssetInfo::default().with_content_hashes(HashSet::from_iter(["aaaa".to_string()]));
+    let data = AssetData::new(source("own aaaa ref bbbb"), &info);
     let mut artifact = RealContentHashArtifact::default();
     artifact.record_asset_hashes("asset.js", ["aaaa".to_string()]);
+    artifact
+      .asset_records
+      .get_mut("asset.js")
+      .expect("asset record")
+      .references
+      .push(ContentHashReference {
+        referenced_hash: "bbbb".to_string(),
+        owner_hash: Some("aaaa".to_string()),
+        referenced_chunk: None,
+        referenced_source_type: None,
+        kind: ContentHashReferenceKind::Source,
+      });
     artifact.record_replacement(
       "asset.js",
       "aaaa",
@@ -1089,59 +1489,66 @@ mod tests {
       ("bbbb".to_string(), "dddd".to_string()),
     ]);
 
-    let source = compute_new_source(
+    let error = compute_new_source(
       "asset.js",
       &data,
       &artifact,
       &hash_to_new_hash,
-      &hash_ac,
       Some("aaaa"),
     )
-    .expect("incomplete source records should fall back to scan");
+    .expect_err("incomplete source records should be rejected");
 
-    assert_eq!(source.source().into_string_lossy(), "own  ref dddd");
+    assert!(
+      error
+        .to_string()
+        .contains("InvalidRealContentHashReplacementCoverage")
+    );
   }
 
   #[test]
-  fn compute_new_source_falls_back_to_scan_when_duplicate_hash_ranges_are_incomplete() {
-    let hash_ac = AhoCorasick::new(["aaaa"]).expect("valid hashes");
+  fn compute_new_source_rejects_incomplete_duplicate_hash_ranges() {
     let info = AssetInfo::default();
-    let data = AssetData::new(
-      RawStringSource::from("ref aaaa again aaaa").boxed(),
-      &info,
-      &hash_ac,
-    );
+    let data = AssetData::new(source("ref aaaa again aaaa"), &info);
     let mut artifact = RealContentHashArtifact::default();
-    artifact
+    let record = artifact
       .asset_records
       .entry("asset.js".to_string())
-      .or_default()
-      .replacements
-      .push(ContentHashReplacement {
-        old_hash: "aaaa".to_string(),
-        range: Some(4..8),
-        kind: ContentHashReplacementKind::Source,
-      });
+      .or_default();
+    record.references.push(ContentHashReference {
+      referenced_hash: "aaaa".to_string(),
+      owner_hash: None,
+      referenced_chunk: None,
+      referenced_source_type: None,
+      kind: ContentHashReferenceKind::Source,
+    });
+    record.references.push(ContentHashReference {
+      referenced_hash: "aaaa".to_string(),
+      owner_hash: None,
+      referenced_chunk: None,
+      referenced_source_type: None,
+      kind: ContentHashReferenceKind::Source,
+    });
+    record.replacements.push(ContentHashReplacement {
+      old_hash: "aaaa".to_string(),
+      range: Some(4..8),
+      kind: ContentHashReplacementKind::Source,
+    });
     let hash_to_new_hash = HashMap::from_iter([("aaaa".to_string(), "cccc".to_string())]);
 
-    let source = compute_new_source(
-      "asset.js",
-      &data,
-      &artifact,
-      &hash_to_new_hash,
-      &hash_ac,
-      None,
-    )
-    .expect("incomplete duplicate source records should fall back to scan");
+    let error = compute_new_source("asset.js", &data, &artifact, &hash_to_new_hash, None)
+      .expect_err("incomplete duplicate source records should be rejected");
 
-    assert_eq!(source.source().into_string_lossy(), "ref cccc again cccc");
+    assert!(
+      error
+        .to_string()
+        .contains("InvalidRealContentHashReplacementCoverage")
+    );
   }
 
   #[test]
   fn compute_new_source_returns_old_source_when_recorded_ranges_do_not_need_replacement() {
-    let hash_ac = AhoCorasick::new(["aaaa"]).expect("valid hashes");
     let info = AssetInfo::default();
-    let data = AssetData::new(RawStringSource::from("ref aaaa").boxed(), &info, &hash_ac);
+    let data = AssetData::new(source("ref aaaa"), &info);
     let mut artifact = RealContentHashArtifact::default();
     artifact.record_replacement(
       "asset.js",
@@ -1151,33 +1558,28 @@ mod tests {
     );
     let hash_to_new_hash = HashMap::from_iter([("aaaa".to_string(), "aaaa".to_string())]);
 
-    let source = compute_new_source(
-      "asset.js",
-      &data,
-      &artifact,
-      &hash_to_new_hash,
-      &hash_ac,
-      None,
-    )
-    .expect("unchanged source records should be a no-op");
+    let source = compute_new_source("asset.js", &data, &artifact, &hash_to_new_hash, None)
+      .expect("unchanged source records should be a no-op");
 
     assert_eq!(source.source().into_string_lossy(), "ref aaaa");
   }
 
   #[test]
   fn compute_new_source_rejects_overlapping_duplicate_replacement_ranges() {
-    let hash_ac = AhoCorasick::new(["aaaa"]).expect("valid hashes");
     let info = AssetInfo::default();
-    let data = AssetData::new(
-      RawStringSource::from("ref aaaa again aaaa").boxed(),
-      &info,
-      &hash_ac,
-    );
+    let data = AssetData::new(source("ref aaaa again aaaa"), &info);
     let mut artifact = RealContentHashArtifact::default();
     let record = artifact
       .asset_records
       .entry("asset.js".to_string())
       .or_default();
+    record.references.push(ContentHashReference {
+      referenced_hash: "aaaa".to_string(),
+      owner_hash: None,
+      referenced_chunk: None,
+      referenced_source_type: None,
+      kind: ContentHashReferenceKind::Source,
+    });
     record.replacements.push(ContentHashReplacement {
       old_hash: "aaaa".to_string(),
       range: Some(4..8),
@@ -1190,15 +1592,8 @@ mod tests {
     });
     let hash_to_new_hash = HashMap::from_iter([("aaaa".to_string(), "cccc".to_string())]);
 
-    let error = compute_new_source(
-      "asset.js",
-      &data,
-      &artifact,
-      &hash_to_new_hash,
-      &hash_ac,
-      None,
-    )
-    .expect_err("overlapping source records should be rejected");
+    let error = compute_new_source("asset.js", &data, &artifact, &hash_to_new_hash, None)
+      .expect_err("overlapping source records should be rejected");
 
     assert!(
       error
@@ -1209,9 +1604,8 @@ mod tests {
 
   #[test]
   fn compute_new_source_rejects_duplicate_replacement_ranges_for_single_occurrence() {
-    let hash_ac = AhoCorasick::new(["aaaa"]).expect("valid hashes");
     let info = AssetInfo::default();
-    let data = AssetData::new(RawStringSource::from("ref aaaa").boxed(), &info, &hash_ac);
+    let data = AssetData::new(source("ref aaaa"), &info);
     let mut artifact = RealContentHashArtifact::default();
     let record = artifact
       .asset_records
@@ -1229,15 +1623,8 @@ mod tests {
     });
     let hash_to_new_hash = HashMap::from_iter([("aaaa".to_string(), "cccc".to_string())]);
 
-    let error = compute_new_source(
-      "asset.js",
-      &data,
-      &artifact,
-      &hash_to_new_hash,
-      &hash_ac,
-      None,
-    )
-    .expect_err("duplicate source records should be rejected");
+    let error = compute_new_source("asset.js", &data, &artifact, &hash_to_new_hash, None)
+      .expect_err("duplicate source records should be rejected");
 
     assert!(
       error
@@ -1247,19 +1634,21 @@ mod tests {
   }
 
   #[test]
-  fn compute_new_source_rejects_recorded_range_that_is_extra_for_view() {
-    let hash_ac = AhoCorasick::new(["aaaa", "bbbb"]).expect("valid hashes");
+  fn compute_new_source_ignores_unchanged_recorded_ranges() {
     let info = AssetInfo::default();
-    let data = AssetData::new(
-      RawStringSource::from("ref aaaa extra bbbb").boxed(),
-      &info,
-      &hash_ac,
-    );
+    let data = AssetData::new(source("ref aaaa extra bbbb"), &info);
     let mut artifact = RealContentHashArtifact::default();
     let record = artifact
       .asset_records
       .entry("asset.js".to_string())
       .or_default();
+    record.references.push(ContentHashReference {
+      referenced_hash: "aaaa".to_string(),
+      owner_hash: None,
+      referenced_chunk: None,
+      referenced_source_type: None,
+      kind: ContentHashReferenceKind::Source,
+    });
     record.replacements.push(ContentHashReplacement {
       old_hash: "aaaa".to_string(),
       range: Some(4..8),
@@ -1275,32 +1664,16 @@ mod tests {
       ("bbbb".to_string(), "bbbb".to_string()),
     ]);
 
-    let error = compute_new_source(
-      "asset.js",
-      &data,
-      &artifact,
-      &hash_to_new_hash,
-      &hash_ac,
-      None,
-    )
-    .expect_err("extra source range should be rejected for this view");
+    let source = compute_new_source("asset.js", &data, &artifact, &hash_to_new_hash, None)
+      .expect("unchanged source range should be a no-op");
 
-    assert!(
-      error
-        .to_string()
-        .contains("InvalidRealContentHashReplacementCoverage")
-    );
+    assert_eq!(source.source().into_string_lossy(), "ref cccc extra bbbb");
   }
 
   #[test]
   fn compute_new_source_rejects_recorded_range_that_points_at_wrong_text() {
-    let hash_ac = AhoCorasick::new(["aaaa"]).expect("valid hashes");
     let info = AssetInfo::default();
-    let data = AssetData::new(
-      RawStringSource::from("ref aaaa end").boxed(),
-      &info,
-      &hash_ac,
-    );
+    let data = AssetData::new(source("ref aaaa end"), &info);
     let mut artifact = RealContentHashArtifact::default();
     artifact
       .asset_records
@@ -1314,15 +1687,8 @@ mod tests {
       });
     let hash_to_new_hash = HashMap::from_iter([("aaaa".to_string(), "cccc".to_string())]);
 
-    let error = compute_new_source(
-      "asset.js",
-      &data,
-      &artifact,
-      &hash_to_new_hash,
-      &hash_ac,
-      None,
-    )
-    .expect_err("wrong source range should be rejected");
+    let error = compute_new_source("asset.js", &data, &artifact, &hash_to_new_hash, None)
+      .expect_err("wrong source range should be rejected");
 
     assert!(
       error

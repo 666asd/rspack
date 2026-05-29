@@ -1,6 +1,7 @@
 use std::{
   borrow::Cow,
-  hash::Hasher,
+  hash::{Hash, Hasher},
+  ops::Range,
   path::{Component, Path, PathBuf},
   sync::{Arc, LazyLock},
 };
@@ -11,8 +12,9 @@ use futures::future::BoxFuture;
 use itertools::Itertools;
 use regex::Regex;
 use rspack_core::{
-  AssetInfo, Chunk, ChunkUkey, Compilation, CompilationAsset, CompilationProcessAssets, Filename,
-  Logger, ModuleIdentifier, PathData, Plugin, has_content_hash_placeholder,
+  AssetInfo, Chunk, ChunkUkey, Compilation, CompilationAsset, CompilationProcessAssets,
+  ContentHashReferenceMeta, ContentHashReplacementKind, Filename, Logger, ModuleIdentifier,
+  PathData, Plugin, has_content_hash_placeholder,
   rspack_sources::{
     BoxSource, ConcatSource, MapOptions, ObjectPool, RawStringSource, Source, SourceExt, SourceMap,
   },
@@ -24,7 +26,7 @@ use rspack_paths::{Utf8Path, Utf8PathBuf};
 use rspack_util::{
   asset_condition::{AssetConditions, AssetConditionsObject, match_object},
   base64,
-  fx_hash::FxIndexMap,
+  fx_hash::{FxHasher, FxIndexMap},
   identifier::make_paths_absolute,
   node_path::NodePath,
 };
@@ -272,6 +274,8 @@ impl SourceNameWithBaseUrl {
 pub(crate) struct MappedAsset {
   pub(crate) asset: (Arc<str>, CompilationAsset),
   pub(crate) source_map: Option<(String, CompilationAsset)>,
+  pub(crate) source_replacements: Vec<(String, Range<u32>)>,
+  pub(crate) source_map_replacements: Vec<(String, Range<u32>)>,
 }
 
 type ReferenceToSourceNameMapping = FxIndexMap<SourceReference, SourceNameWithBaseUrl>;
@@ -810,8 +814,25 @@ impl SourceMapDevToolPlugin {
     unresolved_source_map_path: Option<Utf8PathBuf>,
     source_references: Vec<SourceReference>,
   ) -> Result<MappedAsset> {
-    // Update source_map with deduplicated source names
-    source_map.set_file(Some(asset_filename.clone()));
+    let filename_hashes = compilation
+      .real_content_hash_artifact
+      .asset_records
+      .get(asset_filename.as_ref())
+      .map(|record| {
+        record
+          .replacements
+          .iter()
+          .filter_map(|replacement| {
+            (replacement.kind == ContentHashReplacementKind::Filename)
+              .then_some(replacement.old_hash.clone())
+          })
+          .collect::<Vec<_>>()
+      })
+      .unwrap_or_default();
+    let (marked_asset_filename, source_map_file_markers) =
+      marker_filename_replacements(asset_filename.as_ref(), &filename_hashes);
+    source_map.set_file(Some(Arc::from(marked_asset_filename.clone())));
+
     let source_map_path = unresolved_source_map_path.as_ref().map(|p| p.as_path());
     source_map.set_sources(
       source_references
@@ -858,7 +879,12 @@ impl SourceMapDevToolPlugin {
       source_map.set_debug_id(Some(debug_id.clone()));
       debug_id
     });
-    let source_map_json = source_map.to_json();
+    let marked_source_map_json = source_map.to_json();
+    let (source_map_json, source_map_replacements) = source_map_replacements_from_markers(
+      &marked_source_map_json,
+      &marked_asset_filename,
+      &source_map_file_markers,
+    );
 
     let mut asset = compilation
       .assets()
@@ -884,6 +910,7 @@ impl SourceMapDevToolPlugin {
       Some(SourceMappingUrlComment::Fn(f)) => Some(SourceMappingUrlCommentRef::Fn(f)),
       None => None,
     };
+    let mut source_replacements = Vec::new();
 
     if let Some(source_map_filename_config) = &plugin.source_map_filename {
       let chunk = file_to_chunk.get(asset_filename.as_ref());
@@ -907,6 +934,9 @@ impl SourceMapDevToolPlugin {
           None
         };
 
+      let (marked_filename, filename_markers) =
+        marker_filename_replacements(filename.as_ref(), &filename_hashes);
+
       let data = PathData::default().filename(&filename);
       let data = match chunk {
         Some(chunk) => data
@@ -919,32 +949,39 @@ impl SourceMapDevToolPlugin {
           .content_hash_optional(content_hash_digest.as_ref().map(|digest| digest.encoded())),
         None => data,
       };
+      let marker_data = PathData::default().filename(&marked_filename);
+      let marker_data = match chunk {
+        Some(chunk) => marker_data
+          .chunk_id_optional(chunk.id().map(|id| id.as_str()))
+          .chunk_hash_optional(chunk.rendered_hash(
+            &compilation.chunk_hashes_artifact,
+            compilation.options.output.hash_digest_length,
+          ))
+          .chunk_name_optional(chunk.name_for_filename_template())
+          .content_hash_optional(content_hash_digest.as_ref().map(|digest| digest.encoded())),
+        None => marker_data,
+      };
       let source_map_filename = compilation
         .get_asset_path(source_map_filename_config, data)
         .await?;
+      let marker_source_map_filename = compilation
+        .get_asset_path(source_map_filename_config, marker_data)
+        .await?;
 
-      if let Some(current_source_mapping_url_comment) = current_source_mapping_url_comment {
-        let source_map_url = if let Some(public_path) = &plugin.public_path {
-          format!("{public_path}{source_map_filename}")
-        } else {
-          let mut file_path = PathBuf::new();
-          file_path.push(Component::RootDir);
-          file_path.extend(Path::new(filename.as_ref()).components());
-
-          let mut source_map_path = PathBuf::new();
-          source_map_path.push(Component::RootDir);
-          source_map_path.extend(Path::new(&source_map_filename).components());
-
-          source_map_path
-            .relative(
-              #[allow(clippy::unwrap_used)]
-              file_path.parent().unwrap(),
-            )
-            .to_string_lossy()
-            .to_string()
-        };
+      if let Some(source_mapping_url_comment_ref) = current_source_mapping_url_comment {
+        let source_map_url = build_source_map_url(
+          plugin.public_path.as_deref(),
+          filename.as_ref(),
+          &source_map_filename,
+        );
+        let marker_source_map_url = build_source_map_url(
+          plugin.public_path.as_deref(),
+          &marked_filename,
+          &marker_source_map_filename,
+        );
         let data = data.url(&source_map_url);
-        let current_source_mapping_url_comment = match &current_source_mapping_url_comment {
+        let marker_data = marker_data.url(&marker_source_map_url);
+        let current_source_mapping_url_comment = match &source_mapping_url_comment_ref {
           SourceMappingUrlCommentRef::String(s) => {
             compilation
               .get_asset_path(&Filename::from(s.as_ref()), data)
@@ -955,14 +992,35 @@ impl SourceMapDevToolPlugin {
             Filename::from(comment).render(data, None).await?
           }
         };
+        let marker_source_mapping_url_comment = match &source_mapping_url_comment_ref {
+          SourceMappingUrlCommentRef::String(s) => {
+            compilation
+              .get_asset_path(&Filename::from(s.as_ref()), marker_data)
+              .await?
+          }
+          SourceMappingUrlCommentRef::Fn(f) => {
+            let comment = f(marker_data).await?;
+            Filename::from(comment).render(marker_data, None).await?
+          }
+        };
         let current_source_mapping_url_comment = current_source_mapping_url_comment
           .cow_replace("[url]", &source_map_url)
+          .into_owned();
+        let marker_source_mapping_url_comment = marker_source_mapping_url_comment
+          .cow_replace("[url]", &marker_source_map_url)
           .into_owned();
 
         let debug_id_comment = debug_id
           .map(|id| format!("\n//# debugId={id}"))
           .unwrap_or_default();
 
+        let comment_offset = source.buffer().len() + debug_id_comment.len();
+        source_replacements = source_mapping_url_replacements_from_markers(
+          comment_offset,
+          &current_source_mapping_url_comment,
+          &marker_source_mapping_url_comment,
+          &filename_markers,
+        );
         asset.source = Some(
           ConcatSource::new([
             source.clone(),
@@ -987,6 +1045,8 @@ impl SourceMapDevToolPlugin {
       Ok(MappedAsset {
         asset: (asset_filename, asset),
         source_map: Some((source_map_filename.clone(), source_map_asset)),
+        source_replacements,
+        source_map_replacements,
       })
     } else {
       let current_source_mapping_url_comment = current_source_mapping_url_comment
@@ -1018,7 +1078,344 @@ impl SourceMapDevToolPlugin {
       Ok(MappedAsset {
         asset: (asset_filename, asset),
         source_map: None,
+        source_replacements: Vec::new(),
+        source_map_replacements: Vec::new(),
       })
+    }
+  }
+}
+
+struct FilenameHashMarker {
+  hash: String,
+  marker: String,
+}
+
+fn build_source_map_url(
+  public_path: Option<&str>,
+  filename: &str,
+  source_map_filename: &str,
+) -> String {
+  if let Some(public_path) = public_path {
+    return format!("{public_path}{source_map_filename}");
+  }
+
+  let mut file_path = PathBuf::new();
+  file_path.push(Component::RootDir);
+  file_path.extend(Path::new(filename).components());
+
+  let mut source_map_path = PathBuf::new();
+  source_map_path.push(Component::RootDir);
+  source_map_path.extend(Path::new(source_map_filename).components());
+
+  source_map_path
+    .relative(
+      #[allow(clippy::unwrap_used)]
+      file_path.parent().unwrap(),
+    )
+    .to_string_lossy()
+    .to_string()
+}
+
+fn marker_filename_replacements(
+  filename: &str,
+  content_hashes: &[String],
+) -> (String, Vec<FilenameHashMarker>) {
+  let mut hashes = content_hashes
+    .iter()
+    .filter(|hash| !hash.is_empty())
+    .collect::<Vec<_>>();
+  hashes.sort_unstable_by(|a, b| b.len().cmp(&a.len()).then_with(|| a.cmp(b)));
+
+  let original_filename = filename;
+  let mut marked_filename = filename.to_string();
+  let mut markers = Vec::new();
+  for hash in hashes {
+    let mut next_filename = String::with_capacity(marked_filename.len());
+    let mut rest = marked_filename.as_str();
+    while let Some((before, after)) = rest.split_once(hash.as_str()) {
+      let Some(marker) = marker_for_filename(&marked_filename, markers.len(), hash) else {
+        return (original_filename.to_string(), Vec::new());
+      };
+      next_filename.push_str(before);
+      next_filename.push_str(&marker);
+      markers.push(FilenameHashMarker {
+        hash: hash.to_string(),
+        marker,
+      });
+      rest = after;
+    }
+    next_filename.push_str(rest);
+    marked_filename = next_filename;
+  }
+
+  (marked_filename, markers)
+}
+
+fn marker_for_filename(filename: &str, index: usize, hash: &str) -> Option<String> {
+  for salt in 0..32 {
+    let mut hasher = FxHasher::default();
+    filename.hash(&mut hasher);
+    index.hash(&mut hasher);
+    hash.hash(&mut hasher);
+    salt.hash(&mut hasher);
+    let marker = format!(
+      "__RSPACK_REAL_CONTENT_HASH_FILENAME_MARKER_{index}_{:016x}_{salt}__",
+      hasher.finish()
+    );
+    if !filename.contains(&marker) {
+      return Some(marker);
+    }
+  }
+  None
+}
+
+struct MarkerOccurrence {
+  start: usize,
+  end: usize,
+  marker_index: usize,
+}
+
+fn marker_occurrences(text: &str, markers: &[FilenameHashMarker]) -> Vec<MarkerOccurrence> {
+  let mut occurrences = Vec::new();
+  let mut index = 0;
+  while index < text.len() {
+    let mut matched = None;
+    for (marker_index, marker) in markers.iter().enumerate() {
+      if text[index..].starts_with(&marker.marker) {
+        matched = Some((marker_index, marker.marker.len()));
+        break;
+      }
+    }
+
+    if let Some((marker_index, marker_len)) = matched {
+      occurrences.push(MarkerOccurrence {
+        start: index,
+        end: index + marker_len,
+        marker_index,
+      });
+      index += marker_len;
+      continue;
+    }
+
+    let ch = text[index..]
+      .chars()
+      .next()
+      .expect("index should be inside marker text");
+    index += ch.len_utf8();
+  }
+  occurrences
+}
+
+fn marker_replacements_from_text(
+  text_offset: usize,
+  marker_text: &str,
+  markers: &[FilenameHashMarker],
+) -> (String, Vec<(String, Range<u32>)>) {
+  let mut replacements = Vec::new();
+  let mut normalized_text = String::with_capacity(marker_text.len());
+  let mut cursor = 0;
+  for occurrence in marker_occurrences(marker_text, markers) {
+    normalized_text.push_str(&marker_text[cursor..occurrence.start]);
+    let marker = &markers[occurrence.marker_index];
+    let start = text_offset + normalized_text.len();
+    normalized_text.push_str(&marker.hash);
+    let end = text_offset + normalized_text.len();
+    let (Ok(start_u32), Ok(end_u32)) = (u32::try_from(start), u32::try_from(end)) else {
+      cursor = occurrence.end;
+      continue;
+    };
+    replacements.push((marker.hash.clone(), start_u32..end_u32));
+    cursor = occurrence.end;
+  }
+  normalized_text.push_str(&marker_text[cursor..]);
+
+  (normalized_text, replacements)
+}
+
+fn source_map_replacements_from_markers(
+  marker_source_map_json: &str,
+  marked_file: &str,
+  markers: &[FilenameHashMarker],
+) -> (String, Vec<(String, Range<u32>)>) {
+  let file_value = json_string_literal(marked_file);
+  let file_field = format!("\"file\":{file_value}");
+  let Some((before_file_field, file_field_and_after)) =
+    marker_source_map_json.split_once(&file_field)
+  else {
+    let (normalized_source_map_json, _) =
+      marker_replacements_from_text(0, marker_source_map_json, markers);
+    return (normalized_source_map_json, Vec::new());
+  };
+
+  let (normalized_file_field, replacements) =
+    marker_replacements_from_text(before_file_field.len(), &file_field, markers);
+  let after_file_field = file_field_and_after;
+  let mut normalized_source_map_json = String::with_capacity(
+    marker_source_map_json.len() - file_field.len() + normalized_file_field.len(),
+  );
+  normalized_source_map_json.push_str(before_file_field);
+  normalized_source_map_json.push_str(&normalized_file_field);
+  normalized_source_map_json.push_str(after_file_field);
+
+  (normalized_source_map_json, replacements)
+}
+
+fn json_string_literal(value: &str) -> String {
+  let mut escaped = String::with_capacity(value.len() + 2);
+  escaped.push('"');
+  for ch in value.chars() {
+    match ch {
+      '"' => escaped.push_str("\\\""),
+      '\\' => escaped.push_str("\\\\"),
+      '\u{08}' => escaped.push_str("\\b"),
+      '\u{0c}' => escaped.push_str("\\f"),
+      '\n' => escaped.push_str("\\n"),
+      '\r' => escaped.push_str("\\r"),
+      '\t' => escaped.push_str("\\t"),
+      ch if ch.is_control() => {
+        use std::fmt::Write;
+        write!(escaped, "\\u{:04x}", ch as u32).expect("writing to String should not fail");
+      }
+      ch => escaped.push(ch),
+    }
+  }
+  escaped.push('"');
+  escaped
+}
+
+fn source_mapping_url_replacements_from_markers(
+  comment_offset: usize,
+  comment: &str,
+  marker_comment: &str,
+  markers: &[FilenameHashMarker],
+) -> Vec<(String, Range<u32>)> {
+  let (normalized_comment, replacements) =
+    marker_replacements_from_text(comment_offset, marker_comment, markers);
+
+  if normalized_comment != comment {
+    return Vec::new();
+  }
+  replacements
+}
+
+#[cfg(test)]
+mod tests {
+  use super::{
+    marker_filename_replacements, source_map_replacements_from_markers,
+    source_mapping_url_replacements_from_markers,
+  };
+
+  #[test]
+  fn source_mapping_url_markers_support_multiple_short_hashes() {
+    let hashes = vec!["12345678".to_string(), "abcdef12".to_string()];
+    let (marked_filename, markers) =
+      marker_filename_replacements("chunk.12345678.abcdef12.js", &hashes);
+
+    assert_eq!(markers.len(), 2);
+    assert_ne!(markers[0].marker, markers[1].marker);
+
+    let comment = "\n//# sourceMappingURL=chunk.12345678.abcdef12.js.map";
+    let marker_comment = format!("\n//# sourceMappingURL={marked_filename}.map");
+    let replacements =
+      source_mapping_url_replacements_from_markers(100, comment, &marker_comment, &markers);
+
+    assert_eq!(replacements.len(), 2);
+    assert_ne!(replacements[0].1, replacements[1].1);
+    for (hash, range) in replacements {
+      let start = usize::try_from(range.start).expect("range start should fit") - 100;
+      let end = usize::try_from(range.end).expect("range end should fit") - 100;
+      assert_eq!(comment.get(start..end), Some(hash.as_str()));
+    }
+  }
+
+  #[test]
+  fn source_map_file_markers_record_exact_json_ranges() {
+    let hashes = vec!["12345678".to_string(), "abcdef12".to_string()];
+    let (marked_filename, markers) =
+      marker_filename_replacements("assets/main.12345678.abcdef12.js", &hashes);
+    let marker_json = format!(r#"{{"version":3,"file":"{marked_filename}","sources":[]}}"#);
+
+    let (json, replacements) =
+      source_map_replacements_from_markers(&marker_json, &marked_filename, &markers);
+
+    assert_eq!(
+      json,
+      r#"{"version":3,"file":"assets/main.12345678.abcdef12.js","sources":[]}"#
+    );
+    assert_eq!(replacements.len(), 2);
+    assert_ne!(replacements[0].1, replacements[1].1);
+    for (hash, range) in replacements {
+      let start = usize::try_from(range.start).expect("range start should fit");
+      let end = usize::try_from(range.end).expect("range end should fit");
+      assert_eq!(json.get(start..end), Some(hash.as_str()));
+    }
+  }
+
+  #[test]
+  fn source_map_file_markers_do_not_rewrite_sources_content() {
+    let hashes = vec!["12345678".to_string()];
+    let (marked_filename, markers) =
+      marker_filename_replacements("assets/main.12345678.js", &hashes);
+    let user_marker = &markers[0].marker;
+    let marker_json =
+      format!(r#"{{"version":3,"file":"{marked_filename}","sourcesContent":["{user_marker}"]}}"#);
+
+    let (json, replacements) =
+      source_map_replacements_from_markers(&marker_json, &marked_filename, &markers);
+
+    assert_eq!(
+      json,
+      format!(
+        r#"{{"version":3,"file":"assets/main.12345678.js","sourcesContent":["{user_marker}"]}}"#
+      )
+    );
+    assert_eq!(replacements.len(), 1);
+    let (hash, range) = &replacements[0];
+    let start = usize::try_from(range.start).expect("range start should fit");
+    let end = usize::try_from(range.end).expect("range end should fit");
+    assert_eq!(json.get(start..end), Some(hash.as_str()));
+  }
+
+  #[test]
+  fn filename_markers_do_not_collide_with_marker_like_filename_text() {
+    let hashes = vec!["12345678".to_string()];
+    let marker_like = "__RSPACK_REAL_CONTENT_HASH_FILENAME_MARKER_0__";
+    let filename = format!("assets/{marker_like}.main.12345678.js");
+
+    let (marked_filename, markers) = marker_filename_replacements(&filename, &hashes);
+
+    assert_eq!(markers.len(), 1);
+    assert_ne!(markers[0].marker, marker_like);
+    assert!(marked_filename.contains(marker_like));
+
+    let marker_json = format!(r#"{{"version":3,"file":"{marked_filename}","sources":[]}}"#);
+    let (json, replacements) =
+      source_map_replacements_from_markers(&marker_json, &marked_filename, &markers);
+
+    assert_eq!(
+      json,
+      format!(r#"{{"version":3,"file":"{filename}","sources":[]}}"#)
+    );
+    assert_eq!(replacements.len(), 1);
+  }
+
+  #[test]
+  fn source_map_file_marker_failure_restores_marker_text() {
+    let hashes = vec!["12345678".to_string()];
+    let (marked_filename, markers) =
+      marker_filename_replacements("assets/main.12345678.js", &hashes);
+    let marker_json = format!(r#"{{"version":3,"x_file":"{marked_filename}","sources":[]}}"#);
+
+    let (json, replacements) =
+      source_map_replacements_from_markers(&marker_json, &marked_filename, &markers);
+
+    assert_eq!(
+      json,
+      r#"{"version":3,"x_file":"assets/main.12345678.js","sources":[]}"#
+    );
+    assert!(replacements.is_empty());
+    for marker in markers {
+      assert!(!json.contains(&marker.marker));
     }
   }
 }
@@ -1075,6 +1472,8 @@ async fn process_assets(&self, compilation: &mut Compilation) -> Result<()> {
     let MappedAsset {
       asset: (source_filename, mut source_asset),
       source_map,
+      source_replacements,
+      source_map_replacements,
     } = mapped_asset;
     if let Some(asset) = compilation.assets_mut().remove(source_filename.as_ref()) {
       source_asset.info = asset.info;
@@ -1085,8 +1484,30 @@ async fn process_assets(&self, compilation: &mut Compilation) -> Result<()> {
 
     let chunk_ukey = file_to_chunk_ukey.get(source_filename.as_ref());
     compilation.emit_asset(source_filename.to_string(), source_asset);
+    for (hash, range) in source_replacements {
+      compilation.record_real_content_hash_replacement(
+        source_filename.as_ref(),
+        &hash,
+        Some(range),
+        rspack_core::ContentHashReplacementKind::Source,
+      );
+    }
     if let Some((source_map_filename, source_map_asset)) = source_map {
       compilation.emit_asset(source_map_filename.clone(), source_map_asset);
+      for (hash, range) in source_map_replacements {
+        compilation.record_real_content_hash_reference(
+          &source_map_filename,
+          &hash,
+          None,
+          ContentHashReferenceMeta::default(),
+        );
+        compilation.record_real_content_hash_replacement(
+          &source_map_filename,
+          &hash,
+          Some(range),
+          ContentHashReplacementKind::Source,
+        );
+      }
 
       let chunk = chunk_ukey.map(|ukey| {
         compilation
