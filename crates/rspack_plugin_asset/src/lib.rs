@@ -833,13 +833,13 @@ async fn render_manifest(
           .inner()
           .to_owned()
           .with_asset_type(ManifestAssetType::Asset);
-        RenderManifestEntry {
-          source: source.clone(),
-          filename: asset_filename.to_owned(),
-          has_filename: true,
-          info: asset_info,
-          auxiliary: true,
-        }
+        RenderManifestEntry::new(
+          source.clone(),
+          asset_filename.to_owned(),
+          true,
+          asset_info,
+          true,
+        )
       });
 
       Ok(result)

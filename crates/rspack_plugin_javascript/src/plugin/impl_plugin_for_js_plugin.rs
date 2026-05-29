@@ -640,13 +640,13 @@ async fn render_manifest(
     })
     .await?;
 
-  manifest.push(RenderManifestEntry {
+  manifest.push(RenderManifestEntry::new(
     source,
-    filename: output_path,
-    has_filename: false,
-    info: asset_info,
-    auxiliary: false,
-  });
+    output_path,
+    false,
+    asset_info,
+    false,
+  ));
   Ok(())
 }
 

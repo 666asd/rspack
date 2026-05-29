@@ -86,7 +86,10 @@ use crate::{
   RuntimeMode, RuntimeModule, RuntimeSpec, RuntimeSpecMap, RuntimeTemplate, SharedPluginDriver,
   SideEffectsOptimizeArtifact, SideEffectsStateArtifact, SourceType, Stats, StatsContext,
   StealCell, ValueCacheVersions,
-  artifacts::{ContentHashReferenceMeta, ContentHashReplacementKind, RealContentHashArtifact},
+  artifacts::{
+    AssetHashRecord, ContentHashReferenceMeta, ContentHashReplacementKind,
+    RealContentHashArtifact,
+  },
   cache::persistent::occasion::minimize::MinimizePersistentCacheArtifact,
   compilation::build_module_graph::{
     BuildModuleGraphArtifact, ModuleExecutor, UpdateParam, update_module_graph,
@@ -1558,6 +1561,31 @@ pub struct RenderManifestEntry {
   pub has_filename: bool, /* webpack only asset has filename, js/css/wasm has filename template */
   pub info: AssetInfo,
   pub auxiliary: bool,
+  pub real_content_hashes: AssetHashRecord,
+}
+
+impl RenderManifestEntry {
+  pub fn new(
+    source: BoxSource,
+    filename: String,
+    has_filename: bool,
+    info: AssetInfo,
+    auxiliary: bool,
+  ) -> Self {
+    Self {
+      source,
+      filename,
+      has_filename,
+      info,
+      auxiliary,
+      real_content_hashes: Default::default(),
+    }
+  }
+
+  pub fn with_real_content_hashes(mut self, record: AssetHashRecord) -> Self {
+    self.real_content_hashes = record;
+    self
+  }
 }
 
 #[cacheable]

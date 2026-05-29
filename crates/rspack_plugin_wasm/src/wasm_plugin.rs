@@ -75,13 +75,13 @@ async fn render_manifest(
       .await?;
 
     let asset_info = asset_info.with_asset_type(ManifestAssetType::Wasm);
-    manifest.push(RenderManifestEntry {
-      source: source.clone(),
-      filename: output_path,
-      has_filename: true,
-      info: asset_info,
-      auxiliary: false,
-    })
+    manifest.push(RenderManifestEntry::new(
+      source.clone(),
+      output_path,
+      true,
+      asset_info,
+      false,
+    ))
   }
 
   Ok(())

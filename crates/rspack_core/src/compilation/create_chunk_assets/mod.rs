@@ -163,23 +163,33 @@ pub async fn create_chunk_assets(
     compilation.extend_diagnostics(diagnostics);
 
     for file_manifest in manifests {
-      let filename = file_manifest.filename;
+      let RenderManifestEntry {
+        source,
+        filename,
+        info,
+        auxiliary,
+        real_content_hashes,
+        ..
+      } = file_manifest;
       let current_chunk = compilation
         .build_chunk_graph_artifact
         .chunk_by_ukey
         .expect_get_mut(&chunk_ukey);
 
       current_chunk.set_rendered(true);
-      if file_manifest.auxiliary {
+      if auxiliary {
         current_chunk.add_auxiliary_file(filename.clone());
       } else {
         current_chunk.add_file(filename.clone());
       }
 
-      compilation.emit_asset(
-        filename.clone(),
-        CompilationAsset::new(Some(file_manifest.source), file_manifest.info),
-      );
+      if !real_content_hashes.is_empty() {
+        compilation
+          .real_content_hash_artifact
+          .merge_asset_record(filename.clone(), real_content_hashes);
+      }
+
+      compilation.emit_asset(filename.clone(), CompilationAsset::new(Some(source), info));
 
       _ = chunk_asset(compilation, chunk_ukey, &filename, plugin_driver.clone()).await;
     }

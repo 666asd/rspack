@@ -487,13 +487,13 @@ async fn render_manifest(
     .await?;
 
   diagnostics.extend(more_diagnostics);
-  manifest.push(RenderManifestEntry {
-    source: source.boxed(),
-    filename: output_path,
-    has_filename: false,
-    info: asset_info,
-    auxiliary: false,
-  });
+  manifest.push(RenderManifestEntry::new(
+    source.boxed(),
+    output_path,
+    false,
+    asset_info,
+    false,
+  ));
   Ok(())
 }
 

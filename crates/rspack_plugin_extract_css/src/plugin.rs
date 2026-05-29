@@ -708,13 +708,13 @@ async fn render_manifest(
     .await?;
 
   diagnostics.extend(more_diagnostics);
-  manifest.push(RenderManifestEntry {
+  manifest.push(RenderManifestEntry::new(
     source,
     filename,
-    has_filename: false,
-    info: asset_info,
-    auxiliary: false,
-  });
+    false,
+    asset_info,
+    false,
+  ));
 
   Ok(())
 }

@@ -17,6 +17,12 @@ pub struct AssetHashRecord {
   pub replacements: Vec<ContentHashReplacement>,
 }
 
+impl AssetHashRecord {
+  pub fn is_empty(&self) -> bool {
+    self.own_hashes.is_empty() && self.references.is_empty() && self.replacements.is_empty()
+  }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ContentHashReference {
   pub referenced_hash: String,
@@ -78,6 +84,14 @@ impl RealContentHashArtifact {
           .push(asset.clone());
       }
     }
+  }
+
+  pub fn merge_asset_record(&mut self, asset: impl Into<String>, record: AssetHashRecord) {
+    let asset = asset.into();
+    self.record_asset_hashes(asset.clone(), record.own_hashes.iter().cloned());
+    let target = self.asset_records.entry(asset).or_default();
+    target.references.extend(record.references);
+    target.replacements.extend(record.replacements);
   }
 
   pub fn record_reference(
@@ -234,6 +248,129 @@ mod tests {
   }
 
   #[test]
+  fn merge_asset_record_creates_asset_record_and_reverse_index() {
+    let mut artifact = RealContentHashArtifact::default();
+    let mut record = AssetHashRecord::default();
+    record
+      .own_hashes
+      .extend(["aaaa".to_string(), "bbbb".to_string()]);
+    record.references.push(ContentHashReference {
+      referenced_hash: "cccc".to_string(),
+      owner_hash: Some("aaaa".to_string()),
+      referenced_chunk: None,
+      referenced_source_type: None,
+      kind: ContentHashReferenceKind::Source,
+    });
+    record.replacements.push(ContentHashReplacement {
+      old_hash: "dddd".to_string(),
+      range: Some(10..14),
+      kind: ContentHashReplacementKind::Filename,
+    });
+
+    artifact.merge_asset_record("main.js", record);
+
+    let record = artifact
+      .asset_records
+      .get("main.js")
+      .expect("merged record should exist");
+    assert_eq!(record.own_hashes.len(), 2);
+    assert!(record.own_hashes.contains("aaaa"));
+    assert!(record.own_hashes.contains("bbbb"));
+    assert_eq!(record.references.len(), 1);
+    assert_eq!(record.references[0].referenced_hash, "cccc");
+    assert_eq!(record.references[0].owner_hash.as_deref(), Some("aaaa"));
+    assert_eq!(record.replacements.len(), 1);
+    assert_eq!(record.replacements[0].old_hash, "dddd");
+    assert_eq!(record.replacements[0].range, Some(10..14));
+    assert_eq!(
+      record.replacements[0].kind,
+      ContentHashReplacementKind::Filename
+    );
+    assert_eq!(
+      artifact
+        .hash_to_assets
+        .get("aaaa")
+        .expect("first hash owner"),
+      &vec!["main.js".to_string()]
+    );
+    assert_eq!(
+      artifact
+        .hash_to_assets
+        .get("bbbb")
+        .expect("second hash owner"),
+      &vec!["main.js".to_string()]
+    );
+  }
+
+  #[test]
+  fn merge_asset_record_extends_existing_record_without_duplicate_reverse_index() {
+    let mut artifact = RealContentHashArtifact::default();
+    artifact.record_asset_hashes("main.js", ["aaaa".to_string(), "shared".to_string()]);
+    artifact.record_reference(
+      "main.js",
+      "old-reference",
+      Some("aaaa"),
+      ContentHashReferenceMeta::default(),
+    );
+    artifact.record_replacement(
+      "main.js",
+      "old-replacement",
+      None,
+      ContentHashReplacementKind::Source,
+    );
+    let mut record = AssetHashRecord::default();
+    record
+      .own_hashes
+      .extend(["bbbb".to_string(), "shared".to_string()]);
+    record.references.push(ContentHashReference {
+      referenced_hash: "new-reference".to_string(),
+      owner_hash: Some("bbbb".to_string()),
+      referenced_chunk: None,
+      referenced_source_type: None,
+      kind: ContentHashReferenceKind::Filename,
+    });
+    record.replacements.push(ContentHashReplacement {
+      old_hash: "new-replacement".to_string(),
+      range: Some(20..24),
+      kind: ContentHashReplacementKind::Source,
+    });
+
+    artifact.merge_asset_record("main.js", record);
+
+    let record = artifact
+      .asset_records
+      .get("main.js")
+      .expect("merged record should exist");
+    assert_eq!(record.own_hashes.len(), 3);
+    assert!(record.own_hashes.contains("aaaa"));
+    assert!(record.own_hashes.contains("bbbb"));
+    assert!(record.own_hashes.contains("shared"));
+    assert_eq!(record.references.len(), 2);
+    assert_eq!(record.references[0].referenced_hash, "old-reference");
+    assert_eq!(record.references[1].referenced_hash, "new-reference");
+    assert_eq!(
+      record.references[1].kind,
+      ContentHashReferenceKind::Filename
+    );
+    assert_eq!(record.replacements.len(), 2);
+    assert_eq!(record.replacements[0].old_hash, "old-replacement");
+    assert_eq!(record.replacements[1].old_hash, "new-replacement");
+    assert_eq!(record.replacements[1].range, Some(20..24));
+    assert_eq!(
+      artifact.hash_to_assets.get("aaaa").expect("old hash owner"),
+      &vec!["main.js".to_string()]
+    );
+    assert_eq!(
+      artifact.hash_to_assets.get("bbbb").expect("new hash owner"),
+      &vec!["main.js".to_string()]
+    );
+    assert_eq!(
+      artifact.hash_to_assets.get("shared").expect("shared hash owner"),
+      &vec!["main.js".to_string()]
+    );
+  }
+
+  #[test]
   fn rename_moves_record_and_reverse_index() {
     let mut artifact = RealContentHashArtifact::default();
     artifact.record_asset_hashes("old.js", ["aaaa".to_string()]);
@@ -332,7 +469,10 @@ mod tests {
     assert!(artifact.asset_records.get("first.js").is_none());
     assert!(artifact.asset_records.get("second.js").is_some());
     assert_eq!(
-      artifact.hash_to_assets.get("shared").expect("shared hash owner"),
+      artifact
+        .hash_to_assets
+        .get("shared")
+        .expect("shared hash owner"),
       &vec!["second.js".to_string()]
     );
   }
