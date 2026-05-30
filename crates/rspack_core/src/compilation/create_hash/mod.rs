@@ -27,7 +27,11 @@ impl PassExt for CreateHashPass {
   async fn run_pass(&self, compilation: &mut Compilation) -> Result<()> {
     let plugin_driver = compilation.plugin_driver.clone();
     create_hash(compilation, plugin_driver).await?;
-    runtime_modules_code_generation(compilation).await?;
+    if compilation.options.optimization.real_content_hash {
+      runtime_modules_code_generation_with_real_content_hash(compilation).await?;
+    } else {
+      runtime_modules_code_generation(compilation).await?;
+    }
     Ok(())
   }
 
@@ -478,53 +482,55 @@ pub async fn create_hash(
 
 #[instrument(skip_all)]
 pub async fn runtime_modules_code_generation(compilation: &mut Compilation) -> Result<()> {
-  if !compilation.options.optimization.real_content_hash {
-    let compilation_ref = &*compilation;
-    let results = rspack_parallel::scope::<_, Result<_>>(|token| {
-      compilation
-        .runtime_modules
-        .iter()
-        .for_each(|(runtime_module_identifier, runtime_module)| {
-          let s =
-            unsafe { token.used((compilation_ref, runtime_module_identifier, runtime_module)) };
-          s.spawn(
-            |(compilation, runtime_module_identifier, runtime_module)| async {
-              let mut runtime_template = compilation.runtime_template.create_module_code_template();
-              let mut code_generation_context = ModuleCodeGenerationContext {
-                compilation,
-                runtime: None,
-                concatenation_scope: None,
-                runtime_template: &mut runtime_template,
-              };
-              let result = runtime_module
-                .code_generation(&mut code_generation_context)
-                .await?;
-              let source = result
-                .get(&SourceType::Runtime)
-                .expect("should have source");
-              Ok((*runtime_module_identifier, source.clone()))
-            },
-          )
-        })
-    })
-    .await
-    .into_iter()
-    .map(|res| res.to_rspack_result())
-    .collect::<Result<Vec<_>>>()?;
-
-    let mut runtime_module_sources = IdentifierMap::<BoxSource>::default();
-    for result in results {
-      let (runtime_module_identifier, source) = result?;
-      runtime_module_sources.insert(runtime_module_identifier, source);
-    }
-
-    compilation.runtime_modules_code_generation_source = runtime_module_sources;
+  let compilation_ref = &*compilation;
+  let results = rspack_parallel::scope::<_, Result<_>>(|token| {
     compilation
-      .code_generated_modules
-      .extend(compilation.runtime_modules.keys().copied());
-    return Ok(());
+      .runtime_modules
+      .iter()
+      .for_each(|(runtime_module_identifier, runtime_module)| {
+        let s = unsafe { token.used((compilation_ref, runtime_module_identifier, runtime_module)) };
+        s.spawn(
+          |(compilation, runtime_module_identifier, runtime_module)| async {
+            let mut runtime_template = compilation.runtime_template.create_module_code_template();
+            let mut code_generation_context = ModuleCodeGenerationContext {
+              compilation,
+              runtime: None,
+              concatenation_scope: None,
+              runtime_template: &mut runtime_template,
+            };
+            let result = runtime_module
+              .code_generation(&mut code_generation_context)
+              .await?;
+            let source = result
+              .get(&SourceType::Runtime)
+              .expect("should have source");
+            Ok((*runtime_module_identifier, source.clone()))
+          },
+        )
+      })
+  })
+  .await
+  .into_iter()
+  .map(|res| res.to_rspack_result())
+  .collect::<Result<Vec<_>>>()?;
+
+  let mut runtime_module_sources = IdentifierMap::<BoxSource>::default();
+  for result in results {
+    let (runtime_module_identifier, source) = result?;
+    runtime_module_sources.insert(runtime_module_identifier, source);
   }
 
+  compilation.runtime_modules_code_generation_source = runtime_module_sources;
+  compilation
+    .code_generated_modules
+    .extend(compilation.runtime_modules.keys().copied());
+  Ok(())
+}
+
+#[instrument(skip_all)]
+pub async fn runtime_modules_code_generation_with_real_content_hash(
+  compilation: &mut Compilation,
+) -> Result<()> {
   let compilation_ref = &*compilation;
   let results = rspack_parallel::scope::<_, Result<_>>(|token| {
     compilation
