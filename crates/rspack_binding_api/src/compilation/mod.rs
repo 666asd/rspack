@@ -547,6 +547,7 @@ impl JsCompilation {
         kind: reference_kind,
         referenced_chunk: None,
         referenced_source_type: None,
+        replacement_only: false,
       },
     );
 
