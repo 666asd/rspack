@@ -817,7 +817,8 @@ impl SourceMapDevToolPlugin {
     unresolved_source_map_path: Option<Utf8PathBuf>,
     source_references: Vec<SourceReference>,
   ) -> Result<MappedAsset> {
-    let filename_hashes = if compilation.options.optimization.real_content_hash {
+    let real_content_hash = compilation.options.optimization.real_content_hash;
+    let filename_hashes = if real_content_hash {
       compilation
         .real_content_hash_artifact
         .asset_records
@@ -941,21 +942,9 @@ impl SourceMapDevToolPlugin {
           None
         };
 
-      let (marked_filename, filename_markers) =
-        marker_filename_replacements(filename.as_ref(), &filename_hashes);
       let content_hash_digest_encoded = content_hash_digest
         .as_ref()
         .map(|digest| digest.encoded().to_string());
-      let (marked_content_hash_digest, content_hash_markers) =
-        if let Some(content_hash) = &content_hash_digest_encoded {
-          let (marked_content_hash, markers) =
-            marker_filename_replacements(content_hash, std::slice::from_ref(content_hash));
-          (Some(marked_content_hash), markers)
-        } else {
-          (None, Vec::new())
-        };
-      let mut source_map_filename_markers = filename_markers;
-      source_map_filename_markers.extend(content_hash_markers);
 
       let data = PathData::default().filename(&filename);
       let data = match chunk {
@@ -969,32 +958,72 @@ impl SourceMapDevToolPlugin {
           .content_hash_optional(content_hash_digest_encoded.as_deref()),
         None => data,
       };
-      let marker_data = PathData::default().filename(&marked_filename);
-      let marker_data = match chunk {
-        Some(chunk) => marker_data
-          .chunk_id_optional(chunk.id().map(|id| id.as_str()))
-          .chunk_hash_optional(chunk.rendered_hash(
-            &compilation.chunk_hashes_artifact,
-            compilation.options.output.hash_digest_length,
-          ))
-          .chunk_name_optional(chunk.name_for_filename_template())
-          .content_hash_optional(marked_content_hash_digest.as_deref()),
-        None => marker_data,
-      };
       let source_map_filename = compilation
         .get_asset_path(source_map_filename_config, data)
         .await?;
-      let marker_source_map_filename = compilation
-        .get_asset_path(source_map_filename_config, marker_data)
-        .await?;
-      let (normalized_source_map_filename, source_map_filename_replacements) =
-        marker_replacements_from_text(0, &marker_source_map_filename, &source_map_filename_markers);
-      let source_map_filename_replacements =
-        if normalized_source_map_filename == source_map_filename {
-          source_map_filename_replacements
-        } else {
-          Vec::new()
+
+      let (
+        marked_filename,
+        marked_content_hash_digest,
+        marker_source_map_filename,
+        source_map_filename_markers,
+        source_map_filename_replacements,
+      ) = if real_content_hash {
+        let (marked_filename, filename_markers) =
+          marker_filename_replacements(filename.as_ref(), &filename_hashes);
+        let (marked_content_hash_digest, content_hash_markers) =
+          if let Some(content_hash) = &content_hash_digest_encoded {
+            let (marked_content_hash, markers) =
+              marker_filename_replacements(content_hash, std::slice::from_ref(content_hash));
+            (Some(marked_content_hash), markers)
+          } else {
+            (None, Vec::new())
+          };
+        let mut source_map_filename_markers = filename_markers;
+        source_map_filename_markers.extend(content_hash_markers);
+        let marker_data = PathData::default().filename(&marked_filename);
+        let marker_data = match chunk {
+          Some(chunk) => marker_data
+            .chunk_id_optional(chunk.id().map(|id| id.as_str()))
+            .chunk_hash_optional(chunk.rendered_hash(
+              &compilation.chunk_hashes_artifact,
+              compilation.options.output.hash_digest_length,
+            ))
+            .chunk_name_optional(chunk.name_for_filename_template())
+            .content_hash_optional(marked_content_hash_digest.as_deref()),
+          None => marker_data,
         };
+        let marker_source_map_filename = compilation
+          .get_asset_path(source_map_filename_config, marker_data)
+          .await?;
+        let (normalized_source_map_filename, source_map_filename_replacements) =
+          marker_replacements_from_text(
+            0,
+            &marker_source_map_filename,
+            &source_map_filename_markers,
+          );
+        let source_map_filename_replacements =
+          if normalized_source_map_filename == source_map_filename {
+            source_map_filename_replacements
+          } else {
+            Vec::new()
+          };
+        (
+          marked_filename,
+          marked_content_hash_digest,
+          marker_source_map_filename,
+          source_map_filename_markers,
+          source_map_filename_replacements,
+        )
+      } else {
+        (
+          filename.to_string(),
+          content_hash_digest_encoded.clone(),
+          source_map_filename.clone(),
+          Vec::new(),
+          Vec::new(),
+        )
+      };
 
       if let Some(source_mapping_url_comment_ref) = current_source_mapping_url_comment {
         let source_map_url = build_source_map_url(
@@ -1007,6 +1036,18 @@ impl SourceMapDevToolPlugin {
           &marked_filename,
           &marker_source_map_filename,
         );
+        let marker_data = PathData::default().filename(&marked_filename);
+        let marker_data = match chunk {
+          Some(chunk) => marker_data
+            .chunk_id_optional(chunk.id().map(|id| id.as_str()))
+            .chunk_hash_optional(chunk.rendered_hash(
+              &compilation.chunk_hashes_artifact,
+              compilation.options.output.hash_digest_length,
+            ))
+            .chunk_name_optional(chunk.name_for_filename_template())
+            .content_hash_optional(marked_content_hash_digest.as_deref()),
+          None => marker_data,
+        };
         let data = data.url(&source_map_url);
         let marker_data = marker_data.url(&marker_source_map_url);
         let current_source_mapping_url_comment = match &source_mapping_url_comment_ref {
