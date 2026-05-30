@@ -1,1 +1,1 @@
-it("reports missing real content hash records", () => {});
+it('updates untracked asset info content hashes', () => {});
