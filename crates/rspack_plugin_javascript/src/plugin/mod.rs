@@ -717,6 +717,7 @@ var {} = {{}};
       None
     };
     let mut sources = ConcatSource::default();
+    let real_content_hash = compilation.options.optimization.real_content_hash;
     let mut real_content_hashes = rspack_core::AssetHashRecord::default();
     if iife {
       sources.add(RawStringSource::from(if supports_arrow_function {
@@ -793,10 +794,12 @@ var {} = {{}};
     {
       let mut runtime_modules =
         render_runtime_modules(compilation, chunk_ukey, runtime_template).await?;
-      runtime_modules.real_content_hashes.shift_source_ranges(
-        u32::try_from(sources.size()).expect("rendered JS prefix size should fit in u32"),
-      );
-      real_content_hashes.extend(runtime_modules.real_content_hashes);
+      if real_content_hash {
+        runtime_modules.real_content_hashes.shift_source_ranges(
+          u32::try_from(sources.size()).expect("rendered JS prefix size should fit in u32"),
+        );
+        real_content_hashes.extend(runtime_modules.real_content_hashes);
+      }
       sources.add(runtime_modules.source);
     }
     if let Some(inlined_modules) = inlined_modules {
@@ -980,7 +983,9 @@ var {} = {{}};
       chunk_init_fragments,
       &mut ChunkRenderContext {},
     )?;
-    real_content_hashes.shift_source_ranges(init_source_offset);
+    if real_content_hash {
+      real_content_hashes.shift_source_ranges(init_source_offset);
+    }
     let mut render_source =
       RenderSource::with_real_content_hashes(final_source, real_content_hashes);
     hooks
@@ -1380,6 +1385,7 @@ var {} = {{}};
       .expect("should have js plugin drive");
     let module_graph = &compilation.get_module_graph();
     let is_module = compilation.options.output.module;
+    let real_content_hash = compilation.options.optimization.real_content_hash;
     let mut all_strict = compilation.options.output.module;
     let chunk_modules = compilation
       .build_chunk_graph_artifact
@@ -1427,7 +1433,9 @@ var {} = {{}};
       &mut ChunkRenderContext {},
     )?;
     let mut real_content_hashes = render_source.real_content_hashes;
-    real_content_hashes.shift_source_ranges(init_source_offset);
+    if real_content_hash {
+      real_content_hashes.shift_source_ranges(init_source_offset);
+    }
     let mut render_source =
       RenderSource::with_real_content_hashes(source_with_fragments, real_content_hashes);
     hooks
@@ -1440,9 +1448,11 @@ var {} = {{}};
       )
       .await?;
     let mut real_content_hashes = render_source.real_content_hashes;
-    real_content_hashes.shift_source_ranges(
-      u32::try_from(sources.size()).expect("rendered JS chunk prefix size should fit in u32"),
-    );
+    if real_content_hash {
+      real_content_hashes.shift_source_ranges(
+        u32::try_from(sources.size()).expect("rendered JS chunk prefix size should fit in u32"),
+      );
+    }
     sources.add(render_source.source);
     if !is_module {
       sources.add(RawStringSource::from_static(";"));

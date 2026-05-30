@@ -239,6 +239,7 @@ impl EsmLibraryPlugin {
 
     // render cross module links
     let mut runtime_source = ConcatSource::default();
+    let real_content_hash = compilation.options.optimization.real_content_hash;
     let mut runtime_real_content_hashes = AssetHashRecord::default();
     let mut import_source = ConcatSource::default();
     let mut render_source = ConcatSource::default();
@@ -310,11 +311,13 @@ var {} = {{}};
       runtime_source.add(RawStringSource::from_static("\n"));
       let mut runtime_modules =
         render_runtime_modules(compilation, chunk_ukey, runtime_template).await?;
-      runtime_modules.real_content_hashes.shift_source_ranges(
-        u32::try_from(runtime_source.size())
-          .expect("ESM runtime module prefix size should fit in u32"),
-      );
-      runtime_real_content_hashes.extend(runtime_modules.real_content_hashes);
+      if real_content_hash {
+        runtime_modules.real_content_hashes.shift_source_ranges(
+          u32::try_from(runtime_source.size())
+            .expect("ESM runtime module prefix size should fit in u32"),
+        );
+        runtime_real_content_hashes.extend(runtime_modules.real_content_hashes);
+      }
       runtime_source.add(runtime_modules.source);
       runtime_source.add(RawStringSource::from_static("\n"));
 
@@ -635,10 +638,12 @@ var {} = {{}};
       chunk_init_fragments,
       &mut ChunkRenderContext {},
     )?;
-    runtime_real_content_hashes.shift_source_ranges(init_source_offset);
-    runtime_real_content_hashes.shift_source_ranges(
-      u32::try_from(final_source.size()).expect("ESM render prefix size should fit in u32"),
-    );
+    if real_content_hash {
+      runtime_real_content_hashes.shift_source_ranges(init_source_offset);
+      runtime_real_content_hashes.shift_source_ranges(
+        u32::try_from(final_source.size()).expect("ESM render prefix size should fit in u32"),
+      );
+    }
     final_source.add(inner_source);
 
     let mut exports = chunk_link.exports().iter().collect::<Vec<_>>();

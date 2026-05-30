@@ -321,11 +321,13 @@ pub async fn render_chunk_runtime_modules(
     "function({}) {{\n",
     runtime_template.render_runtime_globals(&RuntimeGlobals::REQUIRE),
   )));
-  runtime_modules_sources
-    .real_content_hashes
-    .shift_source_ranges(
-      u32::try_from(sources.size()).expect("runtime chunk wrapper size should fit in u32"),
-    );
+  if compilation.options.optimization.real_content_hash {
+    runtime_modules_sources
+      .real_content_hashes
+      .shift_source_ranges(
+        u32::try_from(sources.size()).expect("runtime chunk wrapper size should fit in u32"),
+      );
+  }
   sources.add(runtime_modules_sources.source);
   sources.add(RawStringSource::from_static("\n}\n"));
   Ok(RuntimeModulesRenderResult {

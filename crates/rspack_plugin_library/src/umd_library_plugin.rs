@@ -318,9 +318,11 @@ async fn render(
       format!("function({})", external_arguments(&externals, compilation))
     },
   )));
-  render_source.real_content_hashes.shift_source_ranges(
-    u32::try_from(source.size()).expect("UMD library wrapper prefix size should fit in u32"),
-  );
+  if compilation.options.optimization.real_content_hash {
+    render_source.real_content_hashes.shift_source_ranges(
+      u32::try_from(source.size()).expect("UMD library wrapper prefix size should fit in u32"),
+    );
+  }
   source.add(render_source.source.clone());
   source.add(RawStringSource::from_static("\n})"));
   render_source.source = source.boxed();

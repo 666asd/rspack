@@ -133,16 +133,23 @@ async fn render_chunk(
     .chunk_by_ukey
     .expect_get(chunk_ukey);
   let base_chunk_output_name = get_chunk_output_name(chunk, compilation).await?;
+  let real_content_hash = compilation.options.optimization.real_content_hash;
   let mut sources = ConcatSource::default();
-  let mut real_content_hashes = render_source.real_content_hashes.clone();
+  let mut real_content_hashes = if real_content_hash {
+    render_source.real_content_hashes.clone()
+  } else {
+    Default::default()
+  };
   sources.add(RawStringSource::from(format!(
     "exports.ids = [{}];\n",
     rspack_util::json_stringify(chunk.expect_id())
   )));
   sources.add(RawStringSource::from_static("exports.modules = "));
-  real_content_hashes.shift_source_ranges(
-    u32::try_from(sources.size()).expect("commonjs chunk prefix size should fit in u32"),
-  );
+  if real_content_hash {
+    real_content_hashes.shift_source_ranges(
+      u32::try_from(sources.size()).expect("commonjs chunk prefix size should fit in u32"),
+    );
+  }
   sources.add(render_source.source.clone());
   sources.add(RawStringSource::from_static(";\n"));
   if compilation
@@ -153,10 +160,12 @@ async fn render_chunk(
     sources.add(RawStringSource::from_static("exports.runtime = "));
     let mut runtime_modules =
       render_chunk_runtime_modules(compilation, chunk_ukey, runtime_template).await?;
-    runtime_modules.real_content_hashes.shift_source_ranges(
-      u32::try_from(sources.size()).expect("commonjs runtime prefix size should fit in u32"),
-    );
-    real_content_hashes.extend(runtime_modules.real_content_hashes);
+    if real_content_hash {
+      runtime_modules.real_content_hashes.shift_source_ranges(
+        u32::try_from(sources.size()).expect("commonjs runtime prefix size should fit in u32"),
+      );
+      real_content_hashes.extend(runtime_modules.real_content_hashes);
+    }
     sources.add(runtime_modules.source);
     sources.add(RawStringSource::from_static(";\n"));
   }
@@ -203,17 +212,22 @@ var {} = require({});
         runtime_template,
       )
       .await?;
-    startup_render_source
-      .real_content_hashes
-      .shift_source_ranges(
-        u32::try_from(sources.size()).expect("commonjs startup prefix size should fit in u32"),
-      );
-    real_content_hashes.extend(startup_render_source.real_content_hashes);
+    if real_content_hash {
+      startup_render_source
+        .real_content_hashes
+        .shift_source_ranges(
+          u32::try_from(sources.size()).expect("commonjs startup prefix size should fit in u32"),
+        );
+      real_content_hashes.extend(startup_render_source.real_content_hashes);
+    }
     sources.add(startup_render_source.source);
     let wrapper_prefix = RawStringSource::from_static("(function() {\n").boxed();
-    real_content_hashes.shift_source_ranges(
-      u32::try_from(wrapper_prefix.size()).expect("commonjs wrapper prefix size should fit in u32"),
-    );
+    if real_content_hash {
+      real_content_hashes.shift_source_ranges(
+        u32::try_from(wrapper_prefix.size())
+          .expect("commonjs wrapper prefix size should fit in u32"),
+      );
+    }
     render_source.source = ConcatSource::new([
       wrapper_prefix,
       sources.boxed(),
