@@ -1031,25 +1031,7 @@ impl SourceMapDevToolPlugin {
           filename.as_ref(),
           &source_map_filename,
         );
-        let marker_source_map_url = build_source_map_url(
-          plugin.public_path.as_deref(),
-          &marked_filename,
-          &marker_source_map_filename,
-        );
-        let marker_data = PathData::default().filename(&marked_filename);
-        let marker_data = match chunk {
-          Some(chunk) => marker_data
-            .chunk_id_optional(chunk.id().map(|id| id.as_str()))
-            .chunk_hash_optional(chunk.rendered_hash(
-              &compilation.chunk_hashes_artifact,
-              compilation.options.output.hash_digest_length,
-            ))
-            .chunk_name_optional(chunk.name_for_filename_template())
-            .content_hash_optional(marked_content_hash_digest.as_deref()),
-          None => marker_data,
-        };
         let data = data.url(&source_map_url);
-        let marker_data = marker_data.url(&marker_source_map_url);
         let current_source_mapping_url_comment = match &source_mapping_url_comment_ref {
           SourceMappingUrlCommentRef::String(s) => {
             compilation
@@ -1061,35 +1043,55 @@ impl SourceMapDevToolPlugin {
             Filename::from(comment).render(data, None).await?
           }
         };
-        let marker_source_mapping_url_comment = match &source_mapping_url_comment_ref {
-          SourceMappingUrlCommentRef::String(s) => {
-            compilation
-              .get_asset_path(&Filename::from(s.as_ref()), marker_data)
-              .await?
-          }
-          SourceMappingUrlCommentRef::Fn(f) => {
-            let comment = f(marker_data).await?;
-            Filename::from(comment).render(marker_data, None).await?
-          }
-        };
         let current_source_mapping_url_comment = current_source_mapping_url_comment
           .cow_replace("[url]", &source_map_url)
-          .into_owned();
-        let marker_source_mapping_url_comment = marker_source_mapping_url_comment
-          .cow_replace("[url]", &marker_source_map_url)
           .into_owned();
 
         let debug_id_comment = debug_id
           .map(|id| format!("\n//# debugId={id}"))
           .unwrap_or_default();
 
-        let comment_offset = source.buffer().len() + debug_id_comment.len();
-        source_replacements = source_mapping_url_replacements_from_markers(
-          comment_offset,
-          &current_source_mapping_url_comment,
-          &marker_source_mapping_url_comment,
-          &source_map_filename_markers,
-        );
+        if real_content_hash {
+          let marker_source_map_url = build_source_map_url(
+            plugin.public_path.as_deref(),
+            &marked_filename,
+            &marker_source_map_filename,
+          );
+          let marker_data = PathData::default().filename(&marked_filename);
+          let marker_data = match chunk {
+            Some(chunk) => marker_data
+              .chunk_id_optional(chunk.id().map(|id| id.as_str()))
+              .chunk_hash_optional(chunk.rendered_hash(
+                &compilation.chunk_hashes_artifact,
+                compilation.options.output.hash_digest_length,
+              ))
+              .chunk_name_optional(chunk.name_for_filename_template())
+              .content_hash_optional(marked_content_hash_digest.as_deref()),
+            None => marker_data,
+          };
+          let marker_data = marker_data.url(&marker_source_map_url);
+          let marker_source_mapping_url_comment = match &source_mapping_url_comment_ref {
+            SourceMappingUrlCommentRef::String(s) => {
+              compilation
+                .get_asset_path(&Filename::from(s.as_ref()), marker_data)
+                .await?
+            }
+            SourceMappingUrlCommentRef::Fn(f) => {
+              let comment = f(marker_data).await?;
+              Filename::from(comment).render(marker_data, None).await?
+            }
+          };
+          let marker_source_mapping_url_comment = marker_source_mapping_url_comment
+            .cow_replace("[url]", &marker_source_map_url)
+            .into_owned();
+          let comment_offset = source.buffer().len() + debug_id_comment.len();
+          source_replacements = source_mapping_url_replacements_from_markers(
+            comment_offset,
+            &current_source_mapping_url_comment,
+            &marker_source_mapping_url_comment,
+            &source_map_filename_markers,
+          );
+        }
         asset.source = Some(
           ConcatSource::new([
             source.clone(),
