@@ -1,4 +1,4 @@
-# Runtime Requirements Proxy Design
+# Runtime requirements proxy design
 
 ## Summary
 
@@ -29,7 +29,7 @@ The first implementation is behind an experimental flag. When the flag is disabl
 - Do not support third-party runtime modules reassigning `__webpack_require__.x` and expecting internal lexical variables to update.
 - Do not change module factory signatures or add a fourth module factory argument.
 
-## Current Coupling
+## Current coupling
 
 Today `ModuleCodeTemplate::render_runtime_globals(...)` does two things at once:
 
@@ -38,9 +38,9 @@ Today `ModuleCodeTemplate::render_runtime_globals(...)` does two things at once:
 
 `runtime_requirements_pass` later merges module runtime requirements into chunk and tree requirements, runs the runtime requirement hooks, and adds runtime modules. Runtime modules are generated later and also commonly render runtime globals as `__webpack_require__.x`. This makes runtime modules visible as properties on the require function, which weakens dead code elimination because modules can access broad runtime state through `__webpack_require__`.
 
-## Proposed Architecture
+## Proposed architecture
 
-### Runtime Global Render Modes
+### Runtime global render modes
 
 Add a render strategy layer used by `ModuleCodeTemplate` and `RuntimeCodeTemplate`:
 
@@ -52,7 +52,7 @@ Add a render strategy layer used by `ModuleCodeTemplate` and `RuntimeCodeTemplat
 
 Only `REQUIRE_SCOPE_GLOBALS` participate in proxy or lexical rendering. `REQUIRE`, `EXPORTS`, `MODULE`, and `MODULE_GLOBALS` keep their existing semantics.
 
-### Centralized Mapping
+### Centralized mapping
 
 Keep `runtime_globals_to_string(...)` as the legacy renderer. Add centralized helpers:
 
@@ -62,13 +62,13 @@ Keep `runtime_globals_to_string(...)` as the legacy renderer. Add centralized he
 
 Composite or unsupported runtime global bitsets should be rejected or explicitly routed through legacy rendering. They must not silently produce invalid proxy or lexical references.
 
-## Runtime Chunk Boundary
+## Runtime chunk boundary
 
 Runtime chunk scope is the capability boundary. Runtime modules and `__rspack_runtime_proxy__` are emitted inside the runtime chunk wrapper. Runtime modules can refer to each other by lexical variables. Module factories capture `__rspack_runtime_proxy__` from the outer runtime chunk scope.
 
 The module factory third parameter remains `__webpack_require__`; only runtime helper references in module bodies change from `__webpack_require__.x` to `__rspack_runtime_proxy__.x`.
 
-## Runtime Proxy Metadata
+## Runtime proxy metadata
 
 During or after `runtime_requirements_pass`, produce runtime chunk level metadata:
 
@@ -84,7 +84,7 @@ Field selection:
 
 The metadata affects runtime module source and chunk output, so it must participate in runtime module and chunk hashing.
 
-## Runtime Module Generation
+## Runtime module generation
 
 In the experimental path, runtime module code generation uses `LexicalRuntime` mode:
 
@@ -94,7 +94,7 @@ In the experimental path, runtime module code generation uses `LexicalRuntime` m
 
 Lexical declarations are emitted in the runtime chunk wrapper as `var name;`. Runtime modules remain responsible for initializing the variable or the object/function it represents. This is important for globals that were previously initialized as objects, arrays, or handler maps, such as ensure chunk handlers, share scopes, and HMR handler maps.
 
-## Runtime Chunk Rendering
+## Runtime chunk rendering
 
 When rendering the runtime chunk under the experimental path without custom runtime modules, emit in this order:
 
@@ -111,12 +111,12 @@ var __rspack_runtime_define_property_getters__;
 var __rspack_runtime_create_fake_namespace_object__;
 
 // runtime module sources assign lexical variables
-__rspack_runtime_define_property_getters__ = function(exports, definition) {};
-__rspack_runtime_create_fake_namespace_object__ = function(value, mode) {};
+__rspack_runtime_define_property_getters__ = function (exports, definition) {};
+__rspack_runtime_create_fake_namespace_object__ = function (value, mode) {};
 
 var __rspack_runtime_proxy__ = {
   d: __rspack_runtime_define_property_getters__,
-  t: __rspack_runtime_create_fake_namespace_object__
+  t: __rspack_runtime_create_fake_namespace_object__,
 };
 
 __webpack_require__.d = __rspack_runtime_define_property_getters__;
@@ -127,7 +127,7 @@ The bridge is one-way. If a custom runtime module later reassigns `__webpack_req
 
 When custom runtime modules are present, bridge reads must be available while runtime modules execute. In that case, initialize the legacy surface before runtime module sources with getter-based or equivalent one-way aliases from `__webpack_require__.x` to the current lexical variable value. This preserves reads from custom runtime modules without allowing writes to update lexical variables.
 
-## Data Flow
+## Data flow
 
 1. `code_generation_pass`
    - Module code generation records runtime requirements as before.
@@ -164,7 +164,7 @@ The first phase does not support reverse synchronization from custom writes to `
 - Incremental compilation and caches may reuse old runtime module sources unless render mode and proxy metadata are part of invalidation or hashing.
 - HMR and module federation use broad runtime surfaces and custom runtime code. They need focused compatibility tests.
 
-## Testing Plan
+## Testing plan
 
 - Snapshot output for module bodies to verify `__rspack_runtime_proxy__.x` replaces `__webpack_require__.x` for `REQUIRE_SCOPE_GLOBALS`.
 - Snapshot output for runtime modules to verify lexical variables replace `__webpack_require__.x`.

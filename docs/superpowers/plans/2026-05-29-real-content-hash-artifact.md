@@ -1,4 +1,4 @@
-# Real Content Hash Artifact Implementation Plan
+# Real content hash artifact implementation plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -10,7 +10,7 @@
 
 ---
 
-## File Structure
+## File structure
 
 - Create `crates/rspack_core/src/artifacts/real_content_hash_artifact.rs`
   - Owns the data model, record APIs, asset lifecycle helpers, and unit tests for graph records.
@@ -45,9 +45,10 @@
 
 ---
 
-### Task 1: Add the RealContentHashArtifact Data Model
+### Task 1: add the RealContentHashArtifact data model
 
 **Files:**
+
 - Create: `crates/rspack_core/src/artifacts/real_content_hash_artifact.rs`
 - Modify: `crates/rspack_core/src/artifacts/mod.rs`
 
@@ -311,9 +312,10 @@ git commit -m "feat(core): add real content hash artifact"
 
 ---
 
-### Task 2: Attach the Artifact to Compilation
+### Task 2: attach the artifact to compilation
 
 **Files:**
+
 - Modify: `crates/rspack_core/src/compilation/mod.rs`
 - Test: `crates/rspack_core/src/artifacts/real_content_hash_artifact.rs`
 
@@ -459,9 +461,10 @@ git commit -m "feat(core): wire real content hash artifact into compilation"
 
 ---
 
-### Task 3: Make RenderManifestEntry Carry Real Content Hash Records
+### Task 3: make RenderManifestEntry carry real content hash records
 
 **Files:**
+
 - Modify: `crates/rspack_core/src/compilation/mod.rs`
 - Modify: `crates/rspack_core/src/compilation/create_chunk_assets/mod.rs`
 - Modify render manifest constructors that now need a new field:
@@ -594,9 +597,10 @@ git commit -m "feat(core): carry real content hash records through render manife
 
 ---
 
-### Task 4: Record Owned Hashes and Filename Replacements for Core Assets
+### Task 4: record owned hashes and filename replacements for core assets
 
 **Files:**
+
 - Modify: `crates/rspack_plugin_javascript/src/plugin/impl_plugin_for_js_plugin.rs`
 - Modify: `crates/rspack_plugin_css/src/plugin/impl_plugin_for_css_plugin.rs`
 - Modify: `crates/rspack_plugin_extract_css/src/plugin.rs`
@@ -675,9 +679,10 @@ git commit -m "feat: record owned real content hashes for emitted assets"
 
 ---
 
-### Task 5: Replace RealContentHashPlugin Scanning with Artifact Validation and Graph Building
+### Task 5: replace RealContentHashPlugin scanning with artifact validation and graph building
 
 **Files:**
+
 - Modify: `crates/rspack_plugin_real_content_hash/src/lib.rs`
 - Test: `tests/rspack-test/configCases/real-content-hash-artifact/missing-record/`
 
@@ -686,40 +691,43 @@ git commit -m "feat: record owned real content hashes for emitted assets"
 Create `tests/rspack-test/configCases/real-content-hash-artifact/missing-record/rspack.config.js`:
 
 ```js
-const { sources } = require("@rspack/core");
+const { sources } = require('@rspack/core');
 
 class UntrackedContentHashPlugin {
   apply(compiler) {
-    compiler.hooks.thisCompilation.tap("UntrackedContentHashPlugin", compilation => {
-      compilation.hooks.processAssets.tap(
-        {
-          name: "UntrackedContentHashPlugin",
-          stage: compiler.webpack.Compilation.PROCESS_ASSETS_STAGE_ADDITIONS
-        },
-        () => {
-          compilation.emitAsset(
-            "untracked.aaaa.js",
-            new sources.RawSource("console.log('aaaa');"),
-            { contenthash: "aaaa" }
-          );
-        }
-      );
-    });
+    compiler.hooks.thisCompilation.tap(
+      'UntrackedContentHashPlugin',
+      (compilation) => {
+        compilation.hooks.processAssets.tap(
+          {
+            name: 'UntrackedContentHashPlugin',
+            stage: compiler.webpack.Compilation.PROCESS_ASSETS_STAGE_ADDITIONS,
+          },
+          () => {
+            compilation.emitAsset(
+              'untracked.aaaa.js',
+              new sources.RawSource("console.log('aaaa');"),
+              { contenthash: 'aaaa' },
+            );
+          },
+        );
+      },
+    );
   }
 }
 
 module.exports = {
-  mode: "production",
-  entry: "./index.js",
+  mode: 'production',
+  entry: './index.js',
   optimization: { realContentHash: true },
-  plugins: [new UntrackedContentHashPlugin()]
+  plugins: [new UntrackedContentHashPlugin()],
 };
 ```
 
 Create `tests/rspack-test/configCases/real-content-hash-artifact/missing-record/index.js`:
 
 ```js
-it("reports missing real content hash records", () => {});
+it('reports missing real content hash records', () => {});
 ```
 
 Create `tests/rspack-test/configCases/real-content-hash-artifact/missing-record/test.config.js`:
@@ -731,10 +739,12 @@ module.exports = {
   },
   async check(_, stats) {
     const info = stats.toJson({ all: false, errors: true });
-    expect(info.errors.some(error =>
-      String(error.message || error).includes("MissingRealContentHashRecord")
-    )).toBe(true);
-  }
+    expect(
+      info.errors.some((error) =>
+        String(error.message || error).includes('MissingRealContentHashRecord'),
+      ),
+    ).toBe(true);
+  },
 };
 ```
 
@@ -854,9 +864,10 @@ git commit -m "feat(real-content-hash): validate artifact records"
 
 ---
 
-### Task 6: Implement Range-Based Temporary and Final Source Replacement
+### Task 6: implement Range-Based temporary and final source replacement
 
 **Files:**
+
 - Modify: `crates/rspack_plugin_real_content_hash/src/lib.rs`
 - Test: `tests/rspack-test/configCases/real-content-hash-artifact/source-range/`
 
@@ -865,32 +876,32 @@ git commit -m "feat(real-content-hash): validate artifact records"
 Create `tests/rspack-test/configCases/real-content-hash-artifact/source-range/index.js`:
 
 ```js
-import("./async");
+import('./async');
 
-it("updates recorded content hash ranges", async () => {
-  await import("./async");
+it('updates recorded content hash ranges', async () => {
+  await import('./async');
 });
 ```
 
 Create `tests/rspack-test/configCases/real-content-hash-artifact/source-range/async.js`:
 
 ```js
-export default "async";
+export default 'async';
 ```
 
 Create `tests/rspack-test/configCases/real-content-hash-artifact/source-range/rspack.config.js`:
 
 ```js
 module.exports = {
-  mode: "production",
-  entry: "./index.js",
+  mode: 'production',
+  entry: './index.js',
   output: {
-    filename: "[name].[contenthash].js",
-    chunkFilename: "[name].[contenthash].js"
+    filename: '[name].[contenthash].js',
+    chunkFilename: '[name].[contenthash].js',
   },
   optimization: {
-    realContentHash: true
-  }
+    realContentHash: true,
+  },
 };
 ```
 
@@ -900,12 +911,14 @@ Create `tests/rspack-test/configCases/real-content-hash-artifact/source-range/te
 module.exports = {
   async check(stats) {
     const info = stats.toJson({ all: false, assets: true });
-    const jsAssets = info.assets.map(asset => asset.name).filter(name => name.endsWith(".js"));
+    const jsAssets = info.assets
+      .map((asset) => asset.name)
+      .filter((name) => name.endsWith('.js'));
     expect(jsAssets.length).toBeGreaterThan(1);
     for (const asset of jsAssets) {
-      expect(asset).not.toContain("[contenthash]");
+      expect(asset).not.toContain('[contenthash]');
     }
-  }
+  },
 };
 ```
 
@@ -1026,9 +1039,10 @@ git commit -m "feat(real-content-hash): replace hashes from recorded ranges"
 
 ---
 
-### Task 7: Record Runtime Source References
+### Task 7: record runtime source references
 
 **Files:**
+
 - Modify: `crates/rspack_plugin_runtime/src/runtime_module/get_chunk_filename.rs`
 - Modify: `crates/rspack_plugin_runtime/src/runtime_module/get_main_filename.rs`
 - Modify: `crates/rspack_plugin_runtime/src/runtime_module/get_chunk_update_filename.rs`
@@ -1124,9 +1138,10 @@ git commit -m "feat(runtime): record content hash references in runtime output"
 
 ---
 
-### Task 8: Support SRI and Custom updateHash Sources
+### Task 8: support SRI and custom updateHash sources
 
 **Files:**
+
 - Modify: `crates/rspack_plugin_sri/src/asset.rs`
 - Modify: `crates/rspack_plugin_real_content_hash/src/drive.rs`
 - Modify: `crates/rspack_plugin_real_content_hash/src/lib.rs`
@@ -1190,9 +1205,10 @@ git commit -m "feat(real-content-hash): support recorded SRI hash updates"
 
 ---
 
-### Task 9: Expose Recording to Binding/API Plugins
+### Task 9: expose recording to Binding/API plugins
 
 **Files:**
+
 - Modify: `crates/rspack_binding_api/src/compilation.rs` or the existing compilation binding module that exposes `emitAsset` and `updateAsset`
 - Modify: TypeScript binding declarations generated from NAPI if required
 - Test: `tests/rspack-test/configCases/process-assets/html-plugin/rspack.config.js`
@@ -1258,7 +1274,7 @@ compilation.recordRealContentHashReference({
   asset: htmlFile,
   referencedHash: contenthash,
   range: [start, end],
-  kind: "source"
+  kind: 'source',
 });
 ```
 
@@ -1282,9 +1298,10 @@ git commit -m "feat(api): expose real content hash reference recording"
 
 ---
 
-### Task 10: Remove Scan Dependencies and Run Final Verification
+### Task 10: remove scan dependencies and run final verification
 
 **Files:**
+
 - Modify: `crates/rspack_plugin_real_content_hash/Cargo.toml`
 - Modify: `crates/rspack_plugin_real_content_hash/src/lib.rs`
 - Modify tests from previous tasks if snapshots need updates.
@@ -1361,7 +1378,7 @@ git commit -m "refactor(real-content-hash): remove source scanning"
 
 ---
 
-## Plan Self-Review
+## Plan self-review
 
 - Spec coverage:
   - Dedicated compilation artifact: Tasks 1 and 2.

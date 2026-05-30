@@ -1,4 +1,4 @@
-# Real Content Hash Artifact Design
+# Real content hash artifact design
 
 ## Context
 
@@ -25,7 +25,7 @@ The goal is to remove source scanning from real content hash processing. All con
 - Do not preserve compatibility by falling back to the old source scan.
 - Do not introduce a `TrackedSource` wrapper as the primary metadata carrier.
 
-## Data Model
+## Data model
 
 Add a compilation-owned artifact, for example `RealContentHashArtifact`, as the single source of truth for real content hash processing.
 
@@ -102,7 +102,7 @@ All content hash insertions must call the recording API explicitly:
 
 `get_path` and `get_path_with_info` should not implicitly record real content hash data. Callers are responsible for explicit recording after they know the asset being generated.
 
-## Artifact Lifecycle
+## Artifact lifecycle
 
 The artifact lives on `Compilation`.
 
@@ -114,7 +114,7 @@ The artifact lives on `Compilation`.
 
 This keeps `AssetInfo` unchanged and prevents real content hash tracking from leaking into public asset metadata.
 
-## RealContentHashPlugin Flow
+## RealContentHashPlugin flow
 
 The plugin should switch from scanning assets to reading `RealContentHashArtifact`.
 
@@ -143,7 +143,7 @@ The plugin should switch from scanning assets to reading `RealContentHashArtifac
 
 The final stage should avoid rebuilding full `RawStringSource` values when recorded ranges are available.
 
-## Migration Points
+## Migration points
 
 Initial migration should cover every path that can put content hashes into final output:
 
@@ -158,7 +158,7 @@ Initial migration should cover every path that can put content hashes into final
 
 When source content is assembled from strings, add a small helper or builder that records the current offset before appending a hash string. This is the preferred way to produce accurate ranges.
 
-## Error Handling
+## Error handling
 
 Strict mode should fail clearly instead of silently falling back to source scanning.
 
@@ -186,7 +186,7 @@ Add focused tests for:
 - SRI update hash integration, proving the hook receives the already-updated source view.
 - A plugin-generated asset with explicitly recorded references.
 
-## Open Implementation Notes
+## Open implementation notes
 
 - The artifact should likely live near existing compilation artifacts, not in `rspack_plugin_real_content_hash`.
 - The real content hash plugin can initially keep much of the current topological batching structure while replacing `AssetData::new` and Aho-Corasick scanning with artifact reads.
