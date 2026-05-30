@@ -478,6 +478,56 @@ pub async fn create_hash(
 
 #[instrument(skip_all)]
 pub async fn runtime_modules_code_generation(compilation: &mut Compilation) -> Result<()> {
+  if !compilation.options.optimization.real_content_hash {
+    let compilation_ref = &*compilation;
+    let results = rspack_parallel::scope::<_, Result<_>>(|token| {
+      compilation
+        .runtime_modules
+        .iter()
+        .for_each(|(runtime_module_identifier, runtime_module)| {
+          let s =
+            unsafe { token.used((compilation_ref, runtime_module_identifier, runtime_module)) };
+          s.spawn(
+            |(compilation, runtime_module_identifier, runtime_module)| async {
+              let mut runtime_template = compilation.runtime_template.create_module_code_template();
+              let mut code_generation_context = ModuleCodeGenerationContext {
+                compilation,
+                runtime: None,
+                concatenation_scope: None,
+                runtime_template: &mut runtime_template,
+              };
+              let result = runtime_module
+                .code_generation(&mut code_generation_context)
+                .await?;
+              let source = result
+                .get(&SourceType::Runtime)
+                .expect("should have source");
+              Ok((*runtime_module_identifier, source.clone()))
+            },
+          )
+        })
+    })
+    .await
+    .into_iter()
+    .map(|res| res.to_rspack_result())
+    .collect::<Result<Vec<_>>>()?;
+
+    let mut runtime_module_sources = IdentifierMap::<BoxSource>::default();
+    for result in results {
+      let (runtime_module_identifier, source) = result?;
+      runtime_module_sources.insert(runtime_module_identifier, source);
+    }
+
+    compilation.runtime_modules_code_generation_source = runtime_module_sources;
+    compilation
+      .runtime_modules_code_generation_real_content_hashes
+      .clear();
+    compilation
+      .code_generated_modules
+      .extend(compilation.runtime_modules.keys().copied());
+    return Ok(());
+  }
+
   let compilation_ref = &*compilation;
   let results = rspack_parallel::scope::<_, Result<_>>(|token| {
     compilation
@@ -487,33 +537,14 @@ pub async fn runtime_modules_code_generation(compilation: &mut Compilation) -> R
         let s = unsafe { token.used((compilation_ref, runtime_module_identifier, runtime_module)) };
         s.spawn(
           |(compilation, runtime_module_identifier, runtime_module)| async {
-            let (source, real_content_hashes) =
-              if compilation.options.optimization.real_content_hash {
-                let runtime_template = compilation.runtime_template.create_runtime_code_template();
-                let context = RuntimeModuleGenerateContext {
-                  compilation,
-                  runtime_template: &runtime_template,
-                };
-                runtime_module
-                  .code_generation_with_real_content_hashes(&context)
-                  .await?
-              } else {
-                let mut runtime_template =
-                  compilation.runtime_template.create_module_code_template();
-                let mut code_generation_context = ModuleCodeGenerationContext {
-                  compilation,
-                  runtime: None,
-                  concatenation_scope: None,
-                  runtime_template: &mut runtime_template,
-                };
-                let result = runtime_module
-                  .code_generation(&mut code_generation_context)
-                  .await?;
-                let source = result
-                  .get(&SourceType::Runtime)
-                  .expect("should have source");
-                (source.clone(), AssetHashRecord::default())
-              };
+            let runtime_template = compilation.runtime_template.create_runtime_code_template();
+            let context = RuntimeModuleGenerateContext {
+              compilation,
+              runtime_template: &runtime_template,
+            };
+            let (source, real_content_hashes) = runtime_module
+              .code_generation_with_real_content_hashes(&context)
+              .await?;
             Ok((*runtime_module_identifier, source, real_content_hashes))
           },
         )

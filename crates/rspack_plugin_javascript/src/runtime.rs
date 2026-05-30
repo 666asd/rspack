@@ -339,6 +339,87 @@ pub async fn render_runtime_modules(
   chunk_ukey: &ChunkUkey,
   _runtime_template: &RuntimeCodeTemplate<'_>,
 ) -> Result<RuntimeModulesRenderResult> {
+  if !compilation.options.optimization.real_content_hash {
+    let mut sources = ConcatSource::default();
+    let runtime_module_sources = rspack_parallel::scope::<_, Result<_>>(|token| {
+      compilation
+        .build_chunk_graph_artifact
+        .chunk_graph
+        .get_chunk_runtime_modules_in_order(chunk_ukey, compilation)
+        .map(|(identifier, runtime_module)| {
+          (
+            compilation
+              .runtime_modules_code_generation_source
+              .get(identifier)
+              .expect("should have runtime module result"),
+            runtime_module,
+          )
+        })
+        .for_each(|(source, module)| {
+          let s = unsafe { token.used((compilation, source, module)) };
+          s.spawn(|(compilation, source, module)| async move {
+            let mut sources = ConcatSource::default();
+            if source.size() == 0 {
+              return Ok(sources);
+            }
+            sources.add(RawStringSource::from(format!(
+              "// {}\n",
+              module.identifier()
+            )));
+            let supports_arrow_function = compilation
+              .options
+              .output
+              .environment
+              .supports_arrow_function();
+            if module.should_isolate() {
+              sources.add(RawStringSource::from(if supports_arrow_function {
+                "(() => {\n"
+              } else {
+                "!function() {\n"
+              }));
+            }
+            if !(module.full_hash() || module.dependent_hash()) {
+              sources.add(source.clone());
+            } else {
+              let mut runtime_template = compilation.runtime_template.create_module_code_template();
+              let mut code_generation_context = ModuleCodeGenerationContext {
+                compilation,
+                runtime: None,
+                concatenation_scope: None,
+                runtime_template: &mut runtime_template,
+              };
+
+              let result = module.code_generation(&mut code_generation_context).await?;
+              #[allow(clippy::unwrap_used)]
+              let source = result.get(&SourceType::Runtime).unwrap();
+              sources.add(source.clone());
+            }
+            if module.should_isolate() {
+              sources.add(RawStringSource::from(if supports_arrow_function {
+                "\n})();\n"
+              } else {
+                "\n}();\n"
+              }));
+            }
+            Ok(sources)
+          });
+        })
+    })
+    .await
+    .into_iter()
+    .map(|r| r.to_rspack_result())
+    .collect::<Result<Vec<_>>>()?;
+
+    for runtime_module_source in runtime_module_sources {
+      sources.add(runtime_module_source?);
+    }
+
+    return Ok(RuntimeModulesRenderResult {
+      source: sources.boxed(),
+      real_content_hashes: AssetHashRecord::default(),
+    });
+  }
+
   let mut sources = ConcatSource::default();
   let mut real_content_hashes = AssetHashRecord::default();
   let runtime_module_sources = rspack_parallel::scope::<_, Result<_>>(|token| {
