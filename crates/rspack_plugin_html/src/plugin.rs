@@ -6,7 +6,10 @@ use std::{
 
 use atomic_refcell::AtomicRefCell;
 use cow_utils::CowUtils;
-use rspack_core::{Compilation, CompilationId, CompilationProcessAssets, Filename, Plugin};
+use rspack_core::{
+  AssetHashRecord, Compilation, CompilationId, CompilationProcessAssets, Filename, Plugin,
+  record_manifest_filename_content_hashes,
+};
 use rspack_error::{Diagnostic, Result};
 use rspack_hook::{plugin, plugin_hook};
 #[cfg(allocative)]
@@ -261,7 +264,17 @@ async fn process_assets(&self, compilation: &mut Compilation) -> Result<()> {
     )
     .await?;
 
+    let mut real_content_hashes = AssetHashRecord::default();
+    record_manifest_filename_content_hashes(
+      &mut real_content_hashes,
+      &html_asset.0,
+      html_asset.1.info.content_hash.iter(),
+    );
+
     compilation.emit_asset(html_asset.0.clone(), html_asset.1);
+    compilation
+      .real_content_hash_artifact
+      .merge_asset_record(html_asset.0.clone(), real_content_hashes);
 
     let _ = hooks
       .borrow()

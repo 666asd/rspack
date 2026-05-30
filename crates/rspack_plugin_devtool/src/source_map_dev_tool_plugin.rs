@@ -12,9 +12,10 @@ use futures::future::BoxFuture;
 use itertools::Itertools;
 use regex::Regex;
 use rspack_core::{
-  AssetInfo, Chunk, ChunkUkey, Compilation, CompilationAsset, CompilationProcessAssets,
-  ContentHashReferenceMeta, ContentHashReplacementKind, Filename, Logger, ModuleIdentifier,
-  PathData, Plugin, has_content_hash_placeholder,
+  AssetHashRecord, AssetInfo, Chunk, ChunkUkey, Compilation, CompilationAsset,
+  CompilationProcessAssets, ContentHashReferenceKind, ContentHashReferenceMeta,
+  ContentHashReplacementKind, Filename, Logger, ModuleIdentifier, PathData, Plugin,
+  has_content_hash_placeholder, record_manifest_filename_content_hashes,
   rspack_sources::{
     BoxSource, ConcatSource, MapOptions, ObjectPool, RawStringSource, Source, SourceExt, SourceMap,
   },
@@ -274,6 +275,8 @@ impl SourceNameWithBaseUrl {
 pub(crate) struct MappedAsset {
   pub(crate) asset: (Arc<str>, CompilationAsset),
   pub(crate) source_map: Option<(String, CompilationAsset)>,
+  pub(crate) source_map_real_content_hashes: AssetHashRecord,
+  pub(crate) source_map_filename_replacements: Vec<(String, Range<u32>)>,
   pub(crate) source_replacements: Vec<(String, Range<u32>)>,
   pub(crate) source_map_replacements: Vec<(String, Range<u32>)>,
 }
@@ -967,6 +970,14 @@ impl SourceMapDevToolPlugin {
       let marker_source_map_filename = compilation
         .get_asset_path(source_map_filename_config, marker_data)
         .await?;
+      let (normalized_source_map_filename, source_map_filename_replacements) =
+        marker_replacements_from_text(0, &marker_source_map_filename, &filename_markers);
+      let source_map_filename_replacements =
+        if normalized_source_map_filename == source_map_filename {
+          source_map_filename_replacements
+        } else {
+          Vec::new()
+        };
 
       if let Some(source_mapping_url_comment_ref) = current_source_mapping_url_comment {
         let source_map_url = build_source_map_url(
@@ -1034,6 +1045,16 @@ impl SourceMapDevToolPlugin {
         asset.source = Some(source.clone());
       }
       let mut source_map_asset_info = AssetInfo::default().with_development(Some(true));
+      let mut source_map_real_content_hashes = AssetHashRecord::default();
+      if let Some(content_hash_digest) = content_hash_digest.as_ref() {
+        let content_hash = content_hash_digest.encoded().to_string();
+        source_map_asset_info.set_content_hash(content_hash.clone());
+        record_manifest_filename_content_hashes(
+          &mut source_map_real_content_hashes,
+          &source_map_filename,
+          std::iter::once(&content_hash),
+        );
+      }
       if let Some(asset) = compilation.assets().get(asset_filename.as_ref()) {
         // set source map asset version to be the same as the target asset
         source_map_asset_info.version = asset.info.version.clone();
@@ -1045,6 +1066,8 @@ impl SourceMapDevToolPlugin {
       Ok(MappedAsset {
         asset: (asset_filename, asset),
         source_map: Some((source_map_filename.clone(), source_map_asset)),
+        source_map_real_content_hashes,
+        source_map_filename_replacements,
         source_replacements,
         source_map_replacements,
       })
@@ -1078,6 +1101,8 @@ impl SourceMapDevToolPlugin {
       Ok(MappedAsset {
         asset: (asset_filename, asset),
         source_map: None,
+        source_map_real_content_hashes: AssetHashRecord::default(),
+        source_map_filename_replacements: Vec::new(),
         source_replacements: Vec::new(),
         source_map_replacements: Vec::new(),
       })
@@ -1472,6 +1497,8 @@ async fn process_assets(&self, compilation: &mut Compilation) -> Result<()> {
     let MappedAsset {
       asset: (source_filename, mut source_asset),
       source_map,
+      source_map_real_content_hashes,
+      source_map_filename_replacements,
       source_replacements,
       source_map_replacements,
     } = mapped_asset;
@@ -1494,6 +1521,26 @@ async fn process_assets(&self, compilation: &mut Compilation) -> Result<()> {
     }
     if let Some((source_map_filename, source_map_asset)) = source_map {
       compilation.emit_asset(source_map_filename.clone(), source_map_asset);
+      compilation
+        .real_content_hash_artifact
+        .merge_asset_record(source_map_filename.clone(), source_map_real_content_hashes);
+      for (hash, range) in source_map_filename_replacements {
+        compilation.record_real_content_hash_reference(
+          &source_map_filename,
+          &hash,
+          None,
+          ContentHashReferenceMeta {
+            kind: ContentHashReferenceKind::Filename,
+            ..Default::default()
+          },
+        );
+        compilation.record_real_content_hash_replacement(
+          &source_map_filename,
+          &hash,
+          Some(range),
+          ContentHashReplacementKind::Filename,
+        );
+      }
       for (hash, range) in source_map_replacements {
         compilation.record_real_content_hash_reference(
           &source_map_filename,
