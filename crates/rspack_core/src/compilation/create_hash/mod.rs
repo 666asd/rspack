@@ -512,22 +512,13 @@ pub async fn runtime_modules_code_generation(compilation: &mut Compilation) -> R
     .map(|res| res.to_rspack_result())
     .collect::<Result<Vec<_>>>()?;
 
-    compilation.runtime_modules_code_generation_source.clear();
+    let mut runtime_module_sources = IdentifierMap::<BoxSource>::default();
     for result in results {
       let (runtime_module_identifier, source) = result?;
-      compilation
-        .runtime_modules_code_generation_source
-        .insert(runtime_module_identifier, source);
+      runtime_module_sources.insert(runtime_module_identifier, source);
     }
 
-    if !compilation
-      .runtime_modules_code_generation_real_content_hashes
-      .is_empty()
-    {
-      compilation
-        .runtime_modules_code_generation_real_content_hashes
-        .clear();
-    }
+    compilation.runtime_modules_code_generation_source = runtime_module_sources;
     compilation
       .code_generated_modules
       .extend(compilation.runtime_modules.keys().copied());
