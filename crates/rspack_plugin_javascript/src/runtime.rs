@@ -402,9 +402,9 @@ pub async fn render_runtime_modules(
               compilation,
               runtime_template: &runtime_template,
             };
-            let (source, real_content_hashes) =
-              module.generate_with_real_content_hashes(&context).await?;
-            (RawStringSource::from(source).boxed(), real_content_hashes)
+            module
+              .code_generation_with_real_content_hashes(&context)
+              .await?
           } else {
             let mut runtime_template = compilation.runtime_template.create_module_code_template();
             let mut code_generation_context = ModuleCodeGenerationContext {

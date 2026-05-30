@@ -1,5 +1,4 @@
 use async_trait::async_trait;
-use rspack_sources::{RawStringSource, SourceExt};
 use rustc_hash::FxHashSet;
 
 use super::*;
@@ -495,10 +494,9 @@ pub async fn runtime_modules_code_generation(compilation: &mut Compilation) -> R
                   compilation,
                   runtime_template: &runtime_template,
                 };
-                let (source, real_content_hashes) = runtime_module
-                  .generate_with_real_content_hashes(&context)
-                  .await?;
-                (RawStringSource::from(source).boxed(), real_content_hashes)
+                runtime_module
+                  .code_generation_with_real_content_hashes(&context)
+                  .await?
               } else {
                 let mut runtime_template =
                   compilation.runtime_template.create_module_code_template();

@@ -3,6 +3,7 @@ use std::fmt::Debug;
 use async_trait::async_trait;
 use rspack_cacheable::cacheable;
 use rspack_collections::Identifier;
+use rspack_sources::{BoxSource, OriginalSource, RawStringSource, SourceExt};
 
 use crate::{AssetHashRecord, ChunkUkey, Compilation, Module, RuntimeCodeTemplate, RuntimeGlobals};
 
@@ -45,6 +46,18 @@ pub trait RuntimeModule:
       self.generate(context).await?
     };
     Ok((source, AssetHashRecord::default()))
+  }
+  async fn code_generation_with_real_content_hashes(
+    &self,
+    context: &RuntimeModuleGenerateContext<'_>,
+  ) -> rspack_error::Result<(BoxSource, AssetHashRecord)> {
+    let (source, real_content_hashes) = self.generate_with_real_content_hashes(context).await?;
+    let source = if self.get_source_map_kind().enabled() {
+      OriginalSource::new(source, self.identifier().as_str()).boxed()
+    } else {
+      RawStringSource::from(source).boxed()
+    };
+    Ok((source, real_content_hashes))
   }
   async fn generate_real_content_hashes(
     &self,
