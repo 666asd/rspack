@@ -226,7 +226,7 @@ pub struct Compilation {
   pub runtime_modules: IdentifierMap<Box<dyn RuntimeModule>>,
   pub runtime_modules_hash: IdentifierMap<RspackHashDigest>,
   pub runtime_modules_code_generation_source: IdentifierMap<BoxSource>,
-  pub runtime_modules_code_generation_real_content_hashes: IdentifierMap<AssetHashRecord>,
+  pub runtime_modules_code_generation_real_content_hashes: Box<IdentifierMap<AssetHashRecord>>,
   assets: CompilationAssets,
   assets_related_in: HashMap<String, HashSet<String>>,
   pub emitted_assets: DashSet<String, BuildHasherDefault<FxHasher>>,
@@ -260,7 +260,7 @@ pub struct Compilation {
   pub cgc_runtime_requirements_artifact: StealCell<CgcRuntimeRequirementsArtifact>,
   // artifact for create_hash
   pub chunk_hashes_artifact: StealCell<ChunkHashesArtifact>,
-  pub real_content_hash_artifact: RealContentHashArtifact,
+  pub real_content_hash_artifact: Box<RealContentHashArtifact>,
   // artifact for create_chunk_assets
   pub chunk_render_artifact: StealCell<ChunkRenderArtifact>,
   // artifact for caching get_mode

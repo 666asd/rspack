@@ -1477,7 +1477,7 @@ async fn run_code_generation_pass(compiler: &mut Compiler) -> Result<()> {
 struct ChunkAssetStateSnapshot {
   assets: CompilationAssets,
   chunk_by_ukey: ChunkByUkey,
-  real_content_hash_artifact: RealContentHashArtifact,
+  real_content_hash_artifact: Box<RealContentHashArtifact>,
 }
 
 fn snapshot_chunk_asset_state(compilation: &Compilation) -> ChunkAssetStateSnapshot {
