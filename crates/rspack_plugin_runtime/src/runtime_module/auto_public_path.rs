@@ -1,10 +1,10 @@
 use std::sync::LazyLock;
 
 use rspack_core::{
-  AssetHashRecord, Compilation, OutputOptions, PathData, RuntimeCodeTemplate, RuntimeGlobals,
-  RuntimeModule, RuntimeModuleGenerateContext, RuntimeModuleStage, RuntimeTemplate, SourceType,
-  get_filename_without_hash_length, get_js_chunk_filename_template, get_undo_path,
-  impl_runtime_module,
+  AssetHashRecord, Compilation, CustomSourceRuntimeModule, OutputOptions, PathData,
+  RuntimeCodeTemplate, RuntimeGlobals, RuntimeModule, RuntimeModuleGenerateContext,
+  RuntimeModuleStage, RuntimeTemplate, SourceType, get_filename_without_hash_length,
+  get_js_chunk_filename_template, get_undo_path, impl_runtime_module,
 };
 
 use crate::{extract_runtime_globals_from_ejs, runtime_module::RuntimeContentHashContext};
@@ -100,14 +100,14 @@ impl RuntimeModule for AutoPublicPathRuntimeModule {
       .map(|(source, _)| source)
   }
 
-  async fn generate_real_content_hashes(
+  async fn generate_with_real_content_hashes(
     &self,
     context: &RuntimeModuleGenerateContext<'_>,
-  ) -> rspack_error::Result<AssetHashRecord> {
-    self
-      .generate_with_real_content_hashes(context)
-      .await
-      .map(|(_, record)| record)
+  ) -> rspack_error::Result<(String, AssetHashRecord)> {
+    if let Some(custom_source) = self.get_custom_source() {
+      return Ok((custom_source, AssetHashRecord::default()));
+    }
+    Self::generate_with_real_content_hashes(self, context).await
   }
 
   fn additional_runtime_requirements(&self, _compilation: &Compilation) -> RuntimeGlobals {

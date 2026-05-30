@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use rspack_sources::{RawStringSource, SourceExt};
 use rustc_hash::FxHashSet;
 
 use super::*;
@@ -487,32 +488,35 @@ pub async fn runtime_modules_code_generation(compilation: &mut Compilation) -> R
         let s = unsafe { token.used((compilation_ref, runtime_module_identifier, runtime_module)) };
         s.spawn(
           |(compilation, runtime_module_identifier, runtime_module)| async {
-            let mut runtime_template = compilation.runtime_template.create_module_code_template();
-            let mut code_generation_context = ModuleCodeGenerationContext {
-              compilation,
-              runtime: None,
-              concatenation_scope: None,
-              runtime_template: &mut runtime_template,
-            };
-            let result = runtime_module
-              .code_generation(&mut code_generation_context)
-              .await?;
-            let source = result
-              .get(&SourceType::Runtime)
-              .expect("should have source");
-            let runtime_template = compilation.runtime_template.create_runtime_code_template();
-            let context = RuntimeModuleGenerateContext {
-              compilation,
-              runtime_template: &runtime_template,
-            };
-            let real_content_hashes = runtime_module
-              .generate_real_content_hashes(&context)
-              .await?;
-            Ok((
-              *runtime_module_identifier,
-              source.clone(),
-              real_content_hashes,
-            ))
+            let (source, real_content_hashes) =
+              if compilation.options.optimization.real_content_hash {
+                let runtime_template = compilation.runtime_template.create_runtime_code_template();
+                let context = RuntimeModuleGenerateContext {
+                  compilation,
+                  runtime_template: &runtime_template,
+                };
+                let (source, real_content_hashes) = runtime_module
+                  .generate_with_real_content_hashes(&context)
+                  .await?;
+                (RawStringSource::from(source).boxed(), real_content_hashes)
+              } else {
+                let mut runtime_template =
+                  compilation.runtime_template.create_module_code_template();
+                let mut code_generation_context = ModuleCodeGenerationContext {
+                  compilation,
+                  runtime: None,
+                  concatenation_scope: None,
+                  runtime_template: &mut runtime_template,
+                };
+                let result = runtime_module
+                  .code_generation(&mut code_generation_context)
+                  .await?;
+                let source = result
+                  .get(&SourceType::Runtime)
+                  .expect("should have source");
+                (source.clone(), AssetHashRecord::default())
+              };
+            Ok((*runtime_module_identifier, source, real_content_hashes))
           },
         )
       })

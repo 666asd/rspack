@@ -1,5 +1,5 @@
 use rspack_core::{
-  AssetHashRecord, Compilation, PathData, RuntimeGlobals, RuntimeModule,
+  AssetHashRecord, Compilation, CustomSourceRuntimeModule, PathData, RuntimeGlobals, RuntimeModule,
   RuntimeModuleGenerateContext, RuntimeTemplate, SourceType, get_filename_without_hash_length,
   has_hash_placeholder, impl_runtime_module,
 };
@@ -98,14 +98,14 @@ impl RuntimeModule for GetChunkUpdateFilenameRuntimeModule {
       .map(|(source, _)| source)
   }
 
-  async fn generate_real_content_hashes(
+  async fn generate_with_real_content_hashes(
     &self,
     context: &RuntimeModuleGenerateContext<'_>,
-  ) -> rspack_error::Result<AssetHashRecord> {
-    self
-      .generate_with_real_content_hashes(context)
-      .await
-      .map(|(_, record)| record)
+  ) -> rspack_error::Result<(String, AssetHashRecord)> {
+    if let Some(custom_source) = self.get_custom_source() {
+      return Ok((custom_source, AssetHashRecord::default()));
+    }
+    Self::generate_with_real_content_hashes(self, context).await
   }
 
   fn additional_runtime_requirements(&self, compilation: &Compilation) -> RuntimeGlobals {

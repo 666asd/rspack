@@ -383,38 +383,42 @@ pub async fn render_runtime_modules(
               "!function() {\n"
             }));
           }
-          let (module_source, mut module_real_content_hashes) =
-            if !(module.full_hash() || module.dependent_hash()) {
-              (
-                source.clone(),
-                compilation
-                  .runtime_modules_code_generation_real_content_hashes
-                  .get(&identifier)
-                  .cloned()
-                  .unwrap_or_default(),
-              )
+          let (module_source, mut module_real_content_hashes) = if !(module.full_hash()
+            || module.dependent_hash())
+          {
+            let module_real_content_hashes = if compilation.options.optimization.real_content_hash {
+              compilation
+                .runtime_modules_code_generation_real_content_hashes
+                .get(&identifier)
+                .cloned()
+                .unwrap_or_default()
             } else {
-              let mut runtime_template = compilation.runtime_template.create_module_code_template();
-              let mut code_generation_context = ModuleCodeGenerationContext {
-                compilation,
-                runtime: None,
-                concatenation_scope: None,
-                runtime_template: &mut runtime_template,
-              };
-
-              let result = module.code_generation(&mut code_generation_context).await?;
-              #[allow(clippy::unwrap_used)]
-              let source = result.get(&SourceType::Runtime).unwrap();
-              let runtime_template = compilation.runtime_template.create_runtime_code_template();
-              let context = RuntimeModuleGenerateContext {
-                compilation,
-                runtime_template: &runtime_template,
-              };
-              (
-                source.clone(),
-                module.generate_real_content_hashes(&context).await?,
-              )
+              AssetHashRecord::default()
             };
+            (source.clone(), module_real_content_hashes)
+          } else if compilation.options.optimization.real_content_hash {
+            let runtime_template = compilation.runtime_template.create_runtime_code_template();
+            let context = RuntimeModuleGenerateContext {
+              compilation,
+              runtime_template: &runtime_template,
+            };
+            let (source, real_content_hashes) =
+              module.generate_with_real_content_hashes(&context).await?;
+            (RawStringSource::from(source).boxed(), real_content_hashes)
+          } else {
+            let mut runtime_template = compilation.runtime_template.create_module_code_template();
+            let mut code_generation_context = ModuleCodeGenerationContext {
+              compilation,
+              runtime: None,
+              concatenation_scope: None,
+              runtime_template: &mut runtime_template,
+            };
+
+            let result = module.code_generation(&mut code_generation_context).await?;
+            #[allow(clippy::unwrap_used)]
+            let source = result.get(&SourceType::Runtime).unwrap();
+            (source.clone(), AssetHashRecord::default())
+          };
           module_real_content_hashes.shift_source_ranges(
             u32::try_from(sources.size()).expect("runtime module wrapper size should fit in u32"),
           );

@@ -183,7 +183,7 @@ pub async fn create_chunk_assets(
         current_chunk.add_file(filename.clone());
       }
 
-      if !real_content_hashes.is_empty() {
+      if compilation.options.optimization.real_content_hash && !real_content_hashes.is_empty() {
         compilation
           .real_content_hash_artifact
           .merge_asset_record(filename.clone(), real_content_hashes);

@@ -35,6 +35,17 @@ pub trait RuntimeModule:
     &self,
     context: &RuntimeModuleGenerateContext<'_>,
   ) -> rspack_error::Result<String>;
+  async fn generate_with_real_content_hashes(
+    &self,
+    context: &RuntimeModuleGenerateContext<'_>,
+  ) -> rspack_error::Result<(String, AssetHashRecord)> {
+    let source = if let Some(custom_source) = self.get_custom_source() {
+      custom_source
+    } else {
+      self.generate(context).await?
+    };
+    Ok((source, AssetHashRecord::default()))
+  }
   async fn generate_real_content_hashes(
     &self,
     _context: &RuntimeModuleGenerateContext<'_>,
