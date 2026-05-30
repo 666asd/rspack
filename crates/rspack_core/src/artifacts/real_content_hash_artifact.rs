@@ -1,4 +1,4 @@
-use std::ops::Range;
+use std::{cmp::Reverse, ops::Range};
 
 use rustc_hash::{FxHashMap, FxHashSet};
 
@@ -69,12 +69,12 @@ pub fn record_manifest_filename_content_hashes<'a>(
   content_hashes: impl IntoIterator<Item = &'a String>,
 ) {
   let mut content_hashes = content_hashes.into_iter().collect::<Vec<_>>();
-  content_hashes.sort_by(|a, b| b.len().cmp(&a.len()));
+  content_hashes.sort_by_key(|b| Reverse(b.len()));
   content_hashes.dedup();
 
   let mut occupied_ranges: Vec<Range<u32>> = Vec::new();
   for content_hash in content_hashes {
-    record.own_hashes.insert(content_hash.to_string());
+    record.own_hashes.insert(content_hash.clone());
 
     let mut remaining = filename;
     let mut offset = 0usize;
@@ -95,7 +95,7 @@ pub fn record_manifest_filename_content_hashes<'a>(
         continue;
       }
       record.replacements.push(ContentHashReplacement {
-        old_hash: content_hash.to_string(),
+        old_hash: content_hash.clone(),
         range: Some(start_u32..end_u32),
         kind: ContentHashReplacementKind::Filename,
       });
@@ -115,8 +115,9 @@ pub struct ContentHashReference {
   pub kind: ContentHashReferenceKind,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum ContentHashReferenceKind {
+  #[default]
   Source,
   Filename,
   Custom,
@@ -141,12 +142,6 @@ pub struct ContentHashReferenceMeta {
   pub referenced_chunk: Option<ChunkUkey>,
   pub referenced_source_type: Option<SourceType>,
   pub kind: ContentHashReferenceKind,
-}
-
-impl Default for ContentHashReferenceKind {
-  fn default() -> Self {
-    Self::Source
-  }
 }
 
 impl RealContentHashArtifact {
@@ -518,8 +513,8 @@ mod tests {
 
     artifact.rename_asset("old.js", "new.js");
 
-    assert!(artifact.asset_records.get("old.js").is_none());
-    assert!(artifact.asset_records.get("new.js").is_some());
+    assert!(!artifact.asset_records.contains_key("old.js"));
+    assert!(artifact.asset_records.contains_key("new.js"));
     assert_eq!(
       artifact.hash_to_assets.get("aaaa").expect("hash owner"),
       &vec!["new.js".to_string()]
@@ -533,9 +528,9 @@ mod tests {
 
     artifact.rename_asset("missing.js", "new.js");
 
-    assert!(artifact.asset_records.get("missing.js").is_none());
-    assert!(artifact.asset_records.get("new.js").is_none());
-    assert!(artifact.asset_records.get("existing.js").is_some());
+    assert!(!artifact.asset_records.contains_key("missing.js"));
+    assert!(!artifact.asset_records.contains_key("new.js"));
+    assert!(artifact.asset_records.contains_key("existing.js"));
     assert_eq!(
       artifact.hash_to_assets.get("aaaa").expect("hash owner"),
       &vec!["existing.js".to_string()]
@@ -574,7 +569,7 @@ mod tests {
 
     artifact.rename_asset("old.js", "new.js");
 
-    assert!(artifact.asset_records.get("old.js").is_none());
+    assert!(!artifact.asset_records.contains_key("old.js"));
     let record = artifact
       .asset_records
       .get("new.js")
@@ -610,8 +605,8 @@ mod tests {
 
     artifact.delete_asset("first.js");
 
-    assert!(artifact.asset_records.get("first.js").is_none());
-    assert!(artifact.asset_records.get("second.js").is_some());
+    assert!(!artifact.asset_records.contains_key("first.js"));
+    assert!(artifact.asset_records.contains_key("second.js"));
     assert_eq!(
       artifact
         .hash_to_assets

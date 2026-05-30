@@ -17,7 +17,6 @@ version       = "0.100.5"
 libraries = [{ path = "linting/*" }]
 
 [workspace.dependencies]
-aho-corasick    = { version = "1.1.4", default-features = false }
 anyhow          = { version = "1.0.102", default-features = false, features = ["backtrace", "std"] }
 anymap          = { package = "anymap3", version = "1.0.1", default-features = false, features = ["std"] }
 async-recursion = { version = "1.1.1", default-features = false }
@@ -302,9 +301,6 @@ opt-level = "s"
 opt-level = "s"
 
 [profile.release.package.backtrace]
-opt-level = "s"
-
-[profile.release.package.aho-corasick]
 opt-level = "s"
 
 [profile.release.package.miette]

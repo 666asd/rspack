@@ -1164,7 +1164,7 @@ fn marker_filename_replacements(
       next_filename.push_str(before);
       next_filename.push_str(&marker);
       markers.push(FilenameHashMarker {
-        hash: hash.to_string(),
+        hash: hash.clone(),
         marker,
       });
       rest = after;

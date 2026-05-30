@@ -17,8 +17,8 @@ use rspack_core::{
   CompilationAsset, CompilationAssets, Compiler, CreateChunkAssetsPass, CreateHashPass,
   CreateModuleAssetsPass, CreateModuleHashesPass, DEFAULT_DELIMITER, LogType, MangleExportsOption,
   Mode, ModuleCodeGenerationContext, ModuleIdsArtifact, Optimization, OptimizeCodeGenerationPass,
-  OutputOptions, ProcessAssetsPass, RuntimeRequirementsPass, SideEffectsOptimizeArtifact,
-  SourceType, UsedExportsOption, build_chunk_graph,
+  OutputOptions, ProcessAssetsPass, RealContentHashArtifact, RuntimeRequirementsPass,
+  SideEffectsOptimizeArtifact, SourceType, UsedExportsOption, build_chunk_graph,
   build_module_graph::{build_module_graph_pass, finish_build_module_graph},
   cache::Cache,
   incremental::IncrementalOptions,
@@ -1477,12 +1477,14 @@ async fn run_code_generation_pass(compiler: &mut Compiler) -> Result<()> {
 struct ChunkAssetStateSnapshot {
   assets: CompilationAssets,
   chunk_by_ukey: ChunkByUkey,
+  real_content_hash_artifact: RealContentHashArtifact,
 }
 
 fn snapshot_chunk_asset_state(compilation: &Compilation) -> ChunkAssetStateSnapshot {
   ChunkAssetStateSnapshot {
     assets: compilation.assets().clone(),
     chunk_by_ukey: compilation.build_chunk_graph_artifact.chunk_by_ukey.clone(),
+    real_content_hash_artifact: compilation.real_content_hash_artifact.clone(),
   }
 }
 
@@ -1495,6 +1497,7 @@ fn restore_chunk_asset_state(compilation: &mut Compilation, snapshot: &ChunkAsse
     compilation.emit_asset(asset_name, asset);
   }
   compilation.build_chunk_graph_artifact.chunk_by_ukey = snapshot.chunk_by_ukey.clone();
+  compilation.real_content_hash_artifact = snapshot.real_content_hash_artifact.clone();
 }
 
 fn chunk_asset_totals(compilation: &Compilation) -> (usize, usize, usize) {

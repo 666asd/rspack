@@ -389,10 +389,10 @@ fn validate_artifact_records(artifact: &RealContentHashArtifact) -> Result<()> {
         ));
       }
 
-      if !artifact
+      if artifact
         .hash_to_assets
         .get(&reference.referenced_hash)
-        .is_some_and(|asset_names| !asset_names.is_empty())
+        .is_none_or(|asset_names| asset_names.is_empty())
       {
         return Err(rspack_error::error!(
           "MissingRealContentHashReferenceOwner: asset '{}' references unknown content hash '{}'",
