@@ -65,6 +65,17 @@ type ExportsDefinitionArgs = Vec<(String, String)>;
 define_hook!(ConcatenatedModuleExportsDefinitions: SeriesBail(exports_definitions: &mut ExportsDefinitionArgs, is_entry_module: bool) -> bool);
 define_hook!(ConcatenatedModuleConcatenatedInfo: Series(compilation: &Compilation, module: ModuleIdentifier, runtime: Option<&RuntimeSpec>, info: &mut ConcatenatedModuleInfo, all_used_names: &mut HashSet<Atom>));
 
+const ES_MODULE: &str = "__esModule";
+
+thread_local! {
+  static ES_MODULE_ATOM: Atom = Atom::from(ES_MODULE);
+}
+
+#[inline]
+fn is_es_module(name: &Atom) -> bool {
+  name.len() == ES_MODULE.len() && ES_MODULE_ATOM.with(|atom| name == atom)
+}
+
 #[derive(Debug, Default)]
 pub struct ConcatenatedModuleHooks {
   pub exports_definitions: ConcatenatedModuleExportsDefinitionsHook,
@@ -1613,10 +1624,11 @@ impl Module for ConcatenatedModule {
       .get_exports_info_data(&self.id());
     // Add ESM compatibility flag (must be first because of possible circular dependencies)
     if root_exports_info.other_exports_info().get_used(runtime) != UsageState::Unused
-      || root_exports_info
-        .get_read_only_export_info(&"__esModule".into())
-        .get_used(runtime)
-        != UsageState::Unused
+      || ES_MODULE_ATOM.with(|name| {
+        root_exports_info
+          .get_read_only_export_info(name)
+          .get_used(runtime)
+      }) != UsageState::Unused
     {
       should_add_esm_flag = true
     }
@@ -2864,11 +2876,11 @@ impl ConcatenatedModule {
     } else {
       match exports_type {
         ExportsType::Namespace => {}
-        ExportsType::DefaultWithNamed => match export_name.first().map(|atom| atom.as_str()) {
-          Some("default") => {
+        ExportsType::DefaultWithNamed => match export_name.first() {
+          Some(first) if first == "default" => {
             export_name = export_name[1..].to_vec();
           }
-          Some("__esModule") => {
+          Some(first) if is_es_module(first) => {
             return FinalBindingResult::from_binding(Binding::Raw(RawBinding {
               info_id: *info_id,
               raw_name: "/* __esModule */true".into(),
@@ -2880,7 +2892,7 @@ impl ConcatenatedModule {
           _ => {}
         },
         ExportsType::DefaultOnly => {
-          if export_name.first().map(|item| item.as_str()) == Some("__esModule") {
+          if export_name.first().is_some_and(is_es_module) {
             return FinalBindingResult::from_binding(Binding::Raw(RawBinding {
               info_id: info.id(),
               raw_name: "/* __esModule */true".into(),
@@ -2901,8 +2913,8 @@ impl ConcatenatedModule {
             }));
           }
         }
-        ExportsType::Dynamic => match export_name.first().map(|atom| atom.as_str()) {
-          Some("default") => {
+        ExportsType::Dynamic => match export_name.first() {
+          Some(first) if first == "default" => {
             // shadowing the previous immutable ref to avoid violating rustc borrow rules
             export_name = export_name[1..].to_vec();
             if is_deferred {
@@ -2959,7 +2971,7 @@ impl ConcatenatedModule {
               needed_namespace_object: None,
             };
           }
-          Some("__esModule") => {
+          Some(first) if is_es_module(first) => {
             return FinalBindingResult::from_binding(Binding::Raw(RawBinding {
               raw_name: "/* __esModule */true".into(),
               ids: export_name[1..].to_vec(),
