@@ -20,9 +20,6 @@ thread_local! {
 
 #[inline]
 fn is_included_identifier(for_name: ParserHookName<'_>) -> bool {
-  if !matches!(for_name.as_atom(), Some(name) if name.len() == IS_INCLUDED.len()) {
-    return false;
-  }
   IS_INCLUDED_ATOM.with(|atom| for_name.is_identifier(atom))
 }
 

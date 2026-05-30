@@ -34,17 +34,11 @@ thread_local! {
 
 #[inline]
 fn is_dirname(for_name: ParserHookName<'_>) -> bool {
-  if !matches!(for_name.as_atom(), Some(name) if name.len() == DIRNAME.len()) {
-    return false;
-  }
   DIRNAME_ATOM.with(|atom| for_name.is_identifier(atom))
 }
 
 #[inline]
 fn is_filename(for_name: ParserHookName<'_>) -> bool {
-  if !matches!(for_name.as_atom(), Some(name) if name.len() == FILENAME.len()) {
-    return false;
-  }
   FILENAME_ATOM.with(|atom| for_name.is_identifier(atom))
 }
 

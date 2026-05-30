@@ -6,10 +6,8 @@ use rspack_core::{
 };
 use swc_core::atoms::Atom;
 
-const ES_MODULE: &str = "__esModule";
-
 thread_local! {
-  static ES_MODULE_ATOM: Atom = Atom::from(ES_MODULE);
+  static ES_MODULE_ATOM: Atom = Atom::from("__esModule");
 }
 
 // Mark module `__esModule`.

@@ -25,17 +25,11 @@ thread_local! {
 
 #[inline]
 fn is_resource_fragment(for_name: ParserHookName<'_>) -> bool {
-  if !matches!(for_name.as_atom(), Some(name) if name.len() == RESOURCE_FRAGMENT.len()) {
-    return false;
-  }
   RESOURCE_FRAGMENT_ATOM.with(|atom| for_name.is_identifier(atom))
 }
 
 #[inline]
 fn is_resource_query(for_name: ParserHookName<'_>) -> bool {
-  if !matches!(for_name.as_atom(), Some(name) if name.len() == RESOURCE_QUERY.len()) {
-    return false;
-  }
   RESOURCE_QUERY_ATOM.with(|atom| for_name.is_identifier(atom))
 }
 
