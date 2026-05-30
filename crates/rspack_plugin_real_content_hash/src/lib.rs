@@ -74,6 +74,7 @@ impl Plugin for RealContentHashPlugin {
 }
 
 async fn inner_impl(compilation: &mut Compilation) -> Result<()> {
+  #[cfg(debug_assertions)]
   validate_artifact(compilation)?;
 
   let logger = compilation.get_logger("rspack.RealContentHashPlugin");
@@ -287,6 +288,7 @@ async fn inner_impl(compilation: &mut Compilation) -> Result<()> {
   Ok(())
 }
 
+#[cfg(debug_assertions)]
 fn validate_artifact(compilation: &Compilation) -> Result<()> {
   for (name, asset) in compilation.assets().iter() {
     if asset.get_source().is_none() || asset.info.content_hash.is_empty() {
@@ -334,6 +336,7 @@ fn validate_artifact(compilation: &Compilation) -> Result<()> {
   Ok(())
 }
 
+#[cfg(debug_assertions)]
 fn validate_artifact_records(artifact: &RealContentHashArtifact) -> Result<()> {
   for (hash, asset_names) in &artifact.hash_to_assets {
     if asset_names.is_empty() {

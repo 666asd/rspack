@@ -743,7 +743,9 @@ fn find_marker_ranges(content: &[u8], marker: &[u8]) -> Vec<Range<usize>> {
 }
 
 #[cfg(test)]
+#[allow(clippy::items_after_test_module)]
 mod tests {
+  use cow_utils::CowUtils;
   use rspack_core::{
     AssetHashRecord, ContentHashReplacement, ContentHashReplacementKind,
     rspack_sources::{RawStringSource, Source, SourceExt},
@@ -858,7 +860,9 @@ mod tests {
       mark_real_content_hash_replacements(Some(&record), input, "asset.js")
         .expect("valid source range should markerize");
     assert_eq!(markers.len(), 2);
-    marked = marked.replace(&markers[0].marker, &markers[0].old_hash);
+    marked = marked
+      .cow_replace(&markers[0].marker, &markers[0].old_hash)
+      .into_owned();
 
     let err =
       restore_real_content_hash_markers(RawStringSource::from(marked).boxed(), &record, &markers)
