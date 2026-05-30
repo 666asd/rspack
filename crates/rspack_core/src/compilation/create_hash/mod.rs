@@ -512,16 +512,22 @@ pub async fn runtime_modules_code_generation(compilation: &mut Compilation) -> R
     .map(|res| res.to_rspack_result())
     .collect::<Result<Vec<_>>>()?;
 
-    let mut runtime_module_sources = IdentifierMap::<BoxSource>::default();
+    compilation.runtime_modules_code_generation_source.clear();
     for result in results {
       let (runtime_module_identifier, source) = result?;
-      runtime_module_sources.insert(runtime_module_identifier, source);
+      compilation
+        .runtime_modules_code_generation_source
+        .insert(runtime_module_identifier, source);
     }
 
-    compilation.runtime_modules_code_generation_source = runtime_module_sources;
-    compilation
+    if !compilation
       .runtime_modules_code_generation_real_content_hashes
-      .clear();
+      .is_empty()
+    {
+      compilation
+        .runtime_modules_code_generation_real_content_hashes
+        .clear();
+    }
     compilation
       .code_generated_modules
       .extend(compilation.runtime_modules.keys().copied());
@@ -555,19 +561,22 @@ pub async fn runtime_modules_code_generation(compilation: &mut Compilation) -> R
   .map(|res| res.to_rspack_result())
   .collect::<Result<Vec<_>>>()?;
 
-  let mut runtime_module_sources = IdentifierMap::<BoxSource>::default();
-  let mut runtime_module_real_content_hashes = IdentifierMap::default();
+  compilation.runtime_modules_code_generation_source.clear();
+  compilation
+    .runtime_modules_code_generation_real_content_hashes
+    .clear();
   for result in results {
     let (runtime_module_identifier, source, real_content_hashes) = result?;
-    runtime_module_sources.insert(runtime_module_identifier, source);
+    compilation
+      .runtime_modules_code_generation_source
+      .insert(runtime_module_identifier, source);
     if !real_content_hashes.is_empty() {
-      runtime_module_real_content_hashes.insert(runtime_module_identifier, real_content_hashes);
+      compilation
+        .runtime_modules_code_generation_real_content_hashes
+        .insert(runtime_module_identifier, real_content_hashes);
     }
   }
 
-  compilation.runtime_modules_code_generation_source = runtime_module_sources;
-  compilation.runtime_modules_code_generation_real_content_hashes =
-    runtime_module_real_content_hashes;
   compilation
     .code_generated_modules
     .extend(compilation.runtime_modules.keys().copied());
