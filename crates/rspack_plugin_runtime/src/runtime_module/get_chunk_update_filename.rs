@@ -41,7 +41,11 @@ impl GetChunkUpdateFilenameRuntimeModule {
             Some(hash_len) => &hash[..*hash_len],
             None => hash,
           };
-          hash_context.mark_content_hash(hash, Some(chunk.ukey()), Some(SourceType::JavaScript))
+          hash_context.mark_content_hash_replacement(
+            hash,
+            Some(chunk.ukey()),
+            Some(SourceType::JavaScript),
+          )
         });
       let filename = compilation
         .get_path(
