@@ -855,11 +855,11 @@ impl<'parser> JavascriptParser<'parser> {
 
   pub fn define_variable(&mut self, name: Atom) {
     let definitions = self.definitions;
-    if let Some(variable_info_id) = self.definitions_db.get_in_scope(definitions, &name) {
-      let variable_info = self.definitions_db.expect_get_variable(variable_info_id);
-      if variable_info.tag_info.is_some() && variable_info.declared_scope == definitions {
-        return;
-      }
+    if let Some(variable_info) = self.get_variable_info(&name)
+      && variable_info.tag_info.is_some()
+      && definitions == variable_info.declared_scope
+    {
+      return;
     }
     let info = VariableInfo::create(
       &mut self.definitions_db,

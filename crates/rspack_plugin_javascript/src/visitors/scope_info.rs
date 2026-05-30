@@ -159,15 +159,6 @@ impl ScopeInfoDB {
     }
   }
 
-  pub fn get_in_scope(&self, id: ScopeInfoId, key: &Atom) -> Option<VariableInfoId> {
-    let scope = self.expect_get_scope(id);
-    scope
-      .map
-      .get(key)
-      .copied()
-      .filter(|value| !value.is_sentinel())
-  }
-
   pub fn set(&mut self, id: ScopeInfoId, key: Atom, variable_info_id: VariableInfoId) {
     let scope = self.expect_get_mut_scope(id);
     scope.map.insert(key, variable_info_id);

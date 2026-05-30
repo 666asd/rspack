@@ -717,11 +717,18 @@ impl JavascriptParser<'_> {
         // we use `AllowedMemberTypes::Expression` above
         unreachable!();
       };
-      if expr_info
-        .name
-        .call_hooks_name(self, |this, for_name| drive.r#typeof(this, expr, for_name))
-        .unwrap_or_default()
+      let result = if expr_info.members.is_empty()
+        && matches!(expr_info.root_info, ExportedVariableInfo::Name(_))
       {
+        expr_info
+          .root_info
+          .call_hooks_name(self, |this, for_name| drive.r#typeof(this, expr, for_name))
+      } else {
+        expr_info
+          .name
+          .call_hooks_name(self, |this, for_name| drive.r#typeof(this, expr, for_name))
+      };
+      if result.unwrap_or_default() {
         return;
       }
     };
