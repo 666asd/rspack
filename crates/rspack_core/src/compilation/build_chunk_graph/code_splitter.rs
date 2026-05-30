@@ -1,7 +1,7 @@
 use std::{
   collections::hash_map,
   hash::BuildHasherDefault,
-  sync::{Arc, atomic::AtomicU32},
+  sync::{Arc, LazyLock, atomic::AtomicU32},
 };
 
 use itertools::Itertools;
@@ -36,8 +36,10 @@ pub(crate) type DependenciesBlockIdentifierSet =
 
 type ConnectionIdList = Arc<Vec<DependencyId>>;
 type PreparedBlockConnectionMap = Vec<PreparedBlockConnection>;
-type BlockConnectionMap =
-  DependenciesBlockIdentifierMap<Arc<Vec<(ModuleIdentifier, ConnectionState, ConnectionIdList)>>>;
+type BlockModules = Vec<(ModuleIdentifier, ConnectionState, ConnectionIdList)>;
+type BlockConnectionMap = DependenciesBlockIdentifierMap<Arc<BlockModules>>;
+
+static EMPTY_BLOCK_MODULES: LazyLock<Arc<BlockModules>> = LazyLock::new(|| Arc::new(Vec::new()));
 
 #[derive(Debug, Clone)]
 struct PreparedBlockConnection {
@@ -398,6 +400,28 @@ impl CodeSplitter {
         &module_id
       )
     })
+  }
+
+  #[inline]
+  fn get_module_ordinal_and_chunk_mask_state(
+    &self,
+    module_identifier: &ModuleIdentifier,
+    chunk: ChunkUkey,
+  ) -> (u64, bool) {
+    let module_ordinal = *self
+      .ordinal_by_module
+      .get(module_identifier)
+      .unwrap_or_else(|| {
+        panic!(
+          "expected a module ordinal for identifier '{module_identifier}', but none was found."
+        )
+      });
+    let is_in_chunk = self
+      .mask_by_chunk
+      .get(&chunk)
+      .expect("chunk must in mask_by_chunk")
+      .bit(module_ordinal);
+    (module_ordinal, is_in_chunk)
   }
 
   pub fn prepare_entry_input(
@@ -1248,8 +1272,13 @@ Or do you want to use the entrypoints '{name}' and '{runtime}' independently on 
       .expect("chunk must in mask_by_chunk");
     chunk_mask.set_bit(module_ordinal, true);
 
-    self.add_and_enter_module(
-      &AddAndEnterModule {
+    compilation
+      .build_chunk_graph_artifact
+      .chunk_graph
+      .connect_chunk_and_module(item.chunk, item.module);
+
+    self.enter_module(
+      &EnterModule {
         module: item.module,
         chunk_group_info: item.chunk_group_info,
         chunk: item.chunk,
@@ -1260,21 +1289,12 @@ Or do you want to use the entrypoints '{name}' and '{runtime}' independently on 
 
   fn add_and_enter_module(&mut self, item: &AddAndEnterModule, compilation: &mut Compilation) {
     tracing::trace!("add_and_enter_module {:?}", item);
-    if compilation
-      .build_chunk_graph_artifact
-      .chunk_graph
-      .is_module_in_chunk(&item.module, item.chunk)
-    {
+    let (module_ordinal, is_in_chunk) =
+      self.get_module_ordinal_and_chunk_mask_state(&item.module, item.chunk);
+    if is_in_chunk {
       return;
     }
 
-    // if this module in parent chunks
-    let module_ordinal = *self.ordinal_by_module.get(&item.module).unwrap_or_else(|| {
-      panic!(
-        "expected a module ordinal for identifier '{}', but none was found.",
-        &item.module
-      )
-    });
     let cgi = self.chunk_group_info_mut(&item.chunk_group_info);
 
     if cgi.min_available_modules.bit(module_ordinal) {
@@ -1467,18 +1487,12 @@ Or do you want to use the entrypoints '{name}' and '{runtime}' independently on 
     );
 
     for (module, active_state, connections) in block_modules.iter().rev() {
-      if compilation
-        .build_chunk_graph_artifact
-        .chunk_graph
-        .is_module_in_chunk(module, item.chunk)
-      {
+      let (ordinal, is_in_chunk) = self.get_module_ordinal_and_chunk_mask_state(module, item.chunk);
+      if is_in_chunk {
         // skip early if already connected
         continue;
       }
 
-      let ordinal = *self.ordinal_by_module.get(module).unwrap_or_else(|| {
-        panic!("expected a module ordinal for identifier '{module}', but none was found.")
-      });
       let chunk_group_info = self.chunk_group_info_mut(&item.chunk_group_info);
       if !active_state.is_true() {
         chunk_group_info
@@ -1861,7 +1875,18 @@ Or do you want to use the entrypoints '{name}' and '{runtime}' independently on 
     module: DependenciesBlockIdentifier,
     runtime: Option<Arc<RuntimeSpec>>,
     compilation: &Compilation,
-  ) -> Arc<Vec<(ModuleIdentifier, ConnectionState, ConnectionIdList)>> {
+  ) -> Arc<BlockModules> {
+    if let DependenciesBlockIdentifier::Module(module_identifier) = module {
+      let block = module_identifier.into();
+      if !self.prepared_blocks_map.contains_key(&block)
+        && !self
+          .prepared_connection_map
+          .contains_key(&module_identifier)
+      {
+        return EMPTY_BLOCK_MODULES.clone();
+      }
+    }
+
     let runtime_map = self
       .block_modules_runtime_map
       .entry(runtime.clone())
@@ -2348,15 +2373,20 @@ Or do you want to use the entrypoints '{name}' and '{runtime}' independently on 
     let mg = compilation.get_module_graph();
     self.prepared_connection_map = all_modules
       .par_iter()
-      .map(|module| {
+      .filter_map(|module| {
         let all_dependencies = mg
           .module_graph_module_by_identifier(module)
           .map(|mgm| mgm.all_dependencies())
           .unwrap_or_default();
         let dependency_count = all_dependencies.len();
+        if dependency_count == 0 {
+          return None;
+        }
 
         let mut ordered_deps = Vec::new();
         let mut unordered_deps = Vec::with_capacity(dependency_count);
+        let mut ordered_deps_sorted = true;
+        let mut last_source_order = None;
         for dep_id in all_dependencies {
           let dep = mg.dependency_by_id(dep_id);
           let module_dep = dep.as_module_dependency();
@@ -2377,14 +2407,25 @@ Or do you want to use the entrypoints '{name}' and '{runtime}' independently on 
             (*module).into()
           };
           if let Some(source_order) = dep.source_order() {
+            if let Some(last_source_order) = last_source_order
+              && source_order < last_source_order
+            {
+              ordered_deps_sorted = false;
+            }
+            last_source_order = Some(source_order);
             ordered_deps.push((source_order, block_id, *dep_id, module_identifier));
           } else {
             unordered_deps.push((block_id, *dep_id, module_identifier));
           }
         }
-        ordered_deps.sort_by_key(|(source_order, _, _, _)| *source_order);
+        if !ordered_deps_sorted {
+          ordered_deps.sort_by_key(|(source_order, _, _, _)| *source_order);
+        }
 
         let connection_count = ordered_deps.len() + unordered_deps.len();
+        if connection_count == 0 {
+          return None;
+        }
         let ordered_deps = ordered_deps
           .into_iter()
           .map(
@@ -2404,10 +2445,10 @@ Or do you want to use the entrypoints '{name}' and '{runtime}' independently on 
             },
           );
 
-        (
+        Some((
           *module,
           finalize_prepared_connection_map(ordered_deps.chain(unordered_deps), connection_count),
-        )
+        ))
       })
       .collect::<IdentifierMap<_>>();
 
@@ -2547,39 +2588,41 @@ fn extract_block_modules(
     .get(&block)
     .map(|blocks| blocks.as_slice())
     .unwrap_or_default();
-  let mut module_map: DependenciesBlockIdentifierMap<
-    Vec<(ModuleIdentifier, ConnectionState, ConnectionIdList)>,
-  > =
+  let connection_map = prepared_connection_map.get(&module);
+
+  if blocks.is_empty() && connection_map.is_none() {
+    return;
+  }
+
+  let mut module_map: DependenciesBlockIdentifierMap<BlockModules> =
     DependenciesBlockIdentifierMap::with_capacity_and_hasher(blocks.len() + 1, Default::default());
   module_map.insert(block, Vec::new());
   module_map.extend(blocks.iter().map(|block| ((*block).into(), Vec::new())));
 
-  let connection_map = prepared_connection_map
-    .get(&module)
-    .expect("should have outgoing deps");
-
-  for connection in connection_map {
-    if map.contains_key(&connection.block) {
-      continue;
+  if let Some(connection_map) = connection_map {
+    for connection in connection_map {
+      if map.contains_key(&connection.block) {
+        continue;
+      }
+      let modules = module_map
+        .get_mut(&connection.block)
+        .expect("should have modules in block_modules_runtime_map");
+      let active_state = get_active_state_of_connections(
+        &connection.connections,
+        runtime.as_deref(),
+        compilation.get_module_graph(),
+        &compilation.module_graph_cache_artifact,
+        &compilation
+          .build_module_graph_artifact
+          .side_effects_state_artifact,
+        &compilation.exports_info_artifact,
+      );
+      modules.push((
+        connection.module,
+        active_state,
+        connection.connections.clone(),
+      ));
     }
-    let modules = module_map
-      .get_mut(&connection.block)
-      .expect("should have modules in block_modules_runtime_map");
-    let active_state = get_active_state_of_connections(
-      &connection.connections,
-      runtime.as_deref(),
-      compilation.get_module_graph(),
-      &compilation.module_graph_cache_artifact,
-      &compilation
-        .build_module_graph_artifact
-        .side_effects_state_artifact,
-      &compilation.exports_info_artifact,
-    );
-    modules.push((
-      connection.module,
-      active_state,
-      connection.connections.clone(),
-    ));
   }
   for (block, modules) in module_map {
     map.insert(block, Arc::new(modules));
