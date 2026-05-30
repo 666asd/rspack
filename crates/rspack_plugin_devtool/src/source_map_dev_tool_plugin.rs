@@ -1579,15 +1579,17 @@ async fn process_assets(&self, compilation: &mut Compilation) -> Result<()> {
           .merge_asset_record(source_map_filename.clone(), source_map_real_content_hashes);
       }
       for (hash, range) in source_map_filename_replacements {
-        compilation.record_real_content_hash_reference(
-          &source_map_filename,
-          &hash,
-          None,
-          ContentHashReferenceMeta {
-            kind: ContentHashReferenceKind::Filename,
-            ..Default::default()
-          },
-        );
+        if !source_map_own_hashes.contains(&hash) {
+          compilation.record_real_content_hash_reference(
+            &source_map_filename,
+            &hash,
+            None,
+            ContentHashReferenceMeta {
+              kind: ContentHashReferenceKind::Filename,
+              ..Default::default()
+            },
+          );
+        }
         compilation.record_real_content_hash_replacement(
           &source_map_filename,
           &hash,
