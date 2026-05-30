@@ -61,6 +61,9 @@ thread_local! {
 
 #[inline]
 fn is_import_meta_identifier(for_name: ParserHookName<'_>) -> bool {
+  if !matches!(for_name.as_atom(), Some(name) if name.len() == expr_name::IMPORT_META.len()) {
+    return false;
+  }
   IMPORT_META_ATOM.with(|atom| for_name.is_identifier(atom))
 }
 

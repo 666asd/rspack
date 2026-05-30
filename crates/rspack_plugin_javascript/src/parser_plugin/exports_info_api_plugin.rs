@@ -20,6 +20,9 @@ thread_local! {
 
 #[inline]
 fn is_exports_info_identifier(for_name: ParserHookName<'_>) -> bool {
+  if !matches!(for_name.as_atom(), Some(name) if name.len() == EXPORTS_INFO.len()) {
+    return false;
+  }
   EXPORTS_INFO_ATOM.with(|atom| for_name.is_identifier(atom))
 }
 
