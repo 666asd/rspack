@@ -490,17 +490,27 @@ async fn render_manifest(
     .await?;
 
   diagnostics.extend(more_diagnostics);
-  let mut real_content_hashes = AssetHashRecord::default();
-  record_manifest_owned_content_hash(&mut real_content_hashes, rendered_content_hash);
-  record_manifest_filename_content_hashes(
-    &mut real_content_hashes,
-    &output_path,
-    asset_info.content_hash.iter(),
-  );
-  manifest.push(
-    RenderManifestEntry::new(source.boxed(), output_path, false, asset_info, false)
-      .with_real_content_hashes(real_content_hashes),
-  );
+  if compilation.options.optimization.real_content_hash {
+    let mut real_content_hashes = AssetHashRecord::default();
+    record_manifest_owned_content_hash(&mut real_content_hashes, rendered_content_hash);
+    record_manifest_filename_content_hashes(
+      &mut real_content_hashes,
+      &output_path,
+      asset_info.content_hash.iter(),
+    );
+    manifest.push(
+      RenderManifestEntry::new(source.boxed(), output_path, false, asset_info, false)
+        .with_real_content_hashes(real_content_hashes),
+    );
+  } else {
+    manifest.push(RenderManifestEntry::new(
+      source.boxed(),
+      output_path,
+      false,
+      asset_info,
+      false,
+    ));
+  }
   Ok(())
 }
 

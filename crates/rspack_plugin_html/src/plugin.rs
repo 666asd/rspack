@@ -264,17 +264,20 @@ async fn process_assets(&self, compilation: &mut Compilation) -> Result<()> {
     )
     .await?;
 
-    let mut real_content_hashes = AssetHashRecord::default();
-    record_manifest_filename_content_hashes(
-      &mut real_content_hashes,
-      &html_asset.0,
-      html_asset.1.info.content_hash.iter(),
-    );
-
     compilation.emit_asset(html_asset.0.clone(), html_asset.1);
-    compilation
-      .real_content_hash_artifact
-      .merge_asset_record(html_asset.0.clone(), real_content_hashes);
+    if compilation.options.optimization.real_content_hash {
+      let mut real_content_hashes = AssetHashRecord::default();
+      if let Some(asset) = compilation.assets().get(&html_asset.0) {
+        record_manifest_filename_content_hashes(
+          &mut real_content_hashes,
+          &html_asset.0,
+          asset.info.content_hash.iter(),
+        );
+      }
+      compilation
+        .real_content_hash_artifact
+        .merge_asset_record(html_asset.0.clone(), real_content_hashes);
+    }
 
     let _ = hooks
       .borrow()

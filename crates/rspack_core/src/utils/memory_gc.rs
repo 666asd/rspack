@@ -30,6 +30,10 @@ impl<Item> MemoryGCStorage<Item> {
       data: DashMap::default(),
     }
   }
+
+  pub(crate) fn max_generations(&self) -> u32 {
+    self.max_generations
+  }
 }
 
 impl<Item> MemoryGCStorage<Item>

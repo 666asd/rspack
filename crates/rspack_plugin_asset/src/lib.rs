@@ -861,22 +861,33 @@ async fn render_manifest(
           .inner()
           .to_owned()
           .with_asset_type(ManifestAssetType::Asset);
-        let mut hasher = RspackHash::from(&compilation.options.output);
-        hasher.write(&source.buffer());
-        let contenthash = hasher.digest(&compilation.options.output.hash_digest);
-        let contenthash = contenthash.rendered(compilation.options.output.hash_digest_length);
-        let mut real_content_hashes = AssetHashRecord::default();
-        record_manifest_owned_content_hash(&mut real_content_hashes, Some(contenthash));
-        if let Some(filename_content_hashes) = code_gen_result
-          .data
-          .get::<CodeGenerationDataFilenameContentHashes>()
-        {
-          record_manifest_filename_content_hashes(
-            &mut real_content_hashes,
-            asset_filename,
-            filename_content_hashes.inner().iter(),
-          );
+        if compilation.options.optimization.real_content_hash {
+          let mut hasher = RspackHash::from(&compilation.options.output);
+          hasher.write(&source.buffer());
+          let contenthash = hasher.digest(&compilation.options.output.hash_digest);
+          let contenthash = contenthash.rendered(compilation.options.output.hash_digest_length);
+          let mut real_content_hashes = AssetHashRecord::default();
+          record_manifest_owned_content_hash(&mut real_content_hashes, Some(contenthash));
+          if let Some(filename_content_hashes) = code_gen_result
+            .data
+            .get::<CodeGenerationDataFilenameContentHashes>()
+          {
+            record_manifest_filename_content_hashes(
+              &mut real_content_hashes,
+              asset_filename,
+              filename_content_hashes.inner().iter(),
+            );
+          }
+          return RenderManifestEntry::new(
+            source.clone(),
+            asset_filename.to_owned(),
+            true,
+            asset_info,
+            true,
+          )
+          .with_real_content_hashes(real_content_hashes);
         }
+
         RenderManifestEntry::new(
           source.clone(),
           asset_filename.to_owned(),
@@ -884,7 +895,6 @@ async fn render_manifest(
           asset_info,
           true,
         )
-        .with_real_content_hashes(real_content_hashes)
       });
 
       Ok(result)

@@ -8,15 +8,10 @@ use crate::{
   incremental::{Incremental, IncrementalPasses},
 };
 
-#[derive(Debug, Clone)]
-pub struct ChunkRenderCacheValue {
-  pub source: BoxSource,
-  pub real_content_hashes: AssetHashRecord,
-}
-
 #[derive(Debug, Default)]
 pub struct ChunkRenderCacheArtifact {
-  storage: Option<MemoryGCStorage<ChunkRenderCacheValue>>,
+  storage: Option<MemoryGCStorage<BoxSource>>,
+  real_content_hash_storage: Option<MemoryGCStorage<AssetHashRecord>>,
 }
 
 impl ArtifactExt for ChunkRenderCacheArtifact {
@@ -29,9 +24,11 @@ impl ArtifactExt for ChunkRenderCacheArtifact {
 }
 
 impl ChunkRenderCacheArtifact {
-  pub fn new(storage: MemoryGCStorage<ChunkRenderCacheValue>) -> Self {
+  pub fn new(storage: MemoryGCStorage<BoxSource>) -> Self {
+    let real_content_hash_storage = MemoryGCStorage::new(storage.max_generations());
     Self {
       storage: Some(storage),
+      real_content_hash_storage: Some(real_content_hash_storage),
     }
   }
   pub fn start_next_generation(&self) {
@@ -60,16 +57,10 @@ impl ChunkRenderCacheArtifact {
     };
     let cache_key = Identifier::from(content_hash.encoded());
     if let Some(value) = storage.get(&cache_key) {
-      Ok((value.source, Vec::new()))
+      Ok((value, Vec::new()))
     } else {
       let res = generator().await?;
-      storage.set(
-        cache_key,
-        ChunkRenderCacheValue {
-          source: res.0.clone(),
-          real_content_hashes: AssetHashRecord::default(),
-        },
-      );
+      storage.set(cache_key, res.0.clone());
       Ok(res)
     }
   }
@@ -88,6 +79,9 @@ impl ChunkRenderCacheArtifact {
     let Some(storage) = &self.storage else {
       panic!("ChunkRenderCacheArtifact storage is not set");
     };
+    let Some(real_content_hash_storage) = &self.real_content_hash_storage else {
+      panic!("ChunkRenderCacheArtifact real content hash storage is not set");
+    };
     let Some(content_hash) =
       chunk.content_hash_by_source_type(&compilation.chunk_hashes_artifact, source_type)
     else {
@@ -95,16 +89,14 @@ impl ChunkRenderCacheArtifact {
     };
     let cache_key = Identifier::from(content_hash.encoded());
     if let Some(value) = storage.get(&cache_key) {
-      Ok((value.source, value.real_content_hashes, Vec::new()))
+      let real_content_hashes = real_content_hash_storage
+        .get(&cache_key)
+        .unwrap_or_default();
+      Ok((value, real_content_hashes, Vec::new()))
     } else {
       let res = generator().await?;
-      storage.set(
-        cache_key,
-        ChunkRenderCacheValue {
-          source: res.0.clone(),
-          real_content_hashes: res.1.clone(),
-        },
-      );
+      storage.set(cache_key, res.0.clone());
+      real_content_hash_storage.set(cache_key, res.1.clone());
       Ok(res)
     }
   }
