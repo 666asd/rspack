@@ -943,6 +943,19 @@ impl SourceMapDevToolPlugin {
 
       let (marked_filename, filename_markers) =
         marker_filename_replacements(filename.as_ref(), &filename_hashes);
+      let content_hash_digest_encoded = content_hash_digest
+        .as_ref()
+        .map(|digest| digest.encoded().to_string());
+      let (marked_content_hash_digest, content_hash_markers) =
+        if let Some(content_hash) = &content_hash_digest_encoded {
+          let (marked_content_hash, markers) =
+            marker_filename_replacements(content_hash, std::slice::from_ref(content_hash));
+          (Some(marked_content_hash), markers)
+        } else {
+          (None, Vec::new())
+        };
+      let mut source_map_filename_markers = filename_markers;
+      source_map_filename_markers.extend(content_hash_markers);
 
       let data = PathData::default().filename(&filename);
       let data = match chunk {
@@ -953,7 +966,7 @@ impl SourceMapDevToolPlugin {
             compilation.options.output.hash_digest_length,
           ))
           .chunk_name_optional(chunk.name_for_filename_template())
-          .content_hash_optional(content_hash_digest.as_ref().map(|digest| digest.encoded())),
+          .content_hash_optional(content_hash_digest_encoded.as_deref()),
         None => data,
       };
       let marker_data = PathData::default().filename(&marked_filename);
@@ -965,7 +978,7 @@ impl SourceMapDevToolPlugin {
             compilation.options.output.hash_digest_length,
           ))
           .chunk_name_optional(chunk.name_for_filename_template())
-          .content_hash_optional(content_hash_digest.as_ref().map(|digest| digest.encoded())),
+          .content_hash_optional(marked_content_hash_digest.as_deref()),
         None => marker_data,
       };
       let source_map_filename = compilation
@@ -975,7 +988,7 @@ impl SourceMapDevToolPlugin {
         .get_asset_path(source_map_filename_config, marker_data)
         .await?;
       let (normalized_source_map_filename, source_map_filename_replacements) =
-        marker_replacements_from_text(0, &marker_source_map_filename, &filename_markers);
+        marker_replacements_from_text(0, &marker_source_map_filename, &source_map_filename_markers);
       let source_map_filename_replacements =
         if normalized_source_map_filename == source_map_filename {
           source_map_filename_replacements
@@ -1034,7 +1047,7 @@ impl SourceMapDevToolPlugin {
           comment_offset,
           &current_source_mapping_url_comment,
           &marker_source_mapping_url_comment,
-          &filename_markers,
+          &source_map_filename_markers,
         );
         asset.source = Some(
           ConcatSource::new([
@@ -1358,6 +1371,28 @@ mod tests {
   }
 
   #[test]
+  fn source_mapping_url_markers_include_source_map_content_hash() {
+    let filename_hashes = vec!["12345678".to_string()];
+    let (marked_filename, filename_markers) =
+      marker_filename_replacements("chunk.12345678.js", &filename_hashes);
+    let source_map_hashes = vec!["abcdef12".to_string()];
+    let (marked_source_map_hash, source_map_hash_markers) =
+      marker_filename_replacements("abcdef12", &source_map_hashes);
+    let mut markers = filename_markers;
+    markers.extend(source_map_hash_markers);
+
+    let comment = "\n//# sourceMappingURL=chunk.12345678.js.abcdef12.map";
+    let marker_comment =
+      format!("\n//# sourceMappingURL={marked_filename}.{marked_source_map_hash}.map");
+    let replacements =
+      source_mapping_url_replacements_from_markers(100, comment, &marker_comment, &markers);
+
+    assert_eq!(replacements.len(), 2);
+    assert!(replacements.iter().any(|(hash, _)| hash == "12345678"));
+    assert!(replacements.iter().any(|(hash, _)| hash == "abcdef12"));
+  }
+
+  #[test]
   fn source_map_file_markers_record_exact_json_ranges() {
     let hashes = vec!["12345678".to_string(), "abcdef12".to_string()];
     let (marked_filename, markers) =
@@ -1514,8 +1549,17 @@ async fn process_assets(&self, compilation: &mut Compilation) -> Result<()> {
     }
 
     let chunk_ukey = file_to_chunk_ukey.get(source_filename.as_ref());
+    let source_own_hashes = source_asset.info.content_hash.clone();
     compilation.emit_asset(source_filename.to_string(), source_asset);
     for (hash, range) in source_replacements {
+      if !source_own_hashes.contains(&hash) {
+        compilation.record_real_content_hash_reference(
+          source_filename.as_ref(),
+          &hash,
+          None,
+          ContentHashReferenceMeta::default(),
+        );
+      }
       compilation.record_real_content_hash_replacement(
         source_filename.as_ref(),
         &hash,
