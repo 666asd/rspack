@@ -19,13 +19,15 @@ use swc_core::atoms::Atom;
 use super::ExportsBase;
 use crate::dependency::commonjs::OBJECT_PROTOTYPE_METHODS;
 
+const ES_MODULE: &str = "__esModule";
+
 thread_local! {
-  static ES_MODULE_ATOM: Atom = Atom::from("__esModule");
+  static ES_MODULE_ATOM: Atom = Atom::from(ES_MODULE);
 }
 
 #[inline]
 fn is_es_module(name: &Atom) -> bool {
-  ES_MODULE_ATOM.with(|atom| name == atom)
+  name.len() == ES_MODULE.len() && ES_MODULE_ATOM.with(|atom| name == atom)
 }
 
 #[inline]

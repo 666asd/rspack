@@ -20,6 +20,17 @@ use crate::{
   visitors::{JavascriptParser, ParserHookName},
 };
 
+const ES_MODULE: &str = "__esModule";
+
+thread_local! {
+  static ES_MODULE_ATOM: Atom = Atom::from(ES_MODULE);
+}
+
+#[inline]
+fn is_es_module(name: &Atom) -> bool {
+  name.len() == ES_MODULE.len() && ES_MODULE_ATOM.with(|atom| name == atom)
+}
+
 fn get_value_of_property_description(expr: &Expr) -> Option<&Expr> {
   if let Expr::Object(ObjectLit { props, .. }) = expr {
     for prop in props {
@@ -168,7 +179,7 @@ fn handle_assign_export(
   if parser.is_esm {
     return None;
   }
-  if (remaining.is_empty() || remaining.first().is_some_and(|i| i != "__esModule"))
+  if (remaining.is_empty() || remaining.first().is_some_and(|i| !is_es_module(i)))
     && let Some((arg, ids)) = parse_require_call(parser, &assign_expr.right)
     && arg.is_string()
   {
@@ -205,7 +216,7 @@ fn handle_assign_export(
   // module.exports.__esModule = true;
   // this.__esModule = true;
   if let Some(first_member) = remaining.first()
-    && first_member == "__esModule"
+    && is_es_module(first_member)
   {
     parser.check_namespace(
       // const flagIt = () => (exports.__esModule = true); => stmt_level = 1, last_stmt_is_expr_stmt = false
@@ -341,12 +352,12 @@ impl JavascriptParserPlugin for CommonJsExportsParserPlugin {
         "this" if parser.is_top_level_scope() => ExportsBase::DefinePropertyThis,
         _ => return None,
       };
-      let property = parser.evaluate_expression(arg1).as_string()?;
+      let property = Atom::from(parser.evaluate_expression(arg1).as_string()?);
       parser.enable();
       // Object.defineProperty(exports, "__esModule", { value: true });
       // Object.defineProperty(module.exports, "__esModule", { value: true });
       // Object.defineProperty(this, "__esModule", { value: true });
-      if &property == "__esModule" {
+      if is_es_module(&property) {
         parser.check_namespace(
           parser.statement_path.len() == 1,
           get_value_of_property_description(arg2),
@@ -356,7 +367,7 @@ impl JavascriptParserPlugin for CommonJsExportsParserPlugin {
         call_expr.span.into(),
         Some(arg2.span().into()),
         base,
-        vec![property.into()],
+        vec![property],
       )));
 
       parser.walk_expression(arg2);

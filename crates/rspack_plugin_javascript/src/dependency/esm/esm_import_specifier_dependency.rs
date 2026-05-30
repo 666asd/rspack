@@ -37,7 +37,7 @@ thread_local! {
 
 #[inline]
 fn is_es_module(name: &Atom) -> bool {
-  ES_MODULE_ATOM.with(|atom| name == atom)
+  name.len() == ES_MODULE.len() && ES_MODULE_ATOM.with(|atom| name == atom)
 }
 
 #[cacheable]

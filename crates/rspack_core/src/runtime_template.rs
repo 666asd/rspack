@@ -37,6 +37,17 @@ pub struct RuntimeTemplate {
 static RUNTIME_GLOBALS_PATTERN: LazyLock<Regex> =
   LazyLock::new(|| Regex::new(r"\$\$RUNTIME_GLOBAL_(.*?)\$\$").expect("failed to create regex"));
 
+const ES_MODULE: &str = "__esModule";
+
+thread_local! {
+  static ES_MODULE_ATOM: Atom = Atom::from(ES_MODULE);
+}
+
+#[inline]
+fn is_es_module(name: &Atom) -> bool {
+  name.len() == ES_MODULE.len() && ES_MODULE_ATOM.with(|atom| name == atom)
+}
+
 fn replace_runtime_globals(template: String, runtime_globals: &Map<String, Value>) -> String {
   RUNTIME_GLOBALS_PATTERN
     .replace_all(&template, |caps: &Captures| {
@@ -1092,7 +1103,7 @@ impl ModuleCodeTemplate {
           );
         } else if !matches!(exports_type, ExportsType::Namespace)
           && let Some(first_export_name) = export_name.first()
-          && first_export_name == "__esModule"
+          && is_es_module(first_export_name)
         {
           return "/* __esModule */true".to_string();
         }

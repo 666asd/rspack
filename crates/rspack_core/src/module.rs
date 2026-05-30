@@ -42,6 +42,17 @@ use crate::{
   value_cache_versions::ValueCacheVersions,
 };
 
+const ES_MODULE: &str = "__esModule";
+
+thread_local! {
+  static ES_MODULE_ATOM: Atom = Atom::from(ES_MODULE);
+}
+
+#[inline]
+fn is_es_module(name: &Atom) -> bool {
+  name.len() == ES_MODULE.len() && ES_MODULE_ATOM.with(|atom| name == atom)
+}
+
 pub struct BuildContext {
   pub compiler_id: CompilerId,
   pub compilation_id: CompilationId,
@@ -569,12 +580,13 @@ fn get_exports_type_impl(
           }
         }
 
-        let name = Atom::from("__esModule");
         let exports_info = exports_info_artifact.get_exports_info_optional(&identifier);
         if let Some(export_info) = exports_info.as_ref().map(|info| {
-          info
-            .as_data(exports_info_artifact)
-            .get_read_only_export_info(&name)
+          ES_MODULE_ATOM.with(|name| {
+            info
+              .as_data(exports_info_artifact)
+              .get_read_only_export_info(name)
+          })
         }) {
           if matches!(export_info.provided(), Some(ExportProvided::NotProvided)) {
             handle_default(default_object)
@@ -597,7 +609,7 @@ fn get_exports_type_impl(
                   None
                 }
               })
-              .is_some_and(|v| v == "__esModule")
+              .is_some_and(|v| is_es_module(&v))
             {
               let Some(target_exports_type) = mg
                 .module_by_identifier(&target.module)
