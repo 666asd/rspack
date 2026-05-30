@@ -183,7 +183,11 @@ async fn process_assets(&self, compilation: &mut Compilation) -> Result<()> {
   let minimize_cache_counter = minimize_persistent_cache
     .as_ref()
     .map(|_| logger.cache("minimize persistent cache"));
-  let real_content_hash_records = compilation.real_content_hash_artifact.asset_records.clone();
+  let real_content_hash_records = compilation
+    .options
+    .optimization
+    .real_content_hash
+    .then(|| compilation.real_content_hash_artifact.asset_records.clone());
   let updated_real_content_hash_records = Mutex::new(FxHashMap::default());
 
   let (tx, rx) = mpsc::channel::<Vec<Diagnostic>>();
@@ -234,7 +238,9 @@ async fn process_assets(&self, compilation: &mut Compilation) -> Result<()> {
         };
 
         let input = original_source.source().into_string_lossy().into_owned();
-        let record = real_content_hash_records.get(filename);
+        let record = real_content_hash_records
+          .as_ref()
+          .and_then(|records| records.get(filename));
         let (input, real_content_hash_markers) =
           mark_real_content_hash_replacements(record, input, filename)?;
 
@@ -527,16 +533,18 @@ async fn process_assets(&self, compilation: &mut Compilation) -> Result<()> {
   }
 
   compilation.extend_diagnostics(rx.into_iter().flatten().collect::<Vec<_>>());
-  for (filename, record) in updated_real_content_hash_records
-    .into_inner()
-    .expect("updated_real_content_hash_records lock failed")
-  {
-    if let Some(existing) = compilation
-      .real_content_hash_artifact
-      .asset_records
-      .get_mut(&filename)
+  if compilation.options.optimization.real_content_hash {
+    for (filename, record) in updated_real_content_hash_records
+      .into_inner()
+      .expect("updated_real_content_hash_records lock failed")
     {
-      *existing = record;
+      if let Some(existing) = compilation
+        .real_content_hash_artifact
+        .asset_records
+        .get_mut(&filename)
+      {
+        *existing = record;
+      }
     }
   }
 

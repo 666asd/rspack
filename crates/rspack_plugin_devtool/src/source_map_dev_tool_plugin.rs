@@ -817,21 +817,25 @@ impl SourceMapDevToolPlugin {
     unresolved_source_map_path: Option<Utf8PathBuf>,
     source_references: Vec<SourceReference>,
   ) -> Result<MappedAsset> {
-    let filename_hashes = compilation
-      .real_content_hash_artifact
-      .asset_records
-      .get(asset_filename.as_ref())
-      .map(|record| {
-        record
-          .replacements
-          .iter()
-          .filter_map(|replacement| {
-            (replacement.kind == ContentHashReplacementKind::Filename)
-              .then_some(replacement.old_hash.clone())
-          })
-          .collect::<Vec<_>>()
-      })
-      .unwrap_or_default();
+    let filename_hashes = if compilation.options.optimization.real_content_hash {
+      compilation
+        .real_content_hash_artifact
+        .asset_records
+        .get(asset_filename.as_ref())
+        .map(|record| {
+          record
+            .replacements
+            .iter()
+            .filter_map(|replacement| {
+              (replacement.kind == ContentHashReplacementKind::Filename)
+                .then_some(replacement.old_hash.clone())
+            })
+            .collect::<Vec<_>>()
+        })
+        .unwrap_or_default()
+    } else {
+      Vec::new()
+    };
     let (marked_asset_filename, source_map_file_markers) =
       marker_filename_replacements(asset_filename.as_ref(), &filename_hashes);
     source_map.set_file(Some(Arc::from(marked_asset_filename.clone())));
@@ -1521,9 +1525,11 @@ async fn process_assets(&self, compilation: &mut Compilation) -> Result<()> {
     }
     if let Some((source_map_filename, source_map_asset)) = source_map {
       compilation.emit_asset(source_map_filename.clone(), source_map_asset);
-      compilation
-        .real_content_hash_artifact
-        .merge_asset_record(source_map_filename.clone(), source_map_real_content_hashes);
+      if compilation.options.optimization.real_content_hash {
+        compilation
+          .real_content_hash_artifact
+          .merge_asset_record(source_map_filename.clone(), source_map_real_content_hashes);
+      }
       for (hash, range) in source_map_filename_replacements {
         compilation.record_real_content_hash_reference(
           &source_map_filename,

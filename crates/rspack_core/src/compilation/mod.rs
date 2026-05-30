@@ -859,7 +859,9 @@ impl Compilation {
           chunk.remove_file(filename);
           chunk.remove_auxiliary_file(filename);
         });
-      self.real_content_hash_artifact.delete_asset(filename);
+      if self.options.optimization.real_content_hash {
+        self.real_content_hash_artifact.delete_asset(filename);
+      }
     }
   }
 
@@ -877,9 +879,11 @@ impl Compilation {
       self.set_asset_info(&new_name, Some(asset.get_info()), None);
 
       self.assets.insert(new_name.clone(), asset);
-      self
-        .real_content_hash_artifact
-        .rename_asset(filename, &new_name);
+      if self.options.optimization.real_content_hash {
+        self
+          .real_content_hash_artifact
+          .rename_asset(filename, &new_name);
+      }
 
       self
         .build_chunk_graph_artifact
@@ -902,6 +906,9 @@ impl Compilation {
     asset: impl Into<String>,
     own_hashes: impl IntoIterator<Item = String>,
   ) {
+    if !self.options.optimization.real_content_hash {
+      return;
+    }
     self
       .real_content_hash_artifact
       .record_asset_hashes(asset, own_hashes);
@@ -914,6 +921,9 @@ impl Compilation {
     owner_hash: Option<&str>,
     meta: ContentHashReferenceMeta,
   ) {
+    if !self.options.optimization.real_content_hash {
+      return;
+    }
     self
       .real_content_hash_artifact
       .record_reference(asset, referenced_hash, owner_hash, meta);
@@ -926,6 +936,9 @@ impl Compilation {
     range: Option<std::ops::Range<u32>>,
     kind: ContentHashReplacementKind,
   ) {
+    if !self.options.optimization.real_content_hash {
+      return;
+    }
     self
       .real_content_hash_artifact
       .record_replacement(asset, old_hash, range, kind);
@@ -967,9 +980,11 @@ impl Compilation {
         self.set_asset_info(&new_name, Some(asset.get_info()), None);
 
         self.assets.insert(new_name.clone(), asset);
-        self
-          .real_content_hash_artifact
-          .rename_asset(&old_name, &new_name);
+        if self.options.optimization.real_content_hash {
+          self
+            .real_content_hash_artifact
+            .rename_asset(&old_name, &new_name);
+        }
       }
     }
   }
