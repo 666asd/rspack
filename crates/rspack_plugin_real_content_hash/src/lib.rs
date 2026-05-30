@@ -12,6 +12,7 @@ use rayon::prelude::*;
 use rspack_core::{
   AssetHashRecord, AssetInfo, BindingCell, Compilation, CompilationId, CompilationProcessAssets,
   ContentHashReplacementKind, Logger, Plugin, RealContentHashArtifact,
+  record_manifest_filename_content_hashes,
   rspack_sources::{BoxSource, ReplaceSource, SourceExt},
 };
 use rspack_error::{Result, ToStringResultToRspackResultExt};
@@ -74,7 +75,7 @@ impl Plugin for RealContentHashPlugin {
 }
 
 async fn inner_impl(compilation: &mut Compilation) -> Result<()> {
-  #[cfg(debug_assertions)]
+  ensure_asset_info_hash_records(compilation);
   validate_artifact(compilation)?;
 
   let logger = compilation.get_logger("rspack.RealContentHashPlugin");
@@ -266,10 +267,16 @@ async fn inner_impl(compilation: &mut Compilation) -> Result<()> {
         .map(|old_hash| {
           hash_to_new_hash
             .get(old_hash.as_str())
-            .expect("should have new hash")
-            .to_owned()
+            .cloned()
+            .ok_or_else(|| {
+              rspack_error::error!(
+                "MissingRealContentHashComputedHash: asset '{}' exposes content hash '{}' but no real content hash was computed for it",
+                name,
+                old_hash
+              )
+            })
         })
-        .collect();
+        .collect::<Result<_>>()?;
       let info_update = (*old_info).clone();
       Ok((
         new_source.clone(),
@@ -288,7 +295,42 @@ async fn inner_impl(compilation: &mut Compilation) -> Result<()> {
   Ok(())
 }
 
-#[cfg(debug_assertions)]
+fn ensure_asset_info_hash_records(compilation: &mut Compilation) {
+  let missing_hashes = compilation
+    .assets()
+    .iter()
+    .filter_map(|(name, asset)| {
+      if asset.get_source().is_none() || asset.info.content_hash.is_empty() {
+        return None;
+      }
+
+      let missing_hashes = asset
+        .info
+        .content_hash
+        .iter()
+        .filter(|hash| {
+          compilation
+            .real_content_hash_artifact
+            .asset_records
+            .get(name)
+            .is_none_or(|record| !record.own_hashes.contains(*hash))
+        })
+        .cloned()
+        .collect::<Vec<_>>();
+
+      (!missing_hashes.is_empty()).then(|| (name.clone(), missing_hashes))
+    })
+    .collect::<Vec<_>>();
+
+  for (name, hashes) in missing_hashes {
+    let mut record = AssetHashRecord::default();
+    record_manifest_filename_content_hashes(&mut record, &name, hashes.iter());
+    compilation
+      .real_content_hash_artifact
+      .merge_asset_record(name, record);
+  }
+}
+
 fn validate_artifact(compilation: &Compilation) -> Result<()> {
   for (name, asset) in compilation.assets().iter() {
     if asset.get_source().is_none() || asset.info.content_hash.is_empty() {
@@ -336,7 +378,6 @@ fn validate_artifact(compilation: &Compilation) -> Result<()> {
   Ok(())
 }
 
-#[cfg(debug_assertions)]
 fn validate_artifact_records(artifact: &RealContentHashArtifact) -> Result<()> {
   for (hash, asset_names) in &artifact.hash_to_assets {
     if asset_names.is_empty() {
