@@ -680,15 +680,13 @@ impl JavascriptParserPlugin for NodeStuffPlugin {
   ) -> Option<eval::BasicEvaluatedExpression<'a>> {
     use crate::visitors::expr_name;
 
-    let Some(is_filename) = (if for_name.is_member_chain(expr_name::IMPORT_META_FILENAME) {
+    let is_filename = (if for_name.is_member_chain(expr_name::IMPORT_META_FILENAME) {
       Some(true)
     } else if for_name.is_member_chain(expr_name::IMPORT_META_DIRNAME) {
       Some(false)
     } else {
       None
-    }) else {
-      return None;
-    };
+    })?;
 
     // Skip processing if importMeta is disabled
     if matches!(
