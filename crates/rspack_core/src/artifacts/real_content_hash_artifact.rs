@@ -113,6 +113,7 @@ pub struct ContentHashReference {
   pub referenced_chunk: Option<ChunkUkey>,
   pub referenced_source_type: Option<SourceType>,
   pub kind: ContentHashReferenceKind,
+  pub replacement_only: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -142,6 +143,7 @@ pub struct ContentHashReferenceMeta {
   pub referenced_chunk: Option<ChunkUkey>,
   pub referenced_source_type: Option<SourceType>,
   pub kind: ContentHashReferenceKind,
+  pub replacement_only: bool,
 }
 
 impl RealContentHashArtifact {
@@ -190,6 +192,7 @@ impl RealContentHashArtifact {
         referenced_chunk: meta.referenced_chunk,
         referenced_source_type: meta.referenced_source_type,
         kind: meta.kind,
+        replacement_only: meta.replacement_only,
       });
   }
 
@@ -306,6 +309,7 @@ mod tests {
         kind: ContentHashReferenceKind::Source,
         referenced_chunk: None,
         referenced_source_type: None,
+        replacement_only: false,
       },
     );
     artifact.record_replacement(
@@ -337,6 +341,7 @@ mod tests {
       referenced_chunk: None,
       referenced_source_type: None,
       kind: ContentHashReferenceKind::Source,
+      replacement_only: false,
     });
     record.replacements.push(ContentHashReplacement {
       old_hash: "dddd".to_string(),
@@ -461,6 +466,7 @@ mod tests {
       referenced_chunk: None,
       referenced_source_type: None,
       kind: ContentHashReferenceKind::Filename,
+      replacement_only: false,
     });
     record.replacements.push(ContentHashReplacement {
       old_hash: "new-replacement".to_string(),

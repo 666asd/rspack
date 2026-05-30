@@ -1550,6 +1550,7 @@ async fn process_assets(&self, compilation: &mut Compilation) -> Result<()> {
 
     let chunk_ukey = file_to_chunk_ukey.get(source_filename.as_ref());
     let source_own_hashes = source_asset.info.content_hash.clone();
+    let source_map_own_hashes = source_map_real_content_hashes.own_hashes.clone();
     compilation.emit_asset(source_filename.to_string(), source_asset);
     for (hash, range) in source_replacements {
       if !source_own_hashes.contains(&hash) {
@@ -1557,7 +1558,10 @@ async fn process_assets(&self, compilation: &mut Compilation) -> Result<()> {
           source_filename.as_ref(),
           &hash,
           None,
-          ContentHashReferenceMeta::default(),
+          ContentHashReferenceMeta {
+            replacement_only: source_map_own_hashes.contains(&hash),
+            ..Default::default()
+          },
         );
       }
       compilation.record_real_content_hash_replacement(

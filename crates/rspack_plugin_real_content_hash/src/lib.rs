@@ -631,6 +631,7 @@ fn get_recorded_replacement_coverage(
   for reference in &record.references {
     if !is_source_reference_kind(reference.kind)
       || !reference_applies_to_view(reference.owner_hash.as_deref(), without_own)
+      || (reference.replacement_only && without_own.is_some())
       || !hash_needs_update(
         &reference.referenced_hash,
         data,
@@ -924,6 +925,9 @@ impl OrderedHashesBuilder<'_> {
     for name in asset_names {
       if let Some(record) = self.artifact.asset_records.get(name) {
         for reference in &record.references {
+          if reference.replacement_only {
+            continue;
+          }
           if reference
             .owner_hash
             .as_deref()
@@ -974,8 +978,8 @@ mod tests {
   };
 
   use super::{
-    AssetData, HashMap, HashSet, RecordedReplacementPlan, apply_recorded_replacements,
-    compute_new_name, compute_new_source, validate_artifact_records,
+    AssetData, HashMap, HashSet, OrderedHashesBuilder, RecordedReplacementPlan,
+    apply_recorded_replacements, compute_new_name, compute_new_source, validate_artifact_records,
   };
 
   fn source(value: &str) -> BoxSource {
@@ -1004,6 +1008,7 @@ mod tests {
         referenced_chunk: None,
         referenced_source_type: None,
         kind: ContentHashReferenceKind::Source,
+        replacement_only: false,
       });
 
     let error = validate_artifact_records(&artifact).expect_err("should reject invalid owner hash");
@@ -1174,6 +1179,50 @@ mod tests {
   }
 
   #[test]
+  fn replacement_only_reference_is_deferred_until_final_source_update() {
+    let info = AssetInfo::default().with_content_hashes(HashSet::from_iter(["aaaa".to_string()]));
+    let data = AssetData::new(source("map bbbb"), &info);
+    let mut artifact = RealContentHashArtifact::default();
+    artifact.record_asset_hashes("asset.js", ["aaaa".to_string()]);
+    artifact.record_asset_hashes("asset.js.map", ["bbbb".to_string()]);
+    let record = artifact
+      .asset_records
+      .get_mut("asset.js")
+      .expect("asset record");
+    record.references.push(ContentHashReference {
+      referenced_hash: "bbbb".to_string(),
+      owner_hash: None,
+      referenced_chunk: None,
+      referenced_source_type: None,
+      kind: ContentHashReferenceKind::Source,
+      replacement_only: true,
+    });
+    record.replacements.push(ContentHashReplacement {
+      old_hash: "bbbb".to_string(),
+      range: Some(4..8),
+      kind: ContentHashReplacementKind::Source,
+    });
+    let hash_to_new_hash = HashMap::from_iter([("bbbb".to_string(), "cccc".to_string())]);
+
+    let source = compute_new_source(
+      "asset.js",
+      &data,
+      &artifact,
+      &HashMap::default(),
+      Some("aaaa"),
+    )
+    .expect("partial hash view should not require replacement-only references");
+    assert_eq!(source.source().into_string_lossy(), "map bbbb");
+
+    let source = compute_new_source("asset.js", &data, &artifact, &hash_to_new_hash, None)
+      .expect("final source update should apply replacement-only references");
+    assert_eq!(source.source().into_string_lossy(), "map cccc");
+
+    let (_, hash_dependencies) = OrderedHashesBuilder::new(&artifact).build();
+    assert!(!hash_dependencies["aaaa"].contains("bbbb"));
+  }
+
+  #[test]
   fn compute_new_source_rejects_missing_recorded_source_ranges() {
     let info = AssetInfo::default().with_content_hashes(HashSet::from_iter(["aaaa".to_string()]));
     let data = AssetData::new(source("own aaaa ref bbbb"), &info);
@@ -1190,6 +1239,7 @@ mod tests {
         referenced_chunk: None,
         referenced_source_type: None,
         kind: ContentHashReferenceKind::Source,
+        replacement_only: false,
       });
     let hash_to_new_hash = HashMap::from_iter([
       ("aaaa".to_string(), "cccc".to_string()),
@@ -1229,6 +1279,7 @@ mod tests {
       referenced_chunk: None,
       referenced_source_type: None,
       kind: ContentHashReferenceKind::Source,
+      replacement_only: false,
     });
     record.replacements.push(ContentHashReplacement {
       old_hash: "aaaa".to_string(),
@@ -1279,6 +1330,7 @@ mod tests {
       referenced_chunk: None,
       referenced_source_type: None,
       kind: ContentHashReferenceKind::Source,
+      replacement_only: false,
     });
     record.references.push(ContentHashReference {
       referenced_hash: "hhhh".to_string(),
@@ -1286,6 +1338,7 @@ mod tests {
       referenced_chunk: None,
       referenced_source_type: None,
       kind: ContentHashReferenceKind::Source,
+      replacement_only: false,
     });
     record.replacements.push(ContentHashReplacement {
       old_hash: "aaaa".to_string(),
@@ -1346,6 +1399,7 @@ mod tests {
       referenced_chunk: None,
       referenced_source_type: None,
       kind: ContentHashReferenceKind::Source,
+      replacement_only: false,
     });
     record.references.push(ContentHashReference {
       referenced_hash: "dddd".to_string(),
@@ -1353,6 +1407,7 @@ mod tests {
       referenced_chunk: None,
       referenced_source_type: None,
       kind: ContentHashReferenceKind::Source,
+      replacement_only: false,
     });
     record.replacements.push(ContentHashReplacement {
       old_hash: "aaaa".to_string(),
@@ -1521,6 +1576,7 @@ mod tests {
         referenced_chunk: None,
         referenced_source_type: None,
         kind: ContentHashReferenceKind::Source,
+        replacement_only: false,
       });
     artifact.record_replacement(
       "asset.js",
@@ -1564,6 +1620,7 @@ mod tests {
       referenced_chunk: None,
       referenced_source_type: None,
       kind: ContentHashReferenceKind::Source,
+      replacement_only: false,
     });
     record.references.push(ContentHashReference {
       referenced_hash: "aaaa".to_string(),
@@ -1571,6 +1628,7 @@ mod tests {
       referenced_chunk: None,
       referenced_source_type: None,
       kind: ContentHashReferenceKind::Source,
+      replacement_only: false,
     });
     record.replacements.push(ContentHashReplacement {
       old_hash: "aaaa".to_string(),
@@ -1623,6 +1681,7 @@ mod tests {
       referenced_chunk: None,
       referenced_source_type: None,
       kind: ContentHashReferenceKind::Source,
+      replacement_only: false,
     });
     record.replacements.push(ContentHashReplacement {
       old_hash: "aaaa".to_string(),
@@ -1692,6 +1751,7 @@ mod tests {
       referenced_chunk: None,
       referenced_source_type: None,
       kind: ContentHashReferenceKind::Source,
+      replacement_only: false,
     });
     record.replacements.push(ContentHashReplacement {
       old_hash: "aaaa".to_string(),

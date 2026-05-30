@@ -289,6 +289,7 @@ impl RuntimeContentHashContext {
             referenced_chunk: marker.referenced_chunk,
             referenced_source_type: marker.referenced_source_type,
             kind: ContentHashReferenceKind::Source,
+            replacement_only: false,
           });
         }
         record.replacements.push(ContentHashReplacement {

@@ -359,6 +359,7 @@ fn record_html_source_content_hash_references(
         referenced_chunk: None,
         referenced_source_type: None,
         kind: ContentHashReferenceKind::Source,
+        replacement_only: false,
       });
       record.replacements.push(ContentHashReplacement {
         old_hash: content_hash.clone(),
