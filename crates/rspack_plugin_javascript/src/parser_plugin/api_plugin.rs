@@ -137,49 +137,32 @@ enum ApiIdentifier {
 #[inline]
 fn get_api_identifier(for_name: ParserHookName<'_>) -> Option<ApiIdentifier> {
   let name = for_name.as_atom()?;
-  API_ATOMS.with(|atoms| {
-    if name == &atoms.require {
-      Some(ApiIdentifier::Require)
-    } else if name == &atoms.hash {
-      Some(ApiIdentifier::Hash)
-    } else if name == &atoms.layer {
-      Some(ApiIdentifier::Layer)
-    } else if name == &atoms.public_path {
-      Some(ApiIdentifier::PublicPath)
-    } else if name == &atoms.modules {
-      Some(ApiIdentifier::Modules)
-    } else if name == &atoms.module {
-      Some(ApiIdentifier::Module)
-    } else if name == &atoms.chunk_load {
-      Some(ApiIdentifier::ChunkLoad)
-    } else if name == &atoms.base_uri {
-      Some(ApiIdentifier::BaseUri)
-    } else if name == &atoms.non_require {
-      Some(ApiIdentifier::NonRequire)
-    } else if name == &atoms.system_context {
-      Some(ApiIdentifier::SystemContext)
-    } else if name == &atoms.share_scopes {
-      Some(ApiIdentifier::ShareScopes)
-    } else if name == &atoms.init_sharing {
-      Some(ApiIdentifier::InitSharing)
-    } else if name == &atoms.nonce {
-      Some(ApiIdentifier::Nonce)
-    } else if name == &atoms.chunk_name {
-      Some(ApiIdentifier::ChunkName)
-    } else if name == &atoms.runtime_id {
-      Some(ApiIdentifier::RuntimeId)
-    } else if name == &atoms.get_script_filename {
-      Some(ApiIdentifier::GetScriptFilename)
-    } else if name == &atoms.version {
-      Some(ApiIdentifier::Version)
-    } else if name == &atoms.unique_id {
-      Some(ApiIdentifier::UniqueId)
-    } else if name == &atoms.rsc_manifest {
-      Some(ApiIdentifier::RscManifest)
-    } else {
-      None
-    }
-  })
+  let name_len = name.len();
+  match name_len {
+    16 | 17 | 18 | 19 | 20 | 21 | 22 | 23 | 24 | 31 => API_ATOMS.with(|atoms| match name_len {
+      16 if name == &atoms.hash => Some(ApiIdentifier::Hash),
+      17 if name == &atoms.layer => Some(ApiIdentifier::Layer),
+      17 if name == &atoms.nonce => Some(ApiIdentifier::Nonce),
+      18 if name == &atoms.module => Some(ApiIdentifier::Module),
+      18 if name == &atoms.system_context => Some(ApiIdentifier::SystemContext),
+      18 if name == &atoms.version => Some(ApiIdentifier::Version),
+      19 if name == &atoms.require => Some(ApiIdentifier::Require),
+      19 if name == &atoms.modules => Some(ApiIdentifier::Modules),
+      20 if name == &atoms.base_uri => Some(ApiIdentifier::BaseUri),
+      20 if name == &atoms.unique_id => Some(ApiIdentifier::UniqueId),
+      21 if name == &atoms.chunk_name => Some(ApiIdentifier::ChunkName),
+      22 if name == &atoms.chunk_load => Some(ApiIdentifier::ChunkLoad),
+      22 if name == &atoms.runtime_id => Some(ApiIdentifier::RuntimeId),
+      23 if name == &atoms.public_path => Some(ApiIdentifier::PublicPath),
+      23 if name == &atoms.non_require => Some(ApiIdentifier::NonRequire),
+      23 if name == &atoms.rsc_manifest => Some(ApiIdentifier::RscManifest),
+      24 if name == &atoms.share_scopes => Some(ApiIdentifier::ShareScopes),
+      24 if name == &atoms.init_sharing => Some(ApiIdentifier::InitSharing),
+      31 if name == &atoms.get_script_filename => Some(ApiIdentifier::GetScriptFilename),
+      _ => None,
+    }),
+    _ => None,
+  }
 }
 
 pub struct APIPluginOptions {
