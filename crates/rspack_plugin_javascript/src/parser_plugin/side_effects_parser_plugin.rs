@@ -324,9 +324,12 @@ fn visit_module_decl_defined_binding_names(decl: &ModuleDecl, f: &mut impl FnMut
 }
 
 fn collect_duplicate_top_level_names(program: &Program) -> FxHashSet<Atom> {
-  let mut counts = rustc_hash::FxHashMap::<Atom, usize>::default();
+  let mut seen = FxHashSet::default();
+  let mut duplicates = FxHashSet::default();
   let mut count_name = |name: &Atom| {
-    *counts.entry(name.clone()).or_default() += 1;
+    if !seen.insert(name.clone()) {
+      duplicates.insert(name.clone());
+    }
   };
 
   match program {
@@ -350,10 +353,7 @@ fn collect_duplicate_top_level_names(program: &Program) -> FxHashSet<Atom> {
     }
   }
 
-  counts
-    .into_iter()
-    .filter_map(|(name, count)| (count > 1).then_some(name))
-    .collect()
+  duplicates
 }
 
 fn mark_side_effects_free(parser: &mut JavascriptParser, name: &Atom, export_name: Option<&Atom>) {
