@@ -415,10 +415,311 @@ impl RuntimeModule for GetChunkFilenameRuntimeModule {
     &self,
     context: &RuntimeModuleGenerateContext<'_>,
   ) -> rspack_error::Result<String> {
-    self
-      .generate_with_real_content_hashes(context)
-      .await
-      .map(|(source, _)| source)
+    let compilation = context.compilation;
+    let runtime_template = context.runtime_template;
+    let chunks = self
+      .chunk
+      .and_then(|chunk_ukey| {
+        compilation
+          .build_chunk_graph_artifact
+          .chunk_by_ukey
+          .get(&chunk_ukey)
+      })
+      .map(|chunk| {
+        let runtime_requirements = get_chunk_runtime_requirements(compilation, &chunk.ukey());
+        if (self.all_chunks)(runtime_requirements) {
+          chunk
+            .get_all_referenced_chunks(&compilation.build_chunk_graph_artifact.chunk_group_by_ukey)
+        } else {
+          let mut chunks =
+            chunk.get_all_async_chunks(&compilation.build_chunk_graph_artifact.chunk_group_by_ukey);
+
+          if ChunkGraph::get_tree_runtime_requirements(compilation, &chunk.ukey())
+            .contains(RuntimeGlobals::ENSURE_CHUNK_INCLUDE_ENTRIES)
+          {
+            chunks.extend(
+              compilation
+                .build_chunk_graph_artifact
+                .chunk_graph
+                .get_runtime_chunk_dependent_chunks_iterable(
+                  &chunk.ukey(),
+                  &compilation.build_chunk_graph_artifact.chunk_by_ukey,
+                  &compilation.build_chunk_graph_artifact.chunk_group_by_ukey,
+                ),
+            );
+          }
+          for entrypoint in chunk.get_all_referenced_async_entrypoints(
+            &compilation.build_chunk_graph_artifact.chunk_group_by_ukey,
+          ) {
+            let entrypoint = compilation
+              .build_chunk_graph_artifact
+              .chunk_group_by_ukey
+              .expect_get(&entrypoint);
+            chunks.insert(entrypoint.get_entrypoint_chunk());
+          }
+          chunks
+        }
+      });
+
+    let mut dynamic_filename: Option<String> = None;
+    let mut max_chunk_set_size = 0;
+    let mut chunk_filenames = Vec::<(Filename, ChunkUkey)>::new();
+    let mut chunk_set_sizes_by_filenames = FxHashMap::<String, usize>::default();
+    let mut chunk_map = FxIndexMap::default();
+
+    if let Some(chunks) = chunks {
+      chunks
+        .iter()
+        .filter_map(|chunk_ukey| {
+          compilation
+            .build_chunk_graph_artifact
+            .chunk_by_ukey
+            .get(chunk_ukey)
+        })
+        .for_each(|chunk| {
+          let filename = (self.filename_for_chunk)(chunk, compilation);
+
+          if let Some(filename) = filename {
+            chunk_map.insert(chunk.ukey(), chunk);
+
+            chunk_filenames.push((filename.clone(), chunk.ukey()));
+
+            if let Some(filename_template) = filename.template() {
+              let chunk_set_size = chunk_set_sizes_by_filenames
+                .entry(filename_template.to_owned())
+                .or_insert(0);
+              *chunk_set_size += 1;
+              let chunk_set_size = *chunk_set_size;
+              let should_update = match dynamic_filename {
+                Some(ref dynamic_filename) => match chunk_set_size.cmp(&max_chunk_set_size) {
+                  Ordering::Less => false,
+                  Ordering::Greater => true,
+                  Ordering::Equal => match filename_template.len().cmp(&dynamic_filename.len()) {
+                    Ordering::Less => false,
+                    Ordering::Greater => true,
+                    Ordering::Equal => !matches!(
+                      filename_template.cmp(dynamic_filename.as_str()),
+                      Ordering::Less
+                    ),
+                  },
+                },
+                None => true,
+              };
+              if should_update {
+                max_chunk_set_size = chunk_set_size;
+                dynamic_filename = Some(filename_template.to_owned());
+              }
+            };
+          }
+        });
+    }
+
+    let dynamic_url = if let Some(dynamic_filename) = &dynamic_filename {
+      let chunks = chunk_filenames
+        .iter()
+        .filter_map(|(filename, chunk)| {
+          if filename.template() == Some(dynamic_filename.as_str()) {
+            Some(*chunk)
+          } else {
+            None
+          }
+        })
+        .collect::<FxIndexSet<ChunkUkey>>();
+      let (fake_filename, hash_len_map) =
+        get_filename_without_hash_length(&Filename::from(dynamic_filename.clone()));
+
+      let chunk_id = "\" + chunkId + \"";
+      let chunk_name = stringify_dynamic_chunk_map(
+        |c| c.name_for_filename_template().map(|s| s.to_string()),
+        &chunks,
+        &chunk_map,
+      );
+      let chunk_runtime = stringify_dynamic_chunk_map(
+        |c| {
+          let runtime = c.runtime().as_str();
+          Some(runtime.to_string())
+        },
+        &chunks,
+        &chunk_map,
+      );
+      let chunk_hash = stringify_dynamic_chunk_map(
+        |c| {
+          let hash = c
+            .rendered_hash(
+              &compilation.chunk_hashes_artifact,
+              compilation.options.output.hash_digest_length,
+            )
+            .map(|hash| hash.to_string());
+          match hash_len_map.get("[chunkhash]") {
+            Some(hash_len) => hash.map(|s| s[..*hash_len].to_string()),
+            None => hash,
+          }
+        },
+        &chunks,
+        &chunk_map,
+      );
+      let content_hash = stringify_dynamic_chunk_map(
+        |c| {
+          c.rendered_content_hash_by_source_type(
+            &compilation.chunk_hashes_artifact,
+            &self.source_type,
+            compilation.options.output.hash_digest_length,
+          )
+          .map(|hash| match hash_len_map.get("[contenthash]") {
+            Some(hash_len) => hash[..*hash_len].to_string(),
+            None => hash.to_string(),
+          })
+        },
+        &chunks,
+        &chunk_map,
+      );
+      let full_hash = match hash_len_map
+        .get("[fullhash]")
+        .or(hash_len_map.get("[hash]"))
+      {
+        Some(hash_len) => {
+          let mut hash_len_buffer = itoa::Buffer::new();
+          let hash_len_str = hash_len_buffer.format(*hash_len);
+          format!(
+            "\" + {}().slice(0, {}) + \"",
+            runtime_template.render_runtime_globals(&RuntimeGlobals::GET_FULL_HASH),
+            hash_len_str
+          )
+        }
+        None => format!(
+          "\" + {}() + \"",
+          runtime_template.render_runtime_globals(&RuntimeGlobals::GET_FULL_HASH)
+        ),
+      };
+
+      Some(
+        compilation
+          .get_path(
+            &Filename::from(rspack_util::json_stringify_str(fake_filename.as_str())),
+            PathData::default()
+              .chunk_id(chunk_id)
+              .chunk_hash(&chunk_hash)
+              .chunk_name(&chunk_name)
+              .hash(&full_hash)
+              .content_hash(&content_hash)
+              .runtime(&chunk_runtime),
+          )
+          .await?,
+      )
+    } else {
+      None
+    };
+
+    let mut static_urls = FxIndexMap::default();
+    for (filename_template, chunk_ukey) in
+      chunk_filenames
+        .iter()
+        .filter(|(filename, _)| match &dynamic_filename {
+          None => true,
+          Some(dynamic_filename) => filename.template() != Some(dynamic_filename.as_str()),
+        })
+    {
+      if let Some(chunk) = chunk_map.get(chunk_ukey) {
+        let (fake_filename, hash_len_map) = get_filename_without_hash_length(filename_template);
+
+        let chunk_id = chunk
+          .id()
+          .map(|chunk_id| unquoted_stringify(Some(chunk_id), chunk_id.as_str()));
+        let chunk_name = match chunk.name() {
+          Some(chunk_name) => Some(unquoted_stringify(chunk.id(), chunk_name)),
+          None => chunk
+            .id()
+            .map(|chunk_id| unquoted_stringify(Some(chunk_id), chunk_id.as_str())),
+        };
+        let chunk_hash = chunk
+          .rendered_hash(
+            &compilation.chunk_hashes_artifact,
+            compilation.options.output.hash_digest_length,
+          )
+          .map(|chunk_hash| {
+            let hash = unquoted_stringify(chunk.id(), chunk_hash);
+            match hash_len_map.get("[chunkhash]") {
+              Some(hash_len) => hash[..*hash_len].to_string(),
+              None => hash,
+            }
+          });
+        let content_hash = chunk
+          .content_hash(&compilation.chunk_hashes_artifact)
+          .and_then(|content_hash| content_hash.get(&self.source_type))
+          .map(|i| {
+            let hash = unquoted_stringify(
+              chunk.id(),
+              i.rendered(compilation.options.output.hash_digest_length),
+            );
+            match hash_len_map.get("[contenthash]") {
+              Some(hash_len) => hash[..*hash_len].to_string(),
+              None => hash,
+            }
+          });
+        let full_hash = match hash_len_map
+          .get("[fullhash]")
+          .or(hash_len_map.get("[hash]"))
+        {
+          Some(hash_len) => {
+            let mut hash_len_buffer = itoa::Buffer::new();
+            let hash_len_str = hash_len_buffer.format(*hash_len);
+            format!(
+              "\" + {}().slice(0, {}) + \"",
+              runtime_template.render_runtime_globals(&RuntimeGlobals::GET_FULL_HASH),
+              hash_len_str
+            )
+          }
+          None => format!(
+            "\" + {}() + \"",
+            runtime_template.render_runtime_globals(&RuntimeGlobals::GET_FULL_HASH)
+          ),
+        };
+        let chunk_runtime = chunk.runtime().as_str();
+
+        let filename = compilation
+          .get_path(
+            &Filename::from(if let Some(template) = fake_filename.template() {
+              rspack_util::json_stringify_str(template)
+            } else {
+              rspack_util::json_stringify_str(
+                fake_filename
+                  .render(
+                    PathData::default()
+                      .chunk_name_optional(chunk.name())
+                      .chunk_id_optional(chunk.id().map(|id| id.as_str())),
+                    None,
+                  )
+                  .await?
+                  .as_str(),
+              )
+            }),
+            PathData::default()
+              .chunk_id_optional(chunk_id.as_deref())
+              .chunk_hash_optional(chunk_hash.as_deref())
+              .chunk_name_optional(chunk_name.as_deref())
+              .hash(&full_hash)
+              .content_hash_optional(content_hash.as_deref())
+              .runtime(chunk_runtime),
+          )
+          .await?;
+
+        if let Some(chunk_id) = chunk.id() {
+          static_urls
+            .entry(filename)
+            .or_insert(Vec::new())
+            .push(chunk_id);
+        }
+      }
+    }
+
+    runtime_template.render(&self.id, Some(serde_json::json!({
+      "_global": self.global,
+      "_static_urls": static_urls
+                        .iter()
+                        .map(|(filename, chunk_ids)| stringify_static_chunk_map(filename, chunk_ids))
+                        .join("\n"),
+      "_dynamic_url": dynamic_url.unwrap_or_else(|| format!("\"\" + chunkId + \".{}\"", self.content_type))
+    })))
   }
 
   async fn generate_with_real_content_hashes(
