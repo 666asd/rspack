@@ -580,8 +580,13 @@ impl CommonJsImportsParserPlugin {
       .as_ref()
       .is_some_and(|is_renaming| is_renaming == expr_name::REQUIRE)
       && !parser.javascript_options.require_alias.unwrap_or_default();
+    let is_nested_direct_require_alias = parser.javascript_options.require_alias == Some(true)
+      && !parser.is_top_level_scope()
+      && parser.arrow_expression_body_ident_span == Some(ident.span)
+      && ident.sym == expr_name::REQUIRE;
     if let Some(true) = parser.javascript_options.unknown_context_critical
       && !is_renaming_require
+      && !is_nested_direct_require_alias
     {
       let mut error = create_traceable_error(
         "Critical dependency".into(),

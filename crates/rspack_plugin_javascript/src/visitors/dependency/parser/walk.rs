@@ -3,7 +3,7 @@ use std::borrow::Cow;
 use rspack_core::{Dependency, DependencyId, DependencyRange};
 use swc_core::{
   atoms::Atom,
-  common::Spanned,
+  common::{Span, Spanned},
   ecma::ast::{
     ArrayLit, ArrayPat, ArrowExpr, AssignExpr, AssignPat, AssignTarget, AssignTargetPat, AwaitExpr,
     BinExpr, BinaryOp, BlockStmt, BlockStmtOrExpr, CallExpr, Callee, CatchClause, Class, ClassExpr,
@@ -35,6 +35,14 @@ use crate::{
 
 fn warp_ident_to_pat(ident: Ident) -> Pat {
   Pat::Ident(ident.into())
+}
+
+fn direct_body_ident_span(expr: &Expr) -> Option<Span> {
+  match expr {
+    Expr::Ident(ident) => Some(ident.span),
+    Expr::Paren(expr) => direct_body_ident_span(&expr.expr),
+    _ => None,
+  }
 }
 
 #[derive(Debug)]
@@ -1295,7 +1303,12 @@ impl JavascriptParser<'_> {
             parser.prev_statement = prev;
             parser.walk_statement(Statement::Block(stmt));
           }
-          BlockStmtOrExpr::Expr(expr) => parser.walk_expression(expr),
+          BlockStmtOrExpr::Expr(expr) => {
+            let arrow_expression_body_ident_span = parser.arrow_expression_body_ident_span;
+            parser.arrow_expression_body_ident_span = direct_body_ident_span(expr);
+            parser.walk_expression(expr);
+            parser.arrow_expression_body_ident_span = arrow_expression_body_ident_span;
+          }
         }
       }
     });
@@ -1652,7 +1665,12 @@ impl JavascriptParser<'_> {
           this.prev_statement = prev;
           this.walk_statement(Statement::Block(stmt));
         }
-        BlockStmtOrExpr::Expr(expr) => this.walk_expression(expr),
+        BlockStmtOrExpr::Expr(expr) => {
+          let arrow_expression_body_ident_span = this.arrow_expression_body_ident_span;
+          this.arrow_expression_body_ident_span = direct_body_ident_span(expr);
+          this.walk_expression(expr);
+          this.arrow_expression_body_ident_span = arrow_expression_body_ident_span;
+        }
       }
     });
     self.top_level_scope = was_top_level_scope;
