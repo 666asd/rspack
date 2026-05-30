@@ -16,6 +16,9 @@ impl VariableInfoId {
   pub fn undefined() -> Self {
     Self::from(KeyData::from_ffi(u64::MAX - 1))
   }
+  fn is_sentinel(self) -> bool {
+    self == Self::tombstone() || self == Self::undefined()
+  }
 }
 
 #[derive(Debug, Default)]
@@ -128,7 +131,7 @@ impl ScopeInfoDB {
   pub fn get(&mut self, id: ScopeInfoId, key: &Atom) -> Option<VariableInfoId> {
     let definitions = self.expect_get_scope(id);
     if let Some(&top_value) = definitions.map.get(key) {
-      if top_value == VariableInfoId::tombstone() || top_value == VariableInfoId::undefined() {
+      if top_value.is_sentinel() {
         None
       } else {
         Some(top_value)
@@ -138,7 +141,7 @@ impl ScopeInfoDB {
       while let Some(current_id) = current {
         let scope = self.expect_get_scope(current_id);
         if let Some(&value) = scope.map.get(key) {
-          if value == VariableInfoId::tombstone() || value == VariableInfoId::undefined() {
+          if value.is_sentinel() {
             return None;
           } else {
             return Some(value);
@@ -154,6 +157,15 @@ impl ScopeInfoDB {
     } else {
       None
     }
+  }
+
+  pub fn get_in_scope(&self, id: ScopeInfoId, key: &Atom) -> Option<VariableInfoId> {
+    let scope = self.expect_get_scope(id);
+    scope
+      .map
+      .get(key)
+      .copied()
+      .filter(|value| !value.is_sentinel())
   }
 
   pub fn set(&mut self, id: ScopeInfoId, key: Atom, variable_info_id: VariableInfoId) {

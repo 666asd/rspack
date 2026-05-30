@@ -855,11 +855,11 @@ impl<'parser> JavascriptParser<'parser> {
 
   pub fn define_variable(&mut self, name: Atom) {
     let definitions = self.definitions;
-    if let Some(variable_info) = self.get_variable_info(&name)
-      && variable_info.tag_info.is_some()
-      && definitions == variable_info.declared_scope
-    {
-      return;
+    if let Some(variable_info_id) = self.definitions_db.get_in_scope(definitions, &name) {
+      let variable_info = self.definitions_db.expect_get_variable(variable_info_id);
+      if variable_info.tag_info.is_some() && variable_info.declared_scope == definitions {
+        return;
+      }
     }
     let info = VariableInfo::create(
       &mut self.definitions_db,
@@ -999,13 +999,12 @@ impl<'parser> JavascriptParser<'parser> {
         members.reverse();
         members_optionals.reverse();
         member_ranges.reverse();
-        let root_name_for_info = root_name.clone();
         Some(MemberExpressionInfo::Call(CallExpressionInfo {
           call: expr,
-          root_info: root_info.map_or_else(
-            || ExportedVariableInfo::Name(root_name_for_info),
-            |i| ExportedVariableInfo::VariableInfo(i.id()),
-          ),
+          root_info: match root_info {
+            Some(i) => ExportedVariableInfo::VariableInfo(i.id()),
+            None => ExportedVariableInfo::Name(root_name.clone()),
+          },
           callee_members: root_members,
           members,
           members_optionals,
@@ -1027,13 +1026,12 @@ impl<'parser> JavascriptParser<'parser> {
         members.reverse();
         members_optionals.reverse();
         member_ranges.reverse();
-        let root_name_for_info = root_name.clone();
         Some(MemberExpressionInfo::Expression(ExpressionExpressionInfo {
           name,
-          root_info: root_info.map_or_else(
-            || ExportedVariableInfo::Name(root_name_for_info),
-            |i| ExportedVariableInfo::VariableInfo(i.id()),
-          ),
+          root_info: match root_info {
+            Some(i) => ExportedVariableInfo::VariableInfo(i.id()),
+            None => ExportedVariableInfo::Name(root_name.clone()),
+          },
           members,
           members_optionals,
           member_ranges,
