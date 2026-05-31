@@ -35,6 +35,9 @@ impl ChunkRenderCacheArtifact {
     if let Some(storage) = &self.storage {
       storage.start_next_generation();
     }
+    if let Some(storage) = &self.real_content_hash_storage {
+      storage.start_next_generation();
+    }
   }
   pub async fn use_cache<G, F>(
     &self,

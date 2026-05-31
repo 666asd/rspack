@@ -33,7 +33,7 @@ use rspack_core::{
   ExportsArgument, IdentCollector, Module, RuntimeCodeTemplate, RuntimeGlobals, RuntimeVariable,
   SourceType,
   concatenated_module::find_new_name,
-  render_init_fragments_with_source_offset,
+  render_init_fragments, render_init_fragments_with_source_offset,
   reserved_names::RESERVED_NAMES_ATOM_SET,
   rspack_sources::{BoxSource, ConcatSource, RawStringSource, ReplaceSource, Source, SourceExt},
   split_readable_identifier,
@@ -978,16 +978,26 @@ var {} = {{}};
     if iife {
       sources.add(RawStringSource::from_static("})()\n"));
     }
-    let (final_source, init_source_offset) = render_init_fragments_with_source_offset(
-      sources.boxed(),
-      chunk_init_fragments,
-      &mut ChunkRenderContext {},
-    )?;
-    if real_content_hash {
+    let final_source = if real_content_hash {
+      let (final_source, init_source_offset) = render_init_fragments_with_source_offset(
+        sources.boxed(),
+        chunk_init_fragments,
+        &mut ChunkRenderContext {},
+      )?;
       real_content_hashes.shift_source_ranges(init_source_offset);
-    }
-    let mut render_source =
-      RenderSource::with_real_content_hashes(final_source, real_content_hashes);
+      final_source
+    } else {
+      render_init_fragments(
+        sources.boxed(),
+        chunk_init_fragments,
+        &mut ChunkRenderContext {},
+      )?
+    };
+    let mut render_source = if real_content_hash {
+      RenderSource::with_real_content_hashes(final_source, real_content_hashes)
+    } else {
+      RenderSource::new(final_source)
+    };
     hooks
       .render
       .call(
@@ -1427,17 +1437,27 @@ var {} = {{}};
         runtime_template,
       )
       .await?;
-    let (source_with_fragments, init_source_offset) = render_init_fragments_with_source_offset(
-      render_source.source,
-      chunk_init_fragments,
-      &mut ChunkRenderContext {},
-    )?;
     let mut real_content_hashes = render_source.real_content_hashes;
-    if real_content_hash {
+    let source_with_fragments = if real_content_hash {
+      let (source_with_fragments, init_source_offset) = render_init_fragments_with_source_offset(
+        render_source.source,
+        chunk_init_fragments,
+        &mut ChunkRenderContext {},
+      )?;
       real_content_hashes.shift_source_ranges(init_source_offset);
-    }
-    let mut render_source =
-      RenderSource::with_real_content_hashes(source_with_fragments, real_content_hashes);
+      source_with_fragments
+    } else {
+      render_init_fragments(
+        render_source.source,
+        chunk_init_fragments,
+        &mut ChunkRenderContext {},
+      )?
+    };
+    let mut render_source = if real_content_hash {
+      RenderSource::with_real_content_hashes(source_with_fragments, real_content_hashes)
+    } else {
+      RenderSource::new(source_with_fragments)
+    };
     hooks
       .render
       .call(
