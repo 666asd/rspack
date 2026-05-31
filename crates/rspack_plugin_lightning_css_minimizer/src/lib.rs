@@ -430,13 +430,6 @@ fn restore_real_content_hash_markers(
       removed_markers.push(marker);
       continue;
     }
-    if ranges.len() != 1 {
-      return Err(rspack_error::error!(
-        "InvalidRealContentHashReplacementCoverage: expected exactly one preserved CSS minimizer marker for content hash '{}' but found {}",
-        marker.old_hash,
-        ranges.len()
-      ));
-    }
     for range in ranges {
       marker_ranges.push((range, marker));
     }
@@ -459,6 +452,7 @@ fn restore_real_content_hash_markers(
     }
   }
   let mut removed_bytes = 0usize;
+  let mut updated_replacement_indices = vec![false; updated.replacements.len()];
   for (range, marker) in marker_ranges {
     replace_source.replace(
       u32::try_from(range.start).expect("marker range start should fit in u32"),
@@ -468,11 +462,17 @@ fn restore_real_content_hash_markers(
     );
     let final_start = range.start - removed_bytes;
     let final_end = final_start + marker.old_hash.len();
-    if let Some(replacement) = updated.replacements.get_mut(marker.replacement_index) {
-      replacement.range = Some(
-        u32::try_from(final_start).expect("replacement range start should fit in u32")
-          ..u32::try_from(final_end).expect("replacement range end should fit in u32"),
-      );
+    let final_range = u32::try_from(final_start).expect("replacement range start should fit in u32")
+      ..u32::try_from(final_end).expect("replacement range end should fit in u32");
+    if updated_replacement_indices[marker.replacement_index] {
+      if let Some(replacement) = updated.replacements.get(marker.replacement_index) {
+        let mut duplicated_replacement = replacement.clone();
+        duplicated_replacement.range = Some(final_range);
+        updated.replacements.push(duplicated_replacement);
+      }
+    } else if let Some(replacement) = updated.replacements.get_mut(marker.replacement_index) {
+      replacement.range = Some(final_range);
+      updated_replacement_indices[marker.replacement_index] = true;
     }
     removed_bytes += marker.marker.len() - marker.old_hash.len();
   }
@@ -558,9 +558,44 @@ fn find_marker_ranges(content: &[u8], marker: &[u8]) -> Vec<Range<usize>> {
 #[cfg(test)]
 #[allow(clippy::items_after_test_module)]
 mod tests {
-  use rspack_core::{AssetHashRecord, ContentHashReplacement, ContentHashReplacementKind};
+  use rspack_core::{
+    AssetHashRecord, ContentHashReplacement, ContentHashReplacementKind,
+    rspack_sources::{RawStringSource, Source, SourceExt},
+  };
 
-  use super::mark_real_content_hash_replacements;
+  use super::{mark_real_content_hash_replacements, restore_real_content_hash_markers};
+
+  #[test]
+  fn real_content_hash_marker_restore_records_duplicated_markers() {
+    let input = ".a{background:url(hhhh)}".to_string();
+    let mut record = AssetHashRecord::default();
+    record.replacements.push(ContentHashReplacement {
+      old_hash: "hhhh".to_string(),
+      range: Some(18..22),
+      kind: ContentHashReplacementKind::Source,
+    });
+
+    let (_, markers) = mark_real_content_hash_replacements(Some(&record), input, "asset.css")
+      .expect("valid source range should markerize");
+    assert_eq!(markers.len(), 1);
+    let marked = format!(
+      ".a{{background:url({})}}.b{{background:url({})}}",
+      markers[0].marker, markers[0].marker
+    );
+
+    let (restored, updated_record) =
+      restore_real_content_hash_markers(RawStringSource::from(marked).boxed(), &record, &markers)
+        .expect("duplicated markers should restore");
+
+    assert_eq!(
+      restored.source().into_string_lossy(),
+      ".a{background:url(hhhh)}.b{background:url(hhhh)}"
+    );
+    let updated_record = updated_record.expect("duplicated marker should keep the record");
+    assert_eq!(updated_record.replacements.len(), 2);
+    assert_eq!(updated_record.replacements[0].range, Some(18..22));
+    assert_eq!(updated_record.replacements[1].range, Some(42..46));
+  }
 
   #[test]
   fn real_content_hash_markerize_rejects_unavailable_unique_markers() {
