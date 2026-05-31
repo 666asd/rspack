@@ -330,7 +330,7 @@ impl JavascriptParserPlugin for ESMExportDependencyParserPlugin {
       ExportDefaultExpression::ClassDecl(c) => c
         .ident
         .as_ref()
-        .map(|ident| DeclarationId::Id(ident.sym.to_string())),
+        .map(|ident| DeclarationId::Id(ident.sym.clone())),
       ExportDefaultExpression::Expr(_) => None,
     };
     let const_value = match expr {

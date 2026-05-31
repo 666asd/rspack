@@ -15,12 +15,9 @@ use crate::{
 
 pub struct ConstPlugin;
 
-const RESOURCE_FRAGMENT: &str = "__resourceFragment";
-const RESOURCE_QUERY: &str = "__resourceQuery";
-
 thread_local! {
-  static RESOURCE_FRAGMENT_ATOM: Atom = Atom::from(RESOURCE_FRAGMENT);
-  static RESOURCE_QUERY_ATOM: Atom = Atom::from(RESOURCE_QUERY);
+  static RESOURCE_FRAGMENT_ATOM: Atom = Atom::from("__resourceFragment");
+  static RESOURCE_QUERY_ATOM: Atom = Atom::from("__resourceQuery");
 }
 
 #[inline]
@@ -93,7 +90,7 @@ impl JavascriptParserPlugin for ConstPlugin {
       let resource_fragment = parser.resource_data.fragment().unwrap_or("");
       parser.add_presentational_dependency(Box::new(CachedConstDependency::new(
         ident.span.into(),
-        "__resourceFragment".into(),
+        RESOURCE_FRAGMENT_ATOM.with(|atom| atom.clone()),
         rspack_util::json_stringify_str(resource_fragment).into(),
       )));
       Some(true)
@@ -101,7 +98,7 @@ impl JavascriptParserPlugin for ConstPlugin {
       let resource_query = parser.resource_data.query().unwrap_or("");
       parser.add_presentational_dependency(Box::new(CachedConstDependency::new(
         ident.span.into(),
-        "__resourceQuery".into(),
+        RESOURCE_QUERY_ATOM.with(|atom| atom.clone()),
         rspack_util::json_stringify_str(resource_query).into(),
       )));
       Some(true)

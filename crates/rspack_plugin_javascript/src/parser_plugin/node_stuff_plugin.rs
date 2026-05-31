@@ -42,6 +42,16 @@ fn is_filename(for_name: ParserHookName<'_>) -> bool {
   FILENAME_ATOM.with(|atom| for_name.is_identifier(atom))
 }
 
+#[inline]
+fn dirname_atom() -> Atom {
+  DIRNAME_ATOM.with(|atom| atom.clone())
+}
+
+#[inline]
+fn filename_atom() -> Atom {
+  FILENAME_ATOM.with(|atom| atom.clone())
+}
+
 /// Represents the type of import.meta property being handled (filename or dirname)
 #[derive(Clone, Copy)]
 enum NodeMetaProperty {
@@ -257,13 +267,13 @@ impl NodeStuffPlugin {
   fn add_cjs_node_module_dependency(
     parser: &mut JavascriptParser,
     ident_span: swc_core::common::Span,
-    name: &str,
+    name: Atom,
     property: NodeMetaProperty,
   ) {
     Self::add_node_module_dependencies(parser, property);
     let const_dep = CachedConstDependency::new(
       ident_span.into(),
-      name.into(),
+      name,
       property.node_module_runtime_expr().into(),
     );
     parser.add_presentational_dependency(Box::new(const_dep));
@@ -448,7 +458,7 @@ impl JavascriptParserPlugin for NodeStuffPlugin {
           Self::add_cjs_node_module_dependency(
             parser,
             ident.span,
-            DIRNAME,
+            dirname_atom(),
             NodeMetaProperty::Dirname,
           );
           return Some(true);
@@ -461,7 +471,7 @@ impl JavascriptParserPlugin for NodeStuffPlugin {
           Self::add_cjs_node_module_dependency(
             parser,
             ident.span,
-            DIRNAME,
+            dirname_atom(),
             NodeMetaProperty::Dirname,
           );
           return Some(true);
@@ -501,7 +511,7 @@ impl JavascriptParserPlugin for NodeStuffPlugin {
           Self::add_cjs_node_module_dependency(
             parser,
             ident.span,
-            FILENAME,
+            filename_atom(),
             NodeMetaProperty::Filename,
           );
           return Some(true);
@@ -514,7 +524,7 @@ impl JavascriptParserPlugin for NodeStuffPlugin {
           Self::add_cjs_node_module_dependency(
             parser,
             ident.span,
-            FILENAME,
+            filename_atom(),
             NodeMetaProperty::Filename,
           );
           return Some(true);

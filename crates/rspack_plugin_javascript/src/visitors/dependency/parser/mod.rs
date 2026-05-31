@@ -1465,7 +1465,7 @@ impl JavascriptParser<'_> {
                 let mut eval =
                   BasicEvaluatedExpression::with_range(ident.span.real_lo(), ident.span.real_hi());
                 eval.set_identifier(
-                  name.to_owned(),
+                  name.clone(),
                   ExportedVariableInfo::VariableInfo(info.id()),
                   None,
                   None,

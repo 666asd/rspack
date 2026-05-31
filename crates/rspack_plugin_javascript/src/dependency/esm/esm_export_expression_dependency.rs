@@ -1,5 +1,5 @@
 use itertools::Itertools;
-use rspack_cacheable::{cacheable, cacheable_dyn};
+use rspack_cacheable::{cacheable, cacheable_dyn, with::AsPreset};
 use rspack_collections::{IdentifierMap, IdentifierSet};
 use rspack_core::{
   AsContextDependency, AsModuleDependency, DEFAULT_EXPORT, Dependency, DependencyCodeGeneration,
@@ -16,7 +16,7 @@ use crate::ConstValue;
 #[cacheable]
 #[derive(Debug, Clone)]
 pub enum DeclarationId {
-  Id(String),
+  Id(#[cacheable(with=AsPreset)] Atom),
   Func(DeclarationInfo),
 }
 
@@ -182,7 +182,7 @@ impl DependencyTemplate for ESMExportExpressionDependencyTemplate {
 
     if let Some(declaration) = &dep.declaration {
       let name = match declaration {
-        DeclarationId::Id(id) => id,
+        DeclarationId::Id(id) => id.as_str(),
         DeclarationId::Func(func) => {
           source.replace(
             func.range.start,

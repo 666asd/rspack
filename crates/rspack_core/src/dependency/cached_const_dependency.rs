@@ -1,5 +1,6 @@
-use rspack_cacheable::{cacheable, cacheable_dyn};
+use rspack_cacheable::{cacheable, cacheable_dyn, with::AsPreset};
 use rspack_util::ext::DynHash;
+use swc_core::atoms::Atom;
 
 use super::DependencyRange;
 use crate::{
@@ -12,12 +13,13 @@ use crate::{
 #[derive(Debug, Clone)]
 pub struct CachedConstDependency {
   pub range: DependencyRange,
-  pub identifier: Box<str>,
+  #[cacheable(with=AsPreset)]
+  pub identifier: Atom,
   pub content: Box<str>,
 }
 
 impl CachedConstDependency {
-  pub fn new(range: DependencyRange, identifier: Box<str>, content: Box<str>) -> Self {
+  pub fn new(range: DependencyRange, identifier: Atom, content: Box<str>) -> Self {
     Self {
       range,
       identifier,
@@ -38,7 +40,7 @@ impl DependencyCodeGeneration for CachedConstDependency {
     _compilation: &Compilation,
     _runtime: Option<&RuntimeSpec>,
   ) {
-    self.identifier.dyn_hash(hasher);
+    self.identifier.as_str().dyn_hash(hasher);
     self.range.dyn_hash(hasher);
     self.content.dyn_hash(hasher);
   }
