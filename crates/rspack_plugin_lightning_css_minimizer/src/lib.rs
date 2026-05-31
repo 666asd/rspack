@@ -384,7 +384,12 @@ fn mark_real_content_hash_replacements(
     let Some(marker) =
       real_content_hash_marker(&input, replacement_index, start..end, &replacement.old_hash)
     else {
-      return Ok((input, Vec::new()));
+      return Err(rspack_error::error!(
+        "InvalidRealContentHashReplacementCoverage: asset '{}' cannot generate a unique {:?} content hash marker for '{}' before CSS minimization",
+        filename,
+        replacement.kind,
+        replacement.old_hash
+      ));
     };
     markers.push((
       start..end,
@@ -548,6 +553,34 @@ fn find_marker_ranges(content: &[u8], marker: &[u8]) -> Vec<Range<usize>> {
     index += 1;
   }
   ranges
+}
+
+#[cfg(test)]
+#[allow(clippy::items_after_test_module)]
+mod tests {
+  use rspack_core::{AssetHashRecord, ContentHashReplacement, ContentHashReplacementKind};
+
+  use super::mark_real_content_hash_replacements;
+
+  #[test]
+  fn real_content_hash_markerize_rejects_unavailable_unique_markers() {
+    let input = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_$".to_string();
+    let mut record = AssetHashRecord::default();
+    record.replacements.push(ContentHashReplacement {
+      old_hash: "0".to_string(),
+      range: Some(0..1),
+      kind: ContentHashReplacementKind::Source,
+    });
+
+    let err = mark_real_content_hash_replacements(Some(&record), input, "asset.css")
+      .expect_err("unavailable marker should fail before CSS minimization");
+
+    assert!(
+      err
+        .to_string()
+        .contains("cannot generate a unique Source content hash marker")
+    );
+  }
 }
 
 impl Plugin for LightningCssMinimizerRspackPlugin {
