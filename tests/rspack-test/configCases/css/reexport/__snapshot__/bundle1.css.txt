@@ -1,5 +1,9 @@
 
 
+
+
+
+
 .E_OvvY {
 	color: danger
 }
@@ -162,6 +166,7 @@
 }
 
 
+
 .iYZI63 {
 	
 	color: blue;
@@ -197,6 +202,7 @@
 
 
 
+
 .lN8cZb {
 	color: var(--color);
 	background-color: var(--shared from "./shared-custom-properties.module.css");
@@ -210,10 +216,12 @@
 }
 
 
+
 .Mx1drJ {
 	background-color: primary;
 	color: my-custom-color;
 }
+
 
 
 .A62m63 {
@@ -221,9 +229,13 @@
 }
 
 
+
+
 .TLOxAV {
 	background-color: rename;
 }
+
+
 
 
 .J75kHj {
@@ -231,9 +243,13 @@
 }
 
 
+
+
 ._8-YjdR {
 	background-color: rename-3;
 }
+
+
 
 
 ._0vDmWC {
@@ -244,17 +260,26 @@
 	content: __REEXPORT3__
 }
 
+
 .hydESP { value: selector; }
+
 
 .lwweu5 { value: other-selector; }
 
+
 .z-yLea { value: alias-other-selector; }
+
 
 .K3y_NA { value: reexport-selector; }
 
+
 ._2jSHbX { value: reexport-selector-alias; }
 
+
+
 ._61LowY { background-color: third; }
+
+
 
 .zVEFPg { background-color: rename-3; }
 
@@ -312,6 +337,7 @@
 ._6VHhxw {
 	color: __value_cyclical__;
 }
+
 
 
 

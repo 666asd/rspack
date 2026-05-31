@@ -1,5 +1,3 @@
-
-
 .value-at-rule_module_css-color {
 	color: danger
 }
@@ -162,6 +160,7 @@
 }
 
 
+
 .styles_module_css-local-composes-with-reexport-and-value {
 	
 	color: blue;
@@ -197,6 +196,7 @@
 
 
 
+
 .styles_module_css-custom-properties {
 	color: var(--color);
 	background-color: var(--shared from "./shared-custom-properties.module.css");
@@ -210,10 +210,12 @@
 }
 
 
+
 .styles_module_css-button-with-color {
 	background-color: primary;
 	color: my-custom-color;
 }
+
 
 
 .styles_module_css-button-with-color-too {
@@ -221,9 +223,13 @@
 }
 
 
+
+
 .styles_module_css-button-rename-1 {
 	background-color: rename;
 }
+
+
 
 
 .styles_module_css-button-rename-2 {
@@ -231,9 +237,13 @@
 }
 
 
+
+
 .styles_module_css-button-rename-3 {
 	background-color: rename-3;
 }
+
+
 
 
 .styles_module_css-button-rename-4 {
@@ -244,17 +254,26 @@
 	content: __REEXPORT3__
 }
 
+
 .styles_module_css-selector { value: selector; }
+
 
 .styles_module_css-other-selector { value: other-selector; }
 
+
 .styles_module_css-alias-other-selector { value: alias-other-selector; }
+
 
 .styles_module_css-reexport-selector { value: reexport-selector; }
 
+
 .styles_module_css-reexport-selector-alias { value: reexport-selector-alias; }
 
+
+
 .styles_module_css-third { background-color: third; }
+
+
 
 .styles_module_css-rename-3 { background-color: rename-3; }
 
@@ -312,6 +331,7 @@
 .styles_module_css-class {
 	color: __value_cyclical__;
 }
+
 
 
 
