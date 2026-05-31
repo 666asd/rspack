@@ -1,7 +1,8 @@
 use std::{
   collections::HashSet,
-  hash::Hash,
-  sync::{Arc, LazyLock, RwLock},
+  hash::{Hash, Hasher},
+  ops::Range,
+  sync::{Arc, LazyLock, Mutex, RwLock},
 };
 
 pub use lightningcss::targets::Browsers;
@@ -13,17 +14,21 @@ use lightningcss::{
 use rayon::prelude::*;
 use regex::Regex;
 use rspack_core::{
-  ChunkUkey, Compilation, CompilationChunkHash, CompilationProcessAssets, Plugin,
+  AssetHashRecord, ChunkUkey, Compilation, CompilationChunkHash, CompilationProcessAssets,
+  ContentHashReplacementKind, Plugin,
   diagnostics::MinifyError,
   rspack_sources::{
-    MapOptions, ObjectPool, RawStringSource, SourceExt, SourceMap, SourceMapSource,
-    SourceMapSourceOptions,
+    BoxSource, MapOptions, ObjectPool, RawStringSource, ReplaceSource, Source, SourceExt,
+    SourceMap, SourceMapSource, SourceMapSourceOptions,
   },
 };
 use rspack_error::{Diagnostic, Result, ToStringResultToRspackResultExt};
 use rspack_hash::RspackHash;
 use rspack_hook::{plugin, plugin_hook};
-use rspack_util::asset_condition::{AssetConditions, AssetConditionsObject, match_object};
+use rspack_util::{
+  asset_condition::{AssetConditions, AssetConditionsObject, match_object},
+  fx_hash::{FxHashMap, FxHasher},
+};
 use thread_local::ThreadLocal;
 
 static CSS_ASSET_REGEXP: LazyLock<Regex> =
@@ -126,6 +131,12 @@ async fn process_assets(&self, compilation: &mut Compilation) -> Result<()> {
   let options = &self.options;
   let minimizer_options = &self.options.minimizer_options;
   let all_warnings: RwLock<Vec<Diagnostic>> = Default::default();
+  let real_content_hash_records = compilation
+    .options
+    .optimization
+    .real_content_hash
+    .then(|| compilation.real_content_hash_artifact.asset_records.clone());
+  let updated_real_content_hash_records = Mutex::new(FxHashMap::default());
   let condition_object = AssetConditionsObject {
     test: options.test.as_ref(),
     include: options.include.as_ref(),
@@ -156,6 +167,12 @@ async fn process_assets(&self, compilation: &mut Compilation) -> Result<()> {
 
       if let Some(original_source) = original.get_source() {
         let input = original_source.source().into_string_lossy().into_owned();
+        let original_input = input.clone();
+        let record = real_content_hash_records
+          .as_ref()
+          .and_then(|records| records.get(filename));
+        let (input, real_content_hash_markers) =
+          mark_real_content_hash_replacements(record, input, filename)?;
         let object_pool = tls.get_or(ObjectPool::default);
         let input_source_map = original_source.map(object_pool, &MapOptions::default());
 
@@ -175,7 +192,7 @@ async fn process_assets(&self, compilation: &mut Compilation) -> Result<()> {
             let mut sm =
               parcel_sourcemap::SourceMap::new(input_source_map.source_root().unwrap_or("/"));
             sm.add_source(filename);
-            sm.set_source_content(0, &input).to_rspack_result()?;
+            sm.set_source_content(0, &original_input).to_rspack_result()?;
             Ok(sm)
           })
           .transpose()?;
@@ -258,7 +275,7 @@ async fn process_assets(&self, compilation: &mut Compilation) -> Result<()> {
             .to_rspack_result()?
         };
 
-        let minimized_source = if let Some(mut source_map) = source_map {
+        let mut minimized_source = if let Some(mut source_map) = source_map {
           SourceMapSource::new(SourceMapSourceOptions {
             value: result.code,
             name: filename,
@@ -268,7 +285,7 @@ async fn process_assets(&self, compilation: &mut Compilation) -> Result<()> {
                 .to_rspack_result()?,
             )
             .expect("should be able to generate source-map"),
-            original_source: Some(Arc::from(input)),
+            original_source: Some(Arc::from(original_input)),
             inner_source_map: input_source_map,
             remove_original_source: true,
           })
@@ -277,15 +294,260 @@ async fn process_assets(&self, compilation: &mut Compilation) -> Result<()> {
           RawStringSource::from(result.code).boxed()
         };
 
+        let mut updated_real_content_hash_record = None;
+        if let Some(record) = record {
+          let (restored_source, updated_record) =
+            restore_real_content_hash_markers(minimized_source, record, &real_content_hash_markers)?;
+          minimized_source = restored_source;
+          updated_real_content_hash_record = updated_record;
+        }
+
         original.set_source(Some(minimized_source));
+        if let Some(record) = updated_real_content_hash_record {
+          updated_real_content_hash_records
+            .lock()
+            .expect("updated_real_content_hash_records lock failed")
+            .insert(filename.clone(), record);
+        }
       }
       original.get_info_mut().minimized.replace(true);
       Ok(())
     }).map_err(MinifyError)?;
 
   compilation.extend_diagnostics(all_warnings.into_inner().expect("should lock"));
+  if compilation.options.optimization.real_content_hash {
+    for (filename, record) in updated_real_content_hash_records
+      .into_inner()
+      .expect("updated_real_content_hash_records lock failed")
+    {
+      if let Some(existing) = compilation
+        .real_content_hash_artifact
+        .asset_records
+        .get_mut(&filename)
+      {
+        *existing = record;
+      }
+    }
+  }
 
   Ok(())
+}
+
+#[derive(Debug)]
+struct RealContentHashMarker {
+  replacement_index: usize,
+  old_hash: String,
+  marker: String,
+}
+
+fn mark_real_content_hash_replacements(
+  record: Option<&AssetHashRecord>,
+  mut input: String,
+  filename: &str,
+) -> Result<(String, Vec<RealContentHashMarker>)> {
+  let Some(record) = record else {
+    return Ok((input, Vec::new()));
+  };
+
+  let mut markers = Vec::new();
+  for (replacement_index, replacement) in record.replacements.iter().enumerate() {
+    if !matches!(
+      replacement.kind,
+      ContentHashReplacementKind::Source | ContentHashReplacementKind::Custom
+    ) {
+      continue;
+    }
+    let Some(range) = &replacement.range else {
+      return Err(rspack_error::error!(
+        "InvalidRealContentHashReplacementCoverage: asset '{}' has a {:?} content hash replacement for '{}' without a source range before CSS minimization",
+        filename,
+        replacement.kind,
+        replacement.old_hash
+      ));
+    };
+    let (Ok(start), Ok(end)) = (usize::try_from(range.start), usize::try_from(range.end)) else {
+      return Err(rspack_error::error!(
+        "InvalidRealContentHashReplacementCoverage: asset '{}' has an invalid {:?} content hash replacement range for '{}' before CSS minimization",
+        filename,
+        replacement.kind,
+        replacement.old_hash
+      ));
+    };
+    if input.get(start..end) != Some(replacement.old_hash.as_str()) {
+      return Err(rspack_error::error!(
+        "InvalidRealContentHashReplacementCoverage: asset '{}' has a stale {:?} content hash replacement range for '{}' before CSS minimization",
+        filename,
+        replacement.kind,
+        replacement.old_hash
+      ));
+    }
+    let Some(marker) =
+      real_content_hash_marker(&input, replacement_index, start..end, &replacement.old_hash)
+    else {
+      return Ok((input, Vec::new()));
+    };
+    markers.push((
+      start..end,
+      RealContentHashMarker {
+        replacement_index,
+        old_hash: replacement.old_hash.clone(),
+        marker,
+      },
+    ));
+  }
+
+  markers.sort_unstable_by(|(a, _), (b, _)| b.start.cmp(&a.start).then_with(|| b.end.cmp(&a.end)));
+  for (range, marker) in &markers {
+    input.replace_range(range.clone(), &marker.marker);
+  }
+
+  Ok((
+    input,
+    markers.into_iter().map(|(_, marker)| marker).collect(),
+  ))
+}
+
+fn restore_real_content_hash_markers(
+  source: BoxSource,
+  record: &AssetHashRecord,
+  markers: &[RealContentHashMarker],
+) -> Result<(BoxSource, Option<AssetHashRecord>)> {
+  if markers.is_empty() {
+    return Ok((source, None));
+  }
+
+  let content = source.buffer();
+  let mut marker_ranges = Vec::new();
+  let mut removed_markers = Vec::new();
+  for marker in markers {
+    let ranges = find_marker_ranges(&content, marker.marker.as_bytes());
+    if ranges.is_empty() {
+      removed_markers.push(marker);
+      continue;
+    }
+    if ranges.len() != 1 {
+      return Err(rspack_error::error!(
+        "InvalidRealContentHashReplacementCoverage: expected exactly one preserved CSS minimizer marker for content hash '{}' but found {}",
+        marker.old_hash,
+        ranges.len()
+      ));
+    }
+    for range in ranges {
+      marker_ranges.push((range, marker));
+    }
+  }
+  marker_ranges.sort_unstable_by_key(|(range, _)| (range.start, range.end));
+
+  let mut replace_source = ReplaceSource::new(source);
+  let mut updated = record.clone();
+  for marker in removed_markers {
+    if let Some(replacement) = updated.replacements.get(marker.replacement_index).cloned()
+      && let Some(reference_index) = updated.references.iter().position(|reference| {
+        reference.referenced_hash == replacement.old_hash
+          && reference_replacement_kind(reference.kind) == Some(replacement.kind)
+      })
+    {
+      updated.references.remove(reference_index);
+    }
+    if let Some(replacement) = updated.replacements.get_mut(marker.replacement_index) {
+      replacement.range = None;
+    }
+  }
+  let mut removed_bytes = 0usize;
+  for (range, marker) in marker_ranges {
+    replace_source.replace(
+      u32::try_from(range.start).expect("marker range start should fit in u32"),
+      u32::try_from(range.end).expect("marker range end should fit in u32"),
+      marker.old_hash.clone(),
+      None,
+    );
+    let final_start = range.start - removed_bytes;
+    let final_end = final_start + marker.old_hash.len();
+    if let Some(replacement) = updated.replacements.get_mut(marker.replacement_index) {
+      replacement.range = Some(
+        u32::try_from(final_start).expect("replacement range start should fit in u32")
+          ..u32::try_from(final_end).expect("replacement range end should fit in u32"),
+      );
+    }
+    removed_bytes += marker.marker.len() - marker.old_hash.len();
+  }
+  updated
+    .replacements
+    .retain(|replacement| replacement.range.is_some());
+
+  Ok((replace_source.boxed(), Some(updated)))
+}
+
+fn real_content_hash_marker(
+  input: &str,
+  index: usize,
+  range: Range<usize>,
+  old_hash: &str,
+) -> Option<String> {
+  const MARKER_ALPHABET: &[u8] =
+    b"0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_$";
+
+  if old_hash.is_empty() {
+    return None;
+  }
+
+  for salt in 0..128 {
+    let mut hasher = FxHasher::default();
+    input.hash(&mut hasher);
+    index.hash(&mut hasher);
+    range.start.hash(&mut hasher);
+    range.end.hash(&mut hasher);
+    old_hash.hash(&mut hasher);
+    salt.hash(&mut hasher);
+
+    let mut marker = String::with_capacity(old_hash.len());
+    let mut value = hasher.finish();
+    while marker.len() < old_hash.len() {
+      let alphabet_index = (value as usize) % MARKER_ALPHABET.len();
+      marker.push(MARKER_ALPHABET[alphabet_index] as char);
+      value /= MARKER_ALPHABET.len() as u64;
+      if value == 0 {
+        salt.hash(&mut hasher);
+        marker.len().hash(&mut hasher);
+        value = hasher.finish();
+      }
+    }
+    if marker == old_hash {
+      continue;
+    }
+    if !input.contains(&marker) {
+      return Some(marker);
+    }
+  }
+  None
+}
+
+fn reference_replacement_kind(
+  kind: rspack_core::ContentHashReferenceKind,
+) -> Option<ContentHashReplacementKind> {
+  match kind {
+    rspack_core::ContentHashReferenceKind::Source => Some(ContentHashReplacementKind::Source),
+    rspack_core::ContentHashReferenceKind::Custom => Some(ContentHashReplacementKind::Custom),
+    rspack_core::ContentHashReferenceKind::Filename => None,
+  }
+}
+
+fn find_marker_ranges(content: &[u8], marker: &[u8]) -> Vec<Range<usize>> {
+  let mut ranges = Vec::new();
+  if marker.is_empty() || marker.len() > content.len() {
+    return ranges;
+  }
+
+  let mut index = 0;
+  while index + marker.len() <= content.len() {
+    if content[index..].starts_with(marker) {
+      ranges.push(index..index + marker.len());
+      index += marker.len();
+      continue;
+    }
+    index += 1;
+  }
+  ranges
 }
 
 impl Plugin for LightningCssMinimizerRspackPlugin {

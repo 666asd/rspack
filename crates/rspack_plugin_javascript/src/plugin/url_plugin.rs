@@ -1,10 +1,11 @@
 use std::sync::Arc;
 
 use rspack_core::{
-  ChunkInitFragments, ChunkUkey, CodeGenerationDataFilename, Compilation, CompilationParams,
-  CompilerCompilation, DependencyId, JavascriptParserUrl, Module, ModuleType,
-  NormalModuleFactoryParser, ParserAndGenerator, ParserOptions, Plugin, RuntimeCodeTemplate,
-  URLStaticMode, rspack_sources::ReplaceSource,
+  ChunkInitFragments, ChunkUkey, CodeGenerationDataAssetInfo, CodeGenerationDataFilename,
+  Compilation, CompilationParams, CompilerCompilation, DependencyId, JavascriptParserUrl, Module,
+  ModuleType, NormalModuleFactoryParser, ParserAndGenerator, ParserOptions, Plugin,
+  RuntimeCodeTemplate, URLStaticMode, record_source_content_hash_references,
+  rspack_sources::ReplaceSource,
 };
 use rspack_error::Result;
 use rspack_hook::{plugin, plugin_hook};
@@ -81,6 +82,7 @@ async fn render_module_content(
       .find_iter(&content)
       .map(|cap| (cap.start(), cap.end()));
 
+    let mut offset = 0i64;
     for (start, end) in replacement {
       let dep_id = &content[start + URL_STATIC_PLACEHOLDER.len()..end];
       let dep_id: DependencyId = dep_id
@@ -97,12 +99,25 @@ async fn render_module_content(
         unreachable!()
       };
 
-      replace_source.replace(
-        start as u32,
-        end as u32,
-        filename.filename().to_string(),
-        None,
-      );
+      let filename = filename.filename().to_string();
+      let replacement_start = i64::try_from(start)
+        .expect("URL placeholder start should fit in i64")
+        .checked_add(offset)
+        .expect("URL replacement offset should fit in i64");
+      if compilation.options.optimization.real_content_hash
+        && let Some(asset_info) = codegen_result.data.get::<CodeGenerationDataAssetInfo>()
+        && let Ok(replacement_start) = u32::try_from(replacement_start)
+      {
+        record_source_content_hash_references(
+          &mut render_source.real_content_hashes,
+          &filename,
+          replacement_start,
+          asset_info.inner().content_hash.iter(),
+        );
+      }
+      offset += i64::try_from(filename.len()).expect("asset filename length should fit in i64")
+        - i64::try_from(end - start).expect("URL placeholder length should fit in i64");
+      replace_source.replace(start as u32, end as u32, filename, None);
     }
 
     render_source.source = Arc::new(replace_source);

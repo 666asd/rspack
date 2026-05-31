@@ -9,13 +9,13 @@ use std::{
 use atomic_refcell::AtomicRefCell;
 use rspack_core::{
   AssetHashRecord, AssetInfo, Chunk, ChunkGraph, ChunkKind, ChunkLoading, ChunkLoadingType,
-  ChunkUkey, Compilation, CompilationContentHash, CompilationId, CompilationParams,
-  CompilationRenderManifest, CompilationRuntimeRequirementInTree, CompilerCompilation,
-  CssModuleGeneratorOptions, CssModuleParserOptions, DependencyType, ManifestAssetType, Module,
-  ModuleGraph, ModuleType, ParserAndGenerator, PathData, Plugin, PublicPath, RenderManifestEntry,
-  RuntimeGlobals, RuntimeModule, RuntimeModuleExt, SelfModuleFactory, SourceType,
-  get_css_chunk_filename_template, record_manifest_filename_content_hashes,
-  record_manifest_owned_content_hash,
+  ChunkUkey, CodeGenerationDataRealContentHash, Compilation, CompilationContentHash, CompilationId,
+  CompilationParams, CompilationRenderManifest, CompilationRuntimeRequirementInTree,
+  CompilerCompilation, CssModuleGeneratorOptions, CssModuleParserOptions, DependencyType,
+  ManifestAssetType, Module, ModuleGraph, ModuleType, ParserAndGenerator, PathData, Plugin,
+  PublicPath, RenderManifestEntry, RuntimeGlobals, RuntimeModule, RuntimeModuleExt,
+  SelfModuleFactory, SourceType, get_css_chunk_filename_template,
+  record_manifest_filename_content_hashes, record_manifest_owned_content_hash,
   rspack_sources::{
     BoxSource, CachedSource, ConcatSource, RawStringSource, ReplaceSource, Source, SourceExt,
   },
@@ -96,12 +96,12 @@ impl CssPlugin {
     output_path: &str,
     css_import_modules: Vec<&dyn Module>,
     css_modules: Vec<&dyn Module>,
-  ) -> Result<(BoxSource, Vec<Diagnostic>)> {
+  ) -> Result<(BoxSource, AssetHashRecord, Vec<Diagnostic>)> {
     let css_plugin_hooks = Self::get_compilation_hooks(compilation.id());
     let hooks = css_plugin_hooks.borrow();
     let (ordered_css_modules, conflicts) =
       Self::get_ordered_chunk_css_modules(chunk, compilation, css_import_modules, css_modules);
-    let source =
+    let (source, real_content_hashes) =
       Self::render_chunk_to_source(compilation, chunk, &ordered_css_modules, &hooks).await?;
 
     let content = source.source().into_string_lossy();
@@ -151,7 +151,7 @@ impl CssPlugin {
         diagnostic
       }));
     }
-    Ok((source, diagnostics))
+    Ok((source, real_content_hashes, diagnostics))
   }
 
   async fn render_chunk_to_source(
@@ -159,7 +159,7 @@ impl CssPlugin {
     chunk: &Chunk,
     ordered_css_modules: &[&dyn Module],
     hooks: &CssModulesPluginHooks,
-  ) -> rspack_error::Result<ConcatSource> {
+  ) -> rspack_error::Result<(ConcatSource, AssetHashRecord)> {
     let module_sources = ordered_css_modules
       .iter()
       .map(|module| {
@@ -225,29 +225,47 @@ impl CssPlugin {
                   )));
                 }
 
+                let source_offset = container_source.size();
                 container_source.add(cur_source.clone());
 
                 for _ in 0..num_close_bracket {
                   container_source.add(RawStringSource::from_static("\n}"));
                 }
                 container_source.add(RawStringSource::from_static("\n"));
-                CssModulesRenderSource {
-                  source: container_source.boxed(),
-                }
+                (
+                  CssModulesRenderSource {
+                    source: container_source.boxed(),
+                  },
+                  source_offset,
+                )
               };
 
               let chunk_ukey = chunk.as_u32().into();
+              let pre_package_source_size = post_module_container.0.source.size();
               hooks
                 .render_module_package
                 .call(
                   compilation,
                   &chunk_ukey,
                   debug_info.module,
-                  &mut post_module_container,
+                  &mut post_module_container.0,
                 )
                 .await?;
 
-              Ok(post_module_container.source)
+              let package_prefix_size = post_module_container
+                .0
+                .source
+                .size()
+                .saturating_sub(pre_package_source_size);
+              let mut real_content_hashes = data
+                .get::<CodeGenerationDataRealContentHash>()
+                .map(|record| record.inner().clone())
+                .unwrap_or_default();
+              real_content_hashes.shift_source_ranges(
+                u32::try_from(post_module_container.1 + package_prefix_size)
+                  .expect("CSS module wrapper and package hook prefix size should fit in u32"),
+              );
+              Ok((post_module_container.0.source, real_content_hashes))
             },
           );
         });
@@ -258,12 +276,18 @@ impl CssPlugin {
     .collect::<Result<Vec<_>>>()?;
 
     let mut source = ConcatSource::default();
+    let mut real_content_hashes = AssetHashRecord::default();
 
     for module_source in module_sources {
-      source.add(module_source?);
+      let (module_source, mut module_real_content_hashes) = module_source?;
+      module_real_content_hashes.shift_source_ranges(
+        u32::try_from(source.size()).expect("CSS chunk source size should fit in u32"),
+      );
+      real_content_hashes.extend(module_real_content_hashes);
+      source.add(module_source);
     }
 
-    Ok(source)
+    Ok((source, real_content_hashes))
   }
 }
 
@@ -472,25 +496,28 @@ async fn render_manifest(
     )
     .await?;
 
-  let (source, more_diagnostics) = compilation
-    .chunk_render_cache_artifact
-    .use_cache(compilation, chunk, &SourceType::Css, || async {
-      let (source, diagnostics) = self
-        .render_chunk(
-          compilation,
-          module_graph,
-          chunk,
-          &output_path,
-          css_import_modules,
-          css_modules,
-        )
-        .await?;
-      Ok((CachedSource::new(source).boxed(), diagnostics))
-    })
-    .await?;
-
-  diagnostics.extend(more_diagnostics);
   if compilation.options.optimization.real_content_hash {
+    let (source, chunk_real_content_hashes, more_diagnostics) = compilation
+      .chunk_render_cache_artifact
+      .use_cache_with_real_content_hashes(compilation, chunk, &SourceType::Css, || async {
+        let (source, real_content_hashes, diagnostics) = self
+          .render_chunk(
+            compilation,
+            module_graph,
+            chunk,
+            &output_path,
+            css_import_modules,
+            css_modules,
+          )
+          .await?;
+        Ok((
+          CachedSource::new(source).boxed(),
+          real_content_hashes,
+          diagnostics,
+        ))
+      })
+      .await?;
+    diagnostics.extend(more_diagnostics);
     let mut real_content_hashes = AssetHashRecord::default();
     record_manifest_owned_content_hash(&mut real_content_hashes, rendered_content_hash);
     record_manifest_filename_content_hashes(
@@ -498,11 +525,29 @@ async fn render_manifest(
       &output_path,
       asset_info.content_hash.iter(),
     );
+    real_content_hashes.extend(chunk_real_content_hashes);
     manifest.push(
       RenderManifestEntry::new(source.boxed(), output_path, false, asset_info, false)
         .with_real_content_hashes(real_content_hashes),
     );
   } else {
+    let (source, more_diagnostics) = compilation
+      .chunk_render_cache_artifact
+      .use_cache(compilation, chunk, &SourceType::Css, || async {
+        let (source, _, diagnostics) = self
+          .render_chunk(
+            compilation,
+            module_graph,
+            chunk,
+            &output_path,
+            css_import_modules,
+            css_modules,
+          )
+          .await?;
+        Ok((CachedSource::new(source).boxed(), diagnostics))
+      })
+      .await?;
+    diagnostics.extend(more_diagnostics);
     manifest.push(RenderManifestEntry::new(
       source.boxed(),
       output_path,

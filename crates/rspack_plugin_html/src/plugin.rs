@@ -7,9 +7,8 @@ use std::{
 use atomic_refcell::AtomicRefCell;
 use cow_utils::CowUtils;
 use rspack_core::{
-  AssetHashRecord, Compilation, CompilationId, CompilationProcessAssets, ContentHashReference,
-  ContentHashReferenceKind, ContentHashReplacement, ContentHashReplacementKind, Filename, Plugin,
-  record_manifest_filename_content_hashes,
+  AssetHashRecord, Compilation, CompilationId, CompilationProcessAssets, Filename, Plugin,
+  record_manifest_filename_content_hashes, record_source_content_hash_references,
 };
 use rspack_error::{Diagnostic, Result};
 use rspack_hook::{plugin, plugin_hook};
@@ -320,25 +319,23 @@ fn record_html_source_content_hash_references(
   html: &str,
   compilation: &Compilation,
 ) {
-  let mut content_hashes = compilation
+  let mut assets = compilation
     .assets()
-    .values()
-    .flat_map(|asset| asset.info.content_hash.iter())
+    .iter()
+    .filter(|(_, asset)| !asset.info.content_hash.is_empty())
     .collect::<Vec<_>>();
-  content_hashes.sort_unstable();
-  content_hashes.dedup();
-  content_hashes.sort_by_key(|hash| std::cmp::Reverse(hash.len()));
+  assets.sort_unstable_by(|(a, _), (b, _)| b.len().cmp(&a.len()).then_with(|| a.cmp(b)));
 
   let mut occupied_ranges = Vec::<std::ops::Range<u32>>::new();
-  for content_hash in content_hashes {
-    if content_hash.is_empty() {
+  for (asset_name, asset) in assets {
+    if asset_name.is_empty() {
       continue;
     }
     let mut remaining = html;
     let mut offset = 0usize;
-    while let Some((before, after)) = remaining.split_once(content_hash) {
+    while let Some((before, after)) = remaining.split_once(asset_name.as_str()) {
       let start = offset + before.len();
-      let end = start + content_hash.len();
+      let end = start + asset_name.len();
       let (Ok(start_u32), Ok(end_u32)) = (u32::try_from(start), u32::try_from(end)) else {
         remaining = after;
         offset = end;
@@ -353,19 +350,12 @@ fn record_html_source_content_hash_references(
         continue;
       }
 
-      record.references.push(ContentHashReference {
-        referenced_hash: content_hash.clone(),
-        owner_hash: None,
-        referenced_chunk: None,
-        referenced_source_type: None,
-        kind: ContentHashReferenceKind::Source,
-        replacement_only: false,
-      });
-      record.replacements.push(ContentHashReplacement {
-        old_hash: content_hash.clone(),
-        range: Some(start_u32..end_u32),
-        kind: ContentHashReplacementKind::Source,
-      });
+      record_source_content_hash_references(
+        record,
+        asset_name.as_str(),
+        start_u32,
+        asset.info.content_hash.iter(),
+      );
       occupied_ranges.push(start_u32..end_u32);
       remaining = after;
       offset = end;

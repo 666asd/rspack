@@ -655,8 +655,13 @@ fn restore_real_content_hash_markers(
 
   let content = source.buffer();
   let mut marker_ranges = Vec::new();
+  let mut removed_markers = Vec::new();
   for marker in markers {
     let ranges = find_marker_ranges(&content, marker.marker.as_bytes());
+    if ranges.is_empty() {
+      removed_markers.push(marker);
+      continue;
+    }
     if ranges.len() != 1 {
       return Err(rspack_error::error!(
         "InvalidRealContentHashReplacementCoverage: expected exactly one preserved minimizer marker for content hash '{}' but found {}",
@@ -672,6 +677,19 @@ fn restore_real_content_hash_markers(
 
   let mut replace_source = ReplaceSource::new(source);
   let mut updated = record.clone();
+  for marker in removed_markers {
+    if let Some(replacement) = updated.replacements.get(marker.replacement_index).cloned()
+      && let Some(reference_index) = updated.references.iter().position(|reference| {
+        reference.referenced_hash == replacement.old_hash
+          && reference_replacement_kind(reference.kind) == Some(replacement.kind)
+      })
+    {
+      updated.references.remove(reference_index);
+    }
+    if let Some(replacement) = updated.replacements.get_mut(marker.replacement_index) {
+      replacement.range = None;
+    }
+  }
   let mut removed_bytes = 0usize;
   for (range, marker) in marker_ranges {
     replace_source.replace(
@@ -690,6 +708,9 @@ fn restore_real_content_hash_markers(
     }
     removed_bytes += marker.marker.len() - marker.old_hash.len();
   }
+  updated
+    .replacements
+    .retain(|replacement| replacement.range.is_some());
 
   Ok((replace_source.boxed(), Some(updated)))
 }
@@ -700,7 +721,14 @@ fn real_content_hash_marker(
   range: Range<usize>,
   old_hash: &str,
 ) -> Option<String> {
-  for salt in 0..32 {
+  const MARKER_ALPHABET: &[u8] =
+    b"0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_$";
+
+  if old_hash.is_empty() {
+    return None;
+  }
+
+  for salt in 0..128 {
     let mut hasher = FxHasher::default();
     input.hash(&mut hasher);
     index.hash(&mut hasher);
@@ -709,12 +737,20 @@ fn real_content_hash_marker(
     old_hash.hash(&mut hasher);
     salt.hash(&mut hasher);
 
-    let mut marker = format!(
-      "__RSPACK_REAL_CONTENT_HASH_MARKER_{index}_{:016x}_{salt}__",
-      hasher.finish()
-    );
-    while marker.len() <= old_hash.len() {
-      marker.push_str("RCHMARKER");
+    let mut marker = String::with_capacity(old_hash.len());
+    let mut value = hasher.finish();
+    while marker.len() < old_hash.len() {
+      let alphabet_index = (value as usize) % MARKER_ALPHABET.len();
+      marker.push(MARKER_ALPHABET[alphabet_index] as char);
+      value /= MARKER_ALPHABET.len() as u64;
+      if value == 0 {
+        salt.hash(&mut hasher);
+        marker.len().hash(&mut hasher);
+        value = hasher.finish();
+      }
+    }
+    if marker == old_hash {
+      continue;
     }
     if !input.contains(&marker) {
       return Some(marker);
@@ -723,11 +759,25 @@ fn real_content_hash_marker(
   None
 }
 
+fn reference_replacement_kind(
+  kind: rspack_core::ContentHashReferenceKind,
+) -> Option<ContentHashReplacementKind> {
+  match kind {
+    rspack_core::ContentHashReferenceKind::Source => Some(ContentHashReplacementKind::Source),
+    rspack_core::ContentHashReferenceKind::Custom => Some(ContentHashReplacementKind::Custom),
+    rspack_core::ContentHashReferenceKind::Filename => None,
+  }
+}
+
 #[cfg(test)]
 fn deterministic_real_content_hash_marker(index: usize, old_hash_len: usize) -> String {
-  let mut marker = format!("__RSPACK_REAL_CONTENT_HASH_MARKER_{index}__");
-  while marker.len() <= old_hash_len {
-    marker.push_str("RCHMARKER");
+  const MARKER_ALPHABET: &[u8] =
+    b"0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_$";
+
+  let mut marker = String::with_capacity(old_hash_len);
+  while marker.len() < old_hash_len {
+    let alphabet_index = (index + marker.len()) % MARKER_ALPHABET.len();
+    marker.push(MARKER_ALPHABET[alphabet_index] as char);
   }
   marker
 }
@@ -810,7 +860,7 @@ mod tests {
       mark_real_content_hash_replacements(Some(&record), input.clone(), "asset.js")
         .expect("valid source range should markerize");
     assert_eq!(markers.len(), 1);
-    assert!(markers[0].marker.len() > old_hash.len());
+    assert_eq!(markers[0].marker.len(), old_hash.len());
 
     let (restored, updated_record) =
       restore_real_content_hash_markers(RawStringSource::from(marked).boxed(), &record, &markers)
@@ -819,6 +869,33 @@ mod tests {
     assert_eq!(restored.source().into_string_lossy(), input);
     let updated_record = updated_record.expect("marker should update replacement range");
     assert_eq!(updated_record.replacements[0].range, Some(7..71));
+  }
+
+  #[test]
+  fn real_content_hash_markers_preserve_short_hash_byte_length() {
+    let input = "var h='abcd';var after='still mapped';".to_string();
+    let mut record = AssetHashRecord::default();
+    record.replacements.push(ContentHashReplacement {
+      old_hash: "abcd".to_string(),
+      range: Some(7..11),
+      kind: ContentHashReplacementKind::Source,
+    });
+
+    let (marked, markers) =
+      mark_real_content_hash_replacements(Some(&record), input.clone(), "asset.js")
+        .expect("valid source range should markerize");
+
+    assert_eq!(marked.len(), input.len());
+    assert_eq!(markers.len(), 1);
+    assert_eq!(markers[0].marker.len(), 4);
+
+    let (restored, updated_record) =
+      restore_real_content_hash_markers(RawStringSource::from(marked).boxed(), &record, &markers)
+        .expect("markers should restore");
+
+    assert_eq!(restored.source().into_string_lossy(), input);
+    let updated_record = updated_record.expect("marker should update replacement range");
+    assert_eq!(updated_record.replacements[0].range, Some(7..11));
   }
 
   #[test]
@@ -850,7 +927,7 @@ mod tests {
   }
 
   #[test]
-  fn real_content_hash_marker_restore_rejects_missing_markers() {
+  fn real_content_hash_marker_restore_drops_removed_markers() {
     let input = "var a='aaaa';var b='bbbb';".to_string();
     let mut record = AssetHashRecord::default();
     record.replacements.push(ContentHashReplacement {
@@ -868,19 +945,25 @@ mod tests {
       mark_real_content_hash_replacements(Some(&record), input, "asset.js")
         .expect("valid source range should markerize");
     assert_eq!(markers.len(), 2);
+    let removed_marker = markers
+      .iter()
+      .find(|marker| marker.old_hash == "aaaa")
+      .expect("first hash marker should exist");
     marked = marked
-      .cow_replace(&markers[0].marker, &markers[0].old_hash)
+      .cow_replace(&removed_marker.marker, &removed_marker.old_hash)
       .into_owned();
 
-    let err =
+    let (restored, updated_record) =
       restore_real_content_hash_markers(RawStringSource::from(marked).boxed(), &record, &markers)
-        .expect_err("missing marker should fail");
+        .expect("missing marker should be treated as removed code");
 
-    assert!(
-      err
-        .to_string()
-        .contains("InvalidRealContentHashReplacementCoverage")
+    assert_eq!(
+      restored.source().into_string_lossy(),
+      "var a='aaaa';var b='bbbb';"
     );
+    let updated_record = updated_record.expect("surviving marker should keep the record");
+    assert_eq!(updated_record.replacements.len(), 1);
+    assert_eq!(updated_record.replacements[0].old_hash, "bbbb");
   }
 
   #[test]

@@ -1,10 +1,11 @@
 use cow_utils::CowUtils;
 use rspack_cacheable::{cacheable, cacheable_dyn};
 use rspack_core::{
-  AsContextDependency, CodeGenerationDataFilename, CodeGenerationDataUrl, Compilation, Dependency,
+  AsContextDependency, CodeGenerationDataAssetInfo, CodeGenerationDataFilename,
+  CodeGenerationDataRealContentHash, CodeGenerationDataUrl, Compilation, Dependency,
   DependencyCategory, DependencyCodeGeneration, DependencyId, DependencyRange, DependencyTemplate,
   DependencyTemplateType, DependencyType, FactorizeInfo, ModuleDependency, ModuleIdentifier,
-  TemplateContext, TemplateReplaceSource,
+  TemplateContext, TemplateReplaceSource, record_source_content_hash_references,
 };
 
 use crate::utils::{AUTO_PUBLIC_PATH_PLACEHOLDER, css_escape_string};
@@ -108,6 +109,11 @@ impl AsContextDependency for CssUrlDependency {}
 #[derive(Debug, Clone, Default)]
 pub struct CssUrlDependencyTemplate;
 
+#[derive(Clone, Debug, Default)]
+struct CodeGenerationDataCssUrlReplacementOffset {
+  offset: i64,
+}
+
 impl CssUrlDependencyTemplate {
   pub fn template_type() -> DependencyTemplateType {
     DependencyTemplateType::Dependency(DependencyType::CssUrl)
@@ -138,6 +144,47 @@ impl DependencyTemplate for CssUrlDependencyTemplate {
       } else {
         target_url
       };
+      if compilation.options.optimization.real_content_hash {
+        let offset = code_generatable_context
+          .data
+          .get::<CodeGenerationDataCssUrlReplacementOffset>()
+          .map(|data| data.offset)
+          .unwrap_or_default();
+        let replacement_start = i64::from(dep.range.start)
+          .checked_add(offset)
+          .expect("CSS url replacement offset should fit in i64");
+        let code_gen_result = compilation
+          .code_generation_results
+          .get_one(&mgm.module_identifier);
+        if let Some(asset_info) = code_gen_result.data.get::<CodeGenerationDataAssetInfo>()
+          && let Ok(replacement_start) = u32::try_from(replacement_start)
+        {
+          let mut real_content_hashes = code_generatable_context
+            .data
+            .get::<CodeGenerationDataRealContentHash>()
+            .cloned()
+            .unwrap_or_default();
+          record_source_content_hash_references(
+            real_content_hashes.inner_mut(),
+            &content,
+            replacement_start,
+            asset_info.inner().content_hash.iter(),
+          );
+          code_generatable_context.data.insert(real_content_hashes);
+        }
+        let original_len = i64::from(dep.range.end)
+          .checked_sub(i64::from(dep.range.start))
+          .expect("CSS url replacement range length should fit in i64");
+        let offset = offset
+          .checked_add(
+            i64::try_from(content.len()).expect("CSS url replacement length should fit in i64")
+              - original_len,
+          )
+          .expect("CSS url replacement offset should fit in i64");
+        code_generatable_context
+          .data
+          .insert(CodeGenerationDataCssUrlReplacementOffset { offset });
+      }
       source.replace(dep.range.start, dep.range.end, content, None);
     }
   }

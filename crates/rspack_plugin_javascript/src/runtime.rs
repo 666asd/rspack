@@ -1,8 +1,8 @@
 use rayon::prelude::*;
 use rspack_core::{
-  AssetHashRecord, ChunkGraph, ChunkInitFragments, ChunkUkey, CodeGenerationPublicPathAutoReplace,
-  Compilation, Module, ModuleCodeGenerationContext, RuntimeCodeTemplate, RuntimeGlobals,
-  RuntimeModuleGenerateContext, SourceType,
+  AssetHashRecord, ChunkGraph, ChunkInitFragments, ChunkUkey, CodeGenerationDataRealContentHash,
+  CodeGenerationPublicPathAutoReplace, Compilation, Module, ModuleCodeGenerationContext,
+  RuntimeCodeTemplate, RuntimeGlobals, RuntimeModuleGenerateContext, SourceType,
   chunk_graph_chunk::ChunkIdSet,
   get_undo_path,
   rspack_sources::{BoxSource, ConcatSource, RawStringSource, ReplaceSource, Source, SourceExt},
@@ -26,7 +26,7 @@ pub async fn render_chunk_modules(
   output_path: &str,
   hooks: &JavascriptModulesPluginHooks,
   runtime_template: &RuntimeCodeTemplate<'_>,
-) -> Result<Option<(BoxSource, ChunkInitFragments)>> {
+) -> Result<Option<(BoxSource, ChunkInitFragments, AssetHashRecord)>> {
   let module_sources = rspack_parallel::scope::<_, _>(|token| {
     ordered_modules.iter().for_each(|module| {
       let s = unsafe {
@@ -53,7 +53,7 @@ pub async fn render_chunk_modules(
             runtime_template
           )
           .await
-          .map(|result| result.map(|(s, f, a)| (module.identifier(), s, f, a)))
+          .map(|result| result.map(|(s, f, a, r)| (module.identifier(), s, f, a, r)))
         },
       );
     });
@@ -74,20 +74,36 @@ pub async fn render_chunk_modules(
     return Ok(None);
   }
 
-  module_code_array.sort_unstable_by_key(|(module_identifier, _, _, _)| *module_identifier);
+  module_code_array.sort_unstable_by_key(|(module_identifier, _, _, _, _)| *module_identifier);
 
   let chunk_init_fragments = module_code_array.iter().fold(
     ChunkInitFragments::default(),
-    |mut chunk_init_fragments, (_, _, fragments, additional_fragments)| {
+    |mut chunk_init_fragments, (_, _, fragments, additional_fragments, _)| {
       chunk_init_fragments.extend((*fragments).clone());
       chunk_init_fragments.extend(additional_fragments.clone());
       chunk_init_fragments
     },
   );
 
+  let real_content_hash = compilation.options.optimization.real_content_hash;
+  let mut real_content_hashes = AssetHashRecord::default();
   let module_sources: Vec<_> = module_code_array
     .into_iter()
-    .map(|(_, source, _, _)| source)
+    .map(|(_, source, _, _, module_real_content_hashes)| (source, module_real_content_hashes))
+    .collect();
+  let mut source_offset = 2u32;
+  let module_sources: Vec<_> = module_sources
+    .into_iter()
+    .map(|(source, mut module_real_content_hashes)| {
+      if real_content_hash {
+        module_real_content_hashes.shift_source_ranges(source_offset);
+        real_content_hashes.extend(module_real_content_hashes);
+        source_offset = source_offset
+          .checked_add(u32::try_from(source.size()).expect("module source size should fit in u32"))
+          .expect("chunk modules source size should fit in u32");
+      }
+      source
+    })
     .collect();
   let module_sources = module_sources
     .into_par_iter()
@@ -102,7 +118,11 @@ pub async fn render_chunk_modules(
   sources.add(ConcatSource::new(module_sources));
   sources.add(RawStringSource::from_static("\n}"));
 
-  Ok(Some((sources.boxed(), chunk_init_fragments)))
+  Ok(Some((
+    sources.boxed(),
+    chunk_init_fragments,
+    real_content_hashes,
+  )))
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -115,7 +135,14 @@ pub async fn render_module(
   output_path: &str,
   hooks: &JavascriptModulesPluginHooks,
   runtime_template: &RuntimeCodeTemplate<'_>,
-) -> Result<Option<(BoxSource, ChunkInitFragments, ChunkInitFragments)>> {
+) -> Result<
+  Option<(
+    BoxSource,
+    ChunkInitFragments,
+    ChunkInitFragments,
+    AssetHashRecord,
+  )>,
+> {
   let chunk = compilation
     .build_chunk_graph_artifact
     .chunk_by_ukey
@@ -131,6 +158,11 @@ pub async fn render_module(
     Some(fragments) => fragments.clone(),
     None => ChunkInitFragments::default(),
   };
+  let mut real_content_hashes = code_gen_result
+    .data
+    .get::<CodeGenerationDataRealContentHash>()
+    .map(|record| record.inner().clone())
+    .unwrap_or_default();
 
   let mut render_source = if code_gen_result
     .data
@@ -184,6 +216,8 @@ pub async fn render_module(
       runtime_template,
     )
     .await?;
+  real_content_hashes.extend(render_source.real_content_hashes);
+  render_source.real_content_hashes = real_content_hashes;
 
   let sources = if factory {
     let mut sources = ConcatSource::default();
@@ -243,6 +277,10 @@ pub async fn render_module(
       if module.build_info().strict && !all_strict {
         container_sources.add(RawStringSource::from_static("\"use strict\";\n"));
       }
+      render_source.real_content_hashes.shift_source_ranges(
+        u32::try_from(container_sources.size())
+          .expect("module container prefix size should fit in u32"),
+      );
       container_sources.add(render_source.source);
 
       if use_method_shorthand {
@@ -251,7 +289,10 @@ pub async fn render_module(
         container_sources.add(RawStringSource::from_static("\n\n}),\n"));
       }
 
-      RenderSource::new(container_sources.boxed())
+      RenderSource::with_real_content_hashes(
+        container_sources.boxed(),
+        render_source.real_content_hashes,
+      )
     };
 
     hooks
@@ -268,6 +309,7 @@ pub async fn render_module(
 
     let mut post_module_package = post_module_container;
 
+    let pre_package_source_size = post_module_package.source.size();
     hooks
       .render_module_package
       .call(
@@ -280,9 +322,20 @@ pub async fn render_module(
       )
       .await?;
 
+    let package_prefix_size = post_module_package
+      .source
+      .size()
+      .saturating_sub(pre_package_source_size);
+    let mut package_real_content_hashes = post_module_package.real_content_hashes;
+    package_real_content_hashes.shift_source_ranges(
+      u32::try_from(sources.size() + package_prefix_size)
+        .expect("module factory and package hook prefix size should fit in u32"),
+    );
+    real_content_hashes = package_real_content_hashes;
     sources.add(post_module_package.source);
     sources.boxed()
   } else {
+    let pre_package_source_size = render_source.source.size();
     hooks
       .render_module_package
       .call(
@@ -295,6 +348,14 @@ pub async fn render_module(
       )
       .await?;
 
+    let package_prefix_size = render_source
+      .source
+      .size()
+      .saturating_sub(pre_package_source_size);
+    real_content_hashes = render_source.real_content_hashes;
+    real_content_hashes.shift_source_ranges(
+      u32::try_from(package_prefix_size).expect("package hook prefix size should fit in u32"),
+    );
     render_source.source
   };
 
@@ -302,6 +363,7 @@ pub async fn render_module(
     sources,
     code_gen_result.chunk_init_fragments.clone(),
     module_chunk_init_fragments,
+    real_content_hashes,
   )))
 }
 

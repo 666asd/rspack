@@ -768,8 +768,25 @@ var {} = {{}};
       || runtime_requirements.contains(RuntimeGlobals::REQUIRE)
     {
       let chunk_modules_source =
-        if let Some((chunk_modules_source, fragments)) = chunk_modules_result {
+        if let Some((chunk_modules_source, fragments, mut module_real_content_hashes)) =
+          chunk_modules_result
+        {
           chunk_init_fragments.extend(fragments);
+          if real_content_hash {
+            module_real_content_hashes.shift_source_ranges(
+              u32::try_from(sources.size())
+                .expect("rendered JS modules prefix size should fit in u32")
+                + u32::try_from(
+                  format!(
+                    "var {} = (",
+                    runtime_template.render_runtime_variable(&RuntimeVariable::Modules)
+                  )
+                  .len(),
+                )
+                .expect("rendered JS modules wrapper size should fit in u32"),
+            );
+            real_content_hashes.extend(module_real_content_hashes);
+          }
           chunk_modules_source
         } else {
           RawStringSource::from_static("{}").boxed()
@@ -838,7 +855,12 @@ var {} = {{}};
         let m = module_graph
           .module_by_identifier(m_identifier)
           .expect("should have module");
-        let Some((mut rendered_module, fragments, additional_fragments)) = render_module(
+        let Some((
+          mut rendered_module,
+          fragments,
+          additional_fragments,
+          mut module_real_content_hashes,
+        )) = render_module(
           compilation,
           chunk_ukey,
           m.as_ref(),
@@ -922,6 +944,12 @@ var {} = {{}};
               runtime_template.render_runtime_globals(&RuntimeGlobals::EXPORTS)
             )));
           }
+        }
+        if real_content_hash {
+          module_real_content_hashes.shift_source_ranges(
+            u32::try_from(startup_sources.size()).expect("startup module offset should fit in u32"),
+          );
+          real_content_hashes.extend(module_real_content_hashes);
         }
         startup_sources.add(rendered_module);
         startup_sources.add(RawStringSource::from(footer));
@@ -1416,7 +1444,7 @@ var {} = {{}};
         all_strict = true;
       }
     }
-    let (chunk_modules_source, chunk_init_fragments) = render_chunk_modules(
+    let (chunk_modules_source, chunk_init_fragments, real_content_hashes) = render_chunk_modules(
       compilation,
       chunk_ukey,
       &chunk_modules,
@@ -1426,8 +1454,18 @@ var {} = {{}};
       runtime_template,
     )
     .await?
-    .unwrap_or_else(|| (RawStringSource::from_static("{}").boxed(), Vec::new()));
-    let mut render_source = RenderSource::new(chunk_modules_source);
+    .unwrap_or_else(|| {
+      (
+        RawStringSource::from_static("{}").boxed(),
+        Vec::new(),
+        Default::default(),
+      )
+    });
+    let mut render_source = if real_content_hash {
+      RenderSource::with_real_content_hashes(chunk_modules_source, real_content_hashes)
+    } else {
+      RenderSource::new(chunk_modules_source)
+    };
     hooks
       .render_chunk
       .call(

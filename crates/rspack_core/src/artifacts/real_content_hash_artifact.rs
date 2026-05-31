@@ -106,6 +106,71 @@ pub fn record_manifest_filename_content_hashes<'a>(
   }
 }
 
+pub fn record_source_content_hash_references<'a>(
+  record: &mut AssetHashRecord,
+  source: &str,
+  source_offset: u32,
+  content_hashes: impl IntoIterator<Item = &'a String>,
+) {
+  let mut content_hashes = content_hashes.into_iter().collect::<Vec<_>>();
+  content_hashes.sort_by_key(|b| Reverse(b.len()));
+  content_hashes.dedup();
+
+  let mut occupied_ranges: Vec<Range<u32>> = Vec::new();
+  for content_hash in content_hashes {
+    if content_hash.is_empty() {
+      continue;
+    }
+
+    let mut remaining = source;
+    let mut offset = 0usize;
+    while let Some((before, after)) = remaining.split_once(content_hash) {
+      let start = offset + before.len();
+      let end = start + content_hash.len();
+      let (Ok(start_u32), Ok(end_u32)) = (u32::try_from(start), u32::try_from(end)) else {
+        remaining = after;
+        offset = end;
+        continue;
+      };
+      let Some(start_u32) = start_u32.checked_add(source_offset) else {
+        remaining = after;
+        offset = end;
+        continue;
+      };
+      let Some(end_u32) = end_u32.checked_add(source_offset) else {
+        remaining = after;
+        offset = end;
+        continue;
+      };
+      if occupied_ranges
+        .iter()
+        .any(|range| range.start < end_u32 && start_u32 < range.end)
+      {
+        remaining = after;
+        offset = end;
+        continue;
+      }
+
+      record.references.push(ContentHashReference {
+        referenced_hash: content_hash.clone(),
+        owner_hash: None,
+        referenced_chunk: None,
+        referenced_source_type: None,
+        kind: ContentHashReferenceKind::Source,
+        replacement_only: false,
+      });
+      record.replacements.push(ContentHashReplacement {
+        old_hash: content_hash.clone(),
+        range: Some(start_u32..end_u32),
+        kind: ContentHashReplacementKind::Source,
+      });
+      occupied_ranges.push(start_u32..end_u32);
+      remaining = after;
+      offset = end;
+    }
+  }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ContentHashReference {
   pub referenced_hash: String,

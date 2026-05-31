@@ -961,6 +961,9 @@ impl SourceMapDevToolPlugin {
       let source_map_filename = compilation
         .get_asset_path(source_map_filename_config, data)
         .await?;
+      let rendered_source_map_content_hash = content_hash_digest_encoded.as_ref().map(|hash| {
+        rendered_hash_in_text(&source_map_filename, hash).unwrap_or_else(|| hash.clone())
+      });
 
       let (
         marked_filename,
@@ -1091,6 +1094,16 @@ impl SourceMapDevToolPlugin {
             &marker_source_mapping_url_comment,
             &source_map_filename_markers,
           );
+          if let Some(content_hash) = rendered_source_map_content_hash.as_ref() {
+            extend_non_overlapping_replacements(
+              &mut source_replacements,
+              content_hash_replacements_from_text(
+                comment_offset,
+                &current_source_mapping_url_comment,
+                std::slice::from_ref(content_hash),
+              ),
+            );
+          }
         }
         asset.source = Some(
           ConcatSource::new([
@@ -1106,8 +1119,7 @@ impl SourceMapDevToolPlugin {
       }
       let mut source_map_asset_info = AssetInfo::default().with_development(Some(true));
       let mut source_map_real_content_hashes = AssetHashRecord::default();
-      if let Some(content_hash_digest) = content_hash_digest.as_ref() {
-        let content_hash = content_hash_digest.encoded().to_string();
+      if let Some(content_hash) = rendered_source_map_content_hash {
         source_map_asset_info.set_content_hash(content_hash.clone());
         record_manifest_filename_content_hashes(
           &mut source_map_real_content_hashes,
@@ -1383,9 +1395,55 @@ fn source_mapping_url_replacements_from_markers(
   replacements
 }
 
+fn rendered_hash_in_text(text: &str, full_hash: &str) -> Option<String> {
+  (1..=full_hash.len())
+    .rev()
+    .map(|len| &full_hash[..len])
+    .find(|hash| text.contains(*hash))
+    .map(str::to_string)
+}
+
+fn content_hash_replacements_from_text(
+  text_offset: usize,
+  text: &str,
+  content_hashes: &[String],
+) -> Vec<(String, Range<u32>)> {
+  let mut replacements = Vec::new();
+  for hash in content_hashes {
+    let mut remaining = text;
+    let mut offset = 0usize;
+    while let Some((before, after)) = remaining.split_once(hash.as_str()) {
+      let start = text_offset + offset + before.len();
+      let end = start + hash.len();
+      if let (Ok(start), Ok(end)) = (u32::try_from(start), u32::try_from(end)) {
+        replacements.push((hash.clone(), start..end));
+      }
+      remaining = after;
+      offset = offset + before.len() + hash.len();
+    }
+  }
+  replacements
+}
+
+fn extend_non_overlapping_replacements(
+  replacements: &mut Vec<(String, Range<u32>)>,
+  extra_replacements: Vec<(String, Range<u32>)>,
+) {
+  for replacement in extra_replacements {
+    if replacements
+      .iter()
+      .any(|(_, range)| range.start < replacement.1.end && replacement.1.start < range.end)
+    {
+      continue;
+    }
+    replacements.push(replacement);
+  }
+}
+
 #[cfg(test)]
 mod tests {
   use super::{
+    content_hash_replacements_from_text, extend_non_overlapping_replacements,
     marker_filename_replacements, source_map_replacements_from_markers,
     source_mapping_url_replacements_from_markers,
   };
@@ -1433,6 +1491,26 @@ mod tests {
     assert_eq!(replacements.len(), 2);
     assert!(replacements.iter().any(|(hash, _)| hash == "12345678"));
     assert!(replacements.iter().any(|(hash, _)| hash == "abcdef12"));
+  }
+
+  #[test]
+  fn source_mapping_url_extra_hash_ranges_do_not_duplicate_marker_ranges() {
+    let source_map_hashes = vec!["abcdef12".to_string()];
+    let (marked_source_map_hash, markers) =
+      marker_filename_replacements("abcdef12", &source_map_hashes);
+    let comment = "\n//# sourceMappingURL=chunk.js.abcdef12.map";
+    let marker_comment = format!("\n//# sourceMappingURL=chunk.js.{marked_source_map_hash}.map");
+
+    let mut replacements =
+      source_mapping_url_replacements_from_markers(100, comment, &marker_comment, &markers);
+    extend_non_overlapping_replacements(
+      &mut replacements,
+      content_hash_replacements_from_text(100, comment, &source_map_hashes),
+    );
+
+    assert_eq!(replacements.len(), 1);
+    assert_eq!(replacements[0].0, "abcdef12");
+    assert_eq!(replacements[0].1, 131..139);
   }
 
   #[test]

@@ -3,9 +3,10 @@ use std::{borrow::Cow, sync::Arc};
 use rspack_collections::IdentifierIndexSet;
 use rspack_core::{
   AssetHashRecord, AssetInfo, Chunk, ChunkGraph, ChunkGroup, ChunkRenderContext, ChunkUkey,
-  CodeGenerationDataFilename, Compilation, ConcatenatedModuleInfo, DependencyId, InitFragment,
-  ModuleIdentifier, PathData, PathInfo, RuntimeCodeTemplate, RuntimeGlobals, RuntimeVariable,
-  SourceType, export_name, get_js_chunk_filename_template, get_undo_path, render_imports,
+  CodeGenerationDataAssetInfo, CodeGenerationDataFilename, Compilation, ConcatenatedModuleInfo,
+  DependencyId, InitFragment, ModuleIdentifier, PathData, PathInfo, RuntimeCodeTemplate,
+  RuntimeGlobals, RuntimeVariable, SourceType, export_name, get_js_chunk_filename_template,
+  get_undo_path, record_source_content_hash_references, render_imports,
   render_init_fragments_with_source_offset,
   rspack_sources::{ConcatSource, RawStringSource, ReplaceSource, Source, SourceExt},
 };
@@ -186,6 +187,8 @@ impl EsmLibraryPlugin {
 
     // modules that are not scope hoisted, store in runtime
     let mut decl_source = ConcatSource::default();
+    let real_content_hash = compilation.options.optimization.real_content_hash;
+    let mut runtime_real_content_hashes = AssetHashRecord::default();
 
     if !chunk_link.decl_modules.is_empty() {
       let hooks = JsPlugin::get_compilation_hooks(compilation.id());
@@ -197,17 +200,18 @@ impl EsmLibraryPlugin {
           .expect("should have module");
 
         let hooks = hooks.read().await;
-        let Some((module_source, init_frags, init_frags2)) = render_module(
-          compilation,
-          chunk_ukey,
-          module.as_ref(),
-          true,
-          true,
-          &output_path,
-          &hooks,
-          runtime_template,
-        )
-        .await?
+        let Some((module_source, init_frags, init_frags2, mut module_real_content_hashes)) =
+          render_module(
+            compilation,
+            chunk_ukey,
+            module.as_ref(),
+            true,
+            true,
+            &output_path,
+            &hooks,
+            runtime_template,
+          )
+          .await?
         else {
           continue;
         };
@@ -215,6 +219,12 @@ impl EsmLibraryPlugin {
 
         chunk_init_fragments.extend(init_frags);
         chunk_init_fragments.extend(init_frags2);
+        if real_content_hash {
+          module_real_content_hashes.shift_source_ranges(
+            u32::try_from(decl_inner.size()).expect("ESM decl module offset should fit in u32"),
+          );
+          runtime_real_content_hashes.extend(module_real_content_hashes);
+        }
         decl_inner.add(module_source.clone());
       }
 
@@ -226,6 +236,11 @@ impl EsmLibraryPlugin {
             &compilation.runtime_template.create_runtime_code_template()
           )
         )));
+        if real_content_hash {
+          runtime_real_content_hashes.shift_source_ranges(
+            u32::try_from(decl_source.size()).expect("ESM decl wrapper size should fit in u32"),
+          );
+        }
         decl_source.add(decl_inner);
         decl_source.add(RawStringSource::from_static("});\n"));
       }
@@ -239,8 +254,6 @@ impl EsmLibraryPlugin {
 
     // render cross module links
     let mut runtime_source = ConcatSource::default();
-    let real_content_hash = compilation.options.optimization.real_content_hash;
-    let mut runtime_real_content_hashes = AssetHashRecord::default();
     let mut import_source = ConcatSource::default();
     let mut render_source = ConcatSource::default();
     let mut export_specifiers: FxIndexSet<Cow<str>> = Default::default();
@@ -812,6 +825,7 @@ var {} = {{}};
         .find_iter(&content)
         .map(|cap| (cap.start(), cap.end()));
 
+      let mut offset = 0i64;
       for (start, end) in replacement {
         let dep_id = &content[start + URL_STATIC_PLACEHOLDER.len()..end];
         let dep_id: DependencyId = dep_id
@@ -826,12 +840,25 @@ var {} = {{}};
           unreachable!()
         };
 
-        replace_source.replace(
-          start as u32,
-          end as u32,
-          filename.filename().to_string(),
-          None,
-        );
+        let filename = filename.filename().to_string();
+        let replacement_start = i64::try_from(start)
+          .expect("URL placeholder start should fit in i64")
+          .checked_add(offset)
+          .expect("URL replacement offset should fit in i64");
+        if real_content_hash
+          && let Some(asset_info) = codegen_result.data.get::<CodeGenerationDataAssetInfo>()
+          && let Ok(replacement_start) = u32::try_from(replacement_start)
+        {
+          record_source_content_hash_references(
+            &mut runtime_real_content_hashes,
+            &filename,
+            replacement_start,
+            asset_info.inner().content_hash.iter(),
+          );
+        }
+        offset += i64::try_from(filename.len()).expect("asset filename length should fit in i64")
+          - i64::try_from(end - start).expect("URL placeholder length should fit in i64");
+        replace_source.replace(start as u32, end as u32, filename, None);
       }
 
       // concate module does this by render_module()

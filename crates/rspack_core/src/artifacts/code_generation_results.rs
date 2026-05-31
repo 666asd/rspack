@@ -14,8 +14,9 @@ use rustc_hash::{FxHashMap as HashMap, FxHashSet};
 use serde::Serialize;
 
 use crate::{
-  ArtifactExt, AssetInfo, BindingCell, ChunkInitFragments, ConcatenationScope, ModuleIdentifier,
-  RuntimeGlobals, RuntimeSpec, RuntimeSpecMap, SourceType, incremental::IncrementalPasses,
+  ArtifactExt, AssetHashRecord, AssetInfo, BindingCell, ChunkInitFragments, ConcatenationScope,
+  ModuleIdentifier, RuntimeGlobals, RuntimeSpec, RuntimeSpecMap, SourceType,
+  incremental::IncrementalPasses,
 };
 
 #[derive(Clone, Debug)]
@@ -39,6 +40,25 @@ pub struct CodeGenerationPublicPathAutoReplace(pub bool);
 
 #[derive(Clone, Debug)]
 pub struct URLStaticMode;
+
+#[derive(Clone, Debug, Default)]
+pub struct CodeGenerationDataRealContentHash {
+  inner: AssetHashRecord,
+}
+
+impl CodeGenerationDataRealContentHash {
+  pub fn new(inner: AssetHashRecord) -> Self {
+    Self { inner }
+  }
+
+  pub fn inner(&self) -> &AssetHashRecord {
+    &self.inner
+  }
+
+  pub fn inner_mut(&mut self) -> &mut AssetHashRecord {
+    &mut self.inner
+  }
+}
 
 #[derive(Clone, Debug)]
 pub struct CodeGenerationDataFilename {
