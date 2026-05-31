@@ -1,8 +1,8 @@
 use rayon::prelude::*;
 use rspack_core::{
-  AssetHashRecord, ChunkGraph, ChunkInitFragments, ChunkUkey, CodeGenerationDataRealContentHash,
-  CodeGenerationPublicPathAutoReplace, Compilation, Module, ModuleCodeGenerationContext,
-  RuntimeCodeTemplate, RuntimeGlobals, RuntimeModuleGenerateContext, SourceType,
+  AssetHashRecord, ChunkGraph, ChunkInitFragments, ChunkUkey, CodeGenerationPublicPathAutoReplace,
+  Compilation, Module, ModuleCodeGenerationContext, RuntimeCodeTemplate, RuntimeGlobals,
+  RuntimeModuleGenerateContext, SourceType,
   chunk_graph_chunk::ChunkIdSet,
   get_undo_path,
   rspack_sources::{BoxSource, ConcatSource, RawStringSource, ReplaceSource, Source, SourceExt},
@@ -158,11 +158,7 @@ pub async fn render_module(
     Some(fragments) => fragments.clone(),
     None => ChunkInitFragments::default(),
   };
-  let mut real_content_hashes = code_gen_result
-    .data
-    .get::<CodeGenerationDataRealContentHash>()
-    .map(|record| record.inner().clone())
-    .unwrap_or_default();
+  let mut real_content_hashes = AssetHashRecord::default();
 
   let mut render_source = if code_gen_result
     .data
