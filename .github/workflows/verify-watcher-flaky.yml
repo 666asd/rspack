@@ -1,0 +1,141 @@
+name: Verify Watcher Flaky
+
+# Temporary workflow to confirm the native-watcher startup-race fix
+# (crates/rspack_watcher: scan after registering the disk watcher).
+#
+# It rebuilds the binding for every target the native-watcher suite is tested
+# on in CI, then runs the previously flaky `change-event/metadata` watch case
+# N rounds (default 50) on each target x node cell. Delete after verification.
+#
+# Matrix mirrors CI's real native-watcher test surface:
+#   x86_64-unknown-linux-gnu  node 20, 24
+#   x86_64-pc-windows-msvc    node 22
+#   aarch64-apple-darwin      node 22
+
+on:
+  workflow_dispatch:
+    inputs:
+      rounds:
+        description: 'Rounds per matrix cell'
+        type: string
+        default: '50'
+  push:
+    branches:
+      - verify/native-watcher-flaky
+
+concurrency:
+  group: verify-watcher-flaky-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build ${{ matrix.array.target }}
+    strategy:
+      fail-fast: false
+      matrix:
+        array:
+          - target: x86_64-unknown-linux-gnu
+            runner: '"ubuntu-22.04"'
+          - target: x86_64-pc-windows-msvc
+            runner: '"windows-latest"'
+          - target: aarch64-apple-darwin
+            runner: '"macos-latest"'
+    uses: ./.github/workflows/reusable-build-build.yml
+    with:
+      target: ${{ matrix.array.target }}
+      runner: ${{ matrix.array.runner }}
+      profile: 'ci'
+      ref: ${{ github.ref }}
+    secrets: inherit
+
+  verify:
+    name: Verify ${{ matrix.target }} node${{ matrix.node }}
+    needs: [build]
+    runs-on: ${{ fromJSON(matrix.runner) }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            runner: '"ubuntu-22.04"'
+            node: 20
+          - target: x86_64-unknown-linux-gnu
+            runner: '"ubuntu-22.04"'
+            node: 24
+          - target: x86_64-pc-windows-msvc
+            runner: '"windows-latest"'
+            node: 22
+          - target: aarch64-apple-darwin
+            runner: '"macos-latest"'
+            node: 22
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          ref: ${{ github.ref }}
+          clean: ${{ runner.environment == 'github-hosted' }}
+
+      - name: Download bindings
+        uses: ./.github/actions/artifact/download
+        with:
+          name: bindings-${{ matrix.target }}
+          path: crates/node_binding/
+
+      - name: Show restored binding
+        run: ls -lah crates/node_binding/
+
+      - name: Setup Pnpm
+        timeout-minutes: 5
+        uses: ./.github/actions/pnpm/setup
+        with:
+          node-version: ${{ matrix.node }}
+
+      - name: Pnpm Install
+        run: pnpm i
+
+      - name: Build JS
+        run: pnpm run build:js
+
+      - name: Run metadata case rounds
+        working-directory: tests/rspack-test
+        env:
+          ROUNDS: ${{ github.event.inputs.rounds || '50' }}
+          NODE_OPTIONS: '--max_old_space_size=8192'
+        run: |
+          set -uo pipefail
+          rounds="${ROUNDS:-50}"
+          echo "Running change-event/metadata $rounds rounds on ${{ matrix.target }} node ${{ matrix.node }}"
+          fail=0
+          for i in $(seq 1 "$rounds"); do
+            echo "::group::Round $i/$rounds"
+            # This repo's rstest config sets passWithNoTests: true, so a renamed
+            # or removed case would exit 0 with zero tests run. Passing -t forces
+            # the verbose reporter, so guard by also requiring the case to appear
+            # in the output (i.e. it actually ran).
+            out=$(pnpm exec rstest run --project nativeWatcher -t "change-event/metadata" 2>&1)
+            code=$?
+            echo "$out"
+            if [ "$code" -ne 0 ]; then
+              echo "Round $i FAILED (exit $code)"
+              fail=1
+              echo "::endgroup::"
+              break
+            fi
+            if ! echo "$out" | grep -q "change-event/metadata"; then
+              echo "Round $i: metadata case did not run (filter matched nothing)"
+              fail=1
+              echo "::endgroup::"
+              break
+            fi
+            echo "Round $i OK"
+            echo "::endgroup::"
+          done
+          if [ "$fail" -ne 0 ]; then
+            echo "Flaky reproduced on ${{ matrix.target }} node ${{ matrix.node }}"
+            exit 1
+          fi
+          echo "All $rounds rounds passed on ${{ matrix.target }} node ${{ matrix.node }}"
