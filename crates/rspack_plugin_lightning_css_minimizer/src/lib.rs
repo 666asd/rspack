@@ -15,7 +15,7 @@ use rayon::prelude::*;
 use regex::Regex;
 use rspack_core::{
   AssetHashRecord, ChunkUkey, Compilation, CompilationChunkHash, CompilationProcessAssets,
-  ContentHashReplacementKind, Plugin,
+  ContentHashReplacement, ContentHashReplacementKind, Plugin,
   diagnostics::MinifyError,
   rspack_sources::{
     BoxSource, MapOptions, ObjectPool, RawStringSource, ReplaceSource, Source, SourceExt,
@@ -465,9 +465,10 @@ fn restore_real_content_hash_markers(
     let final_range = u32::try_from(final_start).expect("replacement range start should fit in u32")
       ..u32::try_from(final_end).expect("replacement range end should fit in u32");
     if updated_replacement_indices[marker.replacement_index] {
-      if let Some(replacement) = updated.replacements.get(marker.replacement_index) {
+      if let Some(replacement) = updated.replacements.get(marker.replacement_index).cloned() {
         let mut duplicated_replacement = replacement.clone();
         duplicated_replacement.range = Some(final_range);
+        clone_matching_reference(&mut updated, &replacement);
         updated.replacements.push(duplicated_replacement);
       }
     } else if let Some(replacement) = updated.replacements.get_mut(marker.replacement_index) {
@@ -481,6 +482,20 @@ fn restore_real_content_hash_markers(
     .retain(|replacement| replacement.range.is_some());
 
   Ok((replace_source.boxed(), Some(updated)))
+}
+
+fn clone_matching_reference(record: &mut AssetHashRecord, replacement: &ContentHashReplacement) {
+  if let Some(reference) = record
+    .references
+    .iter()
+    .find(|reference| {
+      reference.referenced_hash == replacement.old_hash
+        && reference_replacement_kind(reference.kind) == Some(replacement.kind)
+    })
+    .cloned()
+  {
+    record.references.push(reference);
+  }
 }
 
 fn real_content_hash_marker(
@@ -559,7 +574,8 @@ fn find_marker_ranges(content: &[u8], marker: &[u8]) -> Vec<Range<usize>> {
 #[allow(clippy::items_after_test_module)]
 mod tests {
   use rspack_core::{
-    AssetHashRecord, ContentHashReplacement, ContentHashReplacementKind,
+    AssetHashRecord, ContentHashReference, ContentHashReferenceKind, ContentHashReplacement,
+    ContentHashReplacementKind,
     rspack_sources::{RawStringSource, Source, SourceExt},
   };
 
@@ -573,6 +589,14 @@ mod tests {
       old_hash: "hhhh".to_string(),
       range: Some(18..22),
       kind: ContentHashReplacementKind::Source,
+    });
+    record.references.push(ContentHashReference {
+      referenced_hash: "hhhh".to_string(),
+      owner_hash: None,
+      referenced_chunk: None,
+      referenced_source_type: None,
+      kind: ContentHashReferenceKind::Source,
+      replacement_only: false,
     });
 
     let (_, markers) = mark_real_content_hash_replacements(Some(&record), input, "asset.css")
@@ -595,6 +619,8 @@ mod tests {
     assert_eq!(updated_record.replacements.len(), 2);
     assert_eq!(updated_record.replacements[0].range, Some(18..22));
     assert_eq!(updated_record.replacements[1].range, Some(42..46));
+    assert_eq!(updated_record.references.len(), 2);
+    assert_eq!(updated_record.references[0], updated_record.references[1]);
   }
 
   #[test]
