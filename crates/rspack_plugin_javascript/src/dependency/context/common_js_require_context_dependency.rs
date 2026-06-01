@@ -19,7 +19,7 @@ pub struct CommonJsRequireContextDependency {
   loc: DependencyLocation,
   range: DependencyRange,
   value_range: Option<DependencyRange>,
-  context: Option<Context>,
+  context: Option<Box<Context>>,
   resource_identifier: ResourceIdentifier,
   options: ContextOptions,
   optional: bool,
@@ -44,7 +44,7 @@ impl CommonJsRequireContextDependency {
       loc,
       range,
       value_range,
-      context,
+      context: context.map(Box::new),
       options,
       resource_identifier,
       optional,
@@ -57,7 +57,7 @@ impl CommonJsRequireContextDependency {
   pub fn set_referenced_specifiers(&mut self, referenced_specifiers: Vec<ReferencedSpecifier>) {
     self.options.referenced_specifiers = Some(referenced_specifiers);
     self.resource_identifier = create_resource_identifier_for_context_dependency(
-      self.context.as_ref().map(|c| c.as_str()),
+      self.context.as_deref().map(|c| c.as_str()),
       &self.options,
     );
   }
@@ -78,7 +78,7 @@ impl Dependency for CommonJsRequireContextDependency {
   }
 
   fn get_context(&self) -> Option<&Context> {
-    self.context.as_ref()
+    self.context.as_deref()
   }
 
   fn range(&self) -> Option<DependencyRange> {
@@ -116,7 +116,7 @@ impl ContextDependency for CommonJsRequireContextDependency {
   }
 
   fn get_context(&self) -> Option<&str> {
-    self.context.as_ref().map(|c| c.as_str())
+    self.context.as_deref().map(|c| c.as_str())
   }
 
   fn resource_identifier(&self) -> &str {

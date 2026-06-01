@@ -11,6 +11,7 @@ use rspack_core::{
   create_exports_object_referenced, create_referenced_exports_by_referenced_specifiers,
 };
 
+use super::create_resource_identifier_for_contextual_commonjs_dependency;
 use crate::dependency::{
   DependencyBranchGuard, DependencyBranchGuards, compose_dependency_condition,
 };
@@ -20,9 +21,9 @@ use crate::dependency::{
 pub struct CommonJsRequireDependency {
   id: DependencyId,
   request: String,
-  resource_identifier: Option<ResourceIdentifier>,
+  resource_identifier: Option<Box<ResourceIdentifier>>,
   optional: bool,
-  context: Option<Context>,
+  context: Option<Box<Context>>,
   range: DependencyRange,
   range_expr: Option<DependencyRange>,
   loc: Option<DependencyLocation>,
@@ -54,9 +55,9 @@ impl CommonJsRequireDependency {
     Self {
       id: DependencyId::new(),
       request,
-      resource_identifier,
+      resource_identifier: resource_identifier.map(Box::new),
       optional,
-      context,
+      context: context.map(Box::new),
       range,
       range_expr,
       loc,
@@ -94,11 +95,11 @@ impl Dependency for CommonJsRequireDependency {
   }
 
   fn get_context(&self) -> Option<&Context> {
-    self.context.as_ref()
+    self.context.as_deref()
   }
 
   fn resource_identifier(&self) -> Option<&str> {
-    self.resource_identifier.as_ref().map(|id| id.as_str())
+    self.resource_identifier.as_deref().map(|id| id.as_str())
   }
 
   fn range(&self) -> Option<DependencyRange> {

@@ -16,7 +16,7 @@ pub struct RequireResolveContextDependency {
   id: DependencyId,
   options: ContextOptions,
   range: DependencyRange,
-  context: Option<Context>,
+  context: Option<Box<Context>>,
   resource_identifier: ResourceIdentifier,
   optional: bool,
   critical: Option<Diagnostic>,
@@ -38,7 +38,7 @@ impl RequireResolveContextDependency {
       id: DependencyId::new(),
       options,
       range,
-      context,
+      context: context.map(Box::new),
       resource_identifier,
       optional,
       critical: None,
@@ -62,7 +62,7 @@ impl Dependency for RequireResolveContextDependency {
   }
 
   fn get_context(&self) -> Option<&Context> {
-    self.context.as_ref()
+    self.context.as_deref()
   }
 
   fn range(&self) -> Option<DependencyRange> {
@@ -96,7 +96,7 @@ impl ContextDependency for RequireResolveContextDependency {
   }
 
   fn get_context(&self) -> Option<&str> {
-    self.context.as_ref().map(|c| c.as_str())
+    self.context.as_deref().map(|c| c.as_str())
   }
 
   fn resource_identifier(&self) -> &str {

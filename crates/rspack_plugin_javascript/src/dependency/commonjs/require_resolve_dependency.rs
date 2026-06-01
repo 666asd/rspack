@@ -7,14 +7,16 @@ use rspack_core::{
   TemplateReplaceSource,
 };
 
+use super::create_resource_identifier_for_contextual_commonjs_dependency;
+
 #[cacheable]
 #[derive(Debug, Clone)]
 pub struct RequireResolveDependency {
   pub id: DependencyId,
   pub request: String,
-  resource_identifier: Option<ResourceIdentifier>,
+  resource_identifier: Option<Box<ResourceIdentifier>>,
   pub weak: bool,
-  context: Option<Context>,
+  context: Option<Box<Context>>,
   range: DependencyRange,
   optional: bool,
   factorize_info: FactorizeInfo,
@@ -39,9 +41,9 @@ impl RequireResolveDependency {
     Self {
       range,
       request,
-      resource_identifier,
+      resource_identifier: resource_identifier.map(Box::new),
       weak,
-      context,
+      context: context.map(Box::new),
       optional,
       id: DependencyId::new(),
       factorize_info: Default::default(),
@@ -64,11 +66,11 @@ impl Dependency for RequireResolveDependency {
   }
 
   fn get_context(&self) -> Option<&Context> {
-    self.context.as_ref()
+    self.context.as_deref()
   }
 
   fn resource_identifier(&self) -> Option<&str> {
-    self.resource_identifier.as_ref().map(|id| id.as_str())
+    self.resource_identifier.as_deref().map(|id| id.as_str())
   }
 
   fn range(&self) -> Option<DependencyRange> {
