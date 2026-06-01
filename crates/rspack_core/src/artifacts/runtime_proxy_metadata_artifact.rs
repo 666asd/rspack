@@ -9,7 +9,6 @@ pub struct RuntimeProxyMetadata {
   pub module_proxy_requirements: RuntimeGlobals,
   pub runtime_module_requirements: RuntimeGlobals,
   pub has_custom_runtime_module: bool,
-  pub needs_require_bridge: bool,
   pub write_bridge_fields: RuntimeGlobals,
 }
 
@@ -22,11 +21,7 @@ impl RuntimeProxyMetadata {
   }
 
   pub fn proxy_fields(&self) -> RuntimeGlobals {
-    if self.has_custom_runtime_module {
-      self.runtime_module_requirements
-    } else {
-      self.module_proxy_requirements
-    }
+    self.module_proxy_requirements
   }
 }
 

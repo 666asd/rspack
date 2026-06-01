@@ -15,7 +15,6 @@ pub enum RuntimeRequirementsDependencyMode {
   Call,
   AddOnly,
   Write,
-  RequireBridge,
 }
 
 #[cacheable]
@@ -73,13 +72,6 @@ impl RuntimeRequirementsDependency {
       mode: RuntimeRequirementsDependencyMode::Write,
     }
   }
-  pub fn require_bridge() -> Self {
-    Self {
-      range: DependencyRange::default(),
-      runtime_requirements: RuntimeGlobals::default(),
-      mode: RuntimeRequirementsDependencyMode::RequireBridge,
-    }
-  }
 }
 
 #[cacheable]
@@ -123,19 +115,6 @@ impl DependencyTemplate for RuntimeRequirementsDependencyTemplate {
       runtime_requirements_write
         .runtime_requirements
         .insert(dep.runtime_requirements);
-      code_generatable_context
-        .data
-        .insert(runtime_requirements_write);
-      return;
-    }
-
-    if matches!(dep.mode, RuntimeRequirementsDependencyMode::RequireBridge) {
-      let mut runtime_requirements_write = code_generatable_context
-        .data
-        .get::<CodeGenerationRuntimeRequirementsWrite>()
-        .cloned()
-        .unwrap_or_default();
-      runtime_requirements_write.needs_require_bridge = true;
       code_generatable_context
         .data
         .insert(runtime_requirements_write);

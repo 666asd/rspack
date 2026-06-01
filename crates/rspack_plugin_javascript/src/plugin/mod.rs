@@ -186,6 +186,18 @@ var module = ({}[moduleId] = {{"#,
     }
     sources.push("});\n// Execute the module function".into());
 
+    let use_runtime_context = compilation
+      .options
+      .experiments
+      .runtime_mode
+      .is_runtime_requirements_proxy_enabled()
+      && has_runtime_proxy_support(compilation, chunk_ukey);
+    let module_runtime_argument = if use_runtime_context {
+      runtime_template.render_runtime_variable(&RuntimeVariable::Runtime)
+    } else {
+      runtime_template.render_runtime_variable(&RuntimeVariable::Require)
+    };
+
     let module_execution =
       if runtime_requirements.contains(RuntimeGlobals::INTERCEPT_MODULE_EXECUTION) {
         format!(
@@ -197,25 +209,26 @@ var module = ({}[moduleId] = {{"#,
           console.error("undefined factory", moduleId);
           throw Error("RuntimeError: factory is undefined (" + moduleId + ")");
         }}
-        execOptions.factory.call(module.exports, module, module.exports, execOptions.require);
+        execOptions.factory.call(module.exports, module, module.exports, {});
       "#,
           runtime_template.render_runtime_variable(&RuntimeVariable::Modules),
-          runtime_template.render_runtime_globals(&RuntimeGlobals::REQUIRE),
-          runtime_template.render_runtime_globals(&RuntimeGlobals::INTERCEPT_MODULE_EXECUTION)
+          runtime_template.render_runtime_variable(&RuntimeVariable::Require),
+          runtime_template.render_runtime_globals(&RuntimeGlobals::INTERCEPT_MODULE_EXECUTION),
+          module_runtime_argument
         )
         .into()
       } else if runtime_requirements.contains(RuntimeGlobals::THIS_AS_EXPORTS) {
         format!(
           "{}[moduleId].call(module.exports, module, module.exports, {});\n",
           runtime_template.render_runtime_variable(&RuntimeVariable::Modules),
-          runtime_template.render_runtime_globals(&RuntimeGlobals::REQUIRE)
+          module_runtime_argument
         )
         .into()
       } else {
         format!(
           "{}[moduleId](module, module.exports, {});\n",
           runtime_template.render_runtime_variable(&RuntimeVariable::Modules),
-          runtime_template.render_runtime_globals(&RuntimeGlobals::REQUIRE)
+          module_runtime_argument
         )
         .into()
       };
@@ -261,7 +274,14 @@ var module = ({}[moduleId] = {{"#,
     let intercept_module_execution =
       runtime_requirements.contains(RuntimeGlobals::INTERCEPT_MODULE_EXECUTION);
     let module_used = runtime_requirements.contains(RuntimeGlobals::MODULE);
-    let require_scope_used = runtime_requirements.contains(RuntimeGlobals::REQUIRE_SCOPE);
+    let runtime_proxy_support = compilation
+      .options
+      .experiments
+      .runtime_mode
+      .is_runtime_requirements_proxy_enabled()
+      && has_runtime_proxy_support(compilation, chunk_ukey);
+    let require_scope_used =
+      runtime_requirements.contains(RuntimeGlobals::REQUIRE_SCOPE) || runtime_proxy_support;
     let need_module_defer =
       runtime_requirements.contains(RuntimeGlobals::MAKE_DEFERRED_NAMESPACE_OBJECT);
     let use_require = require_function || intercept_module_execution || module_used;
@@ -318,7 +338,7 @@ var __rspack_deferred_exports = {};
           r#"// The require function
 function {}(moduleId) {{
 "#,
-          runtime_template.render_runtime_globals(&RuntimeGlobals::REQUIRE)
+          runtime_template.render_runtime_variable(&RuntimeVariable::Require)
         )
         .into(),
       );
@@ -345,26 +365,17 @@ var {} = {{}};
       );
     }
 
-    if compilation
-      .options
-      .experiments
-      .runtime_mode
-      .is_runtime_requirements_proxy_enabled()
-      && compilation
-        .build_chunk_graph_artifact
-        .chunk_graph
-        .has_chunk_runtime_modules(chunk_ukey)
-      && has_runtime_proxy_support(compilation, chunk_ukey)
-    {
+    if runtime_proxy_support {
       let declaration = if compilation.options.output.environment.supports_const() {
         "let"
       } else {
         "var"
       };
+      let require = runtime_template.render_runtime_variable(&RuntimeVariable::Require);
       header.push(
         format!(
-          "{declaration} {} = {{}};",
-          runtime_template.render_runtime_variable(&RuntimeVariable::Runtime)
+          "{declaration} {} = {{ r: {require} }};",
+          runtime_template.render_runtime_variable(&RuntimeVariable::Runtime),
         )
         .into(),
       );
@@ -545,12 +556,12 @@ var {} = {{}};
             let on_chunks_loaded_callback = if supports_arrow_function {
               format!(
                 "() => {}({module_id_expr})",
-                runtime_template.render_runtime_globals(&RuntimeGlobals::REQUIRE)
+                runtime_template.render_runtime_variable(&RuntimeVariable::Require)
               )
             } else {
               format!(
                 "function() {{ return {}({module_id_expr}) }}",
-                runtime_template.render_runtime_globals(&RuntimeGlobals::REQUIRE)
+                runtime_template.render_runtime_variable(&RuntimeVariable::Require)
               )
             };
             buf2.push(
@@ -582,7 +593,7 @@ var {} = {{}};
                 } else {
                   String::new()
                 },
-                runtime_template.render_runtime_globals(&RuntimeGlobals::REQUIRE)
+                runtime_template.render_runtime_variable(&RuntimeVariable::Require)
               )
               .into(),
             )
@@ -607,7 +618,7 @@ var {} = {{}};
                   } else {
                     "{}".to_string()
                   },
-                  runtime_template.render_runtime_globals(&RuntimeGlobals::REQUIRE)
+                  runtime_template.render_runtime_variable(&RuntimeVariable::Require)
                 )
                 .into(),
               );

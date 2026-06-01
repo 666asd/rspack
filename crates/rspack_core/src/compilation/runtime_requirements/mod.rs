@@ -556,7 +556,6 @@ pub async fn process_chunks_runtime_requirements(
           .and_then(|result_id| module_generation_result_map.get(result_id))
           .and_then(|result| result.data.get::<CodeGenerationRuntimeRequirementsWrite>())
         {
-          metadata.needs_require_bridge |= write_requirements.needs_require_bridge;
           metadata
             .write_bridge_fields
             .insert(renderable_require_scope_runtime_globals(
@@ -598,16 +597,15 @@ pub async fn process_chunks_runtime_requirements(
     }
 
     if metadata.has_custom_runtime_module {
-      metadata.needs_require_bridge = true;
-      metadata
-        .write_bridge_fields
-        .insert(metadata.runtime_module_requirements);
+      return Err(rspack_error::Error::error(
+        "Custom runtime modules are not supported when `experiments.runtimeMode` enables Rspack runtime output.".into(),
+      ));
     }
     if let Some(runtime_requirements_from_hooks) =
       tree_runtime_requirements_from_hooks.get(entry_ukey)
     {
       metadata
-        .write_bridge_fields
+        .module_proxy_requirements
         .insert(renderable_require_scope_runtime_globals(
           *runtime_requirements_from_hooks,
         ));

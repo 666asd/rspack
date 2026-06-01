@@ -473,6 +473,7 @@ export enum RuntimeVariable {
   ModuleCache,
   Module,
   Exports,
+  Runtime,
   StartupExec,
 }
 
@@ -491,6 +492,8 @@ export function renderRuntimeVariables(
       return '__webpack_module__';
     case RuntimeVariable.Exports:
       return '__webpack_exports__';
+    case RuntimeVariable.Runtime:
+      return '__rspack_context';
     case RuntimeVariable.StartupExec:
       return '__webpack_exec__';
   }

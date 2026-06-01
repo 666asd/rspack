@@ -521,6 +521,21 @@ pub fn runtime_globals_property_name(runtime_globals: &RuntimeGlobals) -> Option
   })
 }
 
+/// Returns the runtime context property name for module-visible runtime globals.
+///
+/// For example, `RuntimeGlobals::DEFINE_PROPERTY_GETTERS` returns `Some("d")`.
+/// `RuntimeGlobals::MAKE_NAMESPACE_OBJECT` returns `Some("__r")` because
+/// `__rspack_context.r` is reserved for the module loading function.
+pub fn runtime_globals_runtime_context_property_name(
+  runtime_globals: &RuntimeGlobals,
+) -> Option<&'static str> {
+  if runtime_globals == &RuntimeGlobals::MAKE_NAMESPACE_OBJECT {
+    Some("__r")
+  } else {
+    runtime_globals_property_name(runtime_globals)
+  }
+}
+
 static RUNTIME_GLOBALS_BY_PROPERTY_NAME: LazyLock<FxHashMap<&'static str, RuntimeGlobals>> =
   LazyLock::new(|| {
     let mut map = FxHashMap::default();
@@ -576,6 +591,22 @@ pub fn runtime_globals_from_property_name(property_name: &str) -> Option<Runtime
   RUNTIME_GLOBALS_BY_PROPERTY_NAME.get(property_name).copied()
 }
 
+/// Finds the runtime global represented by a runtime context property name.
+///
+/// For example, `d` resolves to `RuntimeGlobals::DEFINE_PROPERTY_GETTERS` and
+/// `__r` resolves to `RuntimeGlobals::MAKE_NAMESPACE_OBJECT`.
+pub fn runtime_globals_from_runtime_context_property_name(
+  property_name: &str,
+) -> Option<RuntimeGlobals> {
+  if property_name == "__r" {
+    Some(RuntimeGlobals::MAKE_NAMESPACE_OBJECT)
+  } else if property_name == "r" {
+    None
+  } else {
+    runtime_globals_from_property_name(property_name)
+  }
+}
+
 /// Renders the lexical variable name for a runtime global.
 ///
 /// For example, `RuntimeGlobals::DEFINE_PROPERTY_GETTERS` renders to `__var_d`.
@@ -594,7 +625,7 @@ pub fn runtime_globals_to_lexical_variable(
 /// Returns whether a runtime global can be rendered through require-scope forms.
 ///
 /// For example, `RuntimeGlobals::DEFINE_PROPERTY_GETTERS` returns `true` and can
-/// render as `__webpack_require__.d` or `__rspack_runtime.d`, while
+/// render as `__webpack_require__.d` or `__rspack_context.d`, while
 /// `RuntimeGlobals::REQUIRE_SCOPE` returns `false`.
 pub fn runtime_global_can_render_in_require_scope(runtime_globals: &RuntimeGlobals) -> bool {
   runtime_globals_property_name(runtime_globals).is_some()
@@ -652,13 +683,13 @@ pub fn runtime_variable_to_template_name(runtime_variable: &RuntimeVariable) -> 
 ///
 /// For example, `RuntimeVariable::Require` always renders to
 /// `__webpack_require__`, while `RuntimeVariable::Runtime` renders to
-/// `__rspack_runtime`.
+/// `__rspack_context`.
 pub fn runtime_variable_to_string(
   runtime_variable: &RuntimeVariable,
   compiler_options: &CompilerOptions,
 ) -> String {
   match (*runtime_variable, compiler_options.mode.is_production()) {
-    (RuntimeVariable::Runtime, _) => "__rspack_runtime".to_string(),
+    (RuntimeVariable::Runtime, _) => "__rspack_context".to_string(),
     (RuntimeVariable::InstallRuntime, _) => "__rspack_install_runtime".to_string(),
     (RuntimeVariable::EsmRuntime, _) => "__rspack_esm_runtime".to_string(),
     (RuntimeVariable::EsmInstallRuntime, _) => "__rspack_esm_install_runtime".to_string(),

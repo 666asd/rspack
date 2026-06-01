@@ -3,15 +3,15 @@ const path = require("path");
 
 for (const file of ["web.js", "commonjs.js", "module.js"]) {
 	const source = fs.readFileSync(path.resolve(__dirname, "dist", file), "utf-8");
-	expect(source).toContain("__rspack_runtime");
+	expect(source).toContain("__rspack_context");
 	expect(source).toContain("__var_");
 }
 
 for (const file of ["728.web.js", "728.commonjs.js", "728.module.js"]) {
 	const source = fs.readFileSync(path.resolve(__dirname, "dist", file), "utf-8");
-	expect(source).toContain("__rspack_runtime");
+	expect(source).toContain("__rspack_context");
 	expect(source).not.toContain("__var_");
-	expect((source.match(/\b(?:let|var) __rspack_runtime\b/g) || []).length).toBe(1);
+	expect((source.match(/\b(?:let|var) __rspack_context\b/g) || []).length).toBe(1);
 }
 
 const commonjsAsync = fs.readFileSync(
@@ -19,7 +19,7 @@ const commonjsAsync = fs.readFileSync(
 	"utf-8"
 );
 expect(commonjsAsync).toContain("exports.__rspack_install_runtime");
-expect(commonjsAsync).not.toContain("exports.__rspack_runtime");
+expect(commonjsAsync).not.toContain("exports.__rspack_context");
 const commonjsRuntime = fs.readFileSync(
 	path.resolve(__dirname, "dist", "commonjs.js"),
 	"utf-8"
@@ -27,7 +27,7 @@ const commonjsRuntime = fs.readFileSync(
 expect(commonjsRuntime).toContain(
   'typeof chunk.__rspack_install_runtime === "function"'
 );
-expect(commonjsRuntime).not.toContain("chunk.__rspack_runtime");
+expect(commonjsRuntime).not.toContain("chunk.__rspack_context");
 
 const moduleAsync = fs.readFileSync(
 	path.resolve(__dirname, "dist", "728.module.js"),

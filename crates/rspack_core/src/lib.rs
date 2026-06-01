@@ -45,7 +45,9 @@ pub use normal_module::*;
 pub use runtime_globals::{
   MODULE_GLOBALS, REQUIRE_SCOPE_GLOBALS, RuntimeGlobals, RuntimeVariable,
   renderable_require_scope_runtime_globals, runtime_globals_from_property_name,
-  runtime_globals_property_name, runtime_globals_to_lexical_variable, runtime_variable_to_string,
+  runtime_globals_from_runtime_context_property_name, runtime_globals_property_name,
+  runtime_globals_runtime_context_property_name, runtime_globals_to_lexical_variable,
+  runtime_variable_to_string,
 };
 mod plugin;
 pub use plugin::*;

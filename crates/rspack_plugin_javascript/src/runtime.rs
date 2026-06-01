@@ -4,9 +4,9 @@ use rspack_core::{
   Module, ModuleCodeGenerationContext, RuntimeCodeTemplate, RuntimeGlobalRenderMode,
   RuntimeGlobals, RuntimeProxyMetadata, RuntimeVariable, SourceType,
   chunk_graph_chunk::ChunkIdSet,
-  get_undo_path,
+  get_undo_path, renderable_require_scope_runtime_globals,
   rspack_sources::{BoxSource, ConcatSource, RawStringSource, ReplaceSource, Source, SourceExt},
-  runtime_globals_property_name, runtime_globals_to_lexical_variable,
+  runtime_globals_runtime_context_property_name, runtime_globals_to_lexical_variable,
 };
 use rspack_error::{Result, ToStringResultToRspackResultExt};
 use rspack_util::json_stringify_str;
@@ -209,9 +209,18 @@ pub async fn render_module(
       let need_require = runtime_requirements.is_some_and(|r| {
         r.contains(RuntimeGlobals::REQUIRE) || r.contains(RuntimeGlobals::REQUIRE_SCOPE)
       });
+      let need_runtime_context = compilation
+        .options
+        .experiments
+        .runtime_mode
+        .is_runtime_requirements_proxy_enabled()
+        && runtime_requirements.is_some_and(|r| {
+          r.contains(RuntimeGlobals::REQUIRE)
+            || !renderable_require_scope_runtime_globals(*r).is_empty()
+        });
 
       let mut args = Vec::new();
-      if need_module || need_exports || need_require {
+      if need_module || need_exports || need_require || need_runtime_context {
         let module_argument = runtime_template.render_module_argument(module.get_module_argument());
         args.push(if need_module {
           module_argument
@@ -220,7 +229,7 @@ pub async fn render_module(
         });
       }
 
-      if need_exports || need_require {
+      if need_exports || need_require || need_runtime_context {
         let exports_argument =
           runtime_template.render_exports_argument(module.get_exports_argument());
         args.push(if need_exports {
@@ -230,7 +239,13 @@ pub async fn render_module(
         });
       }
       if need_require {
-        args.push(runtime_template.render_runtime_globals(&RuntimeGlobals::REQUIRE));
+        args.push(if need_runtime_context {
+          runtime_template.render_runtime_variable(&RuntimeVariable::Runtime)
+        } else {
+          runtime_template.render_runtime_globals(&RuntimeGlobals::REQUIRE)
+        });
+      } else if need_runtime_context {
+        args.push(runtime_template.render_runtime_variable(&RuntimeVariable::Runtime));
       }
 
       let mut container_sources = ConcatSource::default();
@@ -341,7 +356,7 @@ fn render_runtime_modules_function(
   let mut sources = ConcatSource::default();
   sources.add(RawStringSource::from(format!(
     "function({}) {{\n",
-    runtime_template.render_runtime_globals(&RuntimeGlobals::REQUIRE),
+    runtime_template.render_runtime_variable(&RuntimeVariable::Require),
   )));
   sources.add(runtime_modules_sources);
   sources.add(RawStringSource::from_static("\n}\n"));
@@ -372,20 +387,15 @@ async fn render_runtime_modules_impl(
   declare_runtime_proxy: bool,
 ) -> Result<BoxSource> {
   let mut sources = ConcatSource::default();
-  let runtime_proxy = _runtime_template.render_runtime_variable(&RuntimeVariable::Runtime);
-  let use_private_runtime_proxy_scope = include_proxy_declarations
-    && declare_runtime_proxy
-    && has_runtime_proxy_support(compilation, chunk_ukey);
-  let proxy_variable = if use_private_runtime_proxy_scope {
-    "__proxy"
-  } else {
-    &runtime_proxy
-  };
+  let runtime_context = _runtime_template.render_runtime_variable(&RuntimeVariable::Runtime);
+  let use_private_runtime_proxy_scope =
+    include_proxy_declarations && has_runtime_proxy_support(compilation, chunk_ukey);
+  let proxy_variable = runtime_context.as_str();
 
   if use_private_runtime_proxy_scope {
     sources.add(RawStringSource::from(format!(
-      "{runtime_proxy} = {} {{\n",
-      runtime_proxy_iife_expression_start(compilation)
+      "{} {{\n",
+      runtime_proxy_iife_start(compilation)
     )));
     if let Some(declarations) = render_runtime_proxy_private_declarations(compilation, chunk_ukey) {
       sources.add(declarations);
@@ -401,20 +411,7 @@ async fn render_runtime_modules_impl(
   {
     sources.add(declarations);
   }
-  let has_custom_runtime_module = get_runtime_proxy_metadata(compilation, chunk_ukey)
-    .is_some_and(|metadata| metadata.has_custom_runtime_module);
-  if has_custom_runtime_module
-    && let Some(bridge) = render_runtime_proxy_bridge(
-      compilation,
-      chunk_ukey,
-      _runtime_template,
-      declare_runtime_proxy,
-      proxy_variable,
-      true,
-    )
-  {
-    sources.add(bridge);
-  }
+  let has_custom_runtime_module = false;
   let runtime_module_sources = rspack_parallel::scope::<_, Result<_>>(|token| {
     compilation
       .build_chunk_graph_artifact
@@ -509,11 +506,8 @@ async fn render_runtime_modules_impl(
     && let Some(bridge) = render_runtime_proxy_bridge(
       compilation,
       chunk_ukey,
-      _runtime_template,
       declare_runtime_proxy,
       proxy_variable,
-      get_runtime_proxy_metadata(compilation, chunk_ukey)
-        .is_some_and(|metadata| metadata.needs_require_bridge),
     )
   {
     sources.add(bridge);
@@ -521,8 +515,8 @@ async fn render_runtime_modules_impl(
 
   if use_private_runtime_proxy_scope {
     sources.add(RawStringSource::from(format!(
-      "return __proxy;\n}}{};\n",
-      runtime_proxy_iife_expression_end(compilation)
+      "}}{};\n",
+      runtime_proxy_iife_end(compilation)
     )));
   }
 
@@ -558,18 +552,15 @@ fn render_runtime_proxy_private_declarations(
     return None;
   }
 
-  let source = render_runtime_proxy_variable_declarations(
-    compilation,
-    metadata.lexical_fields(),
-    ["__proxy = {}".to_string()],
-  )?;
+  let source =
+    render_runtime_proxy_variable_declarations(compilation, metadata.lexical_fields(), [])?;
   Some(RawStringSource::from(source).boxed())
 }
 
 pub fn render_runtime_proxy_declarations(
   compilation: &Compilation,
   chunk_ukey: &ChunkUkey,
-  runtime_template: &RuntimeCodeTemplate<'_>,
+  _runtime_template: &RuntimeCodeTemplate<'_>,
 ) -> Option<BoxSource> {
   if !compilation
     .options
@@ -588,15 +579,8 @@ pub fn render_runtime_proxy_declarations(
     return None;
   }
 
-  let runtime_proxy = runtime_template.render_runtime_variable(&RuntimeVariable::Runtime);
-  let extra_declarators = (!metadata.proxy_fields().is_empty()
-    || !metadata.write_bridge_fields.is_empty())
-  .then(|| format!("{runtime_proxy} = {{}}"));
-  let source = render_runtime_proxy_variable_declarations(
-    compilation,
-    metadata.lexical_fields(),
-    extra_declarators,
-  )?;
+  let source =
+    render_runtime_proxy_variable_declarations(compilation, metadata.lexical_fields(), [])?;
   Some(RawStringSource::from(source).boxed())
 }
 
@@ -723,55 +707,19 @@ fn runtime_proxy_iife_end(compilation: &Compilation) -> &'static str {
   }
 }
 
-fn runtime_proxy_iife_expression_start(compilation: &Compilation) -> &'static str {
+fn runtime_proxy_define_function(compilation: &Compilation, runtime_proxy: &str) -> String {
   if compilation
     .options
     .output
     .environment
     .supports_arrow_function()
   {
-    "(() =>"
-  } else {
-    "(function()"
-  }
-}
-
-fn runtime_proxy_iife_expression_end(_compilation: &Compilation) -> &'static str {
-  ")()"
-}
-
-fn runtime_proxy_define_function(
-  compilation: &Compilation,
-  runtime_proxy: &str,
-  require: &str,
-  include_require_bridge: bool,
-) -> String {
-  if compilation
-    .options
-    .output
-    .environment
-    .supports_arrow_function()
-  {
-    let require_define = if include_require_bridge {
-      format!(
-        " Object.defineProperty({require}, item[0], {{ configurable: true, enumerable: true, get: () => {runtime_proxy}[item[0]], set: (value) => {{ {runtime_proxy}[item[0]] = value; }} }});"
-      )
-    } else {
-      Default::default()
-    };
     format!(
-      "(item) => {{ Object.defineProperty({runtime_proxy}, item[0], {{ configurable: true, enumerable: true, get: item[1], set: item[2] }});{require_define} }}"
+      "(item) => {{ Object.defineProperty({runtime_proxy}, item[0], {{ configurable: true, enumerable: true, get: item[1], set: item[2] }}); }}"
     )
   } else {
-    let require_define = if include_require_bridge {
-      format!(
-        " Object.defineProperty({require}, item[0], {{ configurable: true, enumerable: true, get: function() {{ return {runtime_proxy}[item[0]]; }}, set: function(value) {{ {runtime_proxy}[item[0]] = value; }} }});"
-      )
-    } else {
-      Default::default()
-    };
     format!(
-      "function(item) {{ Object.defineProperty({runtime_proxy}, item[0], {{ configurable: true, enumerable: true, get: item[1], set: item[2] }});{require_define} }}"
+      "function(item) {{ Object.defineProperty({runtime_proxy}, item[0], {{ configurable: true, enumerable: true, get: item[1], set: item[2] }}); }}"
     )
   }
 }
@@ -779,10 +727,8 @@ fn runtime_proxy_define_function(
 pub fn render_runtime_proxy_bridge(
   compilation: &Compilation,
   chunk_ukey: &ChunkUkey,
-  runtime_template: &RuntimeCodeTemplate<'_>,
   _declare_runtime_proxy: bool,
   runtime_proxy: &str,
-  include_require_bridge: bool,
 ) -> Option<BoxSource> {
   if !compilation
     .options
@@ -794,20 +740,15 @@ pub fn render_runtime_proxy_bridge(
   }
 
   let metadata = get_runtime_proxy_metadata(compilation, chunk_ukey)?;
-  let bridge_fields = if include_require_bridge {
-    metadata.write_bridge_fields.union(metadata.proxy_fields())
-  } else {
-    metadata.write_bridge_fields
-  };
+  let bridge_fields = metadata.write_bridge_fields;
   if bridge_fields.is_empty() {
     return None;
   }
 
-  let require = runtime_template.render_runtime_variable(&RuntimeVariable::Require);
   let entries = bridge_fields
     .iter()
     .map(|runtime_global| {
-      let key = runtime_globals_property_name(&runtime_global)
+      let key = runtime_globals_runtime_context_property_name(&runtime_global)
         .expect("runtime global should be renderable as proxy property");
       let key = json_stringify_str(key);
       let lexical = runtime_globals_to_lexical_variable(&runtime_global, &compilation.options);
@@ -826,8 +767,7 @@ pub fn render_runtime_proxy_bridge(
     })
     .collect::<Vec<_>>();
   let declaration = runtime_proxy_bridge_declaration(compilation);
-  let define_function =
-    runtime_proxy_define_function(compilation, runtime_proxy, &require, include_require_bridge);
+  let define_function = runtime_proxy_define_function(compilation, runtime_proxy);
   let source = format!(
     "{} {{ {declaration} __bridge = [{}]; {declaration} __define = {define_function}; for ({declaration} i = 0; i < __bridge.length; i++) __define(__bridge[i]); }}{};\n",
     runtime_proxy_iife_start(compilation),
@@ -862,7 +802,7 @@ fn render_runtime_proxy_proxy_assignments(
   let entries = proxy_assignment_fields
     .iter()
     .map(|runtime_global| {
-      let key = runtime_globals_property_name(&runtime_global)
+      let key = runtime_globals_runtime_context_property_name(&runtime_global)
         .expect("runtime global should be renderable as proxy property");
       let key = json_stringify_str(key);
       let lexical = runtime_globals_to_lexical_variable(&runtime_global, &compilation.options);

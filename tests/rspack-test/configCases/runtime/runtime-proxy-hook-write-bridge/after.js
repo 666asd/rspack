@@ -7,6 +7,6 @@ expect(source).toContain(
 	'["o", function() { return __var_o; }, function(value) { __var_o = value; }]'
 );
 expect(source).toContain(
-	"Object.defineProperty(__webpack_require__, item[0], { configurable: true, enumerable: true, get: function() { return __proxy[item[0]]; }, set: function(value) { __proxy[item[0]] = value; } })"
+	"Object.defineProperty(__rspack_context, item[0], { configurable: true, enumerable: true, get: item[1], set: item[2] })"
 );
 expect(source).not.toContain('["o", __var_o]');

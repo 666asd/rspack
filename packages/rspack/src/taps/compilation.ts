@@ -5,6 +5,8 @@ import {
   __from_binding_runtime_globals,
   __to_binding_runtime_globals,
   isReservedRuntimeGlobal,
+  renderRuntimeVariables,
+  RuntimeVariable,
 } from '../RuntimeGlobals';
 import { createRenderedRuntimeModule } from '../RuntimeModule';
 import { createHash } from '../util/createHash';
@@ -202,7 +204,8 @@ export const createCompilationHooksRegisters: CreatePartialRegisters<
           runtimeModules,
         }: binding.JsExecuteModuleArg) {
           try {
-            const RuntimeGlobals = getCompiler().rspack.RuntimeGlobals;
+            const compiler = getCompiler();
+            const RuntimeGlobals = compiler.rspack.RuntimeGlobals;
             const moduleRequireFn: any = (id: string) => {
               const cached = moduleCache[id];
               if (cached !== undefined) {
@@ -240,7 +243,10 @@ export const createCompilationHooksRegisters: CreatePartialRegisters<
                     },
                     {
                       [RuntimeGlobals.require]: moduleRequireFn,
-                      __rspack_runtime: runtimeProxy,
+                      [renderRuntimeVariables(
+                        RuntimeVariable.Runtime,
+                        compiler.options,
+                      )]: runtimeProxy,
                     },
                   ),
                 'Compilation.hooks.executeModule',

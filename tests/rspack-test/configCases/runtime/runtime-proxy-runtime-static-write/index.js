@@ -1,6 +1,6 @@
 function runtimeProxyStaticWrite() {}
 
-__rspack_runtime.d = runtimeProxyStaticWrite;
+__rspack_context.d = runtimeProxyStaticWrite;
 
 export const writeSyncedToRuntimeVariable =
-  __rspack_runtime.d === runtimeProxyStaticWrite;
+  __rspack_context.d === runtimeProxyStaticWrite;

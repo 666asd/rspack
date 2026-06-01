@@ -25,9 +25,9 @@ use crate::{
   RuntimeCondition, RuntimeGlobals, RuntimeSpec, UsedName, compile_boolean_matcher_from_lists,
   contextify, property_access,
   runtime_globals::{
-    RuntimeVariable, runtime_global_can_render_in_require_scope, runtime_globals_property_name,
-    runtime_globals_to_lexical_variable, runtime_globals_to_string, runtime_variable_to_string,
-    runtime_variable_to_template_name,
+    RuntimeVariable, runtime_global_can_render_in_require_scope,
+    runtime_globals_runtime_context_property_name, runtime_globals_to_lexical_variable,
+    runtime_globals_to_string, runtime_variable_to_string, runtime_variable_to_template_name,
   },
   to_comment, to_normal_comment,
 };
@@ -74,16 +74,17 @@ fn replace_runtime_globals(template: String, runtime_globals: &Map<String, Value
 // For example, `RuntimeGlobals::DEFINE_PROPERTY_GETTERS` renders to `.d`, while
 // `RuntimeGlobals::MODULE_FACTORIES_ADD_ONLY` renders to `["m (add only)"]`.
 fn render_runtime_proxy_property_access(runtime_globals: &RuntimeGlobals) -> String {
-  let proxy_property = runtime_globals_property_name(runtime_globals).unwrap_or_else(|| {
-    panic!("runtime global {runtime_globals:?} cannot be rendered as proxy property")
-  });
+  let proxy_property = runtime_globals_runtime_context_property_name(runtime_globals)
+    .unwrap_or_else(|| {
+      panic!("runtime global {runtime_globals:?} cannot be rendered as proxy property")
+    });
   property_access([proxy_property], 0)
 }
 
 // Renders runtime globals according to the current render mode.
 //
 // For example, `RuntimeGlobals::DEFINE_PROPERTY_GETTERS` renders as
-// `__webpack_require__.d` in `RequireProperty`, `__rspack_runtime.d` in
+// `__webpack_require__.d` in `RequireProperty`, `__rspack_context.d` in
 // `ModuleProxy`, and `__var_d` in `LexicalRuntime`.
 fn render_runtime_globals_by_mode(
   render_mode: RuntimeGlobalRenderMode,
@@ -93,6 +94,12 @@ fn render_runtime_globals_by_mode(
   match render_mode {
     RuntimeGlobalRenderMode::RequireProperty => {
       runtime_globals_to_string(runtime_globals, compiler_options)
+    }
+    RuntimeGlobalRenderMode::ModuleProxy if runtime_globals == &RuntimeGlobals::REQUIRE => {
+      format!(
+        "{}.r",
+        runtime_variable_to_string(&RuntimeVariable::Runtime, compiler_options)
+      )
     }
     RuntimeGlobalRenderMode::ModuleProxy
       if runtime_global_can_render_in_require_scope(runtime_globals) =>
@@ -598,7 +605,7 @@ impl ModuleCodeTemplate {
   ///
   /// For example, with `ModuleProxy` mode,
   /// `RuntimeGlobals::DEFINE_PROPERTY_GETTERS` records the requirement and
-  /// renders as `__rspack_runtime.d`.
+  /// renders as `__rspack_context.d`.
   pub fn render_runtime_globals(&mut self, runtime_globals: &RuntimeGlobals) -> String {
     self.runtime_requirements.insert(*runtime_globals);
     render_runtime_globals_by_mode(self.render_mode, runtime_globals, &self.compiler_options)
@@ -1575,7 +1582,7 @@ impl<'a> RuntimeCodeTemplate<'a> {
 
   /// Renders a runtime variable with this runtime template's compiler options.
   ///
-  /// For example, `RuntimeVariable::Runtime` renders as `__rspack_runtime`.
+  /// For example, `RuntimeVariable::Runtime` renders as `__rspack_context`.
   pub fn render_runtime_variable(&self, runtime_variable: &RuntimeVariable) -> String {
     runtime_variable_to_string(runtime_variable, &self.compiler_options)
   }

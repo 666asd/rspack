@@ -1,14 +1,11 @@
 export const value = 1;
 
 import {
-	requireWriteSyncedToProxy,
-	proxyWriteSyncedToRequire,
-	proxyWriteUpdatedNonce
+	contextWriteSynced,
+	contextWriteUpdatedNonce
 } from "./writer";
-import "./shadow";
 
 it("should sync runtime proxy write bridge", () => {
-	expect(requireWriteSyncedToProxy).toBe(true);
-	expect(proxyWriteSyncedToRequire).toBe(true);
-	expect(proxyWriteUpdatedNonce).toBe(true);
+	expect(contextWriteSynced).toBe(true);
+	expect(contextWriteUpdatedNonce).toBe(true);
 });

@@ -15,9 +15,9 @@ module.exports = {
       '["d", function() { return __var_d; }, function(value) { __var_d = value; }]'
     );
     expect(source).toContain(
-      "Object.defineProperty(__proxy, item[0], { configurable: true, enumerable: true, get: item[1], set: item[2] })"
+      "Object.defineProperty(__rspack_context, item[0], { configurable: true, enumerable: true, get: item[1], set: item[2] })"
     );
-    expect(source).toContain("__rspack_runtime.d = runtimeProxyStaticWrite");
+    expect(source).toContain("__rspack_context.d = runtimeProxyStaticWrite");
     expect(source).not.toContain("Object.defineProperty(__webpack_require__, item[0]");
   }
 };
