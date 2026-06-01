@@ -245,7 +245,14 @@ impl PathManager {
   /// Returns `true` if the event should pass through (mtime changed or no baseline).
   /// Returns `false` if the event should be suppressed (mtime unchanged = stale).
   pub fn has_mtime_changed(&self, path: &ArcPath) -> bool {
+    let trace = std::env::var("RSPACK_WATCHER_TRACE").is_ok();
     if !self.files.all.contains(path) {
+      if trace {
+        eprintln!(
+          "[RSPACK_WATCHER_TRACE] has_mtime_changed path={} verdict=true reason=not_registered",
+          path.display()
+        );
+      }
       return true;
     }
 
@@ -254,21 +261,48 @@ impl PathManager {
       .and_then(|m| m.modified().or_else(|_| m.created()))
     {
       Ok(mtime) => mtime,
-      Err(_) => return true,
+      Err(_) => {
+        if trace {
+          eprintln!(
+            "[RSPACK_WATCHER_TRACE] has_mtime_changed path={} verdict=true reason=metadata_err",
+            path.display()
+          );
+        }
+        return true;
+      }
     };
 
     match self.file_mtimes.get(path) {
       Some(baseline) => {
-        if current_mtime != *baseline {
+        let baseline_val = *baseline;
+        if current_mtime != baseline_val {
           drop(baseline);
           self.file_mtimes.insert(path.clone(), current_mtime);
+          if trace {
+            eprintln!(
+              "[RSPACK_WATCHER_TRACE] has_mtime_changed path={} verdict=true current={:?} baseline={:?}",
+              path.display(), current_mtime, baseline_val
+            );
+          }
           true
         } else {
+          if trace {
+            eprintln!(
+              "[RSPACK_WATCHER_TRACE] has_mtime_changed path={} verdict=false reason=mtime_equal mtime={:?}",
+              path.display(), current_mtime
+            );
+          }
           false
         }
       }
       None => {
         self.file_mtimes.insert(path.clone(), current_mtime);
+        if trace {
+          eprintln!(
+            "[RSPACK_WATCHER_TRACE] has_mtime_changed path={} verdict=true reason=no_baseline current={:?}",
+            path.display(), current_mtime
+          );
+        }
         true
       }
     }

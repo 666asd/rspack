@@ -39,6 +39,13 @@ impl DiskWatcher {
             "fs_event",
           );
 
+          if std::env::var("RSPACK_WATCHER_TRACE").is_ok() {
+            eprintln!(
+              "[RSPACK_WATCHER_TRACE] raw_notify_event kind={:?} paths={:?}",
+              event.kind, event.paths
+            );
+          }
+
           if event.paths.is_empty() {
             return;
           }

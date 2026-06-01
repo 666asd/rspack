@@ -115,6 +115,15 @@ impl Trigger {
   pub fn on_event(&self, path: &ArcPath, kind: FsEventKind) {
     let is_registered_file = self.path_manager.access().files().0.contains(path);
 
+    if std::env::var("RSPACK_WATCHER_TRACE").is_ok() {
+      eprintln!(
+        "[RSPACK_WATCHER_TRACE] on_event path={} kind={:?} is_registered_file={}",
+        path.display(),
+        kind,
+        is_registered_file
+      );
+    }
+
     // Filter stale FSEvents: on macOS, FSEvents can deliver events for files
     // written before the watcher was created. Stat the file and compare mtime
     // against the recorded baseline to suppress events where nothing changed.
@@ -123,11 +132,24 @@ impl Trigger {
     if (kind == FsEventKind::Change || (kind == FsEventKind::Create && is_registered_file))
       && !self.path_manager.has_mtime_changed(path)
     {
+      if std::env::var("RSPACK_WATCHER_TRACE").is_ok() {
+        eprintln!(
+          "[RSPACK_WATCHER_TRACE] suppressed_by_mtime path={}",
+          path.display()
+        );
+      }
       return;
     }
 
     let finder = self.finder();
     let associated_event = finder.find_associated_event(path, kind);
+    if std::env::var("RSPACK_WATCHER_TRACE").is_ok() {
+      eprintln!(
+        "[RSPACK_WATCHER_TRACE] dispatched path={} associated_count={}",
+        path.display(),
+        associated_event.len()
+      );
+    }
     self.trigger_events(associated_event);
   }
   /// Helper to construct a `DependencyFinder` for the current path register state.
