@@ -185,7 +185,10 @@ impl JsEventHandler {
     let callback = callback
       .build_threadsafe_function::<NativeWatchResult>()
       .callee_handled::<true>()
-      .max_queue_size::<1>()
+      // Unlimited queue: max_queue_size=1 combined with NonBlocking silently
+      // drops aggregated batches when the JS side is still busy with a
+      // previous rebuild, causing flaky "missed change" tests on macOS.
+      .max_queue_size::<0>()
       .weak::<true>()
       .build_callback(
         move |ctx: napi::threadsafe_function::ThreadSafeCallContext<_>| Ok(ctx.value),
@@ -240,7 +243,8 @@ impl JsEventHandlerUndelayed {
     let callback = callback
       .build_threadsafe_function::<String>()
       .weak::<false>()
-      .max_queue_size::<1>()
+      // Unlimited queue: see JsEventHandler::new for rationale.
+      .max_queue_size::<0>()
       .build_callback(
         move |ctx: napi::threadsafe_function::ThreadSafeCallContext<_>| Ok(ctx.value),
       )?;
