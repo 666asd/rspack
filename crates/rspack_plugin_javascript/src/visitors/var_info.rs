@@ -88,12 +88,12 @@ impl JavascriptParser<'_> {
     self.get_var_origin(id).is_none()
   }
 
-  pub fn get_tag_data(&self, id: &Id, tag: &'static str) -> Option<Box<dyn anymap::CloneAny>> {
+  pub fn get_tag_data<Data: TagInfoData>(&self, id: &Id, tag: &'static str) -> Option<&Data> {
     let var_info = self.definitions_db2.vars.get(id)?;
     for tag_id in &var_info.tags {
       let tag_info = self.definitions_db2.expect_get_tag_info(*tag_id);
       if tag_info.tag == tag {
-        return tag_info.data.clone();
+        return Some(TagInfoData::downcast_ref(&tag_info.data));
       }
     }
     None

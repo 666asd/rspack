@@ -961,8 +961,7 @@ fn try_extract_deferred_check(
   ident: Atom,
   span: Span,
 ) -> Option<DeferredPureCheck> {
-  let data = parser.get_tag_data(&ident.to_id(), ESM_SPECIFIER_TAG)?;
-  let data = ESMSpecifierData::downcast(data);
+  let data = parser.get_tag_data::<ESMSpecifierData>(&ident.to_id(), ESM_SPECIFIER_TAG)?;
 
   parser
     .get_dependencies()

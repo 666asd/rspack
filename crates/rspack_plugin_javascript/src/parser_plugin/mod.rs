@@ -57,7 +57,7 @@ pub(crate) use self::{
   import_meta_plugin::{ImportMetaDisabledPlugin, ImportMetaPlugin},
   import_parser_plugin::{ImportParserPlugin, ImportsReferencesState},
   initialize_evaluating::InitializeEvaluating,
-  inline_const::ConstValuePlugin,
+  inline_const::{ConstValue, ConstValuePlugin},
   inner_graph::{
     connection_active_used_by_exports,
     // plugin::*,

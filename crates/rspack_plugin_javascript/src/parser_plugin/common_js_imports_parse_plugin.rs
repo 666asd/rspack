@@ -610,7 +610,9 @@ impl JavascriptParserPlugin for CommonJsImportsParserPlugin {
     }
     if let Some(ident) = expr.as_ident()
       && let Some(IdOrName::Id(origin)) = parser.get_var_origin(&ident.to_id()).cloned()
-      && parser.get_tag_data(&origin, COMMONJS_REQUIRE_TAG).is_some()
+      && parser
+        .get_tag_data::<RequireTagData>(&origin, COMMONJS_REQUIRE_TAG)
+        .is_some()
     {
       return Some(true);
     }

@@ -138,7 +138,9 @@ impl JavascriptParserPlugin for ImportParserPlugin {
     }
     if let Some(ident) = expr.as_ident()
       && let Some(IdOrName::Id(origin)) = parser.get_var_origin(&ident.to_id()).cloned()
-      && parser.get_tag_data(&origin, DYNAMIC_IMPORT_TAG).is_some()
+      && parser
+        .get_tag_data::<ImportTagData>(&origin, DYNAMIC_IMPORT_TAG)
+        .is_some()
     {
       return Some(true);
     }

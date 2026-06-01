@@ -6,7 +6,7 @@ use rspack_regex::RspackRegex;
 use swc_core::{
   atoms::Atom,
   common::{Mark, SyntaxContext},
-  ecma::ast::{Expr, Id, MemberExpr, OptChainBase},
+  ecma::ast::{Expr, Id, Lit, MemberExpr, OptChainBase},
 };
 
 use super::JavascriptParser;

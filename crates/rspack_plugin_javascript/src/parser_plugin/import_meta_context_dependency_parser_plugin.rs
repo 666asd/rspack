@@ -26,7 +26,7 @@ use crate::{
   },
   visitors::{
     JavascriptParser, clean_regexp_in_context_module, default_context_reg_exp, expr_name,
-    var_info::IdOrName,
+    static_string_from_expr, var_info::IdOrName,
   },
 };
 

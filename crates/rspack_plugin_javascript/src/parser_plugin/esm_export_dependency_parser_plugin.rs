@@ -6,7 +6,7 @@ use rspack_util::SpanExt;
 use swc_core::{
   atoms::Atom,
   common::{Span, Spanned, comments::CommentKind},
-  ecma::ast::Id,
+  ecma::ast::{Expr, Id},
 };
 
 use super::{
@@ -17,6 +17,7 @@ use super::{
 };
 use crate::{
   // InnerGraphParserPlugin,
+  ConstValue,
   dependency::{
     DeclarationId, DeclarationInfo, ESMExportExpressionDependency, ESMExportHeaderDependency,
     ESMExportImportedSpecifierDependency, ESMExportSpecifierDependency,
@@ -41,7 +42,7 @@ fn create_default_exported_namespace_dependency(
     return None;
   };
   let settings = parser
-    .get_tag_data::<ESMSpecifierData>(&ident.sym, ESM_SPECIFIER_TAG)
+    .get_tag_data::<ESMSpecifierData>(&ident.to_id(), ESM_SPECIFIER_TAG)
     .filter(|settings| settings.namespace_import && settings.ids.is_empty())?
     .clone();
   let statement_span = statement.span();
@@ -185,7 +186,9 @@ impl JavascriptParserPlugin for ESMExportDependencyParserPlugin {
         .collected_typescript_info
         .as_ref()
         .and_then(|info| info.exported_enums.get(&local_id.0).cloned());
-      let variable = parser.get_tag_data(local_id, NESTED_IDENTIFIER_TAG);
+      let variable = parser
+        .get_tag_data::<NestedRequireData>(local_id, NESTED_IDENTIFIER_TAG)
+        .map(|data| data.name.clone());
 
       let range = DependencyRange::from(statement.span());
       let loc = parser.to_dependency_location(range);
@@ -333,7 +336,7 @@ impl JavascriptParserPlugin for ESMExportDependencyParserPlugin {
     };
     let const_value = match expr {
       ExportDefaultExpression::Expr(Expr::Ident(ident)) => parser
-        .get_tag_data::<ConstValueData>(&ident.sym, INLINABLE_CONST_TAG)
+        .get_tag_data::<ConstValueData>(&ident.to_id(), INLINABLE_CONST_TAG)
         .map(|data| data.value.clone()),
       ExportDefaultExpression::Expr(expr) => {
         to_evaluated_inlinable_value(&parser.evaluate_expression(expr)).map(ConstValue::Inlinable)

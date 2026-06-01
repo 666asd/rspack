@@ -123,13 +123,22 @@ impl JavascriptParserPlugin for ESMImportDependencyParserPlugin {
       return None;
     }
     let root_info = right.root_info();
-    let settings = if let IdOrName::Id(id) = root_info
-      && let Some(data) = parser.get_tag_data(&id, ESM_SPECIFIER_TAG)
-    {
-      ESMSpecifierData::downcast(data)
-    } else {
-      return None;
-    };
+    let (source, name, source_order, phase, attributes, namespace_import, mut ids) =
+      if let IdOrName::Id(id) = root_info
+        && let Some(settings) = parser.get_tag_data::<ESMSpecifierData>(&id, ESM_SPECIFIER_TAG)
+      {
+        (
+          settings.source.clone(),
+          settings.name.clone(),
+          settings.source_order,
+          settings.phase,
+          settings.attributes.clone(),
+          settings.namespace_import,
+          settings.ids.clone(),
+        )
+      } else {
+        return None;
+      };
     let left = parser.evaluate_expression(&expr.left);
     if left.could_have_side_effects() {
       return None;
@@ -137,27 +146,26 @@ impl JavascriptParserPlugin for ESMImportDependencyParserPlugin {
     let left = left.as_string()?;
     let members = right.members().map(|v| v.as_slice()).unwrap_or_default();
     let direct_import = members.is_empty();
-    let mut ids = settings.ids.clone();
     ids.extend(members.iter().cloned());
     ids.push(left.into());
 
     let range = DependencyRange::from(expr.span);
     let loc = parser.to_dependency_location(range);
     let mut dep = ESMImportSpecifierDependency::new(
-      settings.source,
-      settings.name,
-      settings.source_order,
+      source,
+      name,
+      source_order,
       parser.in_short_hand,
       !parser.is_asi_position(expr.span_lo()),
       expr.span.into(),
       ids.into_vec(),
       parser.in_tagged_template_tag,
       direct_import,
-      settings.namespace_import,
+      namespace_import,
       ExportPresenceMode::None,
       None,
-      settings.phase,
-      settings.attributes,
+      phase,
+      attributes,
       loc,
     );
     dep.evaluated_in_operator = true;
@@ -178,7 +186,9 @@ impl JavascriptParserPlugin for ESMImportDependencyParserPlugin {
     if let MemberExpressionInfo::Expression(info) =
       parser.get_member_expression_info_from_expr(expr, AllowedMemberTypes::Expression)?
       && let IdOrName::Id(id) = &info.root_info
-      && let Some(data) = parser.get_tag_data(&id, ESM_SPECIFIER_TAG)
+      && parser
+        .get_tag_data::<ESMSpecifierData>(&id, ESM_SPECIFIER_TAG)
+        .is_some()
     {
       return Some(true);
     }
