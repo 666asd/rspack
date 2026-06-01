@@ -9,7 +9,7 @@ use swc_core::{
 use crate::{
   JavascriptParserPlugin,
   utils::eval::{BasicEvaluatedExpression, evaluate_to_identifier, evaluate_to_string},
-  visitors::{JavascriptParser, ParserHookName},
+  visitors::{IdentifierHookName, JavascriptParser, ParserHookName},
 };
 
 pub struct AMDParserPlugin;
@@ -128,7 +128,7 @@ impl JavascriptParserPlugin for AMDParserPlugin {
     &self,
     parser: &mut JavascriptParser,
     ident: &swc_core::ecma::ast::Ident,
-    for_name: ParserHookName<'_>,
+    for_name: IdentifierHookName<'_>,
   ) -> Option<bool> {
     if for_name.is_identifier(&atom!(DEFINE)) {
       parser.add_presentational_dependency(Box::new(RuntimeRequirementsDependency::new(

@@ -24,7 +24,7 @@ use crate::{
   magic_comment::try_extract_magic_comment,
   utils::object_properties::{get_attributes, get_value_by_obj_prop},
   visitors::{
-    ContextModuleScanResult, JavascriptParser, ParserHookName, Statement, TagInfoData,
+    ContextModuleScanResult, IdentifierHookName, JavascriptParser, Statement, TagInfoData,
     TopLevelScope, VariableDeclaration, VariableDeclarationKind, context_reg_exp,
     create_context_dependency, create_traceable_error, get_non_optional_part, parse_order_string,
   },
@@ -172,9 +172,9 @@ impl JavascriptParserPlugin for ImportParserPlugin {
     &self,
     parser: &mut JavascriptParser,
     ident: &Ident,
-    for_name: ParserHookName<'_>,
+    for_name: IdentifierHookName<'_>,
   ) -> Option<bool> {
-    if !for_name.is_member_chain(DYNAMIC_IMPORT_TAG) {
+    if !for_name.is_tag(DYNAMIC_IMPORT_TAG) {
       return None;
     }
     let tag_info = parser

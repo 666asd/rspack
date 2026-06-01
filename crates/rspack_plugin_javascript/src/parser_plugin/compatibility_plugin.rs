@@ -10,7 +10,8 @@ use super::JavascriptParserPlugin;
 use crate::{
   dependency::CommonJsRequireContextDependency,
   visitors::{
-    JavascriptParser, ParserHookName, Statement, TagInfoData, VariableDeclaration, expr_name,
+    IdentifierHookName, JavascriptParser, ParserHookName, Statement, TagInfoData,
+    VariableDeclaration, expr_name,
   },
 };
 
@@ -202,9 +203,9 @@ impl JavascriptParserPlugin for CompatibilityPlugin {
     &self,
     parser: &mut JavascriptParser,
     ident: &swc_core::ecma::ast::Ident,
-    for_name: ParserHookName<'_>,
+    for_name: IdentifierHookName<'_>,
   ) -> Option<bool> {
-    if !for_name.is_member_chain(NESTED_IDENTIFIER_TAG) {
+    if !for_name.is_tag(NESTED_IDENTIFIER_TAG) {
       return None;
     }
     let tag_info = parser

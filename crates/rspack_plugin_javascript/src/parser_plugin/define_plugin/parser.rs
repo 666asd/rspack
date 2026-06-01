@@ -14,7 +14,9 @@ use crate::{
   JavascriptParserPlugin,
   define_plugin::walk_data::DefineRecord,
   utils::eval::{BasicEvaluatedExpression, evaluate_to_string},
-  visitors::{AllowedMemberTypes, JavascriptParser, MemberExpressionInfo, ParserHookName},
+  visitors::{
+    AllowedMemberTypes, IdentifierHookName, JavascriptParser, MemberExpressionInfo, ParserHookName,
+  },
 };
 
 pub struct DefineParserPlugin {
@@ -215,7 +217,7 @@ impl JavascriptParserPlugin for DefineParserPlugin {
     &self,
     parser: &mut JavascriptParser,
     ident: &swc_core::ecma::ast::Ident,
-    for_name: ParserHookName<'_>,
+    for_name: IdentifierHookName<'_>,
   ) -> Option<bool> {
     let for_name = for_name.as_str();
     if let Some(record) = self.get_define_record(for_name)

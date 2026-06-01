@@ -169,8 +169,8 @@ use crate::{
   utils::eval::BasicEvaluatedExpression,
   visitors::{
     ClassDeclOrExpr, DestructuringAssignmentProperty, ExportDefaultDeclaration,
-    ExportDefaultExpression, ExportImport, ExportLocal, ExportedVariableInfo, JavascriptParser,
-    ParserHookName, Statement, VariableDeclaration,
+    ExportDefaultExpression, ExportImport, ExportLocal, ExportedVariableInfo, IdentifierHookName,
+    JavascriptParser, ParserHookName, Statement, VariableDeclaration,
   },
 };
 
@@ -522,7 +522,7 @@ Please annotate your `impl JavascriptParserPlugin for ...` block with `#[rspack_
     &self,
     _parser: &mut JavascriptParser,
     _ident: &Ident,
-    _for_name: ParserHookName<'_>,
+    _for_name: IdentifierHookName<'_>,
   ) -> Option<bool> {
     None
   }

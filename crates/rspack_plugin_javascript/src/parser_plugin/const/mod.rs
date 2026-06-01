@@ -1,4 +1,4 @@
-use crate::visitors::ParserHookName;
+use crate::visitors::{IdentifierHookName, ParserHookName};
 mod if_stmt;
 mod logic_expr;
 
@@ -21,13 +21,33 @@ thread_local! {
 }
 
 #[inline]
+fn is_resource_fragment_atom(name: Option<&Atom>) -> bool {
+  RESOURCE_FRAGMENT_ATOM.with(|atom| name.is_some_and(|name| name == atom))
+}
+
+#[inline]
+fn is_resource_query_atom(name: Option<&Atom>) -> bool {
+  RESOURCE_QUERY_ATOM.with(|atom| name.is_some_and(|name| name == atom))
+}
+
+#[inline]
 fn is_resource_fragment(for_name: ParserHookName<'_>) -> bool {
-  RESOURCE_FRAGMENT_ATOM.with(|atom| for_name.is_identifier(atom))
+  is_resource_fragment_atom(for_name.as_atom())
+}
+
+#[inline]
+fn is_identifier_resource_fragment(for_name: IdentifierHookName<'_>) -> bool {
+  is_resource_fragment_atom(for_name.as_atom())
 }
 
 #[inline]
 fn is_resource_query(for_name: ParserHookName<'_>) -> bool {
-  RESOURCE_QUERY_ATOM.with(|atom| for_name.is_identifier(atom))
+  is_resource_query_atom(for_name.as_atom())
+}
+
+#[inline]
+fn is_identifier_resource_query(for_name: IdentifierHookName<'_>) -> bool {
+  is_resource_query_atom(for_name.as_atom())
 }
 
 #[rspack_macros::implemented_javascript_parser_hooks]
@@ -84,9 +104,9 @@ impl JavascriptParserPlugin for ConstPlugin {
     &self,
     parser: &mut JavascriptParser,
     ident: &swc_core::ecma::ast::Ident,
-    for_name: ParserHookName<'_>,
+    for_name: IdentifierHookName<'_>,
   ) -> Option<bool> {
-    if is_resource_fragment(for_name) {
+    if is_identifier_resource_fragment(for_name) {
       let resource_fragment = parser.resource_data.fragment().unwrap_or("");
       parser.add_presentational_dependency(Box::new(CachedConstDependency::new(
         ident.span.into(),
@@ -94,7 +114,7 @@ impl JavascriptParserPlugin for ConstPlugin {
         rspack_util::json_stringify_str(resource_fragment).into(),
       )));
       Some(true)
-    } else if is_resource_query(for_name) {
+    } else if is_identifier_resource_query(for_name) {
       let resource_query = parser.resource_data.query().unwrap_or("");
       parser.add_presentational_dependency(Box::new(CachedConstDependency::new(
         ident.span.into(),

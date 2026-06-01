@@ -15,7 +15,9 @@ use std::{
 };
 
 use bitflags::bitflags;
-pub use call_hooks_name::{CallHooksName, ParserHookName};
+pub use call_hooks_name::{
+  CallHooksName, CallIdentifierHookName, IdentifierHookName, ParserHookName,
+};
 use rspack_cacheable::{
   cacheable,
   with::{AsCacheable, AsOption, AsPreset, AsVec},

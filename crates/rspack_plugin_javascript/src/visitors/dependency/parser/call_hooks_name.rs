@@ -12,6 +12,48 @@ pub enum ParserHookName<'a> {
   MemberChain(&'a str),
 }
 
+/// Name passed to `JavascriptParserPlugin::identifier`.
+///
+/// `Tag` is a parser-internal variable tag created by `tag_variable`, not a
+/// JavaScript member-chain hook name.
+#[derive(Clone, Copy, Debug)]
+pub enum IdentifierHookName<'a> {
+  Identifier(&'a Atom),
+  Tag(&'a str),
+}
+
+impl<'a> IdentifierHookName<'a> {
+  pub fn as_str(self) -> &'a str {
+    match self {
+      Self::Identifier(name) => name,
+      Self::Tag(tag) => tag,
+    }
+  }
+
+  pub fn as_atom(self) -> Option<&'a Atom> {
+    match self {
+      Self::Identifier(name) => Some(name),
+      Self::Tag(_) => None,
+    }
+  }
+
+  #[inline]
+  pub fn is_identifier(self, expected: &Atom) -> bool {
+    match self {
+      Self::Identifier(name) => name == expected,
+      Self::Tag(_) => false,
+    }
+  }
+
+  #[inline]
+  pub fn is_tag(self, expected: &str) -> bool {
+    match self {
+      Self::Identifier(_) => false,
+      Self::Tag(tag) => tag == expected,
+    }
+  }
+}
+
 impl<'a> ParserHookName<'a> {
   pub fn as_str(self) -> &'a str {
     match self {
@@ -53,6 +95,16 @@ pub trait CallHooksName {
     F: for<'name> Fn(&mut JavascriptParser, ParserHookName<'name>) -> Option<T>;
 }
 
+pub trait CallIdentifierHookName {
+  fn call_identifier_hook_name<F, T>(
+    &self,
+    parser: &mut JavascriptParser,
+    hook_call: F,
+  ) -> Option<T>
+  where
+    F: for<'name> Fn(&mut JavascriptParser, IdentifierHookName<'name>) -> Option<T>;
+}
+
 #[allow(unused_lifetimes)]
 impl CallHooksName for Atom {
   fn call_hooks_name<'parser, F, T>(&self, parser: &mut JavascriptParser, hook_call: F) -> Option<T>
@@ -73,6 +125,34 @@ impl CallHooksName for Atom {
     } else {
       // unresolved free variable, for example the global `require` in commonjs.
       hook_call(parser, ParserHookName::Identifier(self))
+    }
+  }
+}
+
+#[allow(unused_lifetimes)]
+impl CallIdentifierHookName for Atom {
+  fn call_identifier_hook_name<'parser, F, T>(
+    &self,
+    parser: &mut JavascriptParser,
+    hook_call: F,
+  ) -> Option<T>
+  where
+    F: for<'name> Fn(&mut JavascriptParser, IdentifierHookName<'name>) -> Option<T>,
+  {
+    if let Some((id, can_call_hooks)) = parser.get_variable_info(self).map(|info| {
+      (
+        info.id(),
+        info.tag_info.is_some() || info.is_free() || info.is_tagged(),
+      )
+    }) {
+      if !can_call_hooks {
+        return None;
+      }
+      // resolved variable info
+      call_identifier_hook_info(id, parser, hook_call)
+    } else {
+      // unresolved free variable, for example the global `require` in commonjs.
+      hook_call(parser, IdentifierHookName::Identifier(self))
     }
   }
 }
@@ -152,6 +232,49 @@ impl CallHooksName for OptChainExpr {
       expr_name.name.call_hooks_name(parser, hook_call)
     }
   }
+}
+
+fn call_identifier_hook_info<F, T>(
+  id: VariableInfoId,
+  parser: &mut JavascriptParser,
+  hook_call: F,
+) -> Option<T>
+where
+  F: for<'name> Fn(&mut JavascriptParser, IdentifierHookName<'name>) -> Option<T>,
+{
+  let info = parser.definitions_db.expect_get_variable(id);
+  let mut next_tag_info = info.tag_info;
+
+  while let Some(tag_info_id) = next_tag_info {
+    parser.current_tag_info = Some(tag_info_id);
+    let (next, tag) = {
+      let tag_info = parser.definitions_db.expect_get_tag_info(tag_info_id);
+      (tag_info.next, tag_info.tag)
+    };
+    let result = hook_call(parser, IdentifierHookName::Tag(tag));
+    parser.current_tag_info = None;
+    if result.is_some() {
+      return result;
+    }
+    next_tag_info = next;
+  }
+
+  let name = {
+    let info = parser.definitions_db.expect_get_variable(id);
+    if info.is_free() || info.is_tagged() {
+      info.name.clone()
+    } else {
+      None
+    }
+  };
+  if let Some(name) = &name {
+    let result = hook_call(parser, IdentifierHookName::Identifier(name));
+    if result.is_some() {
+      return result;
+    }
+  }
+
+  None
 }
 
 fn call_hooks_info<F, T>(

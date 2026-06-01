@@ -11,7 +11,7 @@ use super::JavascriptParserPlugin;
 use crate::{
   dependency::ESMCompatibilityDependency,
   utils::eval::BasicEvaluatedExpression,
-  visitors::{JavascriptParser, ParserHookName, create_traceable_error},
+  visitors::{IdentifierHookName, JavascriptParser, ParserHookName, create_traceable_error},
 };
 
 impl JavascriptParser<'_> {
@@ -117,7 +117,7 @@ impl JavascriptParserPlugin for ESMDetectionParserPlugin {
     &self,
     parser: &mut JavascriptParser,
     _ident: &Ident,
-    for_name: ParserHookName<'_>,
+    for_name: IdentifierHookName<'_>,
   ) -> Option<bool> {
     (parser.is_esm && is_non_esm_identifier(for_name.as_str())).then_some(true)
   }

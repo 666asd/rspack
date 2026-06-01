@@ -16,7 +16,9 @@ use crate::{
   JavascriptParserPlugin,
   dependency::ExternalModuleDependency,
   utils::eval,
-  visitors::{DestructuringAssignmentProperty, JavascriptParser, ParserHookName},
+  visitors::{
+    DestructuringAssignmentProperty, IdentifierHookName, JavascriptParser, ParserHookName,
+  },
 };
 
 const DIRNAME: &str = "__dirname";
@@ -33,13 +35,33 @@ thread_local! {
 }
 
 #[inline]
+fn is_dirname_atom(name: Option<&Atom>) -> bool {
+  DIRNAME_ATOM.with(|atom| name.is_some_and(|name| name == atom))
+}
+
+#[inline]
+fn is_filename_atom(name: Option<&Atom>) -> bool {
+  FILENAME_ATOM.with(|atom| name.is_some_and(|name| name == atom))
+}
+
+#[inline]
 fn is_dirname(for_name: ParserHookName<'_>) -> bool {
-  DIRNAME_ATOM.with(|atom| for_name.is_identifier(atom))
+  is_dirname_atom(for_name.as_atom())
+}
+
+#[inline]
+fn is_identifier_dirname(for_name: IdentifierHookName<'_>) -> bool {
+  is_dirname_atom(for_name.as_atom())
 }
 
 #[inline]
 fn is_filename(for_name: ParserHookName<'_>) -> bool {
-  FILENAME_ATOM.with(|atom| for_name.is_identifier(atom))
+  is_filename_atom(for_name.as_atom())
+}
+
+#[inline]
+fn is_identifier_filename(for_name: IdentifierHookName<'_>) -> bool {
+  is_filename_atom(for_name.as_atom())
 }
 
 #[inline]
@@ -431,7 +453,7 @@ impl JavascriptParserPlugin for NodeStuffPlugin {
     &self,
     parser: &mut JavascriptParser,
     ident: &swc_core::ecma::ast::Ident,
-    for_name: ParserHookName<'_>,
+    for_name: IdentifierHookName<'_>,
   ) -> Option<bool> {
     // Skip CJS handling if not enabled
     if !self.handle_cjs {
@@ -442,7 +464,7 @@ impl JavascriptParserPlugin for NodeStuffPlugin {
       // When node: false, this plugin is not registered for CJS modules
       return None;
     };
-    if is_dirname(for_name) {
+    if is_identifier_dirname(for_name) {
       let dirname = match node_option.dirname {
         NodeDirnameOption::Mock => Some(MOCK_DIRNAME.to_string()),
         NodeDirnameOption::WarnMock => {
@@ -495,7 +517,7 @@ impl JavascriptParserPlugin for NodeStuffPlugin {
         )));
         return Some(true);
       }
-    } else if is_filename(for_name) {
+    } else if is_identifier_filename(for_name) {
       let filename = match node_option.filename {
         NodeFilenameOption::Mock => Some(MOCK_FILENAME.to_string()),
         NodeFilenameOption::WarnMock => {

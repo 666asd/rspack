@@ -12,7 +12,7 @@ use swc_core::{
 use super::{super::JavascriptParserPlugin, ProvideValue, VALUE_DEP_PREFIX};
 use crate::{
   dependency::ProvideDependency,
-  visitors::{JavascriptParser, ParserHookName},
+  visitors::{IdentifierHookName, JavascriptParser, ParserHookName},
 };
 
 const SOURCE_DOT: &str = r#"."#;
@@ -99,7 +99,7 @@ impl JavascriptParserPlugin for ProvideParserPlugin {
     &self,
     parser: &mut JavascriptParser,
     ident: &swc_core::ecma::ast::Ident,
-    for_name: ParserHookName<'_>,
+    for_name: IdentifierHookName<'_>,
   ) -> Option<bool> {
     self
       .add_provide_dep(for_name.as_str(), ident.span, parser)

@@ -11,8 +11,8 @@ use rspack_plugin_javascript::{
     eval::{self},
   },
   visitors::{
-    JavascriptParser, ParserHookName, Statement, VariableDeclaration, create_traceable_error,
-    expr_name,
+    IdentifierHookName, JavascriptParser, ParserHookName, Statement, VariableDeclaration,
+    create_traceable_error, expr_name,
   },
 };
 use rspack_util::{SpanExt, atom::Atom, json_stringify_str, swc::get_swc_comments};
@@ -43,13 +43,23 @@ thread_local! {
 }
 
 #[inline]
-fn is_dir_name(for_name: ParserHookName<'_>) -> bool {
-  DIR_NAME_ATOM.with(|atom| for_name.is_identifier(atom))
+fn is_dir_name_atom(name: Option<&Atom>) -> bool {
+  DIR_NAME_ATOM.with(|atom| name.is_some_and(|name| name == atom))
 }
 
 #[inline]
-fn is_file_name(for_name: ParserHookName<'_>) -> bool {
-  FILE_NAME_ATOM.with(|atom| for_name.is_identifier(atom))
+fn is_file_name_atom(name: Option<&Atom>) -> bool {
+  FILE_NAME_ATOM.with(|atom| name.is_some_and(|name| name == atom))
+}
+
+#[inline]
+fn is_identifier_dir_name(for_name: IdentifierHookName<'_>) -> bool {
+  is_dir_name_atom(for_name.as_atom())
+}
+
+#[inline]
+fn is_identifier_file_name(for_name: IdentifierHookName<'_>) -> bool {
+  is_file_name_atom(for_name.as_atom())
 }
 
 #[derive(PartialEq)]
@@ -941,15 +951,15 @@ impl JavascriptParserPlugin for RstestParserPlugin {
     &self,
     parser: &mut rspack_plugin_javascript::visitors::JavascriptParser,
     _ident: &Ident,
-    for_name: ParserHookName<'_>,
+    for_name: IdentifierHookName<'_>,
   ) -> Option<bool> {
     if self.options.module_path_name {
-      if is_dir_name(for_name) {
+      if is_identifier_dir_name(for_name) {
         parser.add_presentational_dependency(Box::new(ModulePathNameDependency::new(
           NameType::DirName,
         )));
         return Some(true);
-      } else if is_file_name(for_name) {
+      } else if is_identifier_file_name(for_name) {
         parser.add_presentational_dependency(Box::new(ModulePathNameDependency::new(
           NameType::FileName,
         )));

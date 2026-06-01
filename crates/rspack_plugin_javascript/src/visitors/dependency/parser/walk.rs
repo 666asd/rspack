@@ -20,8 +20,8 @@ use swc_core::{
 };
 
 use super::{
-  AllowedMemberTypes, CallHooksName, JavascriptParser, MemberExpressionInfo, ParserHookName,
-  RootName, ScopeTerminated, TopLevelScope,
+  AllowedMemberTypes, CallHooksName, CallIdentifierHookName, JavascriptParser,
+  MemberExpressionInfo, ParserHookName, RootName, ScopeTerminated, TopLevelScope,
   estree::{ClassDeclOrExpr, MaybeNamedClassDecl, MaybeNamedFunctionDecl, Statement},
 };
 use crate::{
@@ -1558,9 +1558,11 @@ impl JavascriptParser<'_> {
 
   fn walk_identifier(&mut self, identifier: &Ident) {
     let drive = self.plugin_drive.clone();
-    identifier.sym.call_hooks_name(self, |this, for_name| {
-      drive.identifier(this, identifier, for_name)
-    });
+    identifier
+      .sym
+      .call_identifier_hook_name(self, |this, for_name| {
+        drive.identifier(this, identifier, for_name)
+      });
   }
 
   fn get_rename_identifier(&mut self, expr: &Expr) -> Option<Atom> {

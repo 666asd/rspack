@@ -12,7 +12,8 @@ use crate::{
   parser_plugin::JavascriptParserPlugin,
   utils::eval::{self, BasicEvaluatedExpression},
   visitors::{
-    JavascriptParser, ParserHookName, Statement, VariableDeclaration, create_traceable_error,
+    IdentifierHookName, JavascriptParser, ParserHookName, Statement, VariableDeclaration,
+    create_traceable_error,
   },
 };
 
@@ -135,34 +136,50 @@ enum ApiIdentifier {
 }
 
 #[inline]
-fn get_api_identifier(for_name: ParserHookName<'_>) -> Option<ApiIdentifier> {
-  let name = for_name.as_atom()?;
-  let name_len = name.len();
-  match name_len {
-    16 | 17 | 18 | 19 | 20 | 21 | 22 | 23 | 24 | 31 => API_ATOMS.with(|atoms| match name_len {
-      16 if name == &atoms.hash => Some(ApiIdentifier::Hash),
-      17 if name == &atoms.layer => Some(ApiIdentifier::Layer),
-      17 if name == &atoms.nonce => Some(ApiIdentifier::Nonce),
-      18 if name == &atoms.module => Some(ApiIdentifier::Module),
-      18 if name == &atoms.system_context => Some(ApiIdentifier::SystemContext),
-      18 if name == &atoms.version => Some(ApiIdentifier::Version),
-      19 if name == &atoms.require => Some(ApiIdentifier::Require),
-      19 if name == &atoms.modules => Some(ApiIdentifier::Modules),
-      20 if name == &atoms.base_uri => Some(ApiIdentifier::BaseUri),
-      20 if name == &atoms.unique_id => Some(ApiIdentifier::UniqueId),
-      21 if name == &atoms.chunk_name => Some(ApiIdentifier::ChunkName),
-      22 if name == &atoms.chunk_load => Some(ApiIdentifier::ChunkLoad),
-      22 if name == &atoms.runtime_id => Some(ApiIdentifier::RuntimeId),
-      23 if name == &atoms.public_path => Some(ApiIdentifier::PublicPath),
-      23 if name == &atoms.non_require => Some(ApiIdentifier::NonRequire),
-      23 if name == &atoms.rsc_manifest => Some(ApiIdentifier::RscManifest),
-      24 if name == &atoms.share_scopes => Some(ApiIdentifier::ShareScopes),
-      24 if name == &atoms.init_sharing => Some(ApiIdentifier::InitSharing),
-      31 if name == &atoms.get_script_filename => Some(ApiIdentifier::GetScriptFilename),
-      _ => None,
-    }),
-    _ => None,
-  }
+fn get_api_identifier(name: &Atom) -> Option<ApiIdentifier> {
+  API_ATOMS.with(|atoms| {
+    if name == &atoms.hash {
+      Some(ApiIdentifier::Hash)
+    } else if name == &atoms.layer {
+      Some(ApiIdentifier::Layer)
+    } else if name == &atoms.nonce {
+      Some(ApiIdentifier::Nonce)
+    } else if name == &atoms.module {
+      Some(ApiIdentifier::Module)
+    } else if name == &atoms.system_context {
+      Some(ApiIdentifier::SystemContext)
+    } else if name == &atoms.version {
+      Some(ApiIdentifier::Version)
+    } else if name == &atoms.require {
+      Some(ApiIdentifier::Require)
+    } else if name == &atoms.modules {
+      Some(ApiIdentifier::Modules)
+    } else if name == &atoms.base_uri {
+      Some(ApiIdentifier::BaseUri)
+    } else if name == &atoms.unique_id {
+      Some(ApiIdentifier::UniqueId)
+    } else if name == &atoms.chunk_name {
+      Some(ApiIdentifier::ChunkName)
+    } else if name == &atoms.chunk_load {
+      Some(ApiIdentifier::ChunkLoad)
+    } else if name == &atoms.runtime_id {
+      Some(ApiIdentifier::RuntimeId)
+    } else if name == &atoms.public_path {
+      Some(ApiIdentifier::PublicPath)
+    } else if name == &atoms.non_require {
+      Some(ApiIdentifier::NonRequire)
+    } else if name == &atoms.rsc_manifest {
+      Some(ApiIdentifier::RscManifest)
+    } else if name == &atoms.share_scopes {
+      Some(ApiIdentifier::ShareScopes)
+    } else if name == &atoms.init_sharing {
+      Some(ApiIdentifier::InitSharing)
+    } else if name == &atoms.get_script_filename {
+      Some(ApiIdentifier::GetScriptFilename)
+    } else {
+      None
+    }
+  })
 }
 
 pub struct APIPluginOptions {
@@ -208,7 +225,7 @@ impl JavascriptParserPlugin for APIPlugin {
     expr: &'a UnaryExpr,
     for_name: ParserHookName<'_>,
   ) -> Option<BasicEvaluatedExpression<'a>> {
-    let identifier = get_api_identifier(for_name)?;
+    let identifier = get_api_identifier(for_name.as_atom()?)?;
     if matches!(identifier, ApiIdentifier::Layer) {
       let value = if parser.module_layer.is_none() {
         "object"
@@ -231,9 +248,9 @@ impl JavascriptParserPlugin for APIPlugin {
     &self,
     parser: &mut JavascriptParser,
     ident: &Ident,
-    for_name: ParserHookName<'_>,
+    for_name: IdentifierHookName<'_>,
   ) -> Option<bool> {
-    let identifier = get_api_identifier(for_name)?;
+    let identifier = get_api_identifier(for_name.as_atom()?)?;
 
     if matches!(identifier, ApiIdentifier::Layer) {
       parser.add_presentational_dependency(Box::new(ConstDependency::new(
@@ -369,7 +386,10 @@ impl JavascriptParserPlugin for APIPlugin {
     start: u32,
     end: u32,
   ) -> Option<eval::BasicEvaluatedExpression<'static>> {
-    if matches!(get_api_identifier(for_name), Some(ApiIdentifier::Layer)) {
+    if matches!(
+      for_name.as_atom().and_then(get_api_identifier),
+      Some(ApiIdentifier::Layer)
+    ) {
       if let Some(layer) = parser.module_layer {
         Some(eval::evaluate_to_string(layer.into(), start, end))
       } else {

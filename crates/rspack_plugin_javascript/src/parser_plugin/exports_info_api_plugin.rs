@@ -9,7 +9,7 @@ use swc_core::{
 use super::JavascriptParserPlugin;
 use crate::{
   dependency::ExportInfoDependency,
-  visitors::{JavascriptParser, ParserHookName},
+  visitors::{IdentifierHookName, JavascriptParser},
 };
 
 const EXPORTS_INFO: &str = "__webpack_exports_info__";
@@ -19,7 +19,7 @@ thread_local! {
 }
 
 #[inline]
-fn is_exports_info_identifier(for_name: ParserHookName<'_>) -> bool {
+fn is_exports_info_identifier(for_name: IdentifierHookName<'_>) -> bool {
   EXPORTS_INFO_ATOM.with(|atom| for_name.is_identifier(atom))
 }
 
@@ -56,7 +56,7 @@ impl JavascriptParserPlugin for ExportsInfoApiPlugin {
     &self,
     parser: &mut crate::visitors::JavascriptParser,
     expr: &Ident,
-    for_name: ParserHookName<'_>,
+    for_name: IdentifierHookName<'_>,
   ) -> Option<bool> {
     if is_exports_info_identifier(for_name) {
       let dep = Box::new(ConstDependency::new(expr.span.into(), "true".into()));

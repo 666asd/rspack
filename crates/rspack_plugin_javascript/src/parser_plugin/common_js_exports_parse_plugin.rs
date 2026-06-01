@@ -17,7 +17,7 @@ use crate::{
   },
   parser_plugin::common_js_imports_parse_plugin::is_require_call_expr,
   utils::eval::{self, BasicEvaluatedExpression},
-  visitors::{JavascriptParser, ParserHookName},
+  visitors::{IdentifierHookName, JavascriptParser, ParserHookName},
 };
 
 thread_local! {
@@ -379,7 +379,7 @@ impl JavascriptParserPlugin for CommonJsExportsParserPlugin {
     &self,
     parser: &mut JavascriptParser,
     ident: &Ident,
-    for_name: ParserHookName<'_>,
+    for_name: IdentifierHookName<'_>,
   ) -> Option<bool> {
     if self.should_skip_handler(parser) {
       return None;

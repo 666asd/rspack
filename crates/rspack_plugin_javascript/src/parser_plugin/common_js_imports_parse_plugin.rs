@@ -23,9 +23,9 @@ use crate::{
   magic_comment::try_extract_magic_comment,
   utils::eval::{self, BasicEvaluatedExpression},
   visitors::{
-    CallHooksName, JavascriptParser, ParserHookName, TagInfoData, VariableDeclaration,
-    VariableDeclarationKind, context_reg_exp, create_context_dependency, create_traceable_error,
-    expr_name, get_non_optional_part,
+    CallHooksName, IdentifierHookName, JavascriptParser, ParserHookName, TagInfoData,
+    VariableDeclaration, VariableDeclarationKind, context_reg_exp, create_context_dependency,
+    create_traceable_error, expr_name, get_non_optional_part,
   },
 };
 
@@ -650,9 +650,9 @@ impl JavascriptParserPlugin for CommonJsImportsParserPlugin {
     &self,
     parser: &mut JavascriptParser,
     ident: &Ident,
-    for_name: ParserHookName<'_>,
+    for_name: IdentifierHookName<'_>,
   ) -> Option<bool> {
-    if for_name.is_member_chain(COMMONJS_REQUIRE_TAG) {
+    if for_name.is_tag(COMMONJS_REQUIRE_TAG) {
       let tag_info = parser
         .definitions_db
         .expect_get_tag_info(parser.current_tag_info?);

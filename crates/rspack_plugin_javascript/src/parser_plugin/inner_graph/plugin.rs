@@ -24,8 +24,8 @@ use crate::{
     is_pure_class, is_pure_class_member, is_pure_expression, is_pure_function,
   },
   visitors::{
-    ExportedVariableInfo, JavascriptParser, ParserHookName, Statement, TagInfoData,
-    VariableDeclaration, scope_info::VariableInfoFlags,
+    ExportedVariableInfo, IdentifierHookName, JavascriptParser, ParserHookName, Statement,
+    TagInfoData, VariableDeclaration, scope_info::VariableInfoFlags,
   },
 };
 
@@ -880,7 +880,7 @@ impl JavascriptParserPlugin for InnerGraphParserPlugin {
     &self,
     parser: &mut JavascriptParser,
     _ident: &swc_core::ecma::ast::Ident,
-    for_name: ParserHookName<'_>,
+    for_name: IdentifierHookName<'_>,
   ) -> Option<bool> {
     Self::for_each_expression(parser, for_name.as_str());
     None
