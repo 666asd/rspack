@@ -176,7 +176,7 @@ struct JsEventHandler {
     Status,
     true,
     true,
-    1,
+    0,
   >,
 }
 
@@ -234,7 +234,7 @@ struct JsEventHandlerUndelayed {
     Status,
     false,
     false,
-    1,
+    0,
   >,
 }
 
