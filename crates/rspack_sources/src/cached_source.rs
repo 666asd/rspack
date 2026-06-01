@@ -22,6 +22,7 @@ struct CachedData {
   hash: OnceLock<u64>,
   size: OnceLock<usize>,
   is_ascii: OnceLock<bool>,
+  source: OnceLock<String>,
   chunks: OnceLock<Vec<&'static str>>,
   columns_map: OnceLock<Option<SourceMap>>,
   line_only_map: OnceLock<Option<SourceMap>>,
@@ -103,10 +104,35 @@ impl CachedSource {
 
   fn is_ascii(&self) -> bool {
     *self.cache.is_ascii.get_or_init(|| {
+      if let Some(source) = self.cache.source.get() {
+        return source.is_ascii();
+      }
       if let Some(chunks) = self.cache.chunks.get() {
         return chunks.iter().all(|chunk| chunk.is_ascii());
       }
       self.inner.source().as_bytes().is_ascii()
+    })
+  }
+
+  fn get_or_init_source(&self) -> &str {
+    self.cache.source.get_or_init(|| {
+      let chunks = self.get_or_init_chunks();
+      let mut string = String::with_capacity(self.size());
+      if self.cache.is_ascii.get().is_none() {
+        let mut is_ascii = true;
+        for chunk in chunks {
+          if is_ascii {
+            is_ascii = chunk.is_ascii();
+          }
+          string.push_str(chunk);
+        }
+        let _ = self.cache.is_ascii.set(is_ascii);
+      } else {
+        for chunk in chunks {
+          string.push_str(chunk);
+        }
+      }
+      string
     })
   }
 }
@@ -123,23 +149,7 @@ impl Source for CachedSource {
       return buffer_source.source();
     }
 
-    let chunks = self.get_or_init_chunks();
-    let mut string = String::with_capacity(self.size());
-    if self.cache.is_ascii.get().is_none() {
-      let mut is_ascii = true;
-      for chunk in chunks {
-        if is_ascii {
-          is_ascii = chunk.is_ascii();
-        }
-        string.push_str(chunk);
-      }
-      let _ = self.cache.is_ascii.set(is_ascii);
-    } else {
-      for chunk in chunks {
-        string.push_str(chunk);
-      }
-    }
-    SourceValue::String(Cow::Owned(string))
+    SourceValue::String(Cow::Borrowed(self.get_or_init_source()))
   }
 
   fn rope<'a>(&'a self, on_chunk: &mut dyn FnMut(&'a str)) {
@@ -184,7 +194,6 @@ impl Source for CachedSource {
 struct CachedSourceChunks<'source> {
   cache_source: &'source CachedSource,
   chunks: OnceCell<Box<dyn Chunks + 'source>>,
-  source: OnceCell<Cow<'source, str>>,
 }
 
 impl<'source> CachedSourceChunks<'source> {
@@ -192,7 +201,6 @@ impl<'source> CachedSourceChunks<'source> {
     Self {
       cache_source,
       chunks: OnceCell::new(),
-      source: OnceCell::new(),
     }
   }
 
@@ -204,11 +212,9 @@ impl<'source> CachedSourceChunks<'source> {
   }
 
   fn get_or_init_source(&self) -> TextSpan<'_> {
-    let source = self
-      .source
-      .get_or_init(|| self.cache_source.source().into_string_lossy());
+    let source = self.cache_source.get_or_init_source();
     let is_ascii = self.cache_source.is_ascii();
-    TextSpan::with_known(source.as_ref(), is_ascii)
+    TextSpan::with_known(source, is_ascii)
   }
 }
 
