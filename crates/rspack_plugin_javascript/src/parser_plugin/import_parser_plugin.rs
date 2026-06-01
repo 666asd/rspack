@@ -32,6 +32,20 @@ use crate::{
 
 const DYNAMIC_IMPORT_TAG: &str = "dynamic import";
 
+thread_local! {
+  static DYNAMIC_IMPORT_TAG_ATOM: Atom = Atom::from(DYNAMIC_IMPORT_TAG);
+}
+
+#[inline]
+fn dynamic_import_tag_atom() -> Atom {
+  DYNAMIC_IMPORT_TAG_ATOM.with(|atom| atom.clone())
+}
+
+#[inline]
+fn is_dynamic_import_tag(name: &Atom) -> bool {
+  DYNAMIC_IMPORT_TAG_ATOM.with(|atom| name == atom)
+}
+
 fn tag_dynamic_import_referenced(
   parser: &mut JavascriptParser,
   import_call: &CallExpr,
@@ -45,7 +59,7 @@ fn tag_dynamic_import_referenced(
     .variable_name = Some(variable_name.clone());
   parser.tag_variable(
     variable_name,
-    DYNAMIC_IMPORT_TAG,
+    dynamic_import_tag_atom(),
     Some(ImportTagData { import_span }),
   );
 }
@@ -141,7 +155,7 @@ impl JavascriptParserPlugin for ImportParserPlugin {
       && let Some(info) = name_info.info
       && let Some(name) = info.name.clone()
       && parser
-        .get_tag_data::<ImportTagData>(&name, DYNAMIC_IMPORT_TAG)
+        .get_tag_data::<ImportTagData>(&name, &dynamic_import_tag_atom())
         .is_some()
     {
       return Some(true);
@@ -172,9 +186,9 @@ impl JavascriptParserPlugin for ImportParserPlugin {
     &self,
     parser: &mut JavascriptParser,
     ident: &Ident,
-    for_name: &str,
+    for_name: &Atom,
   ) -> Option<bool> {
-    if for_name != DYNAMIC_IMPORT_TAG {
+    if !is_dynamic_import_tag(for_name) {
       return None;
     }
     let tag_info = parser

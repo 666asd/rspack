@@ -11,6 +11,15 @@ use crate::{dependency::ExportInfoDependency, visitors::JavascriptParser};
 
 const EXPORTS_INFO: &str = "__webpack_exports_info__";
 
+thread_local! {
+  static EXPORTS_INFO_ATOM: Atom = Atom::from(EXPORTS_INFO);
+}
+
+#[inline]
+fn is_exports_info_identifier(for_name: &Atom) -> bool {
+  EXPORTS_INFO_ATOM.with(|atom| for_name == atom)
+}
+
 pub struct ExportsInfoApiPlugin;
 
 #[rspack_macros::implemented_javascript_parser_hooks]
@@ -44,9 +53,9 @@ impl JavascriptParserPlugin for ExportsInfoApiPlugin {
     &self,
     parser: &mut crate::visitors::JavascriptParser,
     expr: &Ident,
-    for_name: &str,
+    for_name: &Atom,
   ) -> Option<bool> {
-    if for_name == EXPORTS_INFO {
+    if is_exports_info_identifier(for_name) {
       let dep = Box::new(ConstDependency::new(expr.span.into(), "true".into()));
       parser.add_presentational_dependency(dep);
       Some(true)

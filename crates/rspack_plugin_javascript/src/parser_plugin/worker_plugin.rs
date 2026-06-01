@@ -256,6 +256,15 @@ const DEFAULT_SYNTAX: [&str; 4] = [
   "Worker from worker_threads",
 ];
 
+thread_local! {
+  static WORKER_SPECIFIER_TAG_ATOM: Atom = Atom::from(WORKER_SPECIFIER_TAG);
+}
+
+#[inline]
+fn worker_specifier_tag_atom() -> Atom {
+  WORKER_SPECIFIER_TAG_ATOM.with(|atom| atom.clone())
+}
+
 static DEFAULT_WORKER_PLUGIN: LazyLock<Arc<WorkerPluginInner>> = LazyLock::new(|| {
   let mut worker_plugin = WorkerPluginInner::empty();
   for syntax in DEFAULT_SYNTAX {
@@ -366,7 +375,7 @@ impl JavascriptParserPlugin for WorkerPlugin {
     {
       parser.tag_variable(
         ident.sym.clone(),
-        WORKER_SPECIFIER_TAG,
+        worker_specifier_tag_atom(),
         Some(WorkerSpecifierData {
           key: ident.sym.clone(),
         }),
@@ -380,7 +389,7 @@ impl JavascriptParserPlugin for WorkerPlugin {
     if self.inner.pattern_syntax.contains_key(for_name) {
       parser.tag_variable(
         ident.sym.clone(),
-        WORKER_SPECIFIER_TAG,
+        worker_specifier_tag_atom(),
         Some(WorkerSpecifierData {
           key: ident.sym.clone(),
         }),

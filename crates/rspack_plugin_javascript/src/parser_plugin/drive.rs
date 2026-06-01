@@ -456,7 +456,7 @@ impl JavascriptParserPlugin for JavaScriptParserPluginDrive {
     &self,
     parser: &mut JavascriptParser,
     expr: &swc_core::ecma::ast::Ident,
-    for_name: &str,
+    for_name: &Atom,
   ) -> Option<bool> {
     for plugin in self.plugins_for(JavascriptParserPluginHook::Identifier) {
       let res = plugin.identifier(parser, expr, for_name);

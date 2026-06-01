@@ -5,7 +5,7 @@ use rspack_core::{
 use rspack_error::{Diagnostic, cyan, yellow};
 use rspack_util::SpanExt;
 use sugar_path::SugarPath;
-use swc_core::{common::Spanned, ecma::ast::Expr};
+use swc_core::{atoms::Atom, common::Spanned, ecma::ast::Expr};
 use url::Url;
 
 use crate::{
@@ -22,6 +22,31 @@ const IMPORT_META_FILENAME: &str = "import.meta.filename";
 const GLOBAL: &str = "global";
 const MOCK_DIRNAME: &str = "/";
 const MOCK_FILENAME: &str = "/index.js";
+
+thread_local! {
+  static DIRNAME_ATOM: Atom = Atom::from(DIRNAME);
+  static FILENAME_ATOM: Atom = Atom::from(FILENAME);
+}
+
+#[inline]
+fn is_dirname_atom(name: &Atom) -> bool {
+  DIRNAME_ATOM.with(|atom| name == atom)
+}
+
+#[inline]
+fn is_filename_atom(name: &Atom) -> bool {
+  FILENAME_ATOM.with(|atom| name == atom)
+}
+
+#[inline]
+fn is_identifier_dirname(for_name: &Atom) -> bool {
+  is_dirname_atom(for_name)
+}
+
+#[inline]
+fn is_identifier_filename(for_name: &Atom) -> bool {
+  is_filename_atom(for_name)
+}
 
 /// Represents the type of import.meta property being handled (filename or dirname)
 #[derive(Clone, Copy)]
@@ -238,13 +263,13 @@ impl NodeStuffPlugin {
   fn add_cjs_node_module_dependency(
     parser: &mut JavascriptParser,
     ident_span: swc_core::common::Span,
-    name: &str,
+    name: Atom,
     property: NodeMetaProperty,
   ) {
     Self::add_node_module_dependencies(parser, property);
     let const_dep = CachedConstDependency::new(
       ident_span.into(),
-      name.into(),
+      name,
       property.node_module_runtime_expr().into(),
     );
     parser.add_presentational_dependency(Box::new(const_dep));
@@ -402,7 +427,7 @@ impl JavascriptParserPlugin for NodeStuffPlugin {
     &self,
     parser: &mut JavascriptParser,
     ident: &swc_core::ecma::ast::Ident,
-    for_name: &str,
+    for_name: &Atom,
   ) -> Option<bool> {
     // Skip CJS handling if not enabled
     if !self.handle_cjs {
@@ -413,7 +438,7 @@ impl JavascriptParserPlugin for NodeStuffPlugin {
       // When node: false, this plugin is not registered for CJS modules
       return None;
     };
-    if for_name == DIRNAME {
+    if is_identifier_dirname(for_name) {
       let dirname = match node_option.dirname {
         NodeDirnameOption::Mock => Some(MOCK_DIRNAME.to_string()),
         NodeDirnameOption::WarnMock => {
@@ -429,7 +454,7 @@ impl JavascriptParserPlugin for NodeStuffPlugin {
           Self::add_cjs_node_module_dependency(
             parser,
             ident.span,
-            DIRNAME,
+            DIRNAME_ATOM.with(|atom| atom.clone()),
             NodeMetaProperty::Dirname,
           );
           return Some(true);
@@ -442,7 +467,7 @@ impl JavascriptParserPlugin for NodeStuffPlugin {
           Self::add_cjs_node_module_dependency(
             parser,
             ident.span,
-            DIRNAME,
+            DIRNAME_ATOM.with(|atom| atom.clone()),
             NodeMetaProperty::Dirname,
           );
           return Some(true);
@@ -466,7 +491,7 @@ impl JavascriptParserPlugin for NodeStuffPlugin {
         )));
         return Some(true);
       }
-    } else if for_name == FILENAME {
+    } else if is_identifier_filename(for_name) {
       let filename = match node_option.filename {
         NodeFilenameOption::Mock => Some(MOCK_FILENAME.to_string()),
         NodeFilenameOption::WarnMock => {
@@ -482,7 +507,7 @@ impl JavascriptParserPlugin for NodeStuffPlugin {
           Self::add_cjs_node_module_dependency(
             parser,
             ident.span,
-            FILENAME,
+            FILENAME_ATOM.with(|atom| atom.clone()),
             NodeMetaProperty::Filename,
           );
           return Some(true);
@@ -495,7 +520,7 @@ impl JavascriptParserPlugin for NodeStuffPlugin {
           Self::add_cjs_node_module_dependency(
             parser,
             ident.span,
-            FILENAME,
+            FILENAME_ATOM.with(|atom| atom.clone()),
             NodeMetaProperty::Filename,
           );
           return Some(true);
@@ -518,7 +543,7 @@ impl JavascriptParserPlugin for NodeStuffPlugin {
         )));
         return Some(true);
       }
-    } else if for_name == GLOBAL
+    } else if for_name.as_str() == GLOBAL
       && matches!(
         node_option.global,
         NodeGlobalOption::True | NodeGlobalOption::Warn

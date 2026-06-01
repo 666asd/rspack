@@ -11,8 +11,8 @@ use swc_core::{
 
 use super::{
   DEFAULT_STAR_JS_WORD, JS_DEFAULT_KEYWORD, JavascriptParserPlugin,
-  esm_import_dependency_parser_plugin::{ESM_SPECIFIER_TAG, ESMSpecifierData},
-  inline_const::{ConstValueData, INLINABLE_CONST_TAG, to_evaluated_inlinable_value},
+  esm_import_dependency_parser_plugin::{ESMSpecifierData, esm_specifier_tag_atom},
+  inline_const::{ConstValueData, inlinable_const_tag_atom, to_evaluated_inlinable_value},
   inner_graph::state::InnerGraphMapUsage,
 };
 use crate::{
@@ -22,7 +22,7 @@ use crate::{
     ESMExportImportedSpecifierDependency, ESMExportSpecifierDependency,
     ESMImportSideEffectDependency,
   },
-  parser_plugin::compatibility_plugin::{NESTED_IDENTIFIER_TAG, NestedRequireData},
+  parser_plugin::compatibility_plugin::{NestedRequireData, nested_identifier_tag_atom},
   utils::object_properties::get_attributes,
   visitors::{
     ExportDefaultDeclaration, ExportDefaultExpression, ExportImport, ExportLocal, JavascriptParser,
@@ -41,7 +41,7 @@ fn create_default_exported_namespace_dependency(
     return None;
   };
   let settings = parser
-    .get_tag_data::<ESMSpecifierData>(&ident.sym, ESM_SPECIFIER_TAG)
+    .get_tag_data::<ESMSpecifierData>(&ident.sym, &esm_specifier_tag_atom())
     .filter(|settings| settings.namespace_import && settings.ids.is_empty())?
     .clone();
   let statement_span = statement.span();
@@ -142,7 +142,7 @@ impl JavascriptParserPlugin for ESMExportDependencyParserPlugin {
       );
     }
     let dep = if let Some((source, source_order, ids, phase, attributes)) = parser
-      .get_tag_data::<ESMSpecifierData>(local_id, ESM_SPECIFIER_TAG)
+      .get_tag_data::<ESMSpecifierData>(local_id, &esm_specifier_tag_atom())
       .map(|settings| {
         (
           settings.source.clone(),
@@ -178,7 +178,7 @@ impl JavascriptParserPlugin for ESMExportDependencyParserPlugin {
       Box::new(dep) as BoxDependency
     } else {
       let const_value = parser
-        .get_tag_data::<ConstValueData>(local_id, INLINABLE_CONST_TAG)
+        .get_tag_data::<ConstValueData>(local_id, &inlinable_const_tag_atom())
         .map(|data| data.value.clone());
       let enum_value = parser
         .build_info
@@ -186,7 +186,7 @@ impl JavascriptParserPlugin for ESMExportDependencyParserPlugin {
         .as_ref()
         .and_then(|info| info.exported_enums.get(local_id).cloned());
       let variable = parser
-        .get_tag_data::<NestedRequireData>(local_id, NESTED_IDENTIFIER_TAG)
+        .get_tag_data::<NestedRequireData>(local_id, &nested_identifier_tag_atom())
         .map(|data| data.name.clone());
 
       let range = DependencyRange::from(statement.span());
@@ -335,7 +335,7 @@ impl JavascriptParserPlugin for ESMExportDependencyParserPlugin {
     };
     let const_value = match expr {
       ExportDefaultExpression::Expr(Expr::Ident(ident)) => parser
-        .get_tag_data::<ConstValueData>(&ident.sym, INLINABLE_CONST_TAG)
+        .get_tag_data::<ConstValueData>(&ident.sym, &inlinable_const_tag_atom())
         .map(|data| data.value.clone()),
       ExportDefaultExpression::Expr(expr) => {
         to_evaluated_inlinable_value(&parser.evaluate_expression(expr)).map(ConstValue::Inlinable)

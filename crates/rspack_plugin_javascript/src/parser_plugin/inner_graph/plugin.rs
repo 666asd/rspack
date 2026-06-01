@@ -37,6 +37,15 @@ pub struct InnerGraphParserPlugin {
 
 pub static TOP_LEVEL_SYMBOL: &str = "inner graph top level symbol";
 
+thread_local! {
+  static TOP_LEVEL_SYMBOL_ATOM: Atom = Atom::from(TOP_LEVEL_SYMBOL);
+}
+
+#[inline]
+fn top_level_symbol_atom() -> Atom {
+  TOP_LEVEL_SYMBOL_ATOM.with(|atom| atom.clone())
+}
+
 impl InnerGraphParserPlugin {
   pub fn new(unresolved_mark: Mark, analyze_pure_annotation: bool) -> Self {
     Self {
@@ -321,7 +330,7 @@ impl InnerGraphParserPlugin {
 
   pub fn add_variable_usage(parser: &mut JavascriptParser, name: &Atom, usage: InnerGraphMapUsage) {
     let symbol = parser
-      .get_tag_data::<TopLevelSymbol>(name, TOP_LEVEL_SYMBOL)
+      .get_tag_data::<TopLevelSymbol>(name, &top_level_symbol_atom())
       .copied()
       .unwrap_or_else(|| Self::tag_top_level_symbol(parser, name));
 
@@ -351,7 +360,7 @@ impl InnerGraphParserPlugin {
     parser.define_variable(name.clone());
 
     if let Some(existing) = parser
-      .get_tag_data::<TopLevelSymbol>(name, TOP_LEVEL_SYMBOL)
+      .get_tag_data::<TopLevelSymbol>(name, &top_level_symbol_atom())
       .copied()
     {
       return existing;
@@ -360,7 +369,7 @@ impl InnerGraphParserPlugin {
     let symbol = parser.inner_graph.new_top_level_symbol(name.clone());
     parser.tag_variable_with_flags(
       name.clone(),
-      TOP_LEVEL_SYMBOL,
+      top_level_symbol_atom(),
       Some(symbol),
       VariableInfoFlags::NORMAL,
     );
@@ -877,9 +886,9 @@ impl JavascriptParserPlugin for InnerGraphParserPlugin {
     &self,
     parser: &mut JavascriptParser,
     _ident: &swc_core::ecma::ast::Ident,
-    for_name: &str,
+    for_name: &Atom,
   ) -> Option<bool> {
-    Self::for_each_expression(parser, for_name);
+    Self::for_each_expression(parser, for_name.as_str());
     None
   }
 

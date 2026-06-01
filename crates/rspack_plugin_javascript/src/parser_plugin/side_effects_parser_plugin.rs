@@ -26,7 +26,7 @@ use swc_core::{
 use crate::{
   ClassExt, JavascriptParserPlugin,
   dependency::ESMImportSideEffectDependency,
-  parser_plugin::esm_import_dependency_parser_plugin::{ESM_SPECIFIER_TAG, ESMSpecifierData},
+  parser_plugin::esm_import_dependency_parser_plugin::{ESMSpecifierData, is_esm_specifier_tag},
   visitors::{JavascriptParser, Statement, TagInfoData, VariableDeclaration},
 };
 
@@ -966,7 +966,7 @@ fn try_extract_deferred_check(
   let tag_info_id = info.tag_info?;
   let tag_info = parser.definitions_db.expect_get_tag_info(tag_info_id);
 
-  if tag_info.tag != ESM_SPECIFIER_TAG {
+  if !is_esm_specifier_tag(&tag_info.tag) {
     return None;
   }
 

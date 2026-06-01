@@ -31,6 +31,20 @@ use crate::{
 
 const COMMONJS_REQUIRE_TAG: &str = "commonjs require";
 
+thread_local! {
+  static COMMONJS_REQUIRE_TAG_ATOM: Atom = Atom::from(COMMONJS_REQUIRE_TAG);
+}
+
+#[inline]
+fn commonjs_require_tag_atom() -> Atom {
+  COMMONJS_REQUIRE_TAG_ATOM.with(|atom| atom.clone())
+}
+
+#[inline]
+fn is_commonjs_require_tag(name: &Atom) -> bool {
+  COMMONJS_REQUIRE_TAG_ATOM.with(|atom| name == atom)
+}
+
 #[derive(Debug, Default)]
 pub struct RequireReferencesState {
   inner: rustc_hash::FxHashMap<Span, RequireReferences>,
@@ -112,7 +126,7 @@ fn tag_commonjs_require_referenced(
     .variable_name = Some(variable_name.clone());
   parser.tag_variable(
     variable_name,
-    COMMONJS_REQUIRE_TAG,
+    commonjs_require_tag_atom(),
     Some(RequireTagData { require_span }),
   );
 }
@@ -613,7 +627,7 @@ impl JavascriptParserPlugin for CommonJsImportsParserPlugin {
       && let Some(info) = name_info.info
       && let Some(name) = info.name.clone()
       && parser
-        .get_tag_data::<RequireTagData>(&name, COMMONJS_REQUIRE_TAG)
+        .get_tag_data::<RequireTagData>(&name, &commonjs_require_tag_atom())
         .is_some()
     {
       return Some(true);
@@ -643,9 +657,9 @@ impl JavascriptParserPlugin for CommonJsImportsParserPlugin {
     &self,
     parser: &mut JavascriptParser,
     ident: &Ident,
-    for_name: &str,
+    for_name: &Atom,
   ) -> Option<bool> {
-    if for_name == COMMONJS_REQUIRE_TAG {
+    if is_commonjs_require_tag(for_name) {
       let tag_info = parser
         .definitions_db
         .expect_get_tag_info(parser.current_tag_info?);
@@ -673,7 +687,7 @@ impl JavascriptParserPlugin for CommonJsImportsParserPlugin {
       return Some(true);
     }
 
-    if for_name == expr_name::REQUIRE {
+    if for_name.as_str() == expr_name::REQUIRE {
       return self.require_as_expression_handler(parser, ident);
     }
 

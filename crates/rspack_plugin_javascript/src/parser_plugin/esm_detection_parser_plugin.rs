@@ -3,6 +3,7 @@ use std::ops::Add;
 use rspack_core::{BuildMetaExportsType, ExportsArgument, ModuleArgument, ModuleType};
 use rspack_util::SpanExt;
 use swc_core::{
+  atoms::Atom,
   common::{BytePos, Span, Spanned},
   ecma::ast::{Ident, ModuleItem, Program, UnaryExpr},
 };
@@ -117,9 +118,9 @@ impl JavascriptParserPlugin for ESMDetectionParserPlugin {
     &self,
     parser: &mut JavascriptParser,
     _ident: &Ident,
-    for_name: &str,
+    for_name: &Atom,
   ) -> Option<bool> {
-    (parser.is_esm && is_non_esm_identifier(for_name)).then_some(true)
+    (parser.is_esm && is_non_esm_identifier(for_name.as_str())).then_some(true)
   }
 
   fn call(

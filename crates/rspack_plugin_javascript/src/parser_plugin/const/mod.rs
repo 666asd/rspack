@@ -3,7 +3,7 @@ mod logic_expr;
 
 use rspack_core::{CachedConstDependency, ConstDependency};
 use rspack_util::SpanExt;
-use swc_core::common::Spanned;
+use swc_core::{atoms::Atom, common::Spanned};
 
 pub use self::logic_expr::is_logic_op;
 use super::JavascriptParserPlugin;
@@ -16,6 +16,31 @@ pub struct ConstPlugin;
 
 const RESOURCE_FRAGMENT: &str = "__resourceFragment";
 const RESOURCE_QUERY: &str = "__resourceQuery";
+
+thread_local! {
+  static RESOURCE_FRAGMENT_ATOM: Atom = Atom::from(RESOURCE_FRAGMENT);
+  static RESOURCE_QUERY_ATOM: Atom = Atom::from(RESOURCE_QUERY);
+}
+
+#[inline]
+fn is_resource_fragment_atom(name: &Atom) -> bool {
+  RESOURCE_FRAGMENT_ATOM.with(|atom| name == atom)
+}
+
+#[inline]
+fn is_resource_query_atom(name: &Atom) -> bool {
+  RESOURCE_QUERY_ATOM.with(|atom| name == atom)
+}
+
+#[inline]
+fn is_identifier_resource_fragment(for_name: &Atom) -> bool {
+  is_resource_fragment_atom(for_name)
+}
+
+#[inline]
+fn is_identifier_resource_query(for_name: &Atom) -> bool {
+  is_resource_query_atom(for_name)
+}
 
 #[rspack_macros::implemented_javascript_parser_hooks]
 impl JavascriptParserPlugin for ConstPlugin {
@@ -71,28 +96,26 @@ impl JavascriptParserPlugin for ConstPlugin {
     &self,
     parser: &mut JavascriptParser,
     ident: &swc_core::ecma::ast::Ident,
-    for_name: &str,
+    for_name: &Atom,
   ) -> Option<bool> {
-    match for_name {
-      RESOURCE_FRAGMENT => {
-        let resource_fragment = parser.resource_data.fragment().unwrap_or("");
-        parser.add_presentational_dependency(Box::new(CachedConstDependency::new(
-          ident.span.into(),
-          "__resourceFragment".into(),
-          rspack_util::json_stringify_str(resource_fragment).into(),
-        )));
-        Some(true)
-      }
-      RESOURCE_QUERY => {
-        let resource_query = parser.resource_data.query().unwrap_or("");
-        parser.add_presentational_dependency(Box::new(CachedConstDependency::new(
-          ident.span.into(),
-          "__resourceQuery".into(),
-          rspack_util::json_stringify_str(resource_query).into(),
-        )));
-        Some(true)
-      }
-      _ => None,
+    if is_identifier_resource_fragment(for_name) {
+      let resource_fragment = parser.resource_data.fragment().unwrap_or("");
+      parser.add_presentational_dependency(Box::new(CachedConstDependency::new(
+        ident.span.into(),
+        RESOURCE_FRAGMENT_ATOM.with(|atom| atom.clone()),
+        rspack_util::json_stringify_str(resource_fragment).into(),
+      )));
+      Some(true)
+    } else if is_identifier_resource_query(for_name) {
+      let resource_query = parser.resource_data.query().unwrap_or("");
+      parser.add_presentational_dependency(Box::new(CachedConstDependency::new(
+        ident.span.into(),
+        RESOURCE_QUERY_ATOM.with(|atom| atom.clone()),
+        rspack_util::json_stringify_str(resource_query).into(),
+      )));
+      Some(true)
+    } else {
+      None
     }
   }
 

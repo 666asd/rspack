@@ -1,5 +1,5 @@
-use rspack_cacheable::{cacheable, cacheable_dyn};
-use rspack_util::ext::DynHash;
+use rspack_cacheable::{cacheable, cacheable_dyn, with::AsPreset};
+use rspack_util::{atom::Atom, ext::DynHash};
 
 use super::DependencyRange;
 use crate::{
@@ -12,12 +12,13 @@ use crate::{
 #[derive(Debug, Clone)]
 pub struct CachedConstDependency {
   pub range: DependencyRange,
-  pub identifier: Box<str>,
+  #[cacheable(with=AsPreset)]
+  pub identifier: Atom,
   pub content: Box<str>,
 }
 
 impl CachedConstDependency {
-  pub fn new(range: DependencyRange, identifier: Box<str>, content: Box<str>) -> Self {
+  pub fn new(range: DependencyRange, identifier: Atom, content: Box<str>) -> Self {
     Self {
       range,
       identifier,

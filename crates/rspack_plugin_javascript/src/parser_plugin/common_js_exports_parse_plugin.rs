@@ -370,13 +370,13 @@ impl JavascriptParserPlugin for CommonJsExportsParserPlugin {
     &self,
     parser: &mut JavascriptParser,
     ident: &Ident,
-    for_name: &str,
+    for_name: &Atom,
   ) -> Option<bool> {
     if self.should_skip_handler(parser) {
       return None;
     }
 
-    if for_name == "module" {
+    if for_name.as_str() == "module" {
       let decorator = if parser.is_esm {
         RuntimeGlobals::ESM_MODULE_DECORATOR
       } else {
@@ -390,7 +390,7 @@ impl JavascriptParserPlugin for CommonJsExportsParserPlugin {
       return Some(true);
     }
 
-    if for_name == "exports" {
+    if for_name.as_str() == "exports" {
       // exports
       return handle_access_export(parser, ident.span(), &[], &[], ExportsBase::Exports, None);
     }

@@ -20,6 +20,15 @@ use crate::{
 
 pub const INLINABLE_CONST_TAG: &str = "inlinable const";
 
+thread_local! {
+  static INLINABLE_CONST_TAG_ATOM: Atom = Atom::from(INLINABLE_CONST_TAG);
+}
+
+#[inline]
+pub fn inlinable_const_tag_atom() -> Atom {
+  INLINABLE_CONST_TAG_ATOM.with(|atom| atom.clone())
+}
+
 #[derive(Debug, Clone)]
 pub struct ConstValueData {
   pub value: ConstValue,
@@ -123,7 +132,7 @@ impl JavascriptParserPlugin for ConstValuePlugin {
 fn tag_const_variable(parser: &mut JavascriptParser, name: Atom, value: ConstValue) {
   parser.tag_variable_with_flags(
     name,
-    INLINABLE_CONST_TAG,
+    inlinable_const_tag_atom(),
     Some(ConstValueData { value }),
     VariableInfoFlags::NORMAL,
   );

@@ -28,11 +28,40 @@ use crate::{
   require_resolve_origin_dependency::RstestRequireResolveOriginDependency,
 };
 
-const DIR_NAME: &str = "__dirname";
-const FILE_NAME: &str = "__filename";
 const IMPORT_META_DIRNAME: &str = "import.meta.dirname";
 const IMPORT_META_FILENAME: &str = "import.meta.filename";
 pub(crate) const MOCK_TARGET_REQUEST_PREFIX: &str = "\0rstest_mock_target:\0";
+
+thread_local! {
+  static DIR_NAME_ATOM: Atom = Atom::from("__dirname");
+  static FILE_NAME_ATOM: Atom = Atom::from("__filename");
+  static RSTEST_MOCK_FIRST_ARG_TAG_ATOM: Atom = Atom::from(RSTEST_MOCK_FIRST_ARG_TAG);
+}
+
+#[inline]
+fn is_dir_name_atom(name: &Atom) -> bool {
+  DIR_NAME_ATOM.with(|atom| name == atom)
+}
+
+#[inline]
+fn is_file_name_atom(name: &Atom) -> bool {
+  FILE_NAME_ATOM.with(|atom| name == atom)
+}
+
+#[inline]
+fn is_identifier_dir_name(for_name: &Atom) -> bool {
+  is_dir_name_atom(for_name)
+}
+
+#[inline]
+fn is_identifier_file_name(for_name: &Atom) -> bool {
+  is_file_name_atom(for_name)
+}
+
+#[inline]
+fn rstest_mock_first_arg_tag_atom() -> Atom {
+  RSTEST_MOCK_FIRST_ARG_TAG_ATOM.with(|atom| atom.clone())
+}
 
 #[derive(PartialEq)]
 enum ModulePathType {
@@ -300,7 +329,7 @@ impl RstestParserPlugin {
     {
       parser.tag_variable::<bool>(
         self.compose_rstest_import_call_key(import_call).into(),
-        RSTEST_MOCK_FIRST_ARG_TAG,
+        rstest_mock_first_arg_tag_atom(),
         Some(true),
       );
       is_import_call = true;
@@ -806,7 +835,7 @@ impl JavascriptParserPlugin for RstestParserPlugin {
     if first_arg.is_some() {
       let tag_data = parser.get_tag_data::<bool>(
         &self.compose_rstest_import_call_key(call_expr).into(),
-        RSTEST_MOCK_FIRST_ARG_TAG,
+        &rstest_mock_first_arg_tag_atom(),
       );
 
       if tag_data.is_some() {
@@ -923,23 +952,21 @@ impl JavascriptParserPlugin for RstestParserPlugin {
     &self,
     parser: &mut rspack_plugin_javascript::visitors::JavascriptParser,
     _ident: &Ident,
-    for_name: &str,
+    for_name: &Atom,
   ) -> Option<bool> {
     if self.options.module_path_name {
-      match for_name {
-        DIR_NAME => {
-          parser.add_presentational_dependency(Box::new(ModulePathNameDependency::new(
-            NameType::DirName,
-          )));
-          return Some(true);
-        }
-        FILE_NAME => {
-          parser.add_presentational_dependency(Box::new(ModulePathNameDependency::new(
-            NameType::FileName,
-          )));
-          return Some(true);
-        }
-        _ => return None,
+      if is_identifier_dir_name(for_name) {
+        parser.add_presentational_dependency(Box::new(ModulePathNameDependency::new(
+          NameType::DirName,
+        )));
+        return Some(true);
+      } else if is_identifier_file_name(for_name) {
+        parser.add_presentational_dependency(Box::new(ModulePathNameDependency::new(
+          NameType::FileName,
+        )));
+        return Some(true);
+      } else {
+        return None;
       }
     }
 

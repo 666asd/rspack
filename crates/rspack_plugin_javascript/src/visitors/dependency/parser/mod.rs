@@ -15,7 +15,7 @@ use std::{
 };
 
 use bitflags::bitflags;
-pub use call_hooks_name::CallHooksName;
+pub use call_hooks_name::{CallHooksName, CallIdentifierHookName};
 use rspack_cacheable::{
   cacheable,
   with::{AsCacheable, AsOption, AsPreset, AsVec},
@@ -772,12 +772,12 @@ impl<'parser> JavascriptParser<'parser> {
   fn get_tag_data_by_id<Data: TagInfoData>(
     &self,
     tag_info_id: TagInfoId,
-    tag: &'static str,
+    tag: &Atom,
   ) -> Option<&Data> {
     let mut tag_info = Some(self.definitions_db.expect_get_tag_info(tag_info_id));
 
     while let Some(cur_tag_info) = tag_info {
-      if cur_tag_info.tag == tag {
+      if &cur_tag_info.tag == tag {
         return cur_tag_info
           .data
           .as_deref()
@@ -791,11 +791,7 @@ impl<'parser> JavascriptParser<'parser> {
     None
   }
 
-  pub fn get_tag_data<Data: TagInfoData>(
-    &mut self,
-    name: &Atom,
-    tag: &'static str,
-  ) -> Option<&Data> {
+  pub fn get_tag_data<Data: TagInfoData>(&mut self, name: &Atom, tag: &Atom) -> Option<&Data> {
     self
       .get_variable_info(name)
       .and_then(|variable_info| variable_info.tag_info)
@@ -805,7 +801,7 @@ impl<'parser> JavascriptParser<'parser> {
   pub fn get_variable_tag_data<Data: TagInfoData>(
     &self,
     id: VariableInfoId,
-    tag: &'static str,
+    tag: &Atom,
   ) -> Option<&Data> {
     self
       .definitions_db
@@ -898,19 +894,14 @@ impl<'parser> JavascriptParser<'parser> {
     self.definitions_db.delete(self.definitions, name)
   }
 
-  pub fn tag_variable<Data: TagInfoData>(
-    &mut self,
-    name: Atom,
-    tag: &'static str,
-    data: Option<Data>,
-  ) {
+  pub fn tag_variable<Data: TagInfoData>(&mut self, name: Atom, tag: Atom, data: Option<Data>) {
     self.tag_variable_impl(name, tag, data, None);
   }
 
   pub fn tag_variable_with_flags<Data: TagInfoData>(
     &mut self,
     name: Atom,
-    tag: &'static str,
+    tag: Atom,
     data: Option<Data>,
     flags: VariableInfoFlags,
   ) {
@@ -920,7 +911,7 @@ impl<'parser> JavascriptParser<'parser> {
   fn tag_variable_impl<Data: TagInfoData>(
     &mut self,
     name: Atom,
-    tag: &'static str,
+    tag: Atom,
     data: Option<Data>,
     flags: Option<VariableInfoFlags>,
   ) {

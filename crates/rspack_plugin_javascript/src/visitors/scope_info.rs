@@ -173,7 +173,7 @@ impl ScopeInfoDB {
 
 #[derive(Debug)]
 pub struct TagInfo {
-  pub tag: &'static str,
+  pub tag: Atom,
   pub data: Option<Box<dyn anymap::CloneAny>>,
   pub next: Option<TagInfoId>,
 }
@@ -181,7 +181,7 @@ pub struct TagInfo {
 impl TagInfo {
   pub fn create(
     definitions_db: &mut ScopeInfoDB,
-    tag: &'static str,
+    tag: Atom,
     data: Option<Box<dyn anymap::CloneAny>>,
     next: Option<TagInfoId>,
   ) -> TagInfoId {

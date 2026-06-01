@@ -25,6 +25,20 @@ pub struct ESMImportDependencyParserPlugin;
 
 pub const ESM_SPECIFIER_TAG: &str = "_identifier__esm_specifier_tag__";
 
+thread_local! {
+  static ESM_SPECIFIER_TAG_ATOM: Atom = Atom::from(ESM_SPECIFIER_TAG);
+}
+
+#[inline]
+pub fn esm_specifier_tag_atom() -> Atom {
+  ESM_SPECIFIER_TAG_ATOM.with(|atom| atom.clone())
+}
+
+#[inline]
+pub fn is_esm_specifier_tag(name: &Atom) -> bool {
+  ESM_SPECIFIER_TAG_ATOM.with(|atom| name == atom)
+}
+
 #[derive(Debug, Clone)]
 pub struct ESMSpecifierData {
   pub name: Atom,
@@ -98,7 +112,7 @@ impl JavascriptParserPlugin for ESMImportDependencyParserPlugin {
     };
     parser.tag_variable::<ESMSpecifierData>(
       name.clone(),
-      ESM_SPECIFIER_TAG,
+      esm_specifier_tag_atom(),
       Some(ESMSpecifierData {
         name: name.clone(),
         source: source.clone(),
@@ -124,7 +138,7 @@ impl JavascriptParserPlugin for ESMImportDependencyParserPlugin {
     let (source, name, source_order, phase, attributes, namespace_import, mut ids) =
       if let ExportedVariableInfo::VariableInfo(variable) = root_info
         && let Some(settings) =
-          parser.get_variable_tag_data::<ESMSpecifierData>(*variable, ESM_SPECIFIER_TAG)
+          parser.get_variable_tag_data::<ESMSpecifierData>(*variable, &esm_specifier_tag_atom())
       {
         (
           settings.source.clone(),
@@ -189,7 +203,7 @@ impl JavascriptParserPlugin for ESMImportDependencyParserPlugin {
       parser.get_member_expression_info_from_expr(expr, AllowedMemberTypes::Expression)?
       && let ExportedVariableInfo::VariableInfo(id) = &info.root_info
       && parser
-        .get_variable_tag_data::<ESMSpecifierData>(*id, ESM_SPECIFIER_TAG)
+        .get_variable_tag_data::<ESMSpecifierData>(*id, &esm_specifier_tag_atom())
         .is_some()
     {
       return Some(true);
@@ -201,9 +215,9 @@ impl JavascriptParserPlugin for ESMImportDependencyParserPlugin {
     &self,
     parser: &mut JavascriptParser,
     ident: &Ident,
-    for_name: &str,
+    for_name: &Atom,
   ) -> Option<bool> {
-    if for_name != ESM_SPECIFIER_TAG {
+    if !is_esm_specifier_tag(for_name) {
       return None;
     }
     let tag_info = parser

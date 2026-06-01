@@ -1,6 +1,7 @@
 use rspack_core::{ConstDependency, RuntimeGlobals, RuntimeRequirementsDependency};
 use rspack_util::SpanExt;
 use swc_core::{
+  atoms::Atom,
   common::Spanned,
   ecma::ast::{CallExpr, Expr, MemberExpr, UnaryExpr},
 };
@@ -127,9 +128,9 @@ impl JavascriptParserPlugin for AMDParserPlugin {
     &self,
     parser: &mut JavascriptParser,
     ident: &swc_core::ecma::ast::Ident,
-    for_name: &str,
+    for_name: &Atom,
   ) -> Option<bool> {
-    if for_name == DEFINE {
+    if for_name.as_str() == DEFINE {
       parser.add_presentational_dependency(Box::new(RuntimeRequirementsDependency::new(
         ident.span().into(),
         RuntimeGlobals::AMD_DEFINE,

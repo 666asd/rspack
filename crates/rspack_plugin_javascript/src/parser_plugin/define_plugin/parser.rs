@@ -7,7 +7,7 @@ use std::{
 };
 
 use rspack_util::SpanExt;
-use swc_core::ecma::ast::Expr;
+use swc_core::{atoms::Atom, ecma::ast::Expr};
 
 use super::{VALUE_DEP_PREFIX, utils::gen_const_dep, walk_data::WalkData};
 use crate::{
@@ -211,8 +211,9 @@ impl JavascriptParserPlugin for DefineParserPlugin {
     &self,
     parser: &mut JavascriptParser,
     ident: &swc_core::ecma::ast::Ident,
-    for_name: &str,
+    for_name: &Atom,
   ) -> Option<bool> {
+    let for_name = for_name.as_str();
     if let Some(record) = self.get_define_record(for_name)
       && let Some(on_expression) = &record.on_expression
     {

@@ -14,6 +14,20 @@ use crate::{
 
 pub const NESTED_IDENTIFIER_TAG: &str = "_identifier__nested_rspack_identifier__";
 
+thread_local! {
+  static NESTED_IDENTIFIER_TAG_ATOM: Atom = Atom::from(NESTED_IDENTIFIER_TAG);
+}
+
+#[inline]
+pub fn nested_identifier_tag_atom() -> Atom {
+  NESTED_IDENTIFIER_TAG_ATOM.with(|atom| atom.clone())
+}
+
+#[inline]
+pub fn is_nested_identifier_tag(name: &Atom) -> bool {
+  NESTED_IDENTIFIER_TAG_ATOM.with(|atom| name == atom)
+}
+
 #[derive(Debug, Clone)]
 pub struct NestedRequireData {
   pub name: String,
@@ -63,7 +77,7 @@ impl CompatibilityPlugin {
   ) {
     parser.tag_variable(
       name,
-      NESTED_IDENTIFIER_TAG,
+      nested_identifier_tag_atom(),
       Some(NestedRequireData {
         name: rename,
         update: false,
@@ -200,9 +214,9 @@ impl JavascriptParserPlugin for CompatibilityPlugin {
     &self,
     parser: &mut JavascriptParser,
     ident: &swc_core::ecma::ast::Ident,
-    for_name: &str,
+    for_name: &Atom,
   ) -> Option<bool> {
-    if for_name != NESTED_IDENTIFIER_TAG {
+    if !is_nested_identifier_tag(for_name) {
       return None;
     }
     let tag_info = parser
