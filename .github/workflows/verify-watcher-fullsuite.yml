@@ -1,0 +1,152 @@
+name: Verify Watcher Fullsuite
+
+# Stronger cross-platform verification of the native-watcher startup-race fix,
+# replicating the ORIGINAL load environment (the whole nativeWatcher suite looped,
+# not a single isolated case) and adding a pre-fix control so green has meaning.
+#
+# For every (target, variant) it rebuilds the binding:
+#   - prefix  = commit 3b3892601836a08ec1211e03746bf05e28afa6c3 (parent of the fix,
+#               scan-before-watch => buggy)  -> CONTROL, expected to reproduce the flake
+#   - postfix = this branch head (scan-after-watch => fixed)     -> expected all green
+#
+# Then per (target, variant, node, shard) it checks out the SAME test code and loops
+# the full `nativeWatcher` project N times (default 30), exactly like the diagnostic
+# harness that first reproduced the flake on Linux. 4 shards = 4 independent samples.
+#
+# Semantics:
+#   - postfix job FAILS (red) if any iteration reproduces the flake (= fix regressed).
+#   - prefix (control) job NEVER fails; its log says whether/when it reproduced.
+#
+# Disposable: delete after verification.
+
+on:
+  workflow_dispatch:
+    inputs:
+      iterations:
+        description: 'Full-suite iterations per shard'
+        type: string
+        default: '30'
+  push:
+    branches:
+      - verify/native-watcher-fullsuite
+
+concurrency:
+  group: verify-watcher-fullsuite-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build ${{ matrix.cell.target }} ${{ matrix.variant }}
+    strategy:
+      fail-fast: false
+      matrix:
+        cell:
+          - { target: x86_64-unknown-linux-gnu, runner: '"ubuntu-22.04"' }
+          - { target: x86_64-pc-windows-msvc, runner: '"windows-latest"' }
+          - { target: aarch64-apple-darwin, runner: '"macos-latest"' }
+        variant: [prefix, postfix]
+    uses: ./.github/workflows/reusable-build-build.yml
+    with:
+      target: ${{ matrix.cell.target }}
+      runner: ${{ matrix.cell.runner }}
+      profile: 'ci'
+      ref: ${{ matrix.variant == 'prefix' && '3b3892601836a08ec1211e03746bf05e28afa6c3' || github.sha }}
+      binding_postfix: -${{ matrix.variant }}
+    secrets: inherit
+
+  verify:
+    name: ${{ matrix.variant }} ${{ matrix.cell.target }} node${{ matrix.cell.node }} s${{ matrix.shard }}
+    needs: [build]
+    runs-on: ${{ fromJSON(matrix.cell.runner) }}
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        cell:
+          - {
+              target: x86_64-unknown-linux-gnu,
+              runner: '"ubuntu-22.04"',
+              node: 20,
+            }
+          - {
+              target: x86_64-pc-windows-msvc,
+              runner: '"windows-latest"',
+              node: 22,
+            }
+          - { target: aarch64-apple-darwin, runner: '"macos-latest"', node: 22 }
+        variant: [prefix, postfix]
+        shard: [1, 2, 3, 4]
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          # Always the fix-branch tree: the fix only touched rspack_watcher (Rust),
+          # so the test code is identical to the prefix commit's. Only the downloaded
+          # binding differs between variants.
+          ref: ${{ github.sha }}
+          clean: ${{ runner.environment == 'github-hosted' }}
+
+      - name: Download bindings
+        uses: ./.github/actions/artifact/download
+        with:
+          name: bindings-${{ matrix.cell.target }}-${{ matrix.variant }}
+          path: crates/node_binding/
+
+      - name: Show restored binding
+        run: ls -lah crates/node_binding/
+
+      - name: Setup Pnpm
+        timeout-minutes: 5
+        uses: ./.github/actions/pnpm/setup
+        with:
+          node-version: ${{ matrix.cell.node }}
+
+      - name: Pnpm Install
+        run: pnpm i
+
+      - name: Build JS
+        run: pnpm run build:js
+
+      - name: Loop full native-watcher suite
+        working-directory: tests/rspack-test
+        env:
+          VARIANT: ${{ matrix.variant }}
+          SHARD: ${{ matrix.shard }}
+          ITERATIONS: ${{ github.event.inputs.iterations || '30' }}
+          NODE_OPTIONS: '--max_old_space_size=8192'
+        run: |
+          set -uo pipefail
+          iters="${ITERATIONS:-30}"
+          echo "Looping full nativeWatcher suite ${iters}x | variant=$VARIANT target=${{ matrix.cell.target }} node=${{ matrix.cell.node }} shard=$SHARD"
+          reproduced_at=""
+          for i in $(seq 1 "$iters"); do
+            echo "::group::iteration $i/$iters ($VARIANT shard $SHARD)"
+            if CI=1 pnpm exec rstest run --project nativeWatcher > /tmp/iter.log 2>&1; then
+              tail -3 /tmp/iter.log
+              echo "::endgroup::"
+            else
+              sed -E 's/\x1b\[[0-9;]*m//g' /tmp/iter.log \
+                | grep -E "change-event/metadata|should compile step|timed out|FAIL|✗|Tests .* failed" | tail -25 || true
+              echo "::endgroup::"
+              reproduced_at="$i"
+              break
+            fi
+          done
+
+          if [ "$VARIANT" = "postfix" ]; then
+            if [ -n "$reproduced_at" ]; then
+              echo "POST-FIX REGRESSION: flake reproduced at iteration $reproduced_at (shard $SHARD) — fix did NOT hold"
+              exit 1
+            fi
+            echo "POST-FIX OK: $iters/$iters green (shard $SHARD)"
+          else
+            # Control: never fail the job; the log is the signal.
+            if [ -n "$reproduced_at" ]; then
+              echo "CONTROL OK: pre-fix reproduced the flake at iteration $reproduced_at (shard $SHARD)"
+            else
+              echo "CONTROL INCONCLUSIVE: pre-fix did NOT reproduce in $iters iters (shard $SHARD) — platform may not be susceptible to this race"
+            fi
+          fi
