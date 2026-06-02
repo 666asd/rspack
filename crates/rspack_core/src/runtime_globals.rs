@@ -525,6 +525,7 @@ pub fn runtime_globals_to_string(
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
 pub enum RuntimeVariable {
   Require,
+  RuntimeContext,
   Modules,
   ModuleCache,
   Module,
@@ -539,6 +540,7 @@ pub fn runtime_variable_to_string(
   // TODO: use compiler options to get runtime variable names
   match *runtime_variable {
     RuntimeVariable::Require => "__webpack_require__".to_string(),
+    RuntimeVariable::RuntimeContext => "__rspack_context".to_string(),
     RuntimeVariable::Modules => "__webpack_modules__".to_string(),
     RuntimeVariable::ModuleCache => "__webpack_module_cache__".to_string(),
     RuntimeVariable::Exports => "__webpack_exports__".to_string(),
@@ -567,6 +569,14 @@ static RUNTIME_GLOBAL_MAP: LazyLock<RuntimeGlobalMap> = LazyLock::new(|| {
 });
 
 impl RuntimeGlobals {
+  pub fn context_property_name(&self) -> Option<&'static str> {
+    runtime_globals_context_property_name(self)
+  }
+
+  pub fn to_lexical_name(&self) -> Option<String> {
+    runtime_globals_to_lexical_name(self)
+  }
+
   pub fn to_names(&self) -> Vec<&'static str> {
     let mut res = vec![];
 

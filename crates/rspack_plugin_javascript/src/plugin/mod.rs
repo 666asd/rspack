@@ -54,7 +54,8 @@ use swc_core::{
 use tokio::sync::RwLock;
 
 use crate::runtime::{
-  render_chunk_modules, render_module, render_runtime_modules, stringify_array,
+  render_chunk_modules, render_module, render_runtime_modules, should_render_runtime_context,
+  stringify_array,
 };
 
 #[cfg_attr(allocative, allocative::root)]
@@ -143,6 +144,14 @@ impl JsPlugin {
     let strict_module_error_handling = compilation.options.output.strict_module_error_handling;
     let need_module_defer =
       runtime_requirements.contains(RuntimeGlobals::MAKE_DEFERRED_NAMESPACE_OBJECT);
+    let is_rspack_runtime = compilation.options.experiments.runtime_mode
+      == rspack_core::runtime_mode::RuntimeMode::Rspack;
+    let callable_require = runtime_template.render_runtime_globals(&RuntimeGlobals::REQUIRE);
+    let require_argument = if is_rspack_runtime {
+      runtime_template.render_runtime_variable(&RuntimeVariable::RuntimeContext)
+    } else {
+      callable_require.clone()
+    };
     let mut sources: Vec<Cow<str>> = Vec::new();
 
     sources.push(
@@ -187,8 +196,36 @@ var module = ({}[moduleId] = {{"#,
 
     let module_execution =
       if runtime_requirements.contains(RuntimeGlobals::INTERCEPT_MODULE_EXECUTION) {
-        format!(
-          r#"
+        if is_rspack_runtime {
+          format!(
+            r#"
+        var execOptions = {{ id: moduleId, module: module, factory: {}[moduleId], require: {} }};
+        {}.forEach(function(handler) {{ handler(execOptions); }});
+        module = execOptions.module;
+        if (!execOptions.factory) {{
+          console.error("undefined factory", moduleId);
+          throw Error("RuntimeError: factory is undefined (" + moduleId + ")");
+        }}
+        var rspackContextRequire = {}.r;
+        {}.r = execOptions.require;
+        try {{
+          execOptions.factory.call(module.exports, module, module.exports, {});
+        }} finally {{
+          {}.r = rspackContextRequire;
+        }}
+      "#,
+            runtime_template.render_runtime_variable(&RuntimeVariable::Modules),
+            callable_require,
+            runtime_template.render_runtime_globals(&RuntimeGlobals::INTERCEPT_MODULE_EXECUTION),
+            require_argument,
+            require_argument,
+            require_argument,
+            require_argument
+          )
+          .into()
+        } else {
+          format!(
+            r#"
         var execOptions = {{ id: moduleId, module: module, factory: {}[moduleId], require: {} }};
         {}.forEach(function(handler) {{ handler(execOptions); }});
         module = execOptions.module;
@@ -198,23 +235,24 @@ var module = ({}[moduleId] = {{"#,
         }}
         execOptions.factory.call(module.exports, module, module.exports, execOptions.require);
       "#,
-          runtime_template.render_runtime_variable(&RuntimeVariable::Modules),
-          runtime_template.render_runtime_globals(&RuntimeGlobals::REQUIRE),
-          runtime_template.render_runtime_globals(&RuntimeGlobals::INTERCEPT_MODULE_EXECUTION)
-        )
-        .into()
+            runtime_template.render_runtime_variable(&RuntimeVariable::Modules),
+            callable_require,
+            runtime_template.render_runtime_globals(&RuntimeGlobals::INTERCEPT_MODULE_EXECUTION)
+          )
+          .into()
+        }
       } else if runtime_requirements.contains(RuntimeGlobals::THIS_AS_EXPORTS) {
         format!(
           "{}[moduleId].call(module.exports, module, module.exports, {});\n",
           runtime_template.render_runtime_variable(&RuntimeVariable::Modules),
-          runtime_template.render_runtime_globals(&RuntimeGlobals::REQUIRE)
+          require_argument
         )
         .into()
       } else {
         format!(
           "{}[moduleId](module, module.exports, {});\n",
           runtime_template.render_runtime_variable(&RuntimeVariable::Modules),
-          runtime_template.render_runtime_globals(&RuntimeGlobals::REQUIRE)
+          require_argument
         )
         .into()
       };
@@ -784,11 +822,11 @@ var {} = {{}};
       header.push('\n');
       sources.add(RawStringSource::from(header));
     }
-
-    if compilation
-      .build_chunk_graph_artifact
-      .chunk_graph
-      .has_chunk_runtime_modules(chunk_ukey)
+    if should_render_runtime_context(compilation, chunk_ukey)
+      || compilation
+        .build_chunk_graph_artifact
+        .chunk_graph
+        .has_chunk_runtime_modules(chunk_ukey)
     {
       sources.add(render_runtime_modules(compilation, chunk_ukey, runtime_template).await?);
     }

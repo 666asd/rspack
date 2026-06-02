@@ -42,7 +42,10 @@ pub use module::*;
 pub use parser_and_generator::*;
 mod runtime_globals;
 pub use normal_module::*;
-pub use runtime_globals::{MODULE_GLOBALS, REQUIRE_SCOPE_GLOBALS, RuntimeGlobals, RuntimeVariable};
+pub use runtime_globals::{
+  MODULE_GLOBALS, REQUIRE_SCOPE_GLOBALS, RuntimeGlobals, RuntimeVariable,
+  renderable_require_scope_runtime_globals,
+};
 mod plugin;
 pub use plugin::*;
 mod context_module;
