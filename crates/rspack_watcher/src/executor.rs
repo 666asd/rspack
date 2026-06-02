@@ -90,7 +90,7 @@ impl Executor {
   pub fn pause(&self) {
     self
       .paused
-      .store(true, std::sync::atomic::Ordering::Relaxed);
+      .store(true, std::sync::atomic::Ordering::SeqCst);
   }
 
   /// Abort all executor.
@@ -103,7 +103,7 @@ impl Executor {
       if let Err(err) = execute_aggregate_handle.await {
         debug_assert!(err.is_cancelled());
       }
-      self.aggregate_running.store(false, Ordering::Relaxed);
+      self.aggregate_running.store(false, Ordering::SeqCst);
     }
     if let Some(execute_handle) = std::mem::take(&mut self.execute_handle) {
       execute_handle.abort();
@@ -151,7 +151,7 @@ impl Executor {
             }
           }
 
-          if !paused.load(Ordering::Relaxed) && !aggregate_running.load(Ordering::Relaxed) {
+          if !paused.load(Ordering::SeqCst) && !aggregate_running.load(Ordering::SeqCst) {
             let _ = exec_aggregate_tx.send(ExecAggregateEvent::Execute);
           }
 
@@ -166,7 +166,7 @@ impl Executor {
       self.start_waiting = true;
     }
 
-    self.paused.store(false, Ordering::Relaxed);
+    self.paused.store(false, Ordering::SeqCst);
     // abort the previous handlers if they exist
     self.abort().await;
 
@@ -256,7 +256,7 @@ fn create_execute_aggregate_task(
       };
 
       if let ExecAggregateEvent::Execute = aggregate_rx {
-        running.store(true, Ordering::Relaxed);
+        running.store(true, Ordering::SeqCst);
         // Wait for the aggregate timeout before executing the handler
         tokio::time::sleep(tokio::time::Duration::from_millis(aggregate_timeout)).await;
 
@@ -264,7 +264,7 @@ fn create_execute_aggregate_task(
         let files = {
           let mut files = files.lock().await;
           if files.is_empty() {
-            running.store(false, Ordering::Relaxed);
+            running.store(false, Ordering::SeqCst);
             continue;
           }
           std::mem::take(&mut *files)
@@ -272,7 +272,7 @@ fn create_execute_aggregate_task(
 
         // Call the event handler with the changed and deleted files
         event_handler.on_event_handle(files.changed, files.deleted);
-        running.store(false, Ordering::Relaxed);
+        running.store(false, Ordering::SeqCst);
       }
     }
   };
