@@ -410,7 +410,11 @@ impl JavascriptParserPlugin for APIPlugin {
       && for_name == API_REQUIRE
       && let Some(property) = members.first()
     {
-      return unsupported_static_require_property(parser, expr.span, property.as_ref());
+      let handled = unsupported_static_require_property(parser, expr.span, property.as_ref());
+      if handled.is_some() {
+        parser.walk_expr_or_spread(&expr.args);
+      }
+      return handled;
     }
 
     None
