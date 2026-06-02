@@ -119,17 +119,26 @@ impl Trigger {
     let trace = |msg: String| {
       if let Some(ref p) = trace_file {
         use std::io::Write;
+        // Atomically append the entire line including newline to avoid
+        // interleaving when multiple threads write concurrently to the
+        // same O_APPEND file descriptor (POSIX guarantees atomicity only
+        // for write(2) calls ≤ PIPE_BUF, and only when O_APPEND is set).
         if let Ok(mut f) = std::fs::OpenOptions::new()
-          .create(true).append(true).open(p)
+          .create(true)
+          .append(true)
+          .open(p)
         {
-          let _ = writeln!(f, "[T] {}", msg);
+          let line = format!("[T] {}\n", msg);
+          let _ = f.write_all(line.as_bytes());
         }
       }
     };
 
     trace(format!(
       "on_event path={} kind={:?} is_registered_file={}",
-      path.display(), kind, is_registered_file
+      path.display(),
+      kind,
+      is_registered_file
     ));
 
     if (kind == FsEventKind::Change || (kind == FsEventKind::Create && is_registered_file))
@@ -141,10 +150,15 @@ impl Trigger {
 
     let finder = self.finder();
     let associated_event = finder.find_associated_event(path, kind);
-    let paths: Vec<_> = associated_event.iter().map(|(p, k)| format!("{}({:?})", p.display(), k)).collect();
+    let paths: Vec<_> = associated_event
+      .iter()
+      .map(|(p, k)| format!("{}({:?})", p.display(), k))
+      .collect();
     trace(format!(
       "dispatched origin={} count={} paths=[{}]",
-      path.display(), associated_event.len(), paths.join(",")
+      path.display(),
+      associated_event.len(),
+      paths.join(",")
     ));
     self.trigger_events(associated_event);
   }

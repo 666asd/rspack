@@ -42,9 +42,15 @@ impl DiskWatcher {
           if let Ok(p) = std::env::var("RSPACK_WATCHER_TRACE_FILE") {
             use std::io::Write;
             if let Ok(mut f) = std::fs::OpenOptions::new()
-              .create(true).append(true).open(&p)
+              .create(true)
+              .append(true)
+              .open(&p)
             {
-              let _ = writeln!(f, "[T] raw_notify_event kind={:?} paths={:?}", event.kind, event.paths);
+              let line = format!(
+                "[T] raw_notify_event kind={:?} paths={:?}\n",
+                event.kind, event.paths
+              );
+              let _ = f.write_all(line.as_bytes());
             }
           }
 

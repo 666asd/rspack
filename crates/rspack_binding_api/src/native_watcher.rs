@@ -209,9 +209,15 @@ impl rspack_watcher::EventAggregateHandler for JsEventHandler {
     if let Ok(p) = std::env::var("RSPACK_WATCHER_TRACE_FILE") {
       use std::io::Write;
       if let Ok(mut f) = std::fs::OpenOptions::new()
-        .create(true).append(true).open(&p)
+        .create(true)
+        .append(true)
+        .open(&p)
       {
-        let _ = writeln!(f, "[T] js_event_handle changed={:?} deleted={:?}", changed_files_vec, deleted_files_vec);
+        let line = format!(
+          "[T] js_event_handle changed={:?} deleted={:?}\n",
+          changed_files_vec, deleted_files_vec
+        );
+        let _ = f.write_all(line.as_bytes());
       }
     }
     let result = NativeWatchResult {
