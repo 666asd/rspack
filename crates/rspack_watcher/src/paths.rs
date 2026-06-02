@@ -190,6 +190,15 @@ pub(crate) struct PathManager {
   /// Used to filter stale FSEvents that arrive for files not actually modified.
   /// See: https://gist.github.com/stormslowly/ed758500de6f23211fd63b39eba5ed07
   file_mtimes: ArcPathDashMap<SystemTime>,
+  /// Maps the canonical (symlink-resolved) form of a registered path back to
+  /// the original registered form. On macOS the notify-rs FSEvents backend
+  /// resolves symlinks internally and delivers events for the realpath, but
+  /// rspack typically registers paths via their symlink form (matching how
+  /// the module resolver sees them). Without this index, file events come
+  /// in with the realpath, fail `files.all.contains(...)`, and are silently
+  /// dropped — leaving rstest to receive only parent-directory change events
+  /// and fall back to a full rerun.
+  realpath_aliases: ArcPathDashMap<ArcPath>,
 }
 
 impl PathManager {
@@ -201,6 +210,19 @@ impl PathManager {
       missing: PathTracker::default(),
       ignored,
       file_mtimes: ArcPathDashMap::default(),
+      realpath_aliases: ArcPathDashMap::default(),
+    }
+  }
+
+  /// Look up the originally-registered path for an event path that may have
+  /// been symlink-resolved by the OS file watcher. Returns the registered
+  /// form when the event's realpath matches a registered file/directory's
+  /// realpath; otherwise returns the input unchanged.
+  pub fn resolve_event_path(&self, event_path: &ArcPath) -> ArcPath {
+    if let Some(original) = self.realpath_aliases.get(event_path) {
+      original.clone()
+    } else {
+      event_path.clone()
     }
   }
 
@@ -281,7 +303,9 @@ impl PathManager {
           if trace {
             eprintln!(
               "[RSPACK_WATCHER_TRACE] has_mtime_changed path={} verdict=true current={:?} baseline={:?}",
-              path.display(), current_mtime, baseline_val
+              path.display(),
+              current_mtime,
+              baseline_val
             );
           }
           true
@@ -289,7 +313,8 @@ impl PathManager {
           if trace {
             eprintln!(
               "[RSPACK_WATCHER_TRACE] has_mtime_changed path={} verdict=false reason=mtime_equal mtime={:?}",
-              path.display(), current_mtime
+              path.display(),
+              current_mtime
             );
           }
           false
@@ -300,7 +325,8 @@ impl PathManager {
         if trace {
           eprintln!(
             "[RSPACK_WATCHER_TRACE] has_mtime_changed path={} verdict=true reason=no_baseline current={:?}",
-            path.display(), current_mtime
+            path.display(),
+            current_mtime
           );
         }
         true
@@ -326,6 +352,23 @@ impl PathManager {
     let removed_files: Vec<ArcPath> = self.files.removed.iter().map(|p| p.clone()).collect();
     for path in &removed_files {
       self.remove_file_mtime(path);
+    }
+
+    // Populate the realpath alias index for newly-added entries so
+    // `resolve_event_path` can map FSEvent-delivered realpaths back to
+    // their originally-registered (often symlink) form. Only entries
+    // whose realpath actually differs from the registered path get
+    // recorded; for most files this is a no-op cache hit.
+    for tracker in [&self.files, &self.directories, &self.missing] {
+      let added: Vec<ArcPath> = tracker.added.iter().map(|p| p.clone()).collect();
+      for path in added {
+        if let Ok(canonical) = std::fs::canonicalize(path.as_ref()) {
+          let canonical_arc = ArcPath::from(canonical);
+          if canonical_arc != path {
+            self.realpath_aliases.insert(canonical_arc, path);
+          }
+        }
+      }
     }
 
     Ok(())

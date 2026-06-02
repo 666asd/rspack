@@ -113,6 +113,12 @@ impl Trigger {
   /// - `/path`
   /// - `/path/to`
   pub fn on_event(&self, path: &ArcPath, kind: FsEventKind) {
+    // Translate FSEvent-delivered realpath back to its originally-registered
+    // form (symlink path, when rspack registered the file via a symlink).
+    // Without this translation, file events for paths inside a symlinked
+    // root are dropped because `files.all` is keyed by the symlink form.
+    let path_owned = self.path_manager.resolve_event_path(path);
+    let path = &path_owned;
     let is_registered_file = self.path_manager.access().files().0.contains(path);
 
     let trace_file = std::env::var("RSPACK_WATCHER_TRACE_FILE").ok();
