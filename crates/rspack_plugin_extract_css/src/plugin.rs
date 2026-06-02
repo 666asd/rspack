@@ -402,12 +402,17 @@ despite it was not able to fulfill desired ordering with these modules:
       }));
     }
 
+    let used_modules_count = used_modules.len();
     let used_modules = used_modules
       .into_iter()
       .filter_map(|module| module.downcast_ref::<CssModule>());
 
-    let mut source = ConcatSource::default();
-    let mut external_source = ConcatSource::default();
+    let source_capacity_per_module = if self.options.pathinfo { 9 } else { 8 };
+    let external_capacity_per_module = if self.options.pathinfo { 2 } else { 1 };
+    let mut source =
+      ConcatSource::with_capacity(used_modules_count.saturating_mul(source_capacity_per_module));
+    let mut external_source =
+      ConcatSource::with_capacity(used_modules_count * external_capacity_per_module + 1);
 
     for module in used_modules {
       let content = Cow::Borrowed(module.content.as_str());
