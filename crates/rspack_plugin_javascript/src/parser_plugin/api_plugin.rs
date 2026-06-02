@@ -109,11 +109,6 @@ impl ApiAtoms {
   }
 }
 
-#[inline]
-fn is_possible_api_identifier(name: &Atom) -> bool {
-  matches!(name.as_bytes(), [b'_', b'_', ..])
-}
-
 pub struct APIPluginOptions {
   module: bool,
 }
@@ -180,10 +175,6 @@ impl JavascriptParserPlugin for APIPlugin {
   }
 
   fn identifier(&self, parser: &mut JavascriptParser, ident: &Ident, name: &Atom) -> Option<bool> {
-    if !is_possible_api_identifier(name) {
-      return None;
-    }
-
     let atoms = &*API_ATOMS;
     if name == &atoms.require {
       parser.add_presentational_dependency(Box::new(RuntimeRequirementsDependency::new(
