@@ -7,9 +7,12 @@ use rspack_util::SpanExt;
 use swc_core::{
   atoms::Atom,
   common::{Span, Spanned},
-  ecma::ast::{
-    AssignExpr, CallExpr, Callee, Expr, ExprOrSpread, Ident, MemberExpr, NewExpr, UnaryExpr,
-    VarDeclarator,
+  ecma::{
+    ast::{
+      AssignExpr, CallExpr, Callee, Expr, ExprOrSpread, Ident, MemberExpr, NewExpr, UnaryExpr,
+      VarDeclarator,
+    },
+    atoms::atom,
   },
 };
 
@@ -687,7 +690,7 @@ impl JavascriptParserPlugin for CommonJsImportsParserPlugin {
       return Some(true);
     }
 
-    if for_name.as_str() == expr_name::REQUIRE {
+    if for_name == &atom!("require") {
       return self.require_as_expression_handler(parser, ident);
     }
 

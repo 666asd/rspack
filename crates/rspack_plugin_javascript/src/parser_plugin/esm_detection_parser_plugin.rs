@@ -5,7 +5,10 @@ use rspack_util::SpanExt;
 use swc_core::{
   atoms::Atom,
   common::{BytePos, Span, Spanned},
-  ecma::ast::{Ident, ModuleItem, Program, UnaryExpr},
+  ecma::{
+    ast::{Ident, ModuleItem, Program, UnaryExpr},
+    atoms::atom,
+  },
 };
 
 use super::JavascriptParserPlugin;
@@ -46,6 +49,10 @@ pub struct ESMDetectionParserPlugin;
 // nonHarmonyIdentifiers
 fn is_non_esm_identifier(name: &str) -> bool {
   name == "exports" || name == "define"
+}
+
+fn is_non_esm_identifier_for_atom(name: &Atom) -> bool {
+  name == &atom!("exports") || name == &atom!("define")
 }
 
 // Port from https://github.com/webpack/webpack/blob/main/lib/dependencies/HarmonyDetectionParserPlugin.js
@@ -120,7 +127,7 @@ impl JavascriptParserPlugin for ESMDetectionParserPlugin {
     _ident: &Ident,
     for_name: &Atom,
   ) -> Option<bool> {
-    (parser.is_esm && is_non_esm_identifier(for_name.as_str())).then_some(true)
+    (parser.is_esm && is_non_esm_identifier_for_atom(for_name)).then_some(true)
   }
 
   fn call(

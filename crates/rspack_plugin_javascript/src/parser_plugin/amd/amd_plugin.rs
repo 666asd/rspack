@@ -3,7 +3,10 @@ use rspack_util::SpanExt;
 use swc_core::{
   atoms::Atom,
   common::Spanned,
-  ecma::ast::{CallExpr, Expr, MemberExpr, UnaryExpr},
+  ecma::{
+    ast::{CallExpr, Expr, MemberExpr, UnaryExpr},
+    atoms::atom,
+  },
 };
 
 use crate::{
@@ -130,7 +133,7 @@ impl JavascriptParserPlugin for AMDParserPlugin {
     ident: &swc_core::ecma::ast::Ident,
     for_name: &Atom,
   ) -> Option<bool> {
-    if for_name.as_str() == DEFINE {
+    if for_name == &atom!("define") {
       parser.add_presentational_dependency(Box::new(RuntimeRequirementsDependency::new(
         ident.span().into(),
         RuntimeGlobals::AMD_DEFINE,

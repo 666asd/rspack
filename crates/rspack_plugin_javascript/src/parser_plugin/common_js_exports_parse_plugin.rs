@@ -3,9 +3,12 @@ use rspack_util::SpanExt;
 use swc_core::{
   atoms::Atom,
   common::{Span, Spanned},
-  ecma::ast::{
-    AssignExpr, CallExpr, Expr, ExprOrSpread, Ident, Lit, MemberExpr, ObjectLit, Prop, PropName,
-    PropOrSpread, UnaryExpr, UnaryOp,
+  ecma::{
+    ast::{
+      AssignExpr, CallExpr, Expr, ExprOrSpread, Ident, Lit, MemberExpr, ObjectLit, Prop, PropName,
+      PropOrSpread, UnaryExpr, UnaryOp,
+    },
+    atoms::atom,
   },
 };
 
@@ -376,7 +379,7 @@ impl JavascriptParserPlugin for CommonJsExportsParserPlugin {
       return None;
     }
 
-    if for_name.as_str() == "module" {
+    if for_name == &atom!("module") {
       let decorator = if parser.is_esm {
         RuntimeGlobals::ESM_MODULE_DECORATOR
       } else {
@@ -390,7 +393,7 @@ impl JavascriptParserPlugin for CommonJsExportsParserPlugin {
       return Some(true);
     }
 
-    if for_name.as_str() == "exports" {
+    if for_name == &atom!("exports") {
       // exports
       return handle_access_export(parser, ident.span(), &[], &[], ExportsBase::Exports, None);
     }

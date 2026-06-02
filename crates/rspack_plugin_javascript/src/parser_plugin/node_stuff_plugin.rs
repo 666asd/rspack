@@ -5,7 +5,11 @@ use rspack_core::{
 use rspack_error::{Diagnostic, cyan, yellow};
 use rspack_util::SpanExt;
 use sugar_path::SugarPath;
-use swc_core::{atoms::Atom, common::Spanned, ecma::ast::Expr};
+use swc_core::{
+  atoms::Atom,
+  common::Spanned,
+  ecma::{ast::Expr, atoms::atom},
+};
 use url::Url;
 
 use crate::{
@@ -543,7 +547,7 @@ impl JavascriptParserPlugin for NodeStuffPlugin {
         )));
         return Some(true);
       }
-    } else if for_name.as_str() == GLOBAL
+    } else if for_name == &atom!("global")
       && matches!(
         node_option.global,
         NodeGlobalOption::True | NodeGlobalOption::Warn
