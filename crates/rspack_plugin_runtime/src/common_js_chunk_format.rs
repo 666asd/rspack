@@ -196,7 +196,7 @@ var {} = require({});
       )
       .await?;
     sources.add(startup_render_source.source);
-    render_source.source = ConcatSource::new([
+    render_source.source = ConcatSource::new(vec![
       RawStringSource::from_static("(function() {\n").boxed(),
       sources.boxed(),
       RawStringSource::from_static("\n})()").boxed(),

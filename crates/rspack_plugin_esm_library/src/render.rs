@@ -218,7 +218,7 @@ impl EsmLibraryPlugin {
         decl_inner.add(module_source.clone());
       }
 
-      if !decl_inner.source().is_empty() {
+      if decl_inner.size() != 0 {
         // __webpack_require__.add({ "./src/main.js"(require, exports) { ... } })
         decl_source.add(RawStringSource::from(format!(
           "{}({{\n",
@@ -617,7 +617,7 @@ var {} = {{}};
     }
     final_source.add(import_source.boxed());
     final_source.add(render_init_fragments(
-      ConcatSource::new([
+      ConcatSource::new(vec![
         runtime_source.boxed(),
         decl_source.boxed(),
         render_source.boxed(),

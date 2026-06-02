@@ -1591,7 +1591,6 @@ impl Module for ConcatenatedModule {
       });
     }
 
-    let mut result: ConcatSource = ConcatSource::default();
     let mut should_add_esm_flag = false;
     let mut chunk_init_fragments: Vec<Box<dyn InitFragment<ChunkRenderContext>>> = Vec::new();
 
@@ -1620,6 +1619,19 @@ impl Module for ConcatenatedModule {
     {
       should_add_esm_flag = true
     }
+
+    // Keep this estimate O(1): `with_capacity` is a performance hint, and
+    // calculating the exact number of child sources would require extra scans.
+    let capacity = references_info.len() * 2
+      + module_to_info_map.len()
+      + if exports_map.is_empty() {
+        0
+      } else {
+        2 + usize::from(should_add_esm_flag) * 2
+      }
+      + usize::from(!unused_exports.is_empty())
+      + usize::from(!inlined_exports.is_empty());
+    let mut result = ConcatSource::with_capacity(capacity);
 
     // Assuming the necessary imports and dependencies are declared
 
@@ -1684,7 +1696,7 @@ impl Module for ConcatenatedModule {
       )));
     }
 
-    let mut namespace_object_sources: IdentifierMap<String> = IdentifierMap::default();
+    let mut namespace_object_sources: IdentifierMap<BoxSource> = IdentifierMap::default();
 
     while let Some(module_info_id) = needed_namespace_objects_queue.pop_front() {
       let module_info = module_to_info_map
@@ -1763,14 +1775,15 @@ impl Module for ConcatenatedModule {
 
       namespace_object_sources.insert(
         module_info_id,
-        format!(
+        RawStringSource::from(format!(
           "// NAMESPACE OBJECT: {}\nvar {} = {{}};\n{}({});\n{}\n",
           module_readable_identifier,
           name,
           runtime_template.render_runtime_globals(&RuntimeGlobals::MAKE_NAMESPACE_OBJECT),
           name,
           define_getters
-        ),
+        ))
+        .boxed(),
       );
     }
 
@@ -1780,7 +1793,7 @@ impl Module for ConcatenatedModule {
       if let Some(info) = info.try_as_concatenated()
         && let Some(source) = namespace_object_sources.get(&info.module)
       {
-        result.add(RawStringSource::from(source.as_str()));
+        result.add(source.clone());
       }
 
       // Define deferred modules namespace objects

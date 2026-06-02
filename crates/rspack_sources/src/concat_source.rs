@@ -102,16 +102,18 @@ impl std::fmt::Debug for ConcatSource {
 
 impl ConcatSource {
   /// Create a [ConcatSource] with [Source]s.
-  pub fn new<S, T>(sources: S) -> Self
-  where
-    T: Source + 'static,
-    S: IntoIterator<Item = T>,
-  {
-    let mut concat_source = ConcatSource::default();
-    for source in sources {
-      concat_source.add(source);
+  pub fn new(sources: Vec<BoxSource>) -> Self {
+    Self {
+      children: Mutex::new(sources),
+      is_optimized: OnceLock::default(),
     }
-    concat_source
+  }
+
+  pub fn with_capacity(capacity: usize) -> Self {
+    Self {
+      children: Mutex::new(Vec::with_capacity(capacity)),
+      is_optimized: OnceLock::default(),
+    }
   }
 
   fn optimized_children(&self) -> &[BoxSource] {

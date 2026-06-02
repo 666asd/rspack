@@ -238,8 +238,8 @@ pub fn render_init_fragments<C: InitFragmentRenderContext>(
     }
   }
 
-  let mut end_contents = vec![];
-  let mut concat_source = ConcatSource::default();
+  let mut end_contents = Vec::with_capacity(keyed_fragments.len());
+  let mut concat_source = ConcatSource::with_capacity(keyed_fragments.len());
 
   for (key, fragments) in keyed_fragments {
     let f = key.merge_fragments(fragments);

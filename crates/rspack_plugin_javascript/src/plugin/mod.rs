@@ -716,7 +716,13 @@ var {} = {{}};
     } else {
       None
     };
-    let mut sources = ConcatSource::default();
+    let inlined_module_count = inlined_modules.as_ref().map_or(0, |modules| modules.len());
+    let has_runtime_modules = compilation
+      .build_chunk_graph_artifact
+      .chunk_graph
+      .has_chunk_runtime_modules(chunk_ukey);
+    let capacity = 8usize + inlined_module_count + if has_runtime_modules { 8 } else { 0 };
+    let mut sources = ConcatSource::with_capacity(capacity);
     if iife {
       sources.add(RawStringSource::from(if supports_arrow_function {
         "(() => {\n"
@@ -785,11 +791,7 @@ var {} = {{}};
       sources.add(RawStringSource::from(header));
     }
 
-    if compilation
-      .build_chunk_graph_artifact
-      .chunk_graph
-      .has_chunk_runtime_modules(chunk_ukey)
-    {
+    if has_runtime_modules {
       sources.add(render_runtime_modules(compilation, chunk_ukey, runtime_template).await?);
     }
     if let Some(inlined_modules) = inlined_modules {
@@ -797,7 +799,7 @@ var {} = {{}};
         .keys()
         .next_back()
         .expect("should have last entry module");
-      let mut startup_sources = ConcatSource::default();
+      let mut startup_sources = ConcatSource::with_capacity(8);
 
       if runtime_requirements.contains(RuntimeGlobals::EXPORTS) {
         startup_sources.add(RawStringSource::from(format!(
@@ -989,7 +991,7 @@ var {} = {{}};
       )
       .await?;
     Ok(if iife {
-      ConcatSource::new([
+      ConcatSource::new(vec![
         render_source.source,
         RawStringSource::from_static(";").boxed(),
       ])
@@ -1379,18 +1381,18 @@ var {} = {{}};
       .build_chunk_graph_artifact
       .chunk_graph
       .get_chunk_modules_by_source_type(chunk_ukey, SourceType::JavaScript, module_graph);
-    let mut sources = ConcatSource::default();
+    let mut concat_source = ConcatSource::with_capacity(3);
     if !all_strict && chunk_modules.iter().all(|m| m.build_info().strict) {
       if let Some(strict_bailout) = hooks
         .strict_runtime_bailout
         .call(compilation, chunk_ukey)
         .await?
       {
-        sources.add(RawStringSource::from(format!(
+        concat_source.add(RawStringSource::from(format!(
           "// runtime can't be in strict mode because {strict_bailout}.\n"
         )));
       } else {
-        sources.add(RawStringSource::from_static("\"use strict\";\n"));
+        concat_source.add(RawStringSource::from_static("\"use strict\";\n"));
         all_strict = true;
       }
     }
@@ -1434,11 +1436,11 @@ var {} = {{}};
         runtime_template,
       )
       .await?;
-    sources.add(render_source.source);
+    concat_source.add(render_source.source);
     if !is_module {
-      sources.add(RawStringSource::from_static(";"));
+      concat_source.add(RawStringSource::from_static(";"));
     }
-    Ok(sources.boxed())
+    Ok(concat_source.boxed())
   }
 
   #[inline]

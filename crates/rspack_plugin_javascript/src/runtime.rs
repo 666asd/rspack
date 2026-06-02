@@ -1,4 +1,3 @@
-use rayon::prelude::*;
 use rspack_core::{
   ChunkGraph, ChunkInitFragments, ChunkUkey, CodeGenerationPublicPathAutoReplace, Compilation,
   Module, ModuleCodeGenerationContext, RuntimeCodeTemplate, RuntimeGlobals, SourceType,
@@ -57,7 +56,7 @@ pub async fn render_chunk_modules(
   .map(|r| r.to_rspack_result())
   .collect::<Result<Vec<_>>>()?;
 
-  let mut module_code_array = vec![];
+  let mut module_code_array = Vec::with_capacity(module_sources.len());
   for item in module_sources {
     if let Some(i) = item? {
       module_code_array.push(i);
@@ -83,20 +82,14 @@ pub async fn render_chunk_modules(
     .into_iter()
     .map(|(_, source, _, _)| source)
     .collect();
-  let module_sources = module_sources
-    .into_par_iter()
-    .fold(ConcatSource::default, |mut output, source| {
-      output.add(source);
-      output
-    })
-    .collect::<Vec<ConcatSource>>();
 
-  let mut sources = ConcatSource::default();
-  sources.add(RawStringSource::from_static("{\n"));
-  sources.add(ConcatSource::new(module_sources));
-  sources.add(RawStringSource::from_static("\n}"));
+  let chunk_modules_source = ConcatSource::new(vec![
+    RawStringSource::from_static("{\n").boxed(),
+    ConcatSource::new(module_sources).boxed(),
+    RawStringSource::from_static("\n}").boxed(),
+  ]);
 
-  Ok(Some((sources.boxed(), chunk_init_fragments)))
+  Ok(Some((chunk_modules_source.boxed(), chunk_init_fragments)))
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -186,7 +179,7 @@ pub async fn render_module(
     .await?;
 
   let sources = if factory {
-    let mut sources = ConcatSource::default();
+    let mut sources = ConcatSource::with_capacity(2);
     let module_id =
       ChunkGraph::get_module_id(&compilation.module_ids_artifact, module.identifier())
         .expect("should have module_id in render_module");
@@ -230,7 +223,8 @@ pub async fn render_module(
         args.push(runtime_template.render_runtime_globals(&RuntimeGlobals::REQUIRE));
       }
 
-      let mut container_sources = ConcatSource::default();
+      let use_strict = module.build_info().strict && !all_strict;
+      let mut container_sources = ConcatSource::with_capacity(if use_strict { 4 } else { 3 });
 
       if use_method_shorthand {
         container_sources.add(RawStringSource::from(format!("({}) {{\n", args.join(", "))));
@@ -240,7 +234,7 @@ pub async fn render_module(
           args.join(", ")
         )));
       }
-      if module.build_info().strict && !all_strict {
+      if use_strict {
         container_sources.add(RawStringSource::from_static("\"use strict\";\n"));
       }
       container_sources.add(render_source.source);
@@ -312,20 +306,22 @@ pub async fn render_chunk_runtime_modules(
   chunk_ukey: &ChunkUkey,
   runtime_template: &RuntimeCodeTemplate<'_>,
 ) -> Result<BoxSource> {
-  let runtime_modules_sources =
+  let runtime_modules_source =
     render_runtime_modules(compilation, chunk_ukey, runtime_template).await?;
-  if runtime_modules_sources.source().is_empty() {
-    return Ok(runtime_modules_sources);
+  if runtime_modules_source.size() == 0 {
+    return Ok(runtime_modules_source);
   }
 
-  let mut sources = ConcatSource::default();
-  sources.add(RawStringSource::from(format!(
-    "function({}) {{\n",
-    runtime_template.render_runtime_globals(&RuntimeGlobals::REQUIRE),
-  )));
-  sources.add(runtime_modules_sources);
-  sources.add(RawStringSource::from_static("\n}\n"));
-  Ok(sources.boxed())
+  let concat_source = ConcatSource::new(vec![
+    RawStringSource::from(format!(
+      "function({}) {{\n",
+      runtime_template.render_runtime_globals(&RuntimeGlobals::REQUIRE),
+    ))
+    .boxed(),
+    runtime_modules_source,
+    RawStringSource::from_static("\n}\n").boxed(),
+  ]);
+  Ok(concat_source.boxed())
 }
 
 pub async fn render_runtime_modules(
@@ -333,7 +329,6 @@ pub async fn render_runtime_modules(
   chunk_ukey: &ChunkUkey,
   _runtime_template: &RuntimeCodeTemplate<'_>,
 ) -> Result<BoxSource> {
-  let mut sources = ConcatSource::default();
   let runtime_module_sources = rspack_parallel::scope::<_, Result<_>>(|token| {
     compilation
       .build_chunk_graph_artifact
@@ -351,10 +346,12 @@ pub async fn render_runtime_modules(
       .for_each(|(source, module)| {
         let s = unsafe { token.used((compilation, source, module)) };
         s.spawn(|(compilation, source, module)| async move {
-          let mut sources = ConcatSource::default();
           if source.size() == 0 {
-            return Ok(sources);
+            return Ok(ConcatSource::default());
           }
+          let should_isolate = module.should_isolate();
+          let capacity = if should_isolate { 4 } else { 2 };
+          let mut sources = ConcatSource::with_capacity(capacity);
           sources.add(RawStringSource::from(format!(
             "// {}\n",
             module.identifier()
@@ -364,7 +361,7 @@ pub async fn render_runtime_modules(
             .output
             .environment
             .supports_arrow_function();
-          if module.should_isolate() {
+          if should_isolate {
             sources.add(RawStringSource::from(if supports_arrow_function {
               "(() => {\n"
             } else {
@@ -387,7 +384,7 @@ pub async fn render_runtime_modules(
             let source = result.get(&SourceType::Runtime).unwrap();
             sources.add(source.clone());
           }
-          if module.should_isolate() {
+          if should_isolate {
             sources.add(RawStringSource::from(if supports_arrow_function {
               "\n})();\n"
             } else {
@@ -403,11 +400,12 @@ pub async fn render_runtime_modules(
   .map(|r| r.to_rspack_result())
   .collect::<Result<Vec<_>>>()?;
 
+  let mut concat_source = ConcatSource::with_capacity(runtime_module_sources.len());
   for runtime_module_source in runtime_module_sources {
-    sources.add(runtime_module_source?);
+    concat_source.add(runtime_module_source?);
   }
 
-  Ok(sources.boxed())
+  Ok(concat_source.boxed())
 }
 
 pub fn stringify_chunks_to_array(chunks: &ChunkIdSet) -> String {

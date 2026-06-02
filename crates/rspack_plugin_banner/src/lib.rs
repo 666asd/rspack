@@ -107,14 +107,14 @@ impl BannerPlugin {
     if let Some(footer) = footer
       && footer
     {
-      ConcatSource::new([
+      ConcatSource::new(vec![
         old_source,
         RawStringSource::from_static("\n").boxed(),
         RawStringSource::from(comment).boxed(),
       ])
       .boxed()
     } else {
-      ConcatSource::new([
+      ConcatSource::new(vec![
         RawStringSource::from(comment).boxed(),
         RawStringSource::from_static("\n").boxed(),
         old_source,

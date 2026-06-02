@@ -146,19 +146,20 @@ async fn render_chunk(
 
   let chunk_id_expr = rspack_util::json_stringify(chunk.expect_id());
 
-  let mut sources = ConcatSource::default();
-  sources.add(RawStringSource::from(format!(
-    "export const __rspack_esm_id = {chunk_id_expr};\n",
-  )));
-  sources.add(RawStringSource::from(format!(
-    "export const __rspack_esm_ids = [{chunk_id_expr}];\n",
-  )));
-  sources.add(RawStringSource::from(format!(
-    "export const {} = ",
-    runtime_template.render_runtime_variable(&RuntimeVariable::Modules),
-  )));
-  sources.add(render_source.source.clone());
-  sources.add(RawStringSource::from_static(";\n"));
+  let mut sources = ConcatSource::new(vec![
+    RawStringSource::from(format!("export const __rspack_esm_id = {chunk_id_expr};\n",)).boxed(),
+    RawStringSource::from(format!(
+      "export const __rspack_esm_ids = [{chunk_id_expr}];\n",
+    ))
+    .boxed(),
+    RawStringSource::from(format!(
+      "export const {} = ",
+      runtime_template.render_runtime_variable(&RuntimeVariable::Modules),
+    ))
+    .boxed(),
+    render_source.source.clone(),
+    RawStringSource::from_static(";\n").boxed(),
+  ]);
 
   if compilation
     .build_chunk_graph_artifact
@@ -359,7 +360,7 @@ async fn render_startup(
 
     let base_chunk_output_name = get_chunk_output_name(chunk, compilation).await?;
 
-    let mut dependent_load = ConcatSource::default();
+    let mut dependent_load = ConcatSource::with_capacity(dependent_chunks.size_hint().0 * 2 + 1);
     for (index, ck) in dependent_chunks.enumerate() {
       if !chunk_has_js(&ck, compilation) {
         continue;
@@ -387,10 +388,9 @@ async fn render_startup(
       )));
     }
 
-    if !dependent_load.source().is_empty() {
-      let mut sources = ConcatSource::default();
-      sources.add(dependent_load);
-      sources.add(render_source.source.clone());
+    if dependent_load.size() != 0 {
+      let mut sources =
+        ConcatSource::new(vec![dependent_load.boxed(), render_source.source.clone()]);
       render_source.source = sources.boxed();
     }
   }

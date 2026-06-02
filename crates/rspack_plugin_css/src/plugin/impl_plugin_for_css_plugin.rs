@@ -255,7 +255,7 @@ impl CssPlugin {
     .map(|r| r.to_rspack_result())
     .collect::<Result<Vec<_>>>()?;
 
-    let mut source = ConcatSource::default();
+    let mut source = ConcatSource::with_capacity(module_sources.len());
 
     for module_source in module_sources {
       source.add(module_source?);
