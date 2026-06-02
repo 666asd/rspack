@@ -88,9 +88,7 @@ impl Executor {
 
   /// Pause the aggregate executor, it will not execute the event handler until resume.
   pub fn pause(&self) {
-    self
-      .paused
-      .store(true, std::sync::atomic::Ordering::SeqCst);
+    self.paused.store(true, std::sync::atomic::Ordering::SeqCst);
   }
 
   /// Abort all executor.
@@ -190,6 +188,7 @@ impl Executor {
     self.execute_aggregate_handle = Some(create_execute_aggregate_task(
       event_aggregate_handler,
       Arc::clone(&self.exec_aggregate_rx),
+      self.exec_aggregate_tx.clone(),
       Arc::clone(&self.files_data),
       self.aggregate_timeout as u64,
       Arc::clone(&self.aggregate_running),
@@ -239,6 +238,7 @@ fn create_execute_task(
 fn create_execute_aggregate_task(
   event_handler: Box<dyn EventAggregateHandler + Send>,
   exec_aggregate_rx: ThreadSafetyReceiver<ExecAggregateEvent>,
+  exec_aggregate_tx: UnboundedSender<ExecAggregateEvent>,
   files: ThreadSafety<FilesData>,
   aggregate_timeout: u64,
   running: Arc<AtomicBool>,
@@ -261,18 +261,28 @@ fn create_execute_aggregate_task(
         tokio::time::sleep(tokio::time::Duration::from_millis(aggregate_timeout)).await;
 
         // Get the files to process
-        let files = {
-          let mut files = files.lock().await;
-          if files.is_empty() {
+        let drained = {
+          let mut files_guard = files.lock().await;
+          if files_guard.is_empty() {
             running.store(false, Ordering::SeqCst);
             continue;
           }
-          std::mem::take(&mut *files)
+          std::mem::take(&mut *files_guard)
         };
 
         // Call the event handler with the changed and deleted files
-        event_handler.on_event_handle(files.changed, files.deleted);
+        event_handler.on_event_handle(drained.changed, drained.deleted);
+
+        // Re-check files_data: events that arrived while `on_event_handle`
+        // was running are inserted into files_data, but the producer side
+        // (wait_for_execute) skips sending Execute because `running` is
+        // still true. Without this follow-up, those events sit in
+        // files_data indefinitely — no OS event would re-deliver them.
+        let needs_followup = !files.lock().await.is_empty();
         running.store(false, Ordering::SeqCst);
+        if needs_followup {
+          let _ = exec_aggregate_tx.send(ExecAggregateEvent::Execute);
+        }
       }
     }
   };
