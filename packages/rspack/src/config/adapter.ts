@@ -102,7 +102,10 @@ export const getRawOptions = (
     optimization: options.optimization as Required<Optimization>,
     stats: getRawStats(options.stats),
     cache: options.cache || false,
-    experiments,
+    experiments: {
+      ...experiments,
+      runtimeMode: experiments.runtimeMode,
+    } as RawOptions['experiments'],
     incremental: options.incremental,
     node: getRawNode(options.node),
     amd: options.amd ? JSON.stringify(options.amd || {}) : undefined,

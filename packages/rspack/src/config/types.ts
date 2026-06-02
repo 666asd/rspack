@@ -3007,6 +3007,12 @@ export type Experiments = {
    * @default false
    */
   pureFunctions?: boolean;
+  /**
+   * Select runtime proxy context behavior. `webpack` keeps `__webpack_require__.x`,
+   * while `rspack` uses `__rspack_context`.
+   * @default "webpack"
+   */
+  runtimeMode?: 'webpack' | 'rspack';
 };
 //#endregion
 

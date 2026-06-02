@@ -620,6 +620,7 @@ export interface ExperimentsNormalized {
   nativeWatcher?: boolean;
   deferImport?: boolean;
   pureFunctions?: boolean;
+  runtimeMode?: 'webpack' | 'rspack';
 }
 
 export type IgnoreWarningsNormalized = ((
