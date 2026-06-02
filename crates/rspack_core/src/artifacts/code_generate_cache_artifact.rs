@@ -53,7 +53,12 @@ impl CodeGenerateCacheArtifact {
       return (res, false);
     };
 
-    let cache_key = Identifier::from(format!("{}|{}", job.module, job.hash.encoded()));
+    let cache_key = Identifier::from(format!(
+      "{}|{}|{:?}",
+      job.module,
+      job.hash.encoded(),
+      job.runtime_mode
+    ));
     if let Some(value) = storage.get(&cache_key) {
       (Ok(value), true)
     } else {
