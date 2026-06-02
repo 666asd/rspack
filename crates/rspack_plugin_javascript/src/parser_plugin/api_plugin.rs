@@ -15,7 +15,10 @@ use swc_core::{
 
 use crate::{
   dependency::{ModuleArgumentDependency, RequireMainDependency},
-  parser_plugin::JavascriptParserPlugin,
+  parser_plugin::{
+    JavascriptParserPlugin,
+    common_js_imports_parse_plugin::{CallOrNewExpr, CommonJsImportsParserPlugin},
+  },
   utils::eval::{self, BasicEvaluatedExpression},
   visitors::{JavascriptParser, Statement, VariableDeclaration, create_traceable_error},
 };
@@ -509,6 +512,12 @@ impl JavascriptParserPlugin for APIPlugin {
     call_expr: &CallExpr,
     for_name: &str,
   ) -> Option<bool> {
+    if parser.compiler_options.experiments.runtime_mode == ExperimentRuntimeMode::Rspack
+      && for_name == API_REQUIRE
+    {
+      return CommonJsImportsParserPlugin.require_handler(parser, CallOrNewExpr::Call(call_expr));
+    }
+
     if for_name == "require.config"
       || for_name == "require.include"
       || for_name == "require.onError"

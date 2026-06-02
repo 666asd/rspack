@@ -1,6 +1,7 @@
 use rspack_core::{
   ConstDependency, ContextDependency, ContextMode, ContextModulePattern, ContextOptions,
   DependencyCategory, DependencyRange, DependencyType, ReferencedSpecifier,
+  runtime_mode::RuntimeMode as ExperimentRuntimeMode,
 };
 use rspack_error::{Diagnostic, Severity};
 use rspack_util::SpanExt;
@@ -30,6 +31,7 @@ use crate::{
 };
 
 const COMMONJS_REQUIRE_TAG: &str = "commonjs require";
+const API_REQUIRE: &str = "__webpack_require__";
 
 #[derive(Debug, Default)]
 pub struct RequireReferencesState {
@@ -213,7 +215,7 @@ pub(crate) fn is_require_call_expr(parser: &mut JavascriptParser, call: &CallExp
   false
 }
 
-enum CallOrNewExpr<'a> {
+pub(super) enum CallOrNewExpr<'a> {
   Call(&'a CallExpr),
   New(&'a NewExpr),
 }
@@ -471,7 +473,11 @@ impl CommonJsImportsParserPlugin {
     Some(true)
   }
 
-  fn require_handler(&self, parser: &mut JavascriptParser, expr: CallOrNewExpr) -> Option<bool> {
+  pub(super) fn require_handler(
+    &self,
+    parser: &mut JavascriptParser,
+    expr: CallOrNewExpr,
+  ) -> Option<bool> {
     let callee = expr.callee()?;
     let args = expr.args()?;
 
@@ -843,7 +849,11 @@ impl JavascriptParserPlugin for CommonJsImportsParserPlugin {
     call_expr: &CallExpr,
     for_name: &str,
   ) -> Option<bool> {
-    if for_name == expr_name::REQUIRE || for_name == expr_name::MODULE_REQUIRE {
+    if for_name == expr_name::REQUIRE
+      || for_name == expr_name::MODULE_REQUIRE
+      || (parser.compiler_options.experiments.runtime_mode == ExperimentRuntimeMode::Rspack
+        && for_name == API_REQUIRE)
+    {
       self.require_handler(parser, CallOrNewExpr::Call(call_expr))
     } else if for_name == expr_name::REQUIRE_RESOLVE {
       if matches!(parser.javascript_options.require_resolve, Some(false))

@@ -336,9 +336,17 @@ pub fn should_render_runtime_context(compilation: &Compilation, chunk_ukey: &Chu
     return false;
   }
 
-  runtime_context_metadata(compilation, chunk_ukey).is_some()
-    || ChunkGraph::get_chunk_runtime_requirements(compilation, chunk_ukey)
-      .contains(RuntimeGlobals::REQUIRE)
+  runtime_context_metadata(compilation, chunk_ukey).is_some_and(|metadata| {
+    !metadata.lexical_fields().is_empty() || !metadata.context_fields().is_empty()
+  }) || should_render_runtime_context_require(compilation, chunk_ukey)
+}
+
+fn should_render_runtime_context_require(
+  compilation: &Compilation,
+  chunk_ukey: &ChunkUkey,
+) -> bool {
+  ChunkGraph::get_chunk_runtime_requirements(compilation, chunk_ukey)
+    .contains(RuntimeGlobals::REQUIRE)
     || {
       let chunk = compilation
         .build_chunk_graph_artifact
@@ -387,11 +395,17 @@ fn render_runtime_context_declarations(
       }
     }
   }
-  sources.add(RawStringSource::from(format!(
-    "var {} = {{ r: {} }};\n",
-    runtime_template.render_runtime_variable(&RuntimeVariable::RuntimeContext),
-    runtime_template.render_runtime_variable(&RuntimeVariable::Require)
-  )));
+  let runtime_context = runtime_template.render_runtime_variable(&RuntimeVariable::RuntimeContext);
+  if should_render_runtime_context_require(compilation, chunk_ukey) {
+    sources.add(RawStringSource::from(format!(
+      "var {runtime_context} = {{ r: {} }};\n",
+      runtime_template.render_runtime_variable(&RuntimeVariable::Require)
+    )));
+  } else {
+    sources.add(RawStringSource::from(format!(
+      "var {runtime_context} = {{}};\n",
+    )));
+  }
 
   Some(sources.boxed())
 }
