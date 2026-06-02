@@ -10,9 +10,13 @@ module.exports = {
     );
 
     expect(source).toContain("__rspack_context.nc");
+    expect(source).toContain("__rspack_context.p");
     expect(source).toContain('Object.defineProperty(__rspack_context, "nc"');
+    expect(source).toContain('Object.defineProperty(__rspack_context, "p"');
     expect(source).toContain("set: function(value)");
     expect(source).toContain("scriptNonce = value");
+    expect(source).toContain("publicPath = value");
     expect(source).not.toContain("__webpack_require__.nc");
+    expect(source).not.toContain("__webpack_require__.p");
   },
 };

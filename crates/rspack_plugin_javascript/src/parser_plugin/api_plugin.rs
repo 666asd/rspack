@@ -389,9 +389,9 @@ impl JavascriptParserPlugin for APIPlugin {
   ) -> Option<bool> {
     if parser.compiler_options.experiments.runtime_mode == ExperimentRuntimeMode::Rspack
       && for_name == API_REQUIRE
-      && members.len() == 1
+      && let Some(property) = members.first()
     {
-      return unsupported_static_require_property(parser, member_expr.span, members[0].as_ref());
+      return unsupported_static_require_property(parser, member_expr.span, property.as_ref());
     }
 
     None
@@ -408,9 +408,9 @@ impl JavascriptParserPlugin for APIPlugin {
   ) -> Option<bool> {
     if parser.compiler_options.experiments.runtime_mode == ExperimentRuntimeMode::Rspack
       && for_name == API_REQUIRE
-      && members.len() == 1
+      && let Some(property) = members.first()
     {
-      return unsupported_static_require_property(parser, expr.span, members[0].as_ref());
+      return unsupported_static_require_property(parser, expr.span, property.as_ref());
     }
 
     None
@@ -425,9 +425,9 @@ impl JavascriptParserPlugin for APIPlugin {
   ) -> Option<bool> {
     if parser.compiler_options.experiments.runtime_mode == ExperimentRuntimeMode::Rspack
       && for_name == API_REQUIRE
-      && members.len() == 1
+      && let Some(property) = members.first()
     {
-      return unsupported_static_require_property(parser, expr.left.span(), members[0].as_ref());
+      return unsupported_static_require_property(parser, expr.left.span(), property.as_ref());
     }
 
     None
