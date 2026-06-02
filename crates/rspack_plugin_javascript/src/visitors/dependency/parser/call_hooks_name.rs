@@ -161,9 +161,9 @@ where
     parser.current_tag_info = Some(tag_info_id);
     let (next, tag) = {
       let tag_info = parser.definitions_db.expect_get_tag_info(tag_info_id);
-      (tag_info.next, tag_info.tag.clone())
+      (tag_info.next, tag_info.tag)
     };
-    let result = hook_call(parser, &tag);
+    let result = hook_call(parser, tag);
     parser.current_tag_info = None;
     if result.is_some() {
       return result;
@@ -204,7 +204,7 @@ where
     parser.current_tag_info = Some(tag_info_id);
     let (next, tag) = {
       let tag_info = parser.definitions_db.expect_get_tag_info(tag_info_id);
-      (tag_info.next, tag_info.tag.clone())
+      (tag_info.next, tag_info.tag)
     };
     let result = hook_call(parser, tag.as_str());
     parser.current_tag_info = None;

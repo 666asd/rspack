@@ -1,3 +1,5 @@
+use std::sync::LazyLock;
+
 use rspack_core::{
   BoxDependency, Dependency, DependencyId, DependencyRange, UsedByExports,
   UsedByExportsDeferredPureCheck,
@@ -37,13 +39,11 @@ pub struct InnerGraphParserPlugin {
 
 pub static TOP_LEVEL_SYMBOL: &str = "inner graph top level symbol";
 
-thread_local! {
-  static TOP_LEVEL_SYMBOL_ATOM: Atom = Atom::from(TOP_LEVEL_SYMBOL);
-}
+static TOP_LEVEL_SYMBOL_ATOM: LazyLock<Atom> = LazyLock::new(|| Atom::from(TOP_LEVEL_SYMBOL));
 
 #[inline]
-fn top_level_symbol_atom() -> Atom {
-  TOP_LEVEL_SYMBOL_ATOM.with(|atom| atom.clone())
+fn top_level_symbol_atom() -> &'static Atom {
+  &TOP_LEVEL_SYMBOL_ATOM
 }
 
 impl InnerGraphParserPlugin {
@@ -330,7 +330,7 @@ impl InnerGraphParserPlugin {
 
   pub fn add_variable_usage(parser: &mut JavascriptParser, name: &Atom, usage: InnerGraphMapUsage) {
     let symbol = parser
-      .get_tag_data::<TopLevelSymbol>(name, &top_level_symbol_atom())
+      .get_tag_data::<TopLevelSymbol>(name, top_level_symbol_atom())
       .copied()
       .unwrap_or_else(|| Self::tag_top_level_symbol(parser, name));
 
@@ -360,7 +360,7 @@ impl InnerGraphParserPlugin {
     parser.define_variable(name.clone());
 
     if let Some(existing) = parser
-      .get_tag_data::<TopLevelSymbol>(name, &top_level_symbol_atom())
+      .get_tag_data::<TopLevelSymbol>(name, top_level_symbol_atom())
       .copied()
     {
       return existing;

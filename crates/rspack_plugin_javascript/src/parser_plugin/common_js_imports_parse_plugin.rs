@@ -1,3 +1,5 @@
+use std::sync::LazyLock;
+
 use rspack_core::{
   ConstDependency, ContextDependency, ContextMode, ContextModulePattern, ContextOptions,
   DependencyCategory, DependencyRange, DependencyType, ReferencedSpecifier,
@@ -34,18 +36,17 @@ use crate::{
 
 const COMMONJS_REQUIRE_TAG: &str = "commonjs require";
 
-thread_local! {
-  static COMMONJS_REQUIRE_TAG_ATOM: Atom = Atom::from(COMMONJS_REQUIRE_TAG);
-}
+static COMMONJS_REQUIRE_TAG_ATOM: LazyLock<Atom> =
+  LazyLock::new(|| Atom::from(COMMONJS_REQUIRE_TAG));
 
 #[inline]
-fn commonjs_require_tag_atom() -> Atom {
-  COMMONJS_REQUIRE_TAG_ATOM.with(|atom| atom.clone())
+fn commonjs_require_tag_atom() -> &'static Atom {
+  &COMMONJS_REQUIRE_TAG_ATOM
 }
 
 #[inline]
 fn is_commonjs_require_tag(name: &Atom) -> bool {
-  COMMONJS_REQUIRE_TAG_ATOM.with(|atom| name == atom)
+  name == commonjs_require_tag_atom()
 }
 
 #[derive(Debug, Default)]
@@ -630,7 +631,7 @@ impl JavascriptParserPlugin for CommonJsImportsParserPlugin {
       && let Some(info) = name_info.info
       && let Some(name) = info.name.clone()
       && parser
-        .get_tag_data::<RequireTagData>(&name, &commonjs_require_tag_atom())
+        .get_tag_data::<RequireTagData>(&name, commonjs_require_tag_atom())
         .is_some()
     {
       return Some(true);

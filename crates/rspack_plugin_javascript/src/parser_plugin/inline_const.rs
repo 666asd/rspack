@@ -1,3 +1,5 @@
+use std::sync::LazyLock;
+
 use rspack_cacheable::cacheable;
 use rspack_core::EvaluatedInlinableValue;
 use rspack_util::ryu_js;
@@ -20,13 +22,11 @@ use crate::{
 
 pub const INLINABLE_CONST_TAG: &str = "inlinable const";
 
-thread_local! {
-  static INLINABLE_CONST_TAG_ATOM: Atom = Atom::from(INLINABLE_CONST_TAG);
-}
+static INLINABLE_CONST_TAG_ATOM: LazyLock<Atom> = LazyLock::new(|| Atom::from(INLINABLE_CONST_TAG));
 
 #[inline]
-pub fn inlinable_const_tag_atom() -> Atom {
-  INLINABLE_CONST_TAG_ATOM.with(|atom| atom.clone())
+pub fn inlinable_const_tag_atom() -> &'static Atom {
+  &INLINABLE_CONST_TAG_ATOM
 }
 
 #[derive(Debug, Clone)]

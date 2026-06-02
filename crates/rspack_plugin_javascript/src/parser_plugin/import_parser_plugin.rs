@@ -1,4 +1,4 @@
-use std::borrow::Cow;
+use std::{borrow::Cow, sync::LazyLock};
 
 use rspack_core::{
   AsyncDependenciesBlock, ChunkGroupOptions, ContextDependency, ContextNameSpaceObject,
@@ -32,18 +32,16 @@ use crate::{
 
 const DYNAMIC_IMPORT_TAG: &str = "dynamic import";
 
-thread_local! {
-  static DYNAMIC_IMPORT_TAG_ATOM: Atom = Atom::from(DYNAMIC_IMPORT_TAG);
-}
+static DYNAMIC_IMPORT_TAG_ATOM: LazyLock<Atom> = LazyLock::new(|| Atom::from(DYNAMIC_IMPORT_TAG));
 
 #[inline]
-fn dynamic_import_tag_atom() -> Atom {
-  DYNAMIC_IMPORT_TAG_ATOM.with(|atom| atom.clone())
+fn dynamic_import_tag_atom() -> &'static Atom {
+  &DYNAMIC_IMPORT_TAG_ATOM
 }
 
 #[inline]
 fn is_dynamic_import_tag(name: &Atom) -> bool {
-  DYNAMIC_IMPORT_TAG_ATOM.with(|atom| name == atom)
+  name == dynamic_import_tag_atom()
 }
 
 fn tag_dynamic_import_referenced(
@@ -155,7 +153,7 @@ impl JavascriptParserPlugin for ImportParserPlugin {
       && let Some(info) = name_info.info
       && let Some(name) = info.name.clone()
       && parser
-        .get_tag_data::<ImportTagData>(&name, &dynamic_import_tag_atom())
+        .get_tag_data::<ImportTagData>(&name, dynamic_import_tag_atom())
         .is_some()
     {
       return Some(true);

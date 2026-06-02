@@ -1,3 +1,5 @@
+use std::sync::LazyLock;
+
 use rspack_core::{BoxDependencyTemplate, ConstDependency, ContextDependency, DependencyRange};
 use rspack_util::{SpanExt, itoa};
 use swc_core::{
@@ -14,18 +16,17 @@ use crate::{
 
 pub const NESTED_IDENTIFIER_TAG: &str = "_identifier__nested_rspack_identifier__";
 
-thread_local! {
-  static NESTED_IDENTIFIER_TAG_ATOM: Atom = Atom::from(NESTED_IDENTIFIER_TAG);
-}
+static NESTED_IDENTIFIER_TAG_ATOM: LazyLock<Atom> =
+  LazyLock::new(|| Atom::from(NESTED_IDENTIFIER_TAG));
 
 #[inline]
-pub fn nested_identifier_tag_atom() -> Atom {
-  NESTED_IDENTIFIER_TAG_ATOM.with(|atom| atom.clone())
+pub fn nested_identifier_tag_atom() -> &'static Atom {
+  &NESTED_IDENTIFIER_TAG_ATOM
 }
 
 #[inline]
 pub fn is_nested_identifier_tag(name: &Atom) -> bool {
-  NESTED_IDENTIFIER_TAG_ATOM.with(|atom| name == atom)
+  name == nested_identifier_tag_atom()
 }
 
 #[derive(Debug, Clone)]

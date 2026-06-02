@@ -1,3 +1,5 @@
+use std::sync::LazyLock;
+
 use rspack_core::{
   CachedConstDependency, ConstDependency, ImportMeta, NodeDirnameOption, NodeFilenameOption,
   NodeGlobalOption, RuntimeGlobals, RuntimeRequirementsDependency, get_context, parse_resource,
@@ -27,19 +29,17 @@ const GLOBAL: &str = "global";
 const MOCK_DIRNAME: &str = "/";
 const MOCK_FILENAME: &str = "/index.js";
 
-thread_local! {
-  static DIRNAME_ATOM: Atom = Atom::from(DIRNAME);
-  static FILENAME_ATOM: Atom = Atom::from(FILENAME);
-}
+static DIRNAME_ATOM: LazyLock<Atom> = LazyLock::new(|| Atom::from(DIRNAME));
+static FILENAME_ATOM: LazyLock<Atom> = LazyLock::new(|| Atom::from(FILENAME));
 
 #[inline]
 fn is_dirname_atom(name: &Atom) -> bool {
-  DIRNAME_ATOM.with(|atom| name == atom)
+  name == &*DIRNAME_ATOM
 }
 
 #[inline]
 fn is_filename_atom(name: &Atom) -> bool {
-  FILENAME_ATOM.with(|atom| name == atom)
+  name == &*FILENAME_ATOM
 }
 
 #[inline]
@@ -458,7 +458,7 @@ impl JavascriptParserPlugin for NodeStuffPlugin {
           Self::add_cjs_node_module_dependency(
             parser,
             ident.span,
-            DIRNAME_ATOM.with(|atom| atom.clone()),
+            DIRNAME_ATOM.clone(),
             NodeMetaProperty::Dirname,
           );
           return Some(true);
@@ -471,7 +471,7 @@ impl JavascriptParserPlugin for NodeStuffPlugin {
           Self::add_cjs_node_module_dependency(
             parser,
             ident.span,
-            DIRNAME_ATOM.with(|atom| atom.clone()),
+            DIRNAME_ATOM.clone(),
             NodeMetaProperty::Dirname,
           );
           return Some(true);
@@ -511,7 +511,7 @@ impl JavascriptParserPlugin for NodeStuffPlugin {
           Self::add_cjs_node_module_dependency(
             parser,
             ident.span,
-            FILENAME_ATOM.with(|atom| atom.clone()),
+            FILENAME_ATOM.clone(),
             NodeMetaProperty::Filename,
           );
           return Some(true);
@@ -524,7 +524,7 @@ impl JavascriptParserPlugin for NodeStuffPlugin {
           Self::add_cjs_node_module_dependency(
             parser,
             ident.span,
-            FILENAME_ATOM.with(|atom| atom.clone()),
+            FILENAME_ATOM.clone(),
             NodeMetaProperty::Filename,
           );
           return Some(true);

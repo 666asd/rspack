@@ -1,3 +1,5 @@
+use std::sync::LazyLock;
+
 use rspack_core::ConstDependency;
 use rspack_util::SpanExt;
 use swc_core::{
@@ -11,13 +13,11 @@ use crate::{dependency::ExportInfoDependency, visitors::JavascriptParser};
 
 const EXPORTS_INFO: &str = "__webpack_exports_info__";
 
-thread_local! {
-  static EXPORTS_INFO_ATOM: Atom = Atom::from(EXPORTS_INFO);
-}
+static EXPORTS_INFO_ATOM: LazyLock<Atom> = LazyLock::new(|| Atom::from(EXPORTS_INFO));
 
 #[inline]
 fn is_exports_info_identifier(for_name: &Atom) -> bool {
-  EXPORTS_INFO_ATOM.with(|atom| for_name == atom)
+  for_name == &*EXPORTS_INFO_ATOM
 }
 
 pub struct ExportsInfoApiPlugin;

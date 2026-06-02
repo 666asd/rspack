@@ -41,7 +41,7 @@ fn create_default_exported_namespace_dependency(
     return None;
   };
   let settings = parser
-    .get_tag_data::<ESMSpecifierData>(&ident.sym, &esm_specifier_tag_atom())
+    .get_tag_data::<ESMSpecifierData>(&ident.sym, esm_specifier_tag_atom())
     .filter(|settings| settings.namespace_import && settings.ids.is_empty())?
     .clone();
   let statement_span = statement.span();
@@ -142,7 +142,7 @@ impl JavascriptParserPlugin for ESMExportDependencyParserPlugin {
       );
     }
     let dep = if let Some((source, source_order, ids, phase, attributes)) = parser
-      .get_tag_data::<ESMSpecifierData>(local_id, &esm_specifier_tag_atom())
+      .get_tag_data::<ESMSpecifierData>(local_id, esm_specifier_tag_atom())
       .map(|settings| {
         (
           settings.source.clone(),
@@ -178,7 +178,7 @@ impl JavascriptParserPlugin for ESMExportDependencyParserPlugin {
       Box::new(dep) as BoxDependency
     } else {
       let const_value = parser
-        .get_tag_data::<ConstValueData>(local_id, &inlinable_const_tag_atom())
+        .get_tag_data::<ConstValueData>(local_id, inlinable_const_tag_atom())
         .map(|data| data.value.clone());
       let enum_value = parser
         .build_info
@@ -186,7 +186,7 @@ impl JavascriptParserPlugin for ESMExportDependencyParserPlugin {
         .as_ref()
         .and_then(|info| info.exported_enums.get(local_id).cloned());
       let variable = parser
-        .get_tag_data::<NestedRequireData>(local_id, &nested_identifier_tag_atom())
+        .get_tag_data::<NestedRequireData>(local_id, nested_identifier_tag_atom())
         .map(|data| data.name.clone());
 
       let range = DependencyRange::from(statement.span());
@@ -335,7 +335,7 @@ impl JavascriptParserPlugin for ESMExportDependencyParserPlugin {
     };
     let const_value = match expr {
       ExportDefaultExpression::Expr(Expr::Ident(ident)) => parser
-        .get_tag_data::<ConstValueData>(&ident.sym, &inlinable_const_tag_atom())
+        .get_tag_data::<ConstValueData>(&ident.sym, inlinable_const_tag_atom())
         .map(|data| data.value.clone()),
       ExportDefaultExpression::Expr(expr) => {
         to_evaluated_inlinable_value(&parser.evaluate_expression(expr)).map(ConstValue::Inlinable)

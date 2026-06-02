@@ -1,3 +1,5 @@
+use std::sync::LazyLock;
+
 use camino::Utf8PathBuf;
 use rspack_core::{
   AsyncDependenciesBlock, ConstDependency, DependencyRange, ImportAttributes, ImportPhase,
@@ -32,20 +34,20 @@ const IMPORT_META_DIRNAME: &str = "import.meta.dirname";
 const IMPORT_META_FILENAME: &str = "import.meta.filename";
 pub(crate) const MOCK_TARGET_REQUEST_PREFIX: &str = "\0rstest_mock_target:\0";
 
-thread_local! {
-  static DIR_NAME_ATOM: Atom = Atom::from("__dirname");
-  static FILE_NAME_ATOM: Atom = Atom::from("__filename");
-  static RSTEST_MOCK_FIRST_ARG_TAG_ATOM: Atom = Atom::from(RSTEST_MOCK_FIRST_ARG_TAG);
-}
+static DIR_NAME_ATOM: LazyLock<Atom> = LazyLock::new(|| Atom::from("__dirname"));
+static FILE_NAME_ATOM: LazyLock<Atom> = LazyLock::new(|| Atom::from("__filename"));
+
+static RSTEST_MOCK_FIRST_ARG_TAG_ATOM: LazyLock<Atom> =
+  LazyLock::new(|| Atom::from(RSTEST_MOCK_FIRST_ARG_TAG));
 
 #[inline]
 fn is_dir_name_atom(name: &Atom) -> bool {
-  DIR_NAME_ATOM.with(|atom| name == atom)
+  name == &*DIR_NAME_ATOM
 }
 
 #[inline]
 fn is_file_name_atom(name: &Atom) -> bool {
-  FILE_NAME_ATOM.with(|atom| name == atom)
+  name == &*FILE_NAME_ATOM
 }
 
 #[inline]
@@ -59,8 +61,8 @@ fn is_identifier_file_name(for_name: &Atom) -> bool {
 }
 
 #[inline]
-fn rstest_mock_first_arg_tag_atom() -> Atom {
-  RSTEST_MOCK_FIRST_ARG_TAG_ATOM.with(|atom| atom.clone())
+fn rstest_mock_first_arg_tag_atom() -> &'static Atom {
+  &RSTEST_MOCK_FIRST_ARG_TAG_ATOM
 }
 
 #[derive(PartialEq)]
@@ -835,7 +837,7 @@ impl JavascriptParserPlugin for RstestParserPlugin {
     if first_arg.is_some() {
       let tag_data = parser.get_tag_data::<bool>(
         &self.compose_rstest_import_call_key(call_expr).into(),
-        &rstest_mock_first_arg_tag_atom(),
+        rstest_mock_first_arg_tag_atom(),
       );
 
       if tag_data.is_some() {

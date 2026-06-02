@@ -1,6 +1,8 @@
 mod if_stmt;
 mod logic_expr;
 
+use std::sync::LazyLock;
+
 use rspack_core::{CachedConstDependency, ConstDependency};
 use rspack_util::SpanExt;
 use swc_core::{atoms::Atom, common::Spanned};
@@ -17,19 +19,17 @@ pub struct ConstPlugin;
 const RESOURCE_FRAGMENT: &str = "__resourceFragment";
 const RESOURCE_QUERY: &str = "__resourceQuery";
 
-thread_local! {
-  static RESOURCE_FRAGMENT_ATOM: Atom = Atom::from(RESOURCE_FRAGMENT);
-  static RESOURCE_QUERY_ATOM: Atom = Atom::from(RESOURCE_QUERY);
-}
+static RESOURCE_FRAGMENT_ATOM: LazyLock<Atom> = LazyLock::new(|| Atom::from(RESOURCE_FRAGMENT));
+static RESOURCE_QUERY_ATOM: LazyLock<Atom> = LazyLock::new(|| Atom::from(RESOURCE_QUERY));
 
 #[inline]
 fn is_resource_fragment_atom(name: &Atom) -> bool {
-  RESOURCE_FRAGMENT_ATOM.with(|atom| name == atom)
+  name == &*RESOURCE_FRAGMENT_ATOM
 }
 
 #[inline]
 fn is_resource_query_atom(name: &Atom) -> bool {
-  RESOURCE_QUERY_ATOM.with(|atom| name == atom)
+  name == &*RESOURCE_QUERY_ATOM
 }
 
 #[inline]
@@ -102,7 +102,7 @@ impl JavascriptParserPlugin for ConstPlugin {
       let resource_fragment = parser.resource_data.fragment().unwrap_or("");
       parser.add_presentational_dependency(Box::new(CachedConstDependency::new(
         ident.span.into(),
-        RESOURCE_FRAGMENT_ATOM.with(|atom| atom.clone()),
+        RESOURCE_FRAGMENT_ATOM.clone(),
         rspack_util::json_stringify_str(resource_fragment).into(),
       )));
       Some(true)
@@ -110,7 +110,7 @@ impl JavascriptParserPlugin for ConstPlugin {
       let resource_query = parser.resource_data.query().unwrap_or("");
       parser.add_presentational_dependency(Box::new(CachedConstDependency::new(
         ident.span.into(),
-        RESOURCE_QUERY_ATOM.with(|atom| atom.clone()),
+        RESOURCE_QUERY_ATOM.clone(),
         rspack_util::json_stringify_str(resource_query).into(),
       )));
       Some(true)

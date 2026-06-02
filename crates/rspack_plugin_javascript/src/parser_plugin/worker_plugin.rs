@@ -256,13 +256,12 @@ const DEFAULT_SYNTAX: [&str; 4] = [
   "Worker from worker_threads",
 ];
 
-thread_local! {
-  static WORKER_SPECIFIER_TAG_ATOM: Atom = Atom::from(WORKER_SPECIFIER_TAG);
-}
+static WORKER_SPECIFIER_TAG_ATOM: LazyLock<Atom> =
+  LazyLock::new(|| Atom::from(WORKER_SPECIFIER_TAG));
 
 #[inline]
-fn worker_specifier_tag_atom() -> Atom {
-  WORKER_SPECIFIER_TAG_ATOM.with(|atom| atom.clone())
+fn worker_specifier_tag_atom() -> &'static Atom {
+  &WORKER_SPECIFIER_TAG_ATOM
 }
 
 static DEFAULT_WORKER_PLUGIN: LazyLock<Arc<WorkerPluginInner>> = LazyLock::new(|| {

@@ -777,7 +777,7 @@ impl<'parser> JavascriptParser<'parser> {
     let mut tag_info = Some(self.definitions_db.expect_get_tag_info(tag_info_id));
 
     while let Some(cur_tag_info) = tag_info {
-      if &cur_tag_info.tag == tag {
+      if cur_tag_info.tag == tag {
         return cur_tag_info
           .data
           .as_deref()
@@ -894,14 +894,19 @@ impl<'parser> JavascriptParser<'parser> {
     self.definitions_db.delete(self.definitions, name)
   }
 
-  pub fn tag_variable<Data: TagInfoData>(&mut self, name: Atom, tag: Atom, data: Option<Data>) {
+  pub fn tag_variable<Data: TagInfoData>(
+    &mut self,
+    name: Atom,
+    tag: &'static Atom,
+    data: Option<Data>,
+  ) {
     self.tag_variable_impl(name, tag, data, None);
   }
 
   pub fn tag_variable_with_flags<Data: TagInfoData>(
     &mut self,
     name: Atom,
-    tag: Atom,
+    tag: &'static Atom,
     data: Option<Data>,
     flags: VariableInfoFlags,
   ) {
@@ -911,7 +916,7 @@ impl<'parser> JavascriptParser<'parser> {
   fn tag_variable_impl<Data: TagInfoData>(
     &mut self,
     name: Atom,
-    tag: Atom,
+    tag: &'static Atom,
     data: Option<Data>,
     flags: Option<VariableInfoFlags>,
   ) {

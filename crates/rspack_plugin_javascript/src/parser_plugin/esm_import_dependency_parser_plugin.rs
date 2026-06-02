@@ -1,3 +1,5 @@
+use std::sync::LazyLock;
+
 use rspack_core::{
   ConstDependency, DependencyRange, DependencyType, ExportPresenceMode, ImportAttributes,
   ImportPhase,
@@ -25,18 +27,16 @@ pub struct ESMImportDependencyParserPlugin;
 
 pub const ESM_SPECIFIER_TAG: &str = "_identifier__esm_specifier_tag__";
 
-thread_local! {
-  static ESM_SPECIFIER_TAG_ATOM: Atom = Atom::from(ESM_SPECIFIER_TAG);
-}
+static ESM_SPECIFIER_TAG_ATOM: LazyLock<Atom> = LazyLock::new(|| Atom::from(ESM_SPECIFIER_TAG));
 
 #[inline]
-pub fn esm_specifier_tag_atom() -> Atom {
-  ESM_SPECIFIER_TAG_ATOM.with(|atom| atom.clone())
+pub fn esm_specifier_tag_atom() -> &'static Atom {
+  &ESM_SPECIFIER_TAG_ATOM
 }
 
 #[inline]
 pub fn is_esm_specifier_tag(name: &Atom) -> bool {
-  ESM_SPECIFIER_TAG_ATOM.with(|atom| name == atom)
+  name == esm_specifier_tag_atom()
 }
 
 #[derive(Debug, Clone)]
@@ -138,7 +138,7 @@ impl JavascriptParserPlugin for ESMImportDependencyParserPlugin {
     let (source, name, source_order, phase, attributes, namespace_import, mut ids) =
       if let ExportedVariableInfo::VariableInfo(variable) = root_info
         && let Some(settings) =
-          parser.get_variable_tag_data::<ESMSpecifierData>(*variable, &esm_specifier_tag_atom())
+          parser.get_variable_tag_data::<ESMSpecifierData>(*variable, esm_specifier_tag_atom())
       {
         (
           settings.source.clone(),
@@ -203,7 +203,7 @@ impl JavascriptParserPlugin for ESMImportDependencyParserPlugin {
       parser.get_member_expression_info_from_expr(expr, AllowedMemberTypes::Expression)?
       && let ExportedVariableInfo::VariableInfo(id) = &info.root_info
       && parser
-        .get_variable_tag_data::<ESMSpecifierData>(*id, &esm_specifier_tag_atom())
+        .get_variable_tag_data::<ESMSpecifierData>(*id, esm_specifier_tag_atom())
         .is_some()
     {
       return Some(true);

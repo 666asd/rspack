@@ -966,7 +966,7 @@ fn try_extract_deferred_check(
   let tag_info_id = info.tag_info?;
   let tag_info = parser.definitions_db.expect_get_tag_info(tag_info_id);
 
-  if !is_esm_specifier_tag(&tag_info.tag) {
+  if !is_esm_specifier_tag(tag_info.tag) {
     return None;
   }
 

@@ -1,3 +1,5 @@
+use std::sync::LazyLock;
+
 use rspack_core::{ConstDependency, ModuleArgument, RuntimeGlobals, RuntimeRequirementsDependency};
 use rspack_error::{Error, Severity};
 use rspack_util::SpanExt;
@@ -57,9 +59,7 @@ const API_VERSION: &str = "__rspack_version__";
 const API_UNIQUE_ID: &str = "__rspack_unique_id__";
 const API_RSC_MANIFEST: &str = "__rspack_rsc_manifest__";
 
-thread_local! {
-  static API_ATOMS: ApiAtoms = ApiAtoms::new();
-}
+static API_ATOMS: LazyLock<ApiAtoms> = LazyLock::new(ApiAtoms::new);
 
 struct ApiAtoms {
   hash: Atom,
@@ -107,6 +107,11 @@ impl ApiAtoms {
       rsc_manifest: Atom::from(API_RSC_MANIFEST),
     }
   }
+}
+
+#[inline]
+fn is_possible_api_identifier(name: &Atom) -> bool {
+  matches!(name.as_bytes(), [b'_', b'_', ..])
 }
 
 pub struct APIPluginOptions {
@@ -175,134 +180,135 @@ impl JavascriptParserPlugin for APIPlugin {
   }
 
   fn identifier(&self, parser: &mut JavascriptParser, ident: &Ident, name: &Atom) -> Option<bool> {
-    API_ATOMS.with(|atoms| {
-      if name == &atoms.require {
-        parser.add_presentational_dependency(Box::new(RuntimeRequirementsDependency::new(
-          ident.span.into(),
-          RuntimeGlobals::REQUIRE,
-        )));
-        Some(true)
-      } else if name == &atoms.hash {
-        parser.add_presentational_dependency(Box::new(RuntimeRequirementsDependency::call(
-          ident.span.into(),
-          RuntimeGlobals::GET_FULL_HASH,
-        )));
-        Some(true)
-      } else if name == &atoms.layer {
-        parser.add_presentational_dependency(Box::new(ConstDependency::new(
-          ident.span.into(),
-          serde_json::to_string(&parser.module_layer)
-            .expect("should stringify JSON")
-            .into(),
-        )));
-        Some(true)
-      } else if name == &atoms.public_path {
-        parser.add_presentational_dependency(Box::new(RuntimeRequirementsDependency::new(
-          ident.span.into(),
-          RuntimeGlobals::PUBLIC_PATH,
-        )));
-        Some(true)
-      } else if name == &atoms.modules {
-        parser.add_presentational_dependency(Box::new(RuntimeRequirementsDependency::new(
-          ident.span.into(),
-          RuntimeGlobals::MODULE_FACTORIES,
-        )));
-        Some(true)
-      } else if name == &atoms.chunk_load {
-        parser.add_presentational_dependency(Box::new(RuntimeRequirementsDependency::new(
-          ident.span.into(),
-          RuntimeGlobals::ENSURE_CHUNK,
-        )));
-        Some(true)
-      } else if name == &atoms.module {
-        let range = ident.span.into();
-        let loc = parser.to_dependency_location(range);
-        parser
-          .add_presentational_dependency(Box::new(ModuleArgumentDependency::new(None, range, loc)));
-        Some(true)
-      } else if name == &atoms.base_uri {
-        parser.add_presentational_dependency(Box::new(RuntimeRequirementsDependency::new(
-          ident.span.into(),
-          RuntimeGlobals::BASE_URI,
-        )));
-        Some(true)
-      } else if name == &atoms.non_require {
-        let content = if self.options.module {
-          parser.build_info.need_create_require = true;
-          "__rspack_createRequire_require".into()
-        } else {
-          "require".into()
-        };
-        parser.add_presentational_dependency(Box::new(ConstDependency::new(
-          ident.span.into(),
-          content,
-        )));
-        Some(true)
-      } else if name == &atoms.system_context {
-        parser.add_presentational_dependency(Box::new(RuntimeRequirementsDependency::new(
-          ident.span.into(),
-          RuntimeGlobals::SYSTEM_CONTEXT,
-        )));
-        Some(true)
-      } else if name == &atoms.share_scopes {
-        parser.add_presentational_dependency(Box::new(RuntimeRequirementsDependency::new(
-          ident.span.into(),
-          RuntimeGlobals::SHARE_SCOPE_MAP,
-        )));
-        Some(true)
-      } else if name == &atoms.init_sharing {
-        parser.add_presentational_dependency(Box::new(RuntimeRequirementsDependency::new(
-          ident.span.into(),
-          RuntimeGlobals::INITIALIZE_SHARING,
-        )));
-        Some(true)
-      } else if name == &atoms.nonce {
-        parser.add_presentational_dependency(Box::new(RuntimeRequirementsDependency::new(
-          ident.span.into(),
-          RuntimeGlobals::SCRIPT_NONCE,
-        )));
-        Some(true)
-      } else if name == &atoms.chunk_name {
-        parser.add_presentational_dependency(Box::new(RuntimeRequirementsDependency::new(
-          ident.span.into(),
-          RuntimeGlobals::CHUNK_NAME,
-        )));
-        Some(true)
-      } else if name == &atoms.runtime_id {
-        parser.add_presentational_dependency(Box::new(RuntimeRequirementsDependency::new(
-          ident.span.into(),
-          RuntimeGlobals::RUNTIME_ID,
-        )));
-        Some(true)
-      } else if name == &atoms.get_script_filename {
-        parser.add_presentational_dependency(Box::new(RuntimeRequirementsDependency::new(
-          ident.span.into(),
-          RuntimeGlobals::GET_CHUNK_SCRIPT_FILENAME,
-        )));
-        Some(true)
-      // rspack specific
-      } else if name == &atoms.version {
-        parser.add_presentational_dependency(Box::new(RuntimeRequirementsDependency::call(
-          ident.span.into(),
-          RuntimeGlobals::RSPACK_VERSION,
-        )));
-        Some(true)
-      } else if name == &atoms.unique_id {
-        parser.add_presentational_dependency(Box::new(RuntimeRequirementsDependency::new(
-          ident.span.into(),
-          RuntimeGlobals::RSPACK_UNIQUE_ID,
-        )));
-        Some(true)
-      } else if name == &atoms.rsc_manifest {
-        parser.add_presentational_dependency(Box::new(RuntimeRequirementsDependency::new(
-          ident.span.into(),
-          RuntimeGlobals::RSC_MANIFEST,
-        )));
-        Some(true)
+    if !is_possible_api_identifier(name) {
+      return None;
+    }
+
+    let atoms = &*API_ATOMS;
+    if name == &atoms.require {
+      parser.add_presentational_dependency(Box::new(RuntimeRequirementsDependency::new(
+        ident.span.into(),
+        RuntimeGlobals::REQUIRE,
+      )));
+      Some(true)
+    } else if name == &atoms.hash {
+      parser.add_presentational_dependency(Box::new(RuntimeRequirementsDependency::call(
+        ident.span.into(),
+        RuntimeGlobals::GET_FULL_HASH,
+      )));
+      Some(true)
+    } else if name == &atoms.layer {
+      parser.add_presentational_dependency(Box::new(ConstDependency::new(
+        ident.span.into(),
+        serde_json::to_string(&parser.module_layer)
+          .expect("should stringify JSON")
+          .into(),
+      )));
+      Some(true)
+    } else if name == &atoms.public_path {
+      parser.add_presentational_dependency(Box::new(RuntimeRequirementsDependency::new(
+        ident.span.into(),
+        RuntimeGlobals::PUBLIC_PATH,
+      )));
+      Some(true)
+    } else if name == &atoms.modules {
+      parser.add_presentational_dependency(Box::new(RuntimeRequirementsDependency::new(
+        ident.span.into(),
+        RuntimeGlobals::MODULE_FACTORIES,
+      )));
+      Some(true)
+    } else if name == &atoms.chunk_load {
+      parser.add_presentational_dependency(Box::new(RuntimeRequirementsDependency::new(
+        ident.span.into(),
+        RuntimeGlobals::ENSURE_CHUNK,
+      )));
+      Some(true)
+    } else if name == &atoms.module {
+      let range = ident.span.into();
+      let loc = parser.to_dependency_location(range);
+      parser
+        .add_presentational_dependency(Box::new(ModuleArgumentDependency::new(None, range, loc)));
+      Some(true)
+    } else if name == &atoms.base_uri {
+      parser.add_presentational_dependency(Box::new(RuntimeRequirementsDependency::new(
+        ident.span.into(),
+        RuntimeGlobals::BASE_URI,
+      )));
+      Some(true)
+    } else if name == &atoms.non_require {
+      let content = if self.options.module {
+        parser.build_info.need_create_require = true;
+        "__rspack_createRequire_require".into()
       } else {
-        None
-      }
-    })
+        "require".into()
+      };
+      parser
+        .add_presentational_dependency(Box::new(ConstDependency::new(ident.span.into(), content)));
+      Some(true)
+    } else if name == &atoms.system_context {
+      parser.add_presentational_dependency(Box::new(RuntimeRequirementsDependency::new(
+        ident.span.into(),
+        RuntimeGlobals::SYSTEM_CONTEXT,
+      )));
+      Some(true)
+    } else if name == &atoms.share_scopes {
+      parser.add_presentational_dependency(Box::new(RuntimeRequirementsDependency::new(
+        ident.span.into(),
+        RuntimeGlobals::SHARE_SCOPE_MAP,
+      )));
+      Some(true)
+    } else if name == &atoms.init_sharing {
+      parser.add_presentational_dependency(Box::new(RuntimeRequirementsDependency::new(
+        ident.span.into(),
+        RuntimeGlobals::INITIALIZE_SHARING,
+      )));
+      Some(true)
+    } else if name == &atoms.nonce {
+      parser.add_presentational_dependency(Box::new(RuntimeRequirementsDependency::new(
+        ident.span.into(),
+        RuntimeGlobals::SCRIPT_NONCE,
+      )));
+      Some(true)
+    } else if name == &atoms.chunk_name {
+      parser.add_presentational_dependency(Box::new(RuntimeRequirementsDependency::new(
+        ident.span.into(),
+        RuntimeGlobals::CHUNK_NAME,
+      )));
+      Some(true)
+    } else if name == &atoms.runtime_id {
+      parser.add_presentational_dependency(Box::new(RuntimeRequirementsDependency::new(
+        ident.span.into(),
+        RuntimeGlobals::RUNTIME_ID,
+      )));
+      Some(true)
+    } else if name == &atoms.get_script_filename {
+      parser.add_presentational_dependency(Box::new(RuntimeRequirementsDependency::new(
+        ident.span.into(),
+        RuntimeGlobals::GET_CHUNK_SCRIPT_FILENAME,
+      )));
+      Some(true)
+    // rspack specific
+    } else if name == &atoms.version {
+      parser.add_presentational_dependency(Box::new(RuntimeRequirementsDependency::call(
+        ident.span.into(),
+        RuntimeGlobals::RSPACK_VERSION,
+      )));
+      Some(true)
+    } else if name == &atoms.unique_id {
+      parser.add_presentational_dependency(Box::new(RuntimeRequirementsDependency::new(
+        ident.span.into(),
+        RuntimeGlobals::RSPACK_UNIQUE_ID,
+      )));
+      Some(true)
+    } else if name == &atoms.rsc_manifest {
+      parser.add_presentational_dependency(Box::new(RuntimeRequirementsDependency::new(
+        ident.span.into(),
+        RuntimeGlobals::RSC_MANIFEST,
+      )));
+      Some(true)
+    } else {
+      None
+    }
   }
 
   fn evaluate_identifier(
