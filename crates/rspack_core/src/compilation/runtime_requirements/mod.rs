@@ -2,7 +2,11 @@ use async_trait::async_trait;
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use super::*;
-use crate::{cache::Cache, compilation::pass::PassExt, logger::Logger};
+use crate::{
+  RuntimeProxyMetadata, cache::Cache, compilation::pass::PassExt, logger::Logger,
+  runtime_globals::renderable_require_scope_runtime_globals,
+  runtime_mode::RuntimeMode as ExperimentRuntimeMode,
+};
 
 pub struct RuntimeRequirementsPass;
 
@@ -507,6 +511,83 @@ pub async fn process_chunks_runtime_requirements(
     }
   }
   compilation.runtime_modules = runtime_modules;
+
+  compilation.runtime_proxy_metadata_artifact.clear();
+  if compilation.options.experiments.runtime_mode != ExperimentRuntimeMode::Rspack {
+    logger.time_end(start);
+    return Ok(());
+  }
+
+  let mut has_custom_runtime_module = false;
+  for &entry_ukey in &entries {
+    let entry = compilation
+      .build_chunk_graph_artifact
+      .chunk_by_ukey
+      .expect_get(&entry_ukey);
+    let referenced_chunks =
+      entry.get_all_referenced_chunks(&compilation.build_chunk_graph_artifact.chunk_group_by_ukey);
+    let mut metadata = RuntimeProxyMetadata::default();
+
+    for chunk_ukey in referenced_chunks.iter() {
+      let chunk = compilation
+        .build_chunk_graph_artifact
+        .chunk_by_ukey
+        .expect_get(chunk_ukey);
+      for mid in compilation
+        .build_chunk_graph_artifact
+        .chunk_graph
+        .get_chunk_modules_identifier(chunk_ukey)
+      {
+        if let Some(runtime_requirements) =
+          ChunkGraph::get_module_runtime_requirements(compilation, *mid, chunk.runtime())
+        {
+          metadata
+            .module_proxy_requirements
+            .insert(renderable_require_scope_runtime_globals(
+              *runtime_requirements,
+            ));
+        }
+      }
+
+      for runtime_module_id in compilation
+        .build_chunk_graph_artifact
+        .chunk_graph
+        .get_chunk_runtime_modules_iterable(chunk_ukey)
+      {
+        let runtime_module = compilation
+          .runtime_modules
+          .get(runtime_module_id)
+          .expect("should have runtime module");
+        metadata
+          .runtime_module_requirements
+          .insert(renderable_require_scope_runtime_globals(
+            runtime_module.additional_runtime_requirements(compilation),
+          ));
+        if runtime_module.get_custom_source().is_some()
+          || runtime_module.get_constructor_name() == "RuntimeModuleFromJs"
+        {
+          metadata.has_custom_runtime_module = true;
+        }
+      }
+    }
+
+    metadata
+      .hook_exposed_requirements
+      .insert(renderable_require_scope_runtime_globals(
+        *ChunkGraph::get_tree_runtime_requirements(compilation, &entry_ukey),
+      ));
+    has_custom_runtime_module |= metadata.has_custom_runtime_module;
+    compilation
+      .runtime_proxy_metadata_artifact
+      .insert(entry_ukey, metadata);
+  }
+
+  if has_custom_runtime_module {
+    logger.time_end(start);
+    return Err(rspack_error::error!(
+      "runtimeMode \"rspack\" does not support custom runtime modules because __webpack_require__.x helper access is not exposed"
+    ));
+  }
 
   logger.time_end(start);
   Ok(())
