@@ -115,41 +115,37 @@ impl Trigger {
   pub fn on_event(&self, path: &ArcPath, kind: FsEventKind) {
     let is_registered_file = self.path_manager.access().files().0.contains(path);
 
-    if std::env::var("RSPACK_WATCHER_TRACE").is_ok() {
-      eprintln!(
-        "[RSPACK_WATCHER_TRACE] on_event path={} kind={:?} is_registered_file={}",
-        path.display(),
-        kind,
-        is_registered_file
-      );
-    }
+    let trace_file = std::env::var("RSPACK_WATCHER_TRACE_FILE").ok();
+    let trace = |msg: String| {
+      if let Some(ref p) = trace_file {
+        use std::io::Write;
+        if let Ok(mut f) = std::fs::OpenOptions::new()
+          .create(true).append(true).open(p)
+        {
+          let _ = writeln!(f, "[T] {}", msg);
+        }
+      }
+    };
 
-    // Filter stale FSEvents: on macOS, FSEvents can deliver events for files
-    // written before the watcher was created. Stat the file and compare mtime
-    // against the recorded baseline to suppress events where nothing changed.
-    // Apply the same suppression to Create for already-registered files, since
-    // macOS may emit stale Create events for files that predate the watcher.
+    trace(format!(
+      "on_event path={} kind={:?} is_registered_file={}",
+      path.display(), kind, is_registered_file
+    ));
+
     if (kind == FsEventKind::Change || (kind == FsEventKind::Create && is_registered_file))
       && !self.path_manager.has_mtime_changed(path)
     {
-      if std::env::var("RSPACK_WATCHER_TRACE").is_ok() {
-        eprintln!(
-          "[RSPACK_WATCHER_TRACE] suppressed_by_mtime path={}",
-          path.display()
-        );
-      }
+      trace(format!("suppressed_by_mtime path={}", path.display()));
       return;
     }
 
     let finder = self.finder();
     let associated_event = finder.find_associated_event(path, kind);
-    if std::env::var("RSPACK_WATCHER_TRACE").is_ok() {
-      eprintln!(
-        "[RSPACK_WATCHER_TRACE] dispatched path={} associated_count={}",
-        path.display(),
-        associated_event.len()
-      );
-    }
+    let paths: Vec<_> = associated_event.iter().map(|(p, k)| format!("{}({:?})", p.display(), k)).collect();
+    trace(format!(
+      "dispatched origin={} count={} paths=[{}]",
+      path.display(), associated_event.len(), paths.join(",")
+    ));
     self.trigger_events(associated_event);
   }
   /// Helper to construct a `DependencyFinder` for the current path register state.
