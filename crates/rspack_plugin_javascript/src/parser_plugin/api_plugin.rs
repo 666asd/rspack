@@ -1,9 +1,16 @@
-use rspack_core::{ConstDependency, ModuleArgument, RuntimeGlobals, RuntimeRequirementsDependency};
+use rspack_core::{
+  ConstDependency, ModuleArgument, RuntimeGlobals, RuntimeRequirementsDependency,
+  renderable_require_scope_runtime_globals, runtime_globals_from_property_name,
+  runtime_mode::RuntimeMode as ExperimentRuntimeMode,
+};
 use rspack_error::{Error, Severity};
 use rspack_util::SpanExt;
 use swc_core::{
   common::{Span, Spanned},
-  ecma::ast::{CallExpr, Ident, Pat, UnaryExpr},
+  ecma::{
+    ast::{AssignExpr, CallExpr, Ident, Pat, UnaryExpr},
+    atoms::Atom,
+  },
 };
 
 use crate::{
@@ -93,6 +100,28 @@ fn get_typeof_evaluate_of_api(sym: &str) -> Option<&str> {
     API_RSC_MANIFEST => Some("object"),
     _ => None,
   }
+}
+
+fn unsupported_static_require_property(
+  parser: &mut JavascriptParser,
+  range: Span,
+  property: &str,
+) -> Option<bool> {
+  let runtime_global = runtime_globals_from_property_name(property)?;
+  if renderable_require_scope_runtime_globals(runtime_global).is_empty() {
+    return None;
+  }
+  parser.add_error(
+    rspack_error::error!(
+      "experiments.runtimeMode: \"rspack\" does not support static __webpack_require__.{} helper property access",
+      property
+    )
+    .into(),
+  );
+  parser.add_presentational_dependency(Box::new(
+    RuntimeRequirementsDependency::unsupported_require_property(range.into(), runtime_global),
+  ));
+  Some(true)
 }
 
 #[rspack_macros::implemented_javascript_parser_hooks]
@@ -298,6 +327,13 @@ impl JavascriptParserPlugin for APIPlugin {
     member_expr: &swc_core::ecma::ast::MemberExpr,
     for_name: &str,
   ) -> Option<bool> {
+    if parser.compiler_options.experiments.runtime_mode == ExperimentRuntimeMode::Rspack
+      && for_name == API_REQUIRE
+      && let Some(property) = member_expr.prop.as_ident().map(|ident| ident.sym.as_ref())
+    {
+      return unsupported_static_require_property(parser, member_expr.span, property);
+    }
+
     if for_name == "require.extensions"
       || for_name == "require.config"
       || for_name == "require.version"
@@ -340,6 +376,61 @@ impl JavascriptParserPlugin for APIPlugin {
     }
 
     None
+  }
+
+  fn member_chain(
+    &self,
+    parser: &mut JavascriptParser,
+    member_expr: &swc_core::ecma::ast::MemberExpr,
+    for_name: &str,
+    members: &[Atom],
+    _members_optionals: &[bool],
+    _member_ranges: &[Span],
+  ) -> Option<bool> {
+    if parser.compiler_options.experiments.runtime_mode == ExperimentRuntimeMode::Rspack
+      && for_name == API_REQUIRE
+      && members.len() == 1
+    {
+      return unsupported_static_require_property(parser, member_expr.span, members[0].as_ref());
+    }
+
+    None
+  }
+
+  fn assign_member_chain(
+    &self,
+    parser: &mut JavascriptParser,
+    expr: &AssignExpr,
+    members: &[Atom],
+    for_name: &str,
+  ) -> Option<bool> {
+    if parser.compiler_options.experiments.runtime_mode == ExperimentRuntimeMode::Rspack
+      && for_name == API_REQUIRE
+      && members.len() == 1
+    {
+      return unsupported_static_require_property(parser, expr.left.span(), members[0].as_ref());
+    }
+
+    None
+  }
+
+  fn assign(
+    &self,
+    parser: &mut JavascriptParser,
+    expr: &AssignExpr,
+    for_name: &str,
+  ) -> Option<bool> {
+    let runtime_global = match for_name {
+      API_PUBLIC_PATH => RuntimeGlobals::PUBLIC_PATH,
+      API_NONCE => RuntimeGlobals::SCRIPT_NONCE,
+      _ => return None,
+    };
+
+    parser.add_presentational_dependency(Box::new(RuntimeRequirementsDependency::write(
+      expr.left.span().into(),
+      runtime_global,
+    )));
+    Some(true)
   }
 
   fn pre_declarator(

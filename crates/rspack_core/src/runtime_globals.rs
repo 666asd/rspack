@@ -474,6 +474,14 @@ pub fn runtime_globals_context_property_name(
   runtime_globals_property_name(runtime_globals)
 }
 
+pub fn runtime_globals_from_property_name(property_name: &str) -> Option<RuntimeGlobals> {
+  RuntimeGlobals::all().iter_names().find_map(|(_, value)| {
+    runtime_globals_property_name(&value)
+      .is_some_and(|name| name == property_name)
+      .then_some(value)
+  })
+}
+
 pub fn runtime_globals_to_lexical_name(runtime_globals: &RuntimeGlobals) -> Option<String> {
   RuntimeGlobals::all()
     .iter_names()

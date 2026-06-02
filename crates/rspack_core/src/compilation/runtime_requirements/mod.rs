@@ -3,7 +3,8 @@ use rustc_hash::{FxHashMap, FxHashSet};
 
 use super::*;
 use crate::{
-  RuntimeProxyMetadata, cache::Cache, compilation::pass::PassExt, logger::Logger,
+  CodeGenerationRuntimeRequirementsWrite, RuntimeProxyMetadata, cache::Cache,
+  compilation::pass::PassExt, logger::Logger,
   runtime_globals::renderable_require_scope_runtime_globals,
   runtime_mode::RuntimeMode as ExperimentRuntimeMode,
 };
@@ -545,6 +546,22 @@ pub async fn process_chunks_runtime_requirements(
             .module_proxy_requirements
             .insert(renderable_require_scope_runtime_globals(
               *runtime_requirements,
+            ));
+        }
+        if compilation
+          .get_module_graph()
+          .module_by_identifier(mid)
+          .is_some()
+          && let Some(write_requirements) = compilation
+            .code_generation_results
+            .get(mid, Some(chunk.runtime()))
+            .data
+            .get::<CodeGenerationRuntimeRequirementsWrite>()
+        {
+          metadata
+            .context_setter_fields
+            .insert(renderable_require_scope_runtime_globals(
+              write_requirements.runtime_requirements,
             ));
         }
       }
