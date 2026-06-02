@@ -3,8 +3,8 @@ use rustc_hash::FxHashSet;
 
 use super::*;
 use crate::{
-  RuntimeGlobalRenderMode, cache::Cache, compilation::pass::PassExt, logger::Logger,
-  rspack_sources::SourceExt, runtime_mode::RuntimeMode,
+  ModuleCodeGenerationContext, RuntimeGlobalRenderMode, cache::Cache, compilation::pass::PassExt,
+  logger::Logger, runtime_mode::RuntimeMode,
 };
 
 pub struct ChunkHashResult {
@@ -493,16 +493,22 @@ pub async fn runtime_modules_code_generation(compilation: &mut Compilation) -> R
             } else {
               RuntimeGlobalRenderMode::Webpack
             };
-            let source_str = runtime_module
-              .generate_with_custom_with_render_mode(compilation, render_mode)
-              .await?;
-            let source = if runtime_module.get_source_map_kind().enabled() {
-              rspack_sources::OriginalSource::new(source_str, runtime_module.identifier().as_str())
-                .boxed()
-            } else {
-              rspack_sources::RawStringSource::from(source_str).boxed()
+            let mut runtime_template = compilation
+              .runtime_template
+              .create_module_code_template_with_render_mode(render_mode);
+            let mut code_generation_context = ModuleCodeGenerationContext {
+              compilation,
+              runtime: None,
+              concatenation_scope: None,
+              runtime_template: &mut runtime_template,
             };
-            Ok((*runtime_module_identifier, source))
+            let result = runtime_module
+              .code_generation(&mut code_generation_context)
+              .await?;
+            let source = result
+              .get(&SourceType::Runtime)
+              .expect("should have source");
+            Ok((*runtime_module_identifier, source.clone()))
           },
         )
       })

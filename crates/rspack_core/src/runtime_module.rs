@@ -4,10 +4,7 @@ use async_trait::async_trait;
 use rspack_cacheable::cacheable;
 use rspack_collections::Identifier;
 
-use crate::{
-  ChunkUkey, Compilation, Module, RuntimeCodeTemplate, RuntimeGlobalRenderMode, RuntimeGlobals,
-  runtime_mode::RuntimeMode,
-};
+use crate::{ChunkUkey, Compilation, Module, RuntimeCodeTemplate, RuntimeGlobals};
 
 pub struct RuntimeModuleGenerateContext<'a> {
   pub compilation: &'a Compilation,
@@ -39,26 +36,10 @@ pub trait RuntimeModule:
     context: &RuntimeModuleGenerateContext<'_>,
   ) -> rspack_error::Result<String>;
   async fn generate_with_custom(&self, compilation: &Compilation) -> rspack_error::Result<String> {
-    let render_mode = if compilation.options.experiments.runtime_mode == RuntimeMode::Rspack {
-      RuntimeGlobalRenderMode::RspackRuntimeModule
-    } else {
-      RuntimeGlobalRenderMode::Webpack
-    };
-    self
-      .generate_with_custom_with_render_mode(compilation, render_mode)
-      .await
-  }
-  async fn generate_with_custom_with_render_mode(
-    &self,
-    compilation: &Compilation,
-    render_mode: RuntimeGlobalRenderMode,
-  ) -> rspack_error::Result<String> {
     if let Some(custom_source) = self.get_custom_source() {
       Ok(custom_source)
     } else {
-      let runtime_template = compilation
-        .runtime_template
-        .create_runtime_code_template_with_render_mode(render_mode);
+      let runtime_template = compilation.runtime_template.create_runtime_code_template();
       let context = RuntimeModuleGenerateContext {
         compilation,
         runtime_template: &runtime_template,

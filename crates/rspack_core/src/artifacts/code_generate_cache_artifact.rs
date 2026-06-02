@@ -54,7 +54,7 @@ impl CodeGenerateCacheArtifact {
     };
 
     let cache_key = Identifier::from(format!(
-      "{}|{}|{:?}",
+      "{}|{}|{}",
       job.module,
       job.hash.encoded(),
       job.runtime_mode

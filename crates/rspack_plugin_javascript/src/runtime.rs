@@ -1,8 +1,7 @@
 use rayon::prelude::*;
 use rspack_core::{
   ChunkGraph, ChunkInitFragments, ChunkUkey, CodeGenerationPublicPathAutoReplace, Compilation,
-  Module, RuntimeCodeTemplate, RuntimeGlobalRenderMode, RuntimeGlobals, RuntimeProxyMetadata,
-  RuntimeVariable, SourceType,
+  Module, RuntimeCodeTemplate, RuntimeGlobals, RuntimeProxyMetadata, RuntimeVariable, SourceType,
   chunk_graph_chunk::ChunkIdSet,
   get_undo_path, property_access,
   rspack_sources::{
@@ -515,15 +514,7 @@ pub async fn render_runtime_modules(
           if !(module.full_hash() || module.dependent_hash()) {
             sources.add(source.clone());
           } else {
-            let render_mode = if compilation.options.experiments.runtime_mode == RuntimeMode::Rspack
-            {
-              RuntimeGlobalRenderMode::RspackRuntimeModule
-            } else {
-              RuntimeGlobalRenderMode::Webpack
-            };
-            let source_str = module
-              .generate_with_custom_with_render_mode(compilation, render_mode)
-              .await?;
+            let source_str = module.generate_with_custom(compilation).await?;
             let source = if module.get_source_map_kind().enabled() {
               OriginalSource::new(source_str, module.identifier().as_str()).boxed()
             } else {
