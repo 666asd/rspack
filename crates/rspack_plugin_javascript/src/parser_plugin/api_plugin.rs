@@ -14,10 +14,7 @@ use swc_core::{
 
 use crate::{
   dependency::{ModuleArgumentDependency, RequireMainDependency},
-  parser_plugin::{
-    JavascriptParserPlugin,
-    common_js_imports_parse_plugin::{CallOrNewExpr, CommonJsImportsParserPlugin},
-  },
+  parser_plugin::JavascriptParserPlugin,
   utils::eval::{self, BasicEvaluatedExpression},
   visitors::{JavascriptParser, Statement, VariableDeclaration, create_traceable_error},
 };
@@ -444,25 +441,6 @@ impl JavascriptParserPlugin for APIPlugin {
     None
   }
 
-  fn assign(
-    &self,
-    parser: &mut JavascriptParser,
-    expr: &AssignExpr,
-    for_name: &str,
-  ) -> Option<bool> {
-    let runtime_global = match for_name {
-      API_PUBLIC_PATH => RuntimeGlobals::PUBLIC_PATH,
-      API_NONCE => RuntimeGlobals::SCRIPT_NONCE,
-      _ => return None,
-    };
-
-    parser.add_presentational_dependency(Box::new(RuntimeRequirementsDependency::write(
-      expr.left.span().into(),
-      runtime_global,
-    )));
-    Some(true)
-  }
-
   fn pre_declarator(
     &self,
     parser: &mut JavascriptParser,
@@ -511,12 +489,6 @@ impl JavascriptParserPlugin for APIPlugin {
     call_expr: &CallExpr,
     for_name: &str,
   ) -> Option<bool> {
-    if parser.compiler_options.experiments.runtime_mode == ExperimentRuntimeMode::Rspack
-      && for_name == API_REQUIRE
-    {
-      return CommonJsImportsParserPlugin.require_handler(parser, CallOrNewExpr::Call(call_expr));
-    }
-
     if for_name == "require.config"
       || for_name == "require.include"
       || for_name == "require.onError"

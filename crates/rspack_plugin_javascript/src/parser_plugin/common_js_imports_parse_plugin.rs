@@ -213,7 +213,7 @@ pub(crate) fn is_require_call_expr(parser: &mut JavascriptParser, call: &CallExp
   false
 }
 
-pub(super) enum CallOrNewExpr<'a> {
+enum CallOrNewExpr<'a> {
   Call(&'a CallExpr),
   New(&'a NewExpr),
 }
@@ -471,11 +471,7 @@ impl CommonJsImportsParserPlugin {
     Some(true)
   }
 
-  pub(super) fn require_handler(
-    &self,
-    parser: &mut JavascriptParser,
-    expr: CallOrNewExpr,
-  ) -> Option<bool> {
+  fn require_handler(&self, parser: &mut JavascriptParser, expr: CallOrNewExpr) -> Option<bool> {
     let callee = expr.callee()?;
     let args = expr.args()?;
 
