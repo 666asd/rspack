@@ -86,7 +86,7 @@ async fn render_startup(
     let concat_source = ConcatSource::new([
       render_source.clone(),
       RawStringSource::from(format!(
-        "var __webpack_exports__ = {};\n",
+        "__webpack_exports__ = __webpack_exports__{};",
         property_access(export, 0)
       ))
       .boxed(),
