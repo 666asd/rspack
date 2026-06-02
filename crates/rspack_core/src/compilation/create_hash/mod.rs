@@ -3,7 +3,8 @@ use rustc_hash::FxHashSet;
 
 use super::*;
 use crate::{
-  ModuleCodeGenerationContext, cache::Cache, compilation::pass::PassExt, logger::Logger,
+  RuntimeGlobalRenderMode, cache::Cache, compilation::pass::PassExt, logger::Logger,
+  rspack_sources::SourceExt, runtime_mode::RuntimeMode,
 };
 
 pub struct ChunkHashResult {
@@ -486,20 +487,22 @@ pub async fn runtime_modules_code_generation(compilation: &mut Compilation) -> R
         let s = unsafe { token.used((compilation_ref, runtime_module_identifier, runtime_module)) };
         s.spawn(
           |(compilation, runtime_module_identifier, runtime_module)| async {
-            let mut runtime_template = compilation.runtime_template.create_module_code_template();
-            let mut code_generation_context = ModuleCodeGenerationContext {
-              compilation,
-              runtime: None,
-              concatenation_scope: None,
-              runtime_template: &mut runtime_template,
+            let render_mode = if compilation.options.experiments.runtime_mode == RuntimeMode::Rspack
+            {
+              RuntimeGlobalRenderMode::RspackRuntimeModule
+            } else {
+              RuntimeGlobalRenderMode::Webpack
             };
-            let result = runtime_module
-              .code_generation(&mut code_generation_context)
+            let source_str = runtime_module
+              .generate_with_custom_with_render_mode(compilation, render_mode)
               .await?;
-            let source = result
-              .get(&SourceType::Runtime)
-              .expect("should have source");
-            Ok((*runtime_module_identifier, source.clone()))
+            let source = if runtime_module.get_source_map_kind().enabled() {
+              rspack_sources::OriginalSource::new(source_str, runtime_module.identifier().as_str())
+                .boxed()
+            } else {
+              rspack_sources::RawStringSource::from(source_str).boxed()
+            };
+            Ok((*runtime_module_identifier, source))
           },
         )
       })

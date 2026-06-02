@@ -8,5 +8,9 @@ const source = fs.readFileSync(
 
 expect(source).toContain("__rspack_context.d");
 expect(source).toContain("__rspack_context.ns");
+expect(source).toContain("definePropertyGetters =");
+expect(source).toContain("makeNamespaceObject =");
 expect(source).not.toContain("__webpack_require__.d(__webpack_exports__");
 expect(source).not.toContain("__webpack_require__.r(__webpack_exports__");
+expect(source).not.toContain("__webpack_require__.d =");
+expect(source).not.toContain("__webpack_require__.r =");

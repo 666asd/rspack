@@ -1,10 +1,13 @@
 use rayon::prelude::*;
 use rspack_core::{
   ChunkGraph, ChunkInitFragments, ChunkUkey, CodeGenerationPublicPathAutoReplace, Compilation,
-  Module, ModuleCodeGenerationContext, RuntimeCodeTemplate, RuntimeGlobals, SourceType,
+  Module, RuntimeCodeTemplate, RuntimeGlobalRenderMode, RuntimeGlobals, SourceType,
   chunk_graph_chunk::ChunkIdSet,
   get_undo_path,
-  rspack_sources::{BoxSource, ConcatSource, RawStringSource, ReplaceSource, Source, SourceExt},
+  rspack_sources::{
+    BoxSource, ConcatSource, OriginalSource, RawStringSource, ReplaceSource, Source, SourceExt,
+  },
+  runtime_mode::RuntimeMode,
 };
 use rspack_error::{Result, ToStringResultToRspackResultExt};
 
@@ -374,18 +377,21 @@ pub async fn render_runtime_modules(
           if !(module.full_hash() || module.dependent_hash()) {
             sources.add(source.clone());
           } else {
-            let mut runtime_template = compilation.runtime_template.create_module_code_template();
-            let mut code_generation_context = ModuleCodeGenerationContext {
-              compilation,
-              runtime: None,
-              concatenation_scope: None,
-              runtime_template: &mut runtime_template,
+            let render_mode = if compilation.options.experiments.runtime_mode == RuntimeMode::Rspack
+            {
+              RuntimeGlobalRenderMode::RspackRuntimeModule
+            } else {
+              RuntimeGlobalRenderMode::Webpack
             };
-
-            let result = module.code_generation(&mut code_generation_context).await?;
-            #[allow(clippy::unwrap_used)]
-            let source = result.get(&SourceType::Runtime).unwrap();
-            sources.add(source.clone());
+            let source_str = module
+              .generate_with_custom_with_render_mode(compilation, render_mode)
+              .await?;
+            let source = if module.get_source_map_kind().enabled() {
+              OriginalSource::new(source_str, module.identifier().as_str()).boxed()
+            } else {
+              RawStringSource::from(source_str).boxed()
+            };
+            sources.add(source);
           }
           if module.should_isolate() {
             sources.add(RawStringSource::from(if supports_arrow_function {
