@@ -1,6 +1,7 @@
 use std::sync::LazyLock;
 
 use bitflags::bitflags;
+use heck::ToLowerCamelCase;
 use rustc_hash::FxHashMap;
 
 use crate::CompilerOptions;
@@ -381,23 +382,8 @@ pub static REQUIRE_SCOPE_GLOBALS: LazyLock<RuntimeGlobals> = LazyLock::new(|| {
 pub static MODULE_GLOBALS: LazyLock<RuntimeGlobals> =
   LazyLock::new(|| RuntimeGlobals::MODULE_ID | RuntimeGlobals::MODULE_LOADED);
 
-pub fn runtime_globals_to_string(
-  runtime_globals: &RuntimeGlobals,
-  compiler_options: &CompilerOptions,
-) -> String {
-  if runtime_globals == &RuntimeGlobals::EXPORTS {
-    return runtime_variable_to_string(&RuntimeVariable::Exports, compiler_options);
-  }
-
-  if runtime_globals == &RuntimeGlobals::REQUIRE {
-    return runtime_variable_to_string(&RuntimeVariable::Require, compiler_options);
-  }
-
-  if runtime_globals == &RuntimeGlobals::MODULE {
-    return "module".to_string();
-  }
-
-  let name = match *runtime_globals {
+pub fn runtime_globals_property_name(runtime_globals: &RuntimeGlobals) -> Option<&'static str> {
+  Some(match *runtime_globals {
     RuntimeGlobals::REQUIRE_SCOPE => "*",
     RuntimeGlobals::MODULE_ID => "id",
     RuntimeGlobals::MODULE_LOADED => "loaded",
@@ -474,8 +460,50 @@ pub fn runtime_globals_to_string(
 
     RuntimeGlobals::RSC_MANIFEST => "rscM",
     RuntimeGlobals::TO_BINARY => "tb",
-    _ => unreachable!(),
-  };
+    _ => return None,
+  })
+}
+
+pub fn runtime_globals_context_property_name(
+  runtime_globals: &RuntimeGlobals,
+) -> Option<&'static str> {
+  if runtime_globals == &RuntimeGlobals::MAKE_NAMESPACE_OBJECT {
+    return Some("ns");
+  }
+
+  runtime_globals_property_name(runtime_globals)
+}
+
+pub fn runtime_globals_to_lexical_name(runtime_globals: &RuntimeGlobals) -> Option<String> {
+  RuntimeGlobals::all()
+    .iter_names()
+    .find_map(|(name, value)| (value == *runtime_globals).then(|| name.to_lower_camel_case()))
+}
+
+pub fn renderable_require_scope_runtime_globals(runtime_globals: RuntimeGlobals) -> RuntimeGlobals {
+  runtime_globals
+    .intersection(*REQUIRE_SCOPE_GLOBALS)
+    .difference(RuntimeGlobals::REQUIRE_SCOPE)
+}
+
+pub fn runtime_globals_to_string(
+  runtime_globals: &RuntimeGlobals,
+  compiler_options: &CompilerOptions,
+) -> String {
+  if runtime_globals == &RuntimeGlobals::EXPORTS {
+    return runtime_variable_to_string(&RuntimeVariable::Exports, compiler_options);
+  }
+
+  if runtime_globals == &RuntimeGlobals::REQUIRE {
+    return runtime_variable_to_string(&RuntimeVariable::Require, compiler_options);
+  }
+
+  if runtime_globals == &RuntimeGlobals::MODULE {
+    return "module".to_string();
+  }
+
+  let name = runtime_globals_property_name(runtime_globals)
+    .expect("runtime global should have a property name");
   if REQUIRE_SCOPE_GLOBALS.contains(*runtime_globals) {
     let require = runtime_variable_to_string(&RuntimeVariable::Require, compiler_options);
     let mut result = String::with_capacity(require.len() + 1 + name.len());
