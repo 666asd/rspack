@@ -59,7 +59,8 @@ fn benchmark_concat_generate_string(b: &mut Bencher) {
     original_source: Some(HELLOWORLD_JS.to_string().into()),
     inner_source_map: Some(SourceMap::from_json(HELLOWORLD_JS_MAP).unwrap()),
     remove_original_source: false,
-  });
+  })
+  .boxed();
 
   let sms_rollup = SourceMapSource::new(SourceMapSourceOptions {
     value: BUNDLE_JS,
@@ -68,9 +69,10 @@ fn benchmark_concat_generate_string(b: &mut Bencher) {
     original_source: None,
     inner_source_map: None,
     remove_original_source: false,
-  });
+  })
+  .boxed();
 
-  let concat = ConcatSource::new([sms_minify, sms_rollup]);
+  let concat = ConcatSource::new(vec![sms_minify, sms_rollup]);
 
   b.iter(|| {
     concat
@@ -88,7 +90,8 @@ fn benchmark_concat_generate_string_with_cache(b: &mut Bencher) {
     original_source: Some(HELLOWORLD_JS.to_string().into()),
     inner_source_map: Some(SourceMap::from_json(HELLOWORLD_JS_MAP).unwrap()),
     remove_original_source: false,
-  });
+  })
+  .boxed();
   let sms_rollup = SourceMapSource::new(SourceMapSourceOptions {
     value: BUNDLE_JS,
     name: "bundle.js",
@@ -96,8 +99,9 @@ fn benchmark_concat_generate_string_with_cache(b: &mut Bencher) {
     original_source: None,
     inner_source_map: None,
     remove_original_source: false,
-  });
-  let concat = ConcatSource::new([sms_minify, sms_rollup]);
+  })
+  .boxed();
+  let concat = ConcatSource::new(vec![sms_minify, sms_rollup]);
   let cached = CachedSource::new(concat);
 
   b.iter(|| {
@@ -116,7 +120,8 @@ fn benchmark_cached_source_hash(b: &mut Bencher) {
     original_source: Some(HELLOWORLD_JS.to_string().into()),
     inner_source_map: Some(SourceMap::from_json(HELLOWORLD_JS_MAP).unwrap()),
     remove_original_source: false,
-  });
+  })
+  .boxed();
   let sms_rollup = SourceMapSource::new(SourceMapSourceOptions {
     value: BUNDLE_JS,
     name: "bundle.js",
@@ -124,8 +129,9 @@ fn benchmark_cached_source_hash(b: &mut Bencher) {
     original_source: None,
     inner_source_map: None,
     remove_original_source: false,
-  });
-  let concat = ConcatSource::new([sms_minify, sms_rollup]);
+  })
+  .boxed();
+  let concat = ConcatSource::new(vec![sms_minify, sms_rollup]);
   let cached = CachedSource::new(concat).boxed();
 
   b.iter(|| {
