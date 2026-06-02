@@ -83,7 +83,7 @@ async fn render_startup(
     return Ok(());
   };
   if let Some(export) = options.export {
-    let mut concat_source = ConcatSource::new([
+    let concat_source = ConcatSource::new([
       render_source.clone(),
       RawStringSource::from(format!(
         "var __webpack_exports__ = {};\n",

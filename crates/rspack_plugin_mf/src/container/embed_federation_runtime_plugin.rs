@@ -230,7 +230,7 @@ async fn render_startup(
     }
 
     let startup_global = runtime_template.render_runtime_globals(&RuntimeGlobals::STARTUP);
-    let mut startup_with_call = ConcatSource::new([
+    let startup_with_call = ConcatSource::new([
       RawStringSource::from_static("\n// Federation startup call\n").boxed(),
       RawStringSource::from(format!("{startup_global}();\n",)).boxed(),
       render_source.clone(),

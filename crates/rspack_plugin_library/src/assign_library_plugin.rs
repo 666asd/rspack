@@ -232,7 +232,7 @@ async fn render(
         "Library name base ({base}) must be a valid identifier when using a var declaring library type. Either use a valid identifier (e. g. {base_identifier}) or use a different library type (e. g. `type: 'global'`, which assign a property on the global scope instead of declaring a variable). {COMMON_LIBRARY_NAME_MESSAGE}"
       ));
     }
-    let mut concat_source = ConcatSource::new([
+    let concat_source = ConcatSource::new([
       RawStringSource::from(format!("var {base};\n")).boxed(),
       render_source.clone(),
     ]);
