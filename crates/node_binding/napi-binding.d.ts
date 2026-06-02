@@ -2265,6 +2265,7 @@ export interface RawExperiments {
   css?: boolean
   deferImport: boolean
   pureFunctions: boolean
+  runtimeMode?: "webpack" | "rspack"
 }
 
 export interface RawExposeOptions {
