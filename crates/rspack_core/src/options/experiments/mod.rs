@@ -4,6 +4,8 @@
 pub mod runtime_mode {
   use std::fmt;
 
+  use crate::{RuntimeCodeTemplate, RuntimeGlobals, RuntimeVariable};
+
   #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
   pub enum RuntimeMode {
     #[default]
@@ -16,6 +18,22 @@ pub mod runtime_mode {
       match self {
         RuntimeMode::Webpack => f.write_str("webpack"),
         RuntimeMode::Rspack => f.write_str("rspack"),
+      }
+    }
+  }
+
+  impl RuntimeMode {
+    pub fn uses_runtime_context(&self) -> bool {
+      matches!(self, RuntimeMode::Rspack)
+    }
+
+    pub fn render_module_factory_require_argument(
+      &self,
+      runtime_template: &RuntimeCodeTemplate<'_>,
+    ) -> String {
+      match self {
+        RuntimeMode::Webpack => runtime_template.render_runtime_globals(&RuntimeGlobals::REQUIRE),
+        RuntimeMode::Rspack => runtime_template.render_runtime_variable(&RuntimeVariable::Context),
       }
     }
   }

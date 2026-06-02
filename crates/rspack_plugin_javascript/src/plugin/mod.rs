@@ -144,14 +144,17 @@ impl JsPlugin {
     let strict_module_error_handling = compilation.options.output.strict_module_error_handling;
     let need_module_defer =
       runtime_requirements.contains(RuntimeGlobals::MAKE_DEFERRED_NAMESPACE_OBJECT);
-    let is_rspack_runtime = compilation.options.experiments.runtime_mode
-      == rspack_core::runtime_mode::RuntimeMode::Rspack;
+    let uses_runtime_context = compilation
+      .options
+      .experiments
+      .runtime_mode
+      .uses_runtime_context();
     let callable_require = runtime_template.render_runtime_globals(&RuntimeGlobals::REQUIRE);
-    let require_argument = if is_rspack_runtime {
-      runtime_template.render_runtime_variable(&RuntimeVariable::Context)
-    } else {
-      callable_require.clone()
-    };
+    let require_argument = compilation
+      .options
+      .experiments
+      .runtime_mode
+      .render_module_factory_require_argument(runtime_template);
     let mut sources: Vec<Cow<str>> = Vec::new();
 
     sources.push(
@@ -196,7 +199,7 @@ var module = ({}[moduleId] = {{"#,
 
     let module_execution =
       if runtime_requirements.contains(RuntimeGlobals::INTERCEPT_MODULE_EXECUTION) {
-        if is_rspack_runtime {
+        if uses_runtime_context {
           format!(
             r#"
         var execOptions = {{ id: moduleId, module: module, factory: {}[moduleId], require: {} }};
