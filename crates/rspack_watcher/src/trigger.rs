@@ -177,6 +177,48 @@ impl Trigger {
       paths.join(",")
     ));
     self.trigger_events(associated_event);
+
+    // Recover from FSEvents partial deliveries: on macOS the OS sometimes
+    // coalesces a per-file write into just a directory-level Modify event
+    // for the parent (the dir's mtime bumped, but the file path itself
+    // never made it through). If we just received a Change on a registered
+    // directory, lstat every registered file under that subtree and fire a
+    // synthetic Change for any whose mtime advanced past the stored
+    // baseline. This mirrors watchpack's DirectoryWatcher.onWatchEvent
+    // strategy and is the only watcher-side way to defeat the class of
+    // races where FSEvents delivers the dir event but not the file event.
+    if kind == FsEventKind::Change
+      && path.is_dir()
+      && self.path_manager.access().directories().0.contains(path)
+    {
+      self.rescan_directory_files(path);
+    }
+  }
+
+  /// Stat every registered file under `dir` and fire a synthetic Change
+  /// event for any file whose mtime advanced past the stored baseline.
+  ///
+  /// Uses `has_mtime_changed` (which atomically reads-and-updates the
+  /// baseline) so a follow-up real fs event for the same file finds the
+  /// new baseline and is correctly suppressed as a duplicate — no
+  /// double-firing in the common case where the OS later catches up and
+  /// delivers the missed file event.
+  fn rescan_directory_files(&self, dir: &ArcPath) {
+    let accessor = self.path_manager.access();
+    let dir_path = dir.as_ref();
+    let candidates: Vec<ArcPath> = accessor
+      .files()
+      .0
+      .iter()
+      .filter(|f| f.starts_with(dir_path))
+      .map(|f| f.clone())
+      .collect();
+    drop(accessor);
+    for file in candidates {
+      if self.path_manager.has_mtime_changed(&file) {
+        self.force_event(&file, FsEventKind::Change);
+      }
+    }
   }
   /// Dispatch a synthetic event for `path` without consulting the mtime
   /// suppression check. Used by `FsWatcher::wait_for_event` to backfill
