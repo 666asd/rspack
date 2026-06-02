@@ -397,6 +397,25 @@ impl JavascriptParserPlugin for APIPlugin {
     None
   }
 
+  fn call_member_chain(
+    &self,
+    parser: &mut JavascriptParser,
+    expr: &CallExpr,
+    for_name: &str,
+    members: &[Atom],
+    _members_optionals: &[bool],
+    _member_ranges: &[Span],
+  ) -> Option<bool> {
+    if parser.compiler_options.experiments.runtime_mode == ExperimentRuntimeMode::Rspack
+      && for_name == API_REQUIRE
+      && members.len() == 1
+    {
+      return unsupported_static_require_property(parser, expr.span, members[0].as_ref());
+    }
+
+    None
+  }
+
   fn assign_member_chain(
     &self,
     parser: &mut JavascriptParser,
