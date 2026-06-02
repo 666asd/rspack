@@ -349,7 +349,7 @@ mod tests {
     let code2 = "world";
     let source2 = OriginalSource::new(code2, "world.txt");
 
-    let concat = ConcatSource::new([source1.boxed(), source2.boxed()]);
+    let concat = ConcatSource::new(vec![source1.boxed(), source2.boxed()]);
     let map = concat
       .map(&ObjectPool::default(), &MapOptions::new(false))
       .unwrap();

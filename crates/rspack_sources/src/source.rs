@@ -713,7 +713,7 @@ mod tests {
       source_map: SourceMap::from_json("{\"mappings\": \";\"}").unwrap(),
     })
     .hash(&mut state);
-    ConcatSource::new([RawStringSource::from("d")]).hash(&mut state);
+    ConcatSource::new(vec![RawStringSource::from("d").boxed()]).hash(&mut state);
     CachedSource::new(RawStringSource::from("e")).hash(&mut state);
     ReplaceSource::new(RawStringSource::from("f")).hash(&mut state);
     RawStringSource::from("g").boxed().hash(&mut state);
@@ -749,8 +749,8 @@ mod tests {
       })
     );
     assert_eq!(
-      ConcatSource::new([RawStringSource::from("d")]),
-      ConcatSource::new([RawStringSource::from("d")])
+      ConcatSource::new(vec![RawStringSource::from("d").boxed()]),
+      ConcatSource::new(vec![RawStringSource::from("d").boxed()])
     );
     assert_eq!(
       CachedSource::new(RawStringSource::from("e")),
@@ -791,7 +791,7 @@ mod tests {
       source_map: SourceMap::from_json("{\"mappings\": \";\"}").unwrap(),
     });
     assert_eq!(c, c.clone());
-    let d = ConcatSource::new([RawStringSource::from("d")]);
+    let d = ConcatSource::new(vec![RawStringSource::from("d").boxed()]);
     assert_eq!(d, d.clone());
     let e = CachedSource::new(RawStringSource::from("e"));
     assert_eq!(e, e.clone());
@@ -830,7 +830,10 @@ mod tests {
 
   #[test]
   fn to_writer() {
-    let sources = ConcatSource::new([RawStringSource::from("a"), RawStringSource::from("b")]);
+    let sources = ConcatSource::new(vec![
+      RawStringSource::from("a").boxed(),
+      RawStringSource::from("b").boxed(),
+    ]);
     let mut writer = std::io::BufWriter::new(Vec::new());
     let result = sources.to_writer(&mut writer);
     assert!(result.is_ok());

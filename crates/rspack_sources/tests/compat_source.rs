@@ -118,7 +118,7 @@ fn should_generate_correct_source_map() {
   )
   .unwrap();
 
-  let result = ConcatSource::new([
+  let result = ConcatSource::new(vec![
     RawStringSource::from("Line0\n").boxed(),
     CompatSource("Line1\nLine2\nLine3\n", Some(source_map)).boxed(),
   ]);

@@ -260,13 +260,14 @@ impl StreamChunks for SourceMapSource {
 mod tests {
   use super::*;
   use crate::{
-    CachedSource, ConcatSource, OriginalSource, RawStringSource, ReplaceSource, SourceExt,
+    BoxSource, CachedSource, ConcatSource, OriginalSource, RawStringSource, ReplaceSource,
+    SourceExt,
   };
 
   #[test]
   fn map_correctly() {
     let inner_source_code = "Hello World\nis a test string\n";
-    let inner_source = ConcatSource::new([
+    let inner_source = ConcatSource::new(vec![
       OriginalSource::new(inner_source_code, "hello-world.txt").boxed(),
       OriginalSource::new("Translate: ", "header.txt").boxed(),
       RawStringSource::from("Other text").boxed(),
@@ -363,11 +364,14 @@ mod tests {
         vec![],
       ),
     });
-    let sources = [a, b, c].into_iter().map(|s| {
-      let mut r = ReplaceSource::new(s);
-      r.replace_static(1, 5, "i", None);
-      r
-    });
+    let sources = [a, b, c]
+      .into_iter()
+      .map(|s| {
+        let mut r = ReplaceSource::new(s);
+        r.replace_static(1, 5, "i", None);
+        r.boxed()
+      })
+      .collect::<Vec<BoxSource>>();
     let source = ConcatSource::new(sources);
     assert_eq!(
       source.source().into_string_lossy(),
@@ -420,8 +424,9 @@ mod tests {
       value: code,
       name: "es6-promise.js",
       source_map: map,
-    });
-    let source = ConcatSource::new([inner.clone(), inner]);
+    })
+    .boxed();
+    let source = ConcatSource::new(vec![inner.clone(), inner.boxed()]);
     assert_eq!(source.source().into_string_lossy(), format!("{code}{code}"));
   }
 
@@ -436,7 +441,8 @@ mod tests {
         vec![],
         vec![],
       ),
-    });
+    })
+    .boxed();
     let b = SourceMapSource::new(WithoutOriginalOptions {
       value: "hi",
       name: "b",
@@ -446,7 +452,8 @@ mod tests {
         vec![],
         vec![],
       ),
-    });
+    })
+    .boxed();
     let b2 = SourceMapSource::new(WithoutOriginalOptions {
       value: "hi",
       name: "b",
@@ -456,13 +463,15 @@ mod tests {
         vec![],
         vec![],
       ),
-    });
+    })
+    .boxed();
     let c = SourceMapSource::new(WithoutOriginalOptions {
       value: "",
       name: "c",
       source_map: SourceMap::new("AAAA".to_string(), vec!["hello4".into()], vec![], vec![]),
-    });
-    let source = ConcatSource::new([
+    })
+    .boxed();
+    let source = ConcatSource::new(vec![
       a.clone(),
       a.clone(),
       b.clone(),
@@ -473,10 +482,10 @@ mod tests {
       c.clone(),
       b2.clone(),
       a.clone(),
-      b2,
-      c,
-      a,
-      b,
+      b2.clone(),
+      c.clone(),
+      a.clone(),
+      b.clone(),
     ]);
     let map = source
       .map(&ObjectPool::default(), &MapOptions::default())
@@ -664,7 +673,7 @@ mod tests {
         .map(&ObjectPool::default(), &MapOptions::new(false))
         .unwrap(),
     });
-    let source = ConcatSource::new([
+    let source = ConcatSource::new(vec![
       RawStringSource::from("\n").boxed(),
       RawStringSource::from("\n").boxed(),
       RawStringSource::from("\n").boxed(),
@@ -679,7 +688,7 @@ mod tests {
   #[test]
   fn source_root_is_correctly_applied_to_mappings() {
     let inner_source_code = "Hello World\nis a test string\n";
-    let inner_source = ConcatSource::new([
+    let inner_source = ConcatSource::new(vec![
       OriginalSource::new(inner_source_code, "hello-world.txt").boxed(),
       OriginalSource::new("Translate: ", "header.txt").boxed(),
       RawStringSource::from("Other text").boxed(),

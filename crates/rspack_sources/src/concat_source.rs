@@ -487,7 +487,7 @@ mod tests {
 
   #[test]
   fn should_concat_two_sources() {
-    let mut source = ConcatSource::new([
+    let mut source = ConcatSource::new(vec![
       RawStringSource::from("Hello World\n".to_string()).boxed(),
       OriginalSource::new(
         "console.log('test');\nconsole.log('test2');\n",
@@ -540,7 +540,7 @@ mod tests {
 
   #[test]
   fn should_concat_two_sources2() {
-    let mut source = ConcatSource::new([
+    let mut source = ConcatSource::new(vec![
       RawStringSource::from("Hello World\n".to_string()).boxed(),
       OriginalSource::new(
         "console.log('test');\nconsole.log('test2');\n",
@@ -593,7 +593,7 @@ mod tests {
 
   #[test]
   fn should_concat_two_sources3() {
-    let mut source = ConcatSource::new([
+    let mut source = ConcatSource::new(vec![
       RawBufferSource::from("Hello World\n".as_bytes()).boxed(),
       OriginalSource::new(
         "console.log('test');\nconsole.log('test2');\n",
@@ -646,7 +646,7 @@ mod tests {
 
   #[test]
   fn should_be_able_to_handle_strings_for_all_methods() {
-    let mut source = ConcatSource::new([
+    let mut source = ConcatSource::new(vec![
       RawStringSource::from("Hello World\n".to_string()).boxed(),
       OriginalSource::new(
         "console.log('test');\nconsole.log('test2');\n",
@@ -654,8 +654,11 @@ mod tests {
       )
       .boxed(),
     ]);
-    let inner_source =
-      ConcatSource::new([RawStringSource::from("("), "'string'".into(), ")".into()]);
+    let inner_source = ConcatSource::new(vec![
+      RawStringSource::from("(").boxed(),
+      RawStringSource::from("'string'").boxed(),
+      RawStringSource::from(")").boxed(),
+    ]);
     source.add(RawStringSource::from("console"));
     source.add(RawStringSource::from("."));
     source.add(RawStringSource::from("log"));
@@ -686,10 +689,10 @@ mod tests {
 
   #[test]
   fn should_return_null_as_map_when_only_generated_code_is_concatenated() {
-    let source = ConcatSource::new([
-      RawStringSource::from("Hello World\n"),
-      RawStringSource::from("Hello World\n".to_string()),
-      RawStringSource::from(""),
+    let source = ConcatSource::new(vec![
+      RawStringSource::from("Hello World\n").boxed(),
+      RawStringSource::from("Hello World\n".to_string()).boxed(),
+      RawStringSource::from("").boxed(),
     ]);
 
     let result_text = source.source();
@@ -706,7 +709,7 @@ mod tests {
 
   #[test]
   fn should_allow_to_concatenate_in_a_single_line() {
-    let source = ConcatSource::new([
+    let source = ConcatSource::new(vec![
       OriginalSource::new("Hello", "hello.txt").boxed(),
       RawStringSource::from(" ").boxed(),
       OriginalSource::new("World ", "world.txt").boxed(),
@@ -740,10 +743,10 @@ mod tests {
 
   #[test]
   fn should_allow_to_concat_buffer_sources() {
-    let source = ConcatSource::new([
-      RawStringSource::from("a"),
-      RawStringSource::from("b"),
-      RawStringSource::from("c"),
+    let source = ConcatSource::new(vec![
+      RawStringSource::from("a").boxed(),
+      RawStringSource::from("b").boxed(),
+      RawStringSource::from("c").boxed(),
     ]);
     assert_eq!(source.source().into_string_lossy(), "abc");
     assert!(
@@ -755,15 +758,19 @@ mod tests {
 
   #[test]
   fn should_flatten_nested_concat_sources() {
-    let inner_concat = ConcatSource::new([
-      RawStringSource::from("Hello "),
-      RawStringSource::from("World"),
+    let inner_concat = ConcatSource::new(vec![
+      RawStringSource::from("Hello ").boxed(),
+      RawStringSource::from("World").boxed(),
     ]);
 
-    let outer_concat = ConcatSource::new([
+    let outer_concat = ConcatSource::new(vec![
       inner_concat.boxed(),
       RawStringSource::from("!").boxed(),
-      ConcatSource::new([RawStringSource::from(" How"), RawStringSource::from(" are")]).boxed(),
+      ConcatSource::new(vec![
+        RawStringSource::from(" How").boxed(),
+        RawStringSource::from(" are").boxed(),
+      ])
+      .boxed(),
       RawStringSource::from(" you?").boxed(),
     ]);
 
@@ -778,9 +785,9 @@ mod tests {
 
   #[test]
   fn test_self_equality_no_deadlock() {
-    let concat_source = ConcatSource::new([
-      RawStringSource::from("Hello "),
-      RawStringSource::from("World"),
+    let concat_source = ConcatSource::new(vec![
+      RawStringSource::from("Hello ").boxed(),
+      RawStringSource::from("World").boxed(),
     ])
     .boxed();
     assert_eq!(concat_source.as_ref(), concat_source.as_ref());
@@ -792,15 +799,19 @@ mod tests {
 
   #[test]
   fn test_debug_output() {
-    let inner_concat = ConcatSource::new([
-      RawStringSource::from("Hello "),
-      RawStringSource::from("World"),
+    let inner_concat = ConcatSource::new(vec![
+      RawStringSource::from("Hello ").boxed(),
+      RawStringSource::from("World").boxed(),
     ]);
 
-    let mut outer_concat = ConcatSource::new([
+    let mut outer_concat = ConcatSource::new(vec![
       inner_concat.boxed(),
       RawStringSource::from("!").boxed(),
-      ConcatSource::new([RawStringSource::from(" How"), RawStringSource::from(" are")]).boxed(),
+      ConcatSource::new(vec![
+        RawStringSource::from(" How").boxed(),
+        RawStringSource::from(" are").boxed(),
+      ])
+      .boxed(),
       RawStringSource::from(" you?\n").boxed(),
     ]);
 

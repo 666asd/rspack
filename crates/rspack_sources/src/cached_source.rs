@@ -319,7 +319,7 @@ mod tests {
 
   #[test]
   fn line_number_should_not_add_one() {
-    let source = ConcatSource::new([
+    let source = ConcatSource::new(vec![
       CachedSource::new(RawStringSource::from("\n")).boxed(),
       SourceMapSource::new(WithoutOriginalOptions {
         value: "\nconsole.log(1);\n".to_string(),

@@ -286,7 +286,7 @@ mod tests {
     let source1 = RawStringSource::from_static("hello\n\n");
     let source1 = ReplaceSource::new(source1);
     let source2 = OriginalSource::new("world".to_string(), "world.txt");
-    let concat = ConcatSource::new([source1.boxed(), source2.boxed()]);
+    let concat = ConcatSource::new(vec![source1.boxed(), source2.boxed()]);
     let map = concat
       .map(&ObjectPool::default(), &MapOptions::new(false))
       .unwrap();
