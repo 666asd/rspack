@@ -4,9 +4,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use super::*;
 use crate::{
   CodeGenerationRuntimeRequirementsWrite, RuntimeProxyMetadata, cache::Cache,
-  compilation::pass::PassExt, logger::Logger,
-  runtime_globals::renderable_require_scope_runtime_globals,
-  runtime_mode::RuntimeMode as ExperimentRuntimeMode,
+  compilation::pass::PassExt, logger::Logger, runtime_mode::RuntimeMode as ExperimentRuntimeMode,
 };
 
 pub struct RuntimeRequirementsPass;
@@ -544,9 +542,7 @@ pub async fn process_chunks_runtime_requirements(
         {
           metadata
             .module_proxy_requirements
-            .insert(renderable_require_scope_runtime_globals(
-              *runtime_requirements,
-            ));
+            .insert(runtime_requirements.renderable_require_scope());
         }
         if compilation
           .get_module_graph()
@@ -558,11 +554,11 @@ pub async fn process_chunks_runtime_requirements(
             .data
             .get::<CodeGenerationRuntimeRequirementsWrite>()
         {
-          metadata
-            .context_setter_fields
-            .insert(renderable_require_scope_runtime_globals(
-              write_requirements.runtime_requirements,
-            ));
+          metadata.context_setter_fields.insert(
+            write_requirements
+              .runtime_requirements
+              .renderable_require_scope(),
+          );
         }
       }
 
@@ -575,11 +571,11 @@ pub async fn process_chunks_runtime_requirements(
           .runtime_modules
           .get(runtime_module_id)
           .expect("should have runtime module");
-        metadata
-          .runtime_module_requirements
-          .insert(renderable_require_scope_runtime_globals(
-            runtime_module.additional_runtime_requirements(compilation),
-          ));
+        metadata.runtime_module_requirements.insert(
+          runtime_module
+            .additional_runtime_requirements(compilation)
+            .renderable_require_scope(),
+        );
         if runtime_module.get_custom_source().is_some()
           || runtime_module.get_constructor_name() == "RuntimeModuleFromJs"
         {
@@ -588,11 +584,10 @@ pub async fn process_chunks_runtime_requirements(
       }
     }
 
-    metadata
-      .hook_exposed_requirements
-      .insert(renderable_require_scope_runtime_globals(
-        *ChunkGraph::get_tree_runtime_requirements(compilation, &entry_ukey),
-      ));
+    metadata.hook_exposed_requirements.insert(
+      ChunkGraph::get_tree_runtime_requirements(compilation, &entry_ukey)
+        .renderable_require_scope(),
+    );
     has_custom_runtime_module |= metadata.has_custom_runtime_module;
     compilation
       .runtime_proxy_metadata_artifact

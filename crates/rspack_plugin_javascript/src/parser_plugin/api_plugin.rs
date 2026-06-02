@@ -1,6 +1,5 @@
 use rspack_core::{
   ConstDependency, ModuleArgument, RuntimeGlobals, RuntimeRequirementsDependency,
-  renderable_require_scope_runtime_globals, runtime_globals_from_property_name,
   runtime_mode::RuntimeMode as ExperimentRuntimeMode,
 };
 use rspack_error::{Error, Severity};
@@ -110,8 +109,8 @@ fn unsupported_static_require_property(
   range: Span,
   property: &str,
 ) -> Option<bool> {
-  let runtime_global = runtime_globals_from_property_name(property)?;
-  if renderable_require_scope_runtime_globals(runtime_global).is_empty() {
+  let runtime_global = RuntimeGlobals::from_property_name(property)?;
+  if runtime_global.renderable_require_scope().is_empty() {
     return None;
   }
   parser.add_error(

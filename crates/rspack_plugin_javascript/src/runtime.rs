@@ -4,7 +4,7 @@ use rspack_core::{
   Module, RuntimeCodeTemplate, RuntimeGlobalRenderMode, RuntimeGlobals, RuntimeProxyMetadata,
   RuntimeVariable, SourceType,
   chunk_graph_chunk::ChunkIdSet,
-  get_undo_path, property_access, renderable_require_scope_runtime_globals,
+  get_undo_path, property_access,
   rspack_sources::{
     BoxSource, ConcatSource, OriginalSource, RawStringSource, ReplaceSource, Source, SourceExt,
   },
@@ -211,7 +211,7 @@ pub async fn render_module(
         r.contains(RuntimeGlobals::REQUIRE)
           || r.contains(RuntimeGlobals::REQUIRE_SCOPE)
           || (compilation.options.experiments.runtime_mode == RuntimeMode::Rspack
-            && !renderable_require_scope_runtime_globals(*r).is_empty())
+            && !r.renderable_require_scope().is_empty())
       });
 
       let mut args = Vec::new();
@@ -236,7 +236,7 @@ pub async fn render_module(
       if need_require {
         args.push(
           if compilation.options.experiments.runtime_mode == RuntimeMode::Rspack {
-            runtime_template.render_runtime_variable(&RuntimeVariable::RuntimeContext)
+            runtime_template.render_runtime_variable(&RuntimeVariable::Context)
           } else {
             runtime_template.render_runtime_globals(&RuntimeGlobals::REQUIRE)
           },
@@ -395,7 +395,7 @@ fn render_runtime_context_declarations(
       }
     }
   }
-  let runtime_context = runtime_template.render_runtime_variable(&RuntimeVariable::RuntimeContext);
+  let runtime_context = runtime_template.render_runtime_variable(&RuntimeVariable::Context);
   if should_render_runtime_context_require(compilation, chunk_ukey) {
     sources.add(RawStringSource::from(format!(
       "var {runtime_context} = {{ r: {} }};\n",
@@ -417,10 +417,10 @@ fn render_runtime_context_fields(
 ) -> Option<BoxSource> {
   let metadata = runtime_context_metadata(compilation, chunk_ukey)?;
   let mut sources = ConcatSource::default();
-  let runtime_context = runtime_template.render_runtime_variable(&RuntimeVariable::RuntimeContext);
+  let runtime_context = runtime_template.render_runtime_variable(&RuntimeVariable::Context);
 
   for runtime_global in runtime_globals_in_order(metadata.context_fields()) {
-    let Some(key) = runtime_global.context_property_name() else {
+    let Some(key) = runtime_global.property_name() else {
       continue;
     };
     let Some(lexical_name) = runtime_global.to_lexical_name() else {

@@ -1115,8 +1115,8 @@ impl ContextModule {
       var map = {map};
       {fake_map_init_statement}
 
-      function __rspack_module_context(req) {{
-        var id = __rspack_module_context_resolve(req);
+      function __rspack_context_module(req) {{
+        var id = __rspack_context_module_resolve(req);
         if(!{module_factories}[id]) {{
           var e = new Error("Module '" + req + "' ('" + id + "') is not available (weak dependency)");
           e.code = 'MODULE_NOT_FOUND';
@@ -1124,7 +1124,7 @@ impl ContextModule {
         }}
         return {return_module_object};
       }}
-      function __rspack_module_context_resolve(req) {{
+      function __rspack_context_module_resolve(req) {{
         if(!{has_own_property}(map, req)) {{
           var e = new Error("Cannot find module '" + req + "'");
           e.code = 'MODULE_NOT_FOUND';
@@ -1132,10 +1132,10 @@ impl ContextModule {
         }}
         return map[req];
       }}
-      __rspack_module_context.keys = {keys};
-      __rspack_module_context.resolve = __rspack_module_context_resolve;
-      __rspack_module_context.id = {id};
-      {module}.exports = __rspack_module_context;
+      __rspack_context_module.keys = {keys};
+      __rspack_context_module.resolve = __rspack_context_module_resolve;
+      __rspack_context_module.id = {id};
+      {module}.exports = __rspack_context_module;
       "#,
       module = runtime_template.render_module_argument(ModuleArgument::Module),
       map = json_stringify_pretty(&map),
@@ -1227,11 +1227,11 @@ impl ContextModule {
       var map = {map};
       {fake_map_init_statement}
 
-      function __rspack_module_context(req) {{
-        var id = __rspack_module_context_resolve(req);
+      function __rspack_context_module(req) {{
+        var id = __rspack_context_module_resolve(req);
         return {return_module_object};
       }}
-      function __rspack_module_context_resolve(req) {{
+      function __rspack_context_module_resolve(req) {{
         if(!{has_own_property}(map, req)) {{
           var e = new Error("Cannot find module '" + req + "'");
           e.code = 'MODULE_NOT_FOUND';
@@ -1239,10 +1239,10 @@ impl ContextModule {
         }}
         return map[req];
       }}
-      __rspack_module_context.keys = {keys};
-      __rspack_module_context.resolve = __rspack_module_context_resolve;
-      {module}.exports = __rspack_module_context;
-      __rspack_module_context.id = {id};
+      __rspack_context_module.keys = {keys};
+      __rspack_context_module.resolve = __rspack_context_module_resolve;
+      {module}.exports = __rspack_context_module;
+      __rspack_context_module.id = {id};
       "#,
       module = runtime_template.render_module_argument(ModuleArgument::Module),
       map = json_stringify_pretty(&map),

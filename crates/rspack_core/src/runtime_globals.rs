@@ -428,7 +428,7 @@ pub fn runtime_globals_property_name(runtime_globals: &RuntimeGlobals) -> Option
     RuntimeGlobals::STARTUP_NO_DEFAULT => "x (no default handler)",
     RuntimeGlobals::ENSURE_CHUNK_INCLUDE_ENTRIES => "f (include entries)",
     RuntimeGlobals::STARTUP => "x",
-    RuntimeGlobals::MAKE_NAMESPACE_OBJECT => "r",
+    RuntimeGlobals::MAKE_NAMESPACE_OBJECT => "ns",
     RuntimeGlobals::MAKE_DEFERRED_NAMESPACE_OBJECT => "z",
     RuntimeGlobals::MAKE_OPTIMIZED_DEFERRED_NAMESPACE_OBJECT => "zO",
     RuntimeGlobals::DEFERRED_MODULES_ASYNC_TRANSITIVE_DEPENDENCIES => "zT",
@@ -462,36 +462,6 @@ pub fn runtime_globals_property_name(runtime_globals: &RuntimeGlobals) -> Option
     RuntimeGlobals::TO_BINARY => "tb",
     _ => return None,
   })
-}
-
-pub fn runtime_globals_context_property_name(
-  runtime_globals: &RuntimeGlobals,
-) -> Option<&'static str> {
-  if runtime_globals == &RuntimeGlobals::MAKE_NAMESPACE_OBJECT {
-    return Some("ns");
-  }
-
-  runtime_globals_property_name(runtime_globals)
-}
-
-pub fn runtime_globals_from_property_name(property_name: &str) -> Option<RuntimeGlobals> {
-  RuntimeGlobals::all().iter_names().find_map(|(_, value)| {
-    runtime_globals_property_name(&value)
-      .is_some_and(|name| name == property_name)
-      .then_some(value)
-  })
-}
-
-pub fn runtime_globals_to_lexical_name(runtime_globals: &RuntimeGlobals) -> Option<String> {
-  RuntimeGlobals::all()
-    .iter_names()
-    .find_map(|(name, value)| (value == *runtime_globals).then(|| name.to_lower_camel_case()))
-}
-
-pub fn renderable_require_scope_runtime_globals(runtime_globals: RuntimeGlobals) -> RuntimeGlobals {
-  runtime_globals
-    .intersection(*REQUIRE_SCOPE_GLOBALS)
-    .difference(RuntimeGlobals::REQUIRE_SCOPE)
 }
 
 pub fn runtime_globals_to_string(
@@ -533,7 +503,7 @@ pub fn runtime_globals_to_string(
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
 pub enum RuntimeVariable {
   Require,
-  RuntimeContext,
+  Context,
   Modules,
   ModuleCache,
   Module,
@@ -548,7 +518,7 @@ pub fn runtime_variable_to_string(
   // TODO: use compiler options to get runtime variable names
   match *runtime_variable {
     RuntimeVariable::Require => "__webpack_require__".to_string(),
-    RuntimeVariable::RuntimeContext => "__rspack_context".to_string(),
+    RuntimeVariable::Context => "__rspack_context".to_string(),
     RuntimeVariable::Modules => "__webpack_modules__".to_string(),
     RuntimeVariable::ModuleCache => "__webpack_module_cache__".to_string(),
     RuntimeVariable::Exports => "__webpack_exports__".to_string(),
@@ -560,29 +530,54 @@ pub fn runtime_variable_to_string(
 type RuntimeGlobalMap = (
   FxHashMap<RuntimeGlobals, &'static str>,
   FxHashMap<&'static str, RuntimeGlobals>,
+  FxHashMap<&'static str, RuntimeGlobals>,
+  FxHashMap<RuntimeGlobals, String>,
 );
 
 static RUNTIME_GLOBAL_MAP: LazyLock<RuntimeGlobalMap> = LazyLock::new(|| {
-  let mut to_js_map = FxHashMap::default();
-  let mut from_js_map = FxHashMap::default();
+  let mut to_flag_name_map = FxHashMap::default();
+  let mut from_flag_name_map = FxHashMap::default();
+  let mut from_property_name_map = FxHashMap::default();
+  let mut to_lexical_name_map = FxHashMap::default();
 
   for (name, value) in RuntimeGlobals::all().iter_names() {
-    to_js_map.insert(value, name);
-    from_js_map.insert(name, value);
+    to_flag_name_map.insert(value, name);
+    from_flag_name_map.insert(name, value);
+    to_lexical_name_map.insert(value, name.to_lower_camel_case());
+    if let Some(property_name) = runtime_globals_property_name(&value) {
+      from_property_name_map.insert(property_name, value);
+    }
   }
 
-  to_js_map.shrink_to_fit();
-  from_js_map.shrink_to_fit();
-  (to_js_map, from_js_map)
+  to_flag_name_map.shrink_to_fit();
+  from_flag_name_map.shrink_to_fit();
+  from_property_name_map.shrink_to_fit();
+  to_lexical_name_map.shrink_to_fit();
+  (
+    to_flag_name_map,
+    from_flag_name_map,
+    from_property_name_map,
+    to_lexical_name_map,
+  )
 });
 
 impl RuntimeGlobals {
-  pub fn context_property_name(&self) -> Option<&'static str> {
-    runtime_globals_context_property_name(self)
+  pub fn property_name(&self) -> Option<&'static str> {
+    runtime_globals_property_name(self)
   }
 
-  pub fn to_lexical_name(&self) -> Option<String> {
-    runtime_globals_to_lexical_name(self)
+  pub fn from_property_name(property_name: &str) -> Option<Self> {
+    RUNTIME_GLOBAL_MAP.2.get(property_name).copied()
+  }
+
+  pub fn renderable_require_scope(self) -> Self {
+    self
+      .intersection(*REQUIRE_SCOPE_GLOBALS)
+      .difference(RuntimeGlobals::REQUIRE_SCOPE)
+  }
+
+  pub fn to_lexical_name(&self) -> Option<&str> {
+    RUNTIME_GLOBAL_MAP.3.get(self).map(String::as_str)
   }
 
   pub fn to_names(&self) -> Vec<&'static str> {

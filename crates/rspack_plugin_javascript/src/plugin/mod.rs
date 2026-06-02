@@ -148,7 +148,7 @@ impl JsPlugin {
       == rspack_core::runtime_mode::RuntimeMode::Rspack;
     let callable_require = runtime_template.render_runtime_globals(&RuntimeGlobals::REQUIRE);
     let require_argument = if is_rspack_runtime {
-      runtime_template.render_runtime_variable(&RuntimeVariable::RuntimeContext)
+      runtime_template.render_runtime_variable(&RuntimeVariable::Context)
     } else {
       callable_require.clone()
     };

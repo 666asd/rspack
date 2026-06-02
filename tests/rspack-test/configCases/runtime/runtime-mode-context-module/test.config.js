@@ -10,7 +10,7 @@ module.exports = {
     );
 
     expect(source).toContain("var __rspack_context = { r: __webpack_require__ };");
-    expect(source).toContain("function __rspack_module_context(req)");
+    expect(source).toContain("function __rspack_context_module(req)");
     expect(source).not.toContain("function __rspack_context(req)");
   },
 };

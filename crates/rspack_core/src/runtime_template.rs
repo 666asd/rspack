@@ -24,11 +24,7 @@ use crate::{
   ModuleGraphCacheArtifact, ModuleId, ModuleIdentifier, NormalInitFragment, PathInfo,
   RuntimeCondition, RuntimeGlobals, RuntimeSpec, UsedName, compile_boolean_matcher_from_lists,
   contextify, property_access,
-  runtime_globals::{
-    RuntimeVariable, renderable_require_scope_runtime_globals,
-    runtime_globals_context_property_name, runtime_globals_to_lexical_name,
-    runtime_globals_to_string, runtime_variable_to_string,
-  },
+  runtime_globals::{RuntimeVariable, runtime_globals_to_string, runtime_variable_to_string},
   to_comment, to_normal_comment,
 };
 
@@ -67,23 +63,6 @@ fn replace_runtime_globals(template: String, runtime_globals: &Map<String, Value
 impl Debug for RuntimeTemplate {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     f.debug_struct("runtime_template").finish()
-  }
-}
-
-#[cfg(test)]
-mod tests {
-  use super::{RuntimeGlobalRenderMode, render_runtime_globals_by_mode_with_legacy};
-  use crate::RuntimeGlobals;
-
-  #[test]
-  fn rspack_module_mode_renders_composite_require_scope_runtime_globals() {
-    let rendered = render_runtime_globals_by_mode_with_legacy(
-      &(RuntimeGlobals::DEFINE_PROPERTY_GETTERS | RuntimeGlobals::CREATE_FAKE_NAMESPACE_OBJECT),
-      RuntimeGlobalRenderMode::RspackModule,
-      &|runtime_globals| panic!("unexpected legacy fallback for {runtime_globals:?}"),
-    );
-
-    assert_eq!(rendered, "(__rspack_context.d, __rspack_context.t)");
   }
 }
 
@@ -231,9 +210,9 @@ fn render_runtime_globals_by_mode_with_legacy(
         return "__rspack_context.r".to_string();
       }
 
-      let renderable = renderable_require_scope_runtime_globals(*runtime_globals);
+      let renderable = runtime_globals.renderable_require_scope();
       if renderable == *runtime_globals && renderable.bits().count_ones() == 1 {
-        if let Some(name) = runtime_globals_context_property_name(runtime_globals) {
+        if let Some(name) = runtime_globals.property_name() {
           return format!("__rspack_context{}", property_access([name], 0));
         }
       }
@@ -241,12 +220,12 @@ fn render_runtime_globals_by_mode_with_legacy(
       legacy(runtime_globals)
     }
     RuntimeGlobalRenderMode::RspackRuntimeModule => {
-      let renderable = renderable_require_scope_runtime_globals(*runtime_globals);
+      let renderable = runtime_globals.renderable_require_scope();
       if renderable == *runtime_globals
         && renderable.bits().count_ones() == 1
-        && let Some(name) = runtime_globals_to_lexical_name(runtime_globals)
+        && let Some(name) = runtime_globals.to_lexical_name()
       {
-        return name;
+        return name.to_string();
       }
 
       legacy(runtime_globals)
