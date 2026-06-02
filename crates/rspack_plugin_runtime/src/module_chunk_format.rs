@@ -389,9 +389,9 @@ async fn render_startup(
     }
 
     if dependent_load.size() != 0 {
-      let mut sources =
+      let concat_source =
         ConcatSource::new(vec![dependent_load.boxed(), render_source.source.clone()]);
-      render_source.source = sources.boxed();
+      render_source.source = concat_source.boxed();
     }
   }
   Ok(())
