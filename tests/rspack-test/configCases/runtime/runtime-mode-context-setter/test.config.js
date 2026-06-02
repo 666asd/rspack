@@ -11,6 +11,8 @@ module.exports = {
 
     expect(source).toContain("__rspack_context.nc");
     expect(source).toContain("__rspack_context.p");
+    expect(source).toContain("const value = __rspack_context.nc;");
+    expect(source).toContain("const publicPath = __rspack_context.p;");
     expect(source).toContain('Object.defineProperty(__rspack_context, "nc"');
     expect(source).toContain('Object.defineProperty(__rspack_context, "p"');
     expect(source).toContain("set: function(value)");
