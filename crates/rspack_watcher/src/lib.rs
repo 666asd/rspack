@@ -195,12 +195,37 @@ impl FsWatcher {
     //     in flight for that write would then be suppressed as a duplicate.
     self.record_initial_file_mtimes();
 
+    // Watchpack-style backfill: for paths newly added in this cycle, if
+    // `safe_time` has already recorded activity at or after the consumer's
+    // `start_time`, the event landed in the gap between `start_time` and
+    // this `watch()` call (the classic `done` → `nextTick` → rewatch race).
+    // Synthesize a Change event now so the consumer is not left waiting
+    // for an OS event that already came and went.
+    self.backfill_missed_events(start_time);
+
     self.scanner.scan(start_time);
 
     let watch_patterns = self.analyzer.analyze(self.path_manager.access());
     self.disk_watcher.watch(watch_patterns.into_iter())?;
 
     Ok(())
+  }
+
+  fn backfill_missed_events(&self, start_time: SystemTime) {
+    let trigger = match &self.trigger {
+      Some(t) => t,
+      None => return,
+    };
+    let accessor = self.path_manager.access();
+    let added_files: Vec<ArcPath> = accessor.files().1.iter().map(|p| p.clone()).collect();
+    let added_missing: Vec<ArcPath> = accessor.missing().1.iter().map(|p| p.clone()).collect();
+    for path in added_files.iter().chain(added_missing.iter()) {
+      if let Some(safe_time) = self.path_manager.safe_time(path)
+        && safe_time >= start_time
+      {
+        trigger.force_event(path, FsEventKind::Change);
+      }
+    }
   }
 
   fn record_initial_file_mtimes(&self) {

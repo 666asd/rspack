@@ -199,6 +199,14 @@ pub(crate) struct PathManager {
   /// dropped — leaving rstest to receive only parent-directory change events
   /// and fall back to a full rerun.
   realpath_aliases: ArcPathDashMap<ArcPath>,
+  /// Per-path "last seen activity" timestamp, updated on every raw fs event
+  /// the OS delivers — regardless of whether the path is currently in the
+  /// registered files/directories/missing set. Persists across watch()
+  /// cycles. Read by `wait_for_event` to backfill synthetic events for
+  /// newly-added paths whose `safe_time >= start_time`, so events that
+  /// landed between the consumer's `start_time` and the next `watch()`
+  /// registration are not silently lost.
+  safe_times: ArcPathDashMap<SystemTime>,
 }
 
 impl PathManager {
@@ -211,7 +219,29 @@ impl PathManager {
       ignored,
       file_mtimes: ArcPathDashMap::default(),
       realpath_aliases: ArcPathDashMap::default(),
+      safe_times: ArcPathDashMap::default(),
     }
+  }
+
+  /// Record activity for `path` at `time`. Used by `Trigger::on_event` to
+  /// stamp every raw fs event, including events for paths not currently
+  /// registered. Only advances the stored timestamp forward — concurrent
+  /// out-of-order updates cannot regress an already-seen later time.
+  pub fn update_safe_time(&self, path: ArcPath, time: SystemTime) {
+    self
+      .safe_times
+      .entry(path)
+      .and_modify(|t| {
+        if time > *t {
+          *t = time;
+        }
+      })
+      .or_insert(time);
+  }
+
+  /// Return the most recent activity time recorded for `path`, if any.
+  pub fn safe_time(&self, path: &ArcPath) -> Option<SystemTime> {
+    self.safe_times.get(path).map(|t| *t)
   }
 
   /// Look up the originally-registered path for an event path that may have

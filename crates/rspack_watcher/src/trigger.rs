@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{sync::Arc, time::SystemTime};
 
 use rspack_paths::{ArcPath, ArcPathDashSet};
 use tokio::sync::mpsc::UnboundedSender;
@@ -119,6 +119,16 @@ impl Trigger {
     // root are dropped because `files.all` is keyed by the symlink form.
     let path_owned = self.path_manager.resolve_event_path(path);
     let path = &path_owned;
+
+    // Stamp activity BEFORE any registration / mtime gating. Even if the
+    // path is not currently registered (rspack hasn't called watch() with
+    // it yet), the timestamp is recorded so the next watch() registration
+    // can detect the missed event via `safe_time >= start_time` and
+    // backfill a synthetic Change.
+    self
+      .path_manager
+      .update_safe_time(path.clone(), SystemTime::now());
+
     let is_registered_file = self.path_manager.access().files().0.contains(path);
 
     let trace_file = std::env::var("RSPACK_WATCHER_TRACE_FILE").ok();
@@ -168,6 +178,25 @@ impl Trigger {
     ));
     self.trigger_events(associated_event);
   }
+  /// Dispatch a synthetic event for `path` without consulting the mtime
+  /// suppression check. Used by `FsWatcher::wait_for_event` to backfill
+  /// events for paths whose `safe_time` recorded activity at or after the
+  /// consumer's `start_time` but before the corresponding registration
+  /// landed (the classic "user wrote to file between `done` hook and
+  /// `process.nextTick` rewatch" race). Skipping the mtime check is
+  /// intentional: the whole point of backfill is that we already KNOW the
+  /// path changed; re-checking mtime would re-introduce the suppression
+  /// race we're trying to defeat.
+  pub fn force_event(&self, path: &ArcPath, kind: FsEventKind) {
+    let path_owned = self.path_manager.resolve_event_path(path);
+    let path = &path_owned;
+    let finder = self.finder();
+    let associated_event = finder.find_associated_event(path, kind);
+    if !associated_event.is_empty() {
+      self.trigger_events(associated_event);
+    }
+  }
+
   /// Helper to construct a `DependencyFinder` for the current path register state.
   fn finder(&self) -> DependencyFinder<'_> {
     let accessor = self.path_manager.access();
