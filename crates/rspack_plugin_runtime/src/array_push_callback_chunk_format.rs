@@ -4,13 +4,13 @@ use rspack_core::{
   ChunkGraph, ChunkKind, ChunkUkey, Compilation, CompilationAdditionalChunkRuntimeRequirements,
   CompilationParams, CompilerCompilation, Plugin, RuntimeCodeTemplate, RuntimeGlobals,
   RuntimeModule, RuntimeVariable,
-  rspack_sources::{ConcatSource, RawStringSource, SourceExt},
+  rspack_sources::{BoxSource, ConcatSource, RawStringSource, SourceExt},
 };
 use rspack_error::Result;
 use rspack_hash::RspackHash;
 use rspack_hook::{plugin, plugin_hook};
 use rspack_plugin_javascript::{
-  JavascriptModulesChunkHash, JavascriptModulesRenderChunk, JsPlugin, RenderSource,
+  JavascriptModulesChunkHash, JavascriptModulesRenderChunk, JsPlugin,
   runtime::{render_chunk_runtime_modules, render_runtime_modules},
 };
 
@@ -106,7 +106,7 @@ async fn render_chunk(
   &self,
   compilation: &Compilation,
   chunk_ukey: &ChunkUkey,
-  render_source: &mut RenderSource,
+  render_source: &mut BoxSource,
   runtime_template: &RuntimeCodeTemplate<'_>,
 ) -> Result<()> {
   let hooks = JsPlugin::get_compilation_hooks(compilation.id());
@@ -129,7 +129,7 @@ async fn render_chunk(
       rspack_util::json_stringify_str(hot_update_global),
       rspack_util::json_stringify(chunk.expect_id())
     )));
-    source.add(render_source.source.clone());
+    source.add(render_source.clone());
     if has_runtime_modules {
       source.add(RawStringSource::from_static(","));
       source.add(render_chunk_runtime_modules(compilation, chunk_ukey, runtime_template).await?);
@@ -146,7 +146,7 @@ async fn render_chunk(
       chunk_loading_global,
       rspack_util::json_stringify(chunk.expect_id()),
     )));
-    source.add(render_source.source.clone());
+    source.add(render_source.clone());
     let has_entry = chunk.has_entry_module(&compilation.build_chunk_graph_artifact.chunk_graph);
     if has_entry || has_runtime_modules {
       source.add(RawStringSource::from_static(","));
@@ -171,9 +171,7 @@ async fn render_chunk(
           .keys()
           .next_back()
           .expect("should have last entry module");
-        let mut render_source = RenderSource {
-          source: start_up_source,
-        };
+        let mut render_source = start_up_source;
         hooks
           .try_read()
           .expect("should have js plugin drive")
@@ -186,7 +184,7 @@ async fn render_chunk(
             runtime_template,
           )
           .await?;
-        source.add(render_source.source);
+        source.add(render_source);
         if runtime_requirements.contains(RuntimeGlobals::RETURN_EXPORTS_FROM_RUNTIME) {
           source.add(RawStringSource::from(format!(
             "return {};\n",
@@ -198,7 +196,7 @@ async fn render_chunk(
     }
     source.add(RawStringSource::from_static("])"));
   }
-  render_source.source = source.boxed();
+  *render_source = source.boxed();
   Ok(())
 }
 

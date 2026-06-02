@@ -10,11 +10,11 @@ use rspack_core::{
   ChunkUkey, Compilation, CompilationAdditionalChunkRuntimeRequirements, CompilationParams,
   CompilationRuntimeRequirementInTree, CompilerCompilation, DependencyId, ModuleIdentifier, Plugin,
   RuntimeCodeTemplate, RuntimeGlobals, RuntimeModule,
-  rspack_sources::{ConcatSource, RawStringSource, SourceExt},
+  rspack_sources::{BoxSource, ConcatSource, RawStringSource, SourceExt},
 };
 use rspack_error::Result;
 use rspack_hook::{plugin, plugin_hook};
-use rspack_plugin_javascript::{JavascriptModulesRenderStartup, JsPlugin, RenderSource};
+use rspack_plugin_javascript::{JavascriptModulesRenderStartup, JsPlugin};
 use rustc_hash::FxHashSet;
 
 use super::{
@@ -182,7 +182,7 @@ async fn render_startup(
   compilation: &Compilation,
   chunk_ukey: &ChunkUkey,
   _module: &ModuleIdentifier,
-  render_source: &mut RenderSource,
+  render_source: &mut BoxSource,
   runtime_template: &RuntimeCodeTemplate<'_>,
 ) -> Result<()> {
   let chunk = compilation
@@ -228,17 +228,15 @@ async fn render_startup(
     if self.experiments.async_startup {
       return Ok(());
     }
-    let mut startup_with_call = ConcatSource::default();
 
-    // Add startup call
-    startup_with_call.add(RawStringSource::from_static(
-      "\n// Federation startup call\n",
-    ));
     let startup_global = runtime_template.render_runtime_globals(&RuntimeGlobals::STARTUP);
-    startup_with_call.add(RawStringSource::from(format!("{startup_global}();\n",)));
+    let mut startup_with_call = ConcatSource::new([
+      RawStringSource::from_static("\n// Federation startup call\n").boxed(),
+      RawStringSource::from(format!("{startup_global}();\n",)).boxed(),
+      render_source.clone(),
+    ]);
 
-    startup_with_call.add(render_source.source.clone());
-    render_source.source = startup_with_call.boxed();
+    *render_source = startup_with_call.boxed();
   }
 
   Ok(())

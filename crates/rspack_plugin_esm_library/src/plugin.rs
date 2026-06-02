@@ -21,13 +21,13 @@ use rspack_core::{
   NormalModuleFactoryParser, ParserAndGenerator, ParserOptions, Plugin, REQUIRE_SCOPE_GLOBALS,
   RuntimeCodeTemplate, RuntimeGlobals, RuntimeModule, SideEffectsOptimizeArtifact,
   SideEffectsStateArtifact, get_target, is_esm_dep_like,
-  rspack_sources::{ReplaceSource, Source},
+  rspack_sources::{BoxSource, ReplaceSource, Source},
 };
 use rspack_error::{Diagnostic, Result};
 use rspack_hook::{plugin, plugin_hook};
 use rspack_plugin_javascript::{
-  JavascriptModulesRenderChunkContent, JsPlugin, RenderSource,
-  dependency::ImportDependencyTemplate, parser_and_generator::JavaScriptParserAndGenerator,
+  JavascriptModulesRenderChunkContent, JsPlugin, dependency::ImportDependencyTemplate,
+  parser_and_generator::JavaScriptParserAndGenerator,
 };
 use rspack_plugin_rslib::dyn_import_external::cutout_dyn_import_externals;
 use rspack_plugin_split_chunks::CacheGroup;
@@ -285,7 +285,7 @@ async fn render_chunk_content(
   chunk_ukey: &ChunkUkey,
   asset_info: &mut AssetInfo,
   runtime_template: &RuntimeCodeTemplate<'_>,
-) -> Result<Option<RenderSource>> {
+) -> Result<Option<BoxSource>> {
   self
     .render_chunk(compilation, chunk_ukey, asset_info, runtime_template)
     .await

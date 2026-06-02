@@ -1,12 +1,12 @@
 use rspack_core::{
   ChunkInitFragments, ChunkUkey, Compilation, CompilationParams, CompilerCompilation,
   InitFragmentExt, InitFragmentKey, InitFragmentStage, Module, NormalInitFragment, Plugin,
-  RuntimeCodeTemplate,
+  RuntimeCodeTemplate, rspack_sources::BoxSource,
 };
 use rspack_error::Result;
 use rspack_hook::{plugin, plugin_hook};
 
-use crate::{JavascriptModulesRenderModuleContent, JsPlugin, RenderSource};
+use crate::{JavascriptModulesRenderModuleContent, JsPlugin};
 
 #[plugin]
 #[derive(Debug, Default)]
@@ -33,7 +33,7 @@ async fn render_module_content(
   compilation: &Compilation,
   _chunk_ukey: &ChunkUkey,
   module: &dyn Module,
-  _source: &mut RenderSource,
+  _source: &mut BoxSource,
   init_fragments: &mut ChunkInitFragments,
   _runtime_template: &RuntimeCodeTemplate<'_>,
 ) -> Result<()> {

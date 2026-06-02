@@ -424,14 +424,14 @@ async fn process_assets(&self, compilation: &mut Compilation) -> Result<()> {
               };
 
               if let Some(shebang) = shebang {
-                ConcatSource::new(vec![
+                ConcatSource::new([
                   RawStringSource::from(shebang).boxed(),
                   RawStringSource::from(banner).boxed(),
                   RawStringSource::from_static("\n").boxed(),
                   source
                 ]).boxed()
               } else {
-                ConcatSource::new(vec![
+                ConcatSource::new([
                   RawStringSource::from(banner).boxed(),
                   RawStringSource::from_static("\n").boxed(),
                   source

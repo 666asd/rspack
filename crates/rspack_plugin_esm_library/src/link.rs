@@ -19,9 +19,7 @@ use rspack_core::{
   rspack_sources::ReplaceSource, split_readable_identifier, to_normal_comment,
 };
 use rspack_error::{Diagnostic, Error, Result};
-use rspack_plugin_javascript::{
-  JsPlugin, RenderSource, dependency::ESMExportImportedSpecifierDependency,
-};
+use rspack_plugin_javascript::{JsPlugin, dependency::ESMExportImportedSpecifierDependency};
 use rspack_plugin_runtime::should_export_webpack_require_for_module_chunk_loading;
 use rspack_util::{
   SpanExt,
@@ -1478,9 +1476,7 @@ var {} = {{}};
                   return Ok((ModuleInfo::Concatenated(concate_info), None));
                 };
 
-                let mut render_source = RenderSource {
-                  source: js_source.clone(),
-                };
+                let mut render_source = js_source.clone();
 
                 let mut chunk_init_fragments = vec![];
                 hooks
@@ -1517,11 +1513,7 @@ var {} = {{}};
                       .and_then(|js_options| js_options.jsx)
                   })
                   .unwrap_or(false);
-                let source_str = render_source
-                  .source
-                  .source()
-                  .into_string_lossy()
-                  .into_owned();
+                let source_str = render_source.source().into_string_lossy().into_owned();
                 let comments = SingleThreadedComments::default();
                 let mut ast = Ast::new(source_str.len(), StringAllocator::default());
                 let lexer = swc_experimental_ecma_parser::Lexer::new(
@@ -1594,8 +1586,8 @@ var {} = {{}};
                 concate_info.all_used_names = all_used_names;
                 concate_info.binding_to_ref = binding_to_ref;
                 concate_info.has_ast = true;
-                concate_info.source = Some(ReplaceSource::new(render_source.source.clone()));
-                concate_info.internal_source = Some(render_source.source.clone());
+                concate_info.source = Some(ReplaceSource::new(render_source.clone()));
+                concate_info.internal_source = Some(render_source.clone());
                 concate_info.runtime_requirements = codegen_res.runtime_requirements;
                 concate_info.chunk_init_fragments = codegen_res
                   .data

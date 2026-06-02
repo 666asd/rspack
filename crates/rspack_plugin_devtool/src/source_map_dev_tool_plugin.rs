@@ -964,7 +964,7 @@ impl SourceMapDevToolPlugin {
           .unwrap_or_default();
 
         asset.source = Some(
-          ConcatSource::new(vec![
+          ConcatSource::new([
             source.clone(),
             RawStringSource::from(debug_id_comment).boxed(),
             RawStringSource::from(current_source_mapping_url_comment).boxed(),
@@ -1001,7 +1001,7 @@ impl SourceMapDevToolPlugin {
       };
       let base64 = base64::encode_to_string(source_map_json.as_bytes());
       asset.source = Some(
-        ConcatSource::new(vec![
+        ConcatSource::new([
           source.clone(),
           RawStringSource::from(
             current_source_mapping_url_comment

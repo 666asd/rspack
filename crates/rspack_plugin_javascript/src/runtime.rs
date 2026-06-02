@@ -7,7 +7,7 @@ use rspack_core::{
 };
 use rspack_error::{Result, ToStringResultToRspackResultExt};
 
-use crate::{JavascriptModulesPluginHooks, RenderSource};
+use crate::JavascriptModulesPluginHooks;
 
 pub const AUTO_PUBLIC_PATH_PLACEHOLDER: &str = "__RSPACK_PLUGIN_ASSET_AUTO_PUBLIC_PATH__";
 
@@ -78,16 +78,12 @@ pub async fn render_chunk_modules(
     },
   );
 
-  let module_sources: Vec<_> = module_code_array
-    .into_iter()
-    .map(|(_, source, _, _)| source)
-    .collect();
-
-  let chunk_modules_source = ConcatSource::new(vec![
-    RawStringSource::from_static("{\n").boxed(),
-    ConcatSource::new(module_sources).boxed(),
-    RawStringSource::from_static("\n}").boxed(),
-  ]);
+  let mut chunk_modules_source = ConcatSource::with_capacity(module_code_array.len() + 2);
+  chunk_modules_source.add(RawStringSource::from_static("{\n"));
+  for (_, source, _, _) in module_code_array {
+    chunk_modules_source.add(source);
+  }
+  chunk_modules_source.add(RawStringSource::from_static("\n}"));
 
   Ok(Some((chunk_modules_source.boxed(), chunk_init_fragments)))
 }
@@ -140,18 +136,12 @@ pub async fn render_module(
         );
         replace.replace(start as u32, end as u32, relative, None);
       }
-      RenderSource {
-        source: replace.boxed(),
-      }
+      replace.boxed()
     } else {
-      RenderSource {
-        source: origin_source.clone(),
-      }
+      origin_source.clone()
     }
   } else {
-    RenderSource {
-      source: origin_source.clone(),
-    }
+    origin_source.clone()
   };
 
   /*
@@ -237,7 +227,7 @@ pub async fn render_module(
       if use_strict {
         container_sources.add(RawStringSource::from_static("\"use strict\";\n"));
       }
-      container_sources.add(render_source.source);
+      container_sources.add(render_source);
 
       if use_method_shorthand {
         container_sources.add(RawStringSource::from_static("\n\n},\n"));
@@ -245,9 +235,7 @@ pub async fn render_module(
         container_sources.add(RawStringSource::from_static("\n\n}),\n"));
       }
 
-      RenderSource {
-        source: container_sources.boxed(),
-      }
+      container_sources.boxed()
     };
 
     hooks
@@ -276,7 +264,7 @@ pub async fn render_module(
       )
       .await?;
 
-    sources.add(post_module_package.source);
+    sources.add(post_module_package);
     sources.boxed()
   } else {
     hooks
@@ -291,7 +279,7 @@ pub async fn render_module(
       )
       .await?;
 
-    render_source.source
+    render_source
   };
 
   Ok(Some((
@@ -312,7 +300,7 @@ pub async fn render_chunk_runtime_modules(
     return Ok(runtime_modules_source);
   }
 
-  let concat_source = ConcatSource::new(vec![
+  let concat_source = ConcatSource::new([
     RawStringSource::from(format!(
       "function({}) {{\n",
       runtime_template.render_runtime_globals(&RuntimeGlobals::REQUIRE),

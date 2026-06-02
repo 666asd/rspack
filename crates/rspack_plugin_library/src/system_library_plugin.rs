@@ -4,14 +4,12 @@ use rspack_core::{
   ChunkUkey, Compilation, CompilationAdditionalChunkRuntimeRequirements, CompilationParams,
   CompilerCompilation, ExternalModule, ExternalRequest, Filename, LibraryName, LibraryNonUmdObject,
   LibraryOptions, PathData, Plugin, RuntimeCodeTemplate, RuntimeGlobals, RuntimeModule,
-  rspack_sources::{ConcatSource, RawStringSource, SourceExt},
+  rspack_sources::{BoxSource, ConcatSource, RawStringSource, SourceExt},
 };
 use rspack_error::{Result, ToStringResultToRspackResultExt, error_bail};
 use rspack_hash::RspackHash;
 use rspack_hook::{plugin, plugin_hook};
-use rspack_plugin_javascript::{
-  JavascriptModulesChunkHash, JavascriptModulesRender, JsPlugin, RenderSource,
-};
+use rspack_plugin_javascript::{JavascriptModulesChunkHash, JavascriptModulesRender, JsPlugin};
 
 use crate::utils::{COMMON_LIBRARY_NAME_MESSAGE, external_module_names, get_options_for_chunk};
 
@@ -83,7 +81,7 @@ async fn render(
   &self,
   compilation: &Compilation,
   chunk_ukey: &ChunkUkey,
-  render_source: &mut RenderSource,
+  render_source: &mut BoxSource,
   _runtime_template: &RuntimeCodeTemplate<'_>,
 ) -> Result<()> {
   let Some(options) = self.get_options_for_chunk(compilation, chunk_ukey)? else {
@@ -174,11 +172,11 @@ async fn render(
   }
   source.add(RawStringSource::from_static("execute: function() {\n"));
   source.add(RawStringSource::from(format!("{dynamic_export}(")));
-  source.add(render_source.source.clone());
+  source.add(render_source.clone());
   source.add(RawStringSource::from_static(")}\n"));
   source.add(RawStringSource::from_static("}\n"));
   source.add(RawStringSource::from_static("\n})"));
-  render_source.source = source.boxed();
+  *render_source = source.boxed();
   Ok(())
 }
 

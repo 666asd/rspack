@@ -11,7 +11,7 @@ use rspack_core::{
   CompilerAssetEmitted, CompilerCompilation, DependencyType, ExportsInfoArtifact, ModuleType,
   NormalModuleFactoryParser, ParserAndGenerator, ParserOptions, Plugin, RuntimeCodeTemplate,
   SideEffectsOptimizeArtifact, get_module_directives, get_module_hashbang,
-  rspack_sources::{ConcatSource, RawStringSource, Source, SourceExt},
+  rspack_sources::{BoxSource, ConcatSource, RawStringSource, Source, SourceExt},
 };
 use rspack_error::{Diagnostic, Result, error};
 use rspack_hook::{plugin, plugin_hook};
@@ -19,7 +19,7 @@ use rspack_paths::{Utf8Path, Utf8PathBuf};
 use rspack_plugin_asset::AssetParserAndGenerator;
 use rspack_plugin_externals::EsmNodeTargetPlugin;
 use rspack_plugin_javascript::{
-  BoxJavascriptParserPlugin, JavascriptModulesRender, JsPlugin, RenderSource,
+  BoxJavascriptParserPlugin, JavascriptModulesRender, JsPlugin,
   parser_and_generator::JavaScriptParserAndGenerator,
 };
 use rspack_util::node_path::NodePath;
@@ -248,7 +248,7 @@ async fn render(
   &self,
   compilation: &Compilation,
   chunk_ukey: &ChunkUkey,
-  render_source: &mut RenderSource,
+  render_source: &mut BoxSource,
   _runtime_template: &RuntimeCodeTemplate<'_>,
 ) -> Result<()> {
   // NOTE: This function handles hashbang and directives for non new ESM library formats.
@@ -272,7 +272,7 @@ async fn render(
       continue;
     }
 
-    let original_source_str = render_source.source.source().into_string_lossy();
+    let original_source_str = render_source.source().into_string_lossy();
 
     let mut new_source = ConcatSource::default();
 
@@ -292,13 +292,13 @@ async fn render(
         for directive in directives {
           new_source.add(RawStringSource::from(format!("{directive}\n")));
         }
-        new_source.add(render_source.source.clone());
+        new_source.add(render_source.clone());
       }
     } else {
-      new_source.add(render_source.source.clone());
+      new_source.add(render_source.clone());
     }
 
-    render_source.source = new_source.boxed();
+    *render_source = new_source.boxed();
     break;
   }
 

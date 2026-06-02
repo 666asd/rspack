@@ -6,7 +6,7 @@ use rspack_core::{
   CompilerCompilation, ExportInfo, ExportProvided, ExportsInfoArtifact, ExportsInfoData,
   GetTargetResult, Module, ModuleGraph, ModuleIdentifier, OptimizationBailoutItem, Plugin,
   RuntimeCodeTemplate, UsageState, get_target,
-  rspack_sources::{ConcatSource, RawStringSource, SourceExt},
+  rspack_sources::{BoxSource, ConcatSource, RawStringSource, SourceExt},
   to_comment_with_nl,
 };
 use rspack_error::Result;
@@ -17,7 +17,7 @@ use rspack_plugin_css::{
   plugin::{CssModulesRenderModulePackage, CssModulesRenderSource},
 };
 use rspack_plugin_javascript::{
-  JavascriptModulesChunkHash, JavascriptModulesRenderModulePackage, JsPlugin, RenderSource,
+  JavascriptModulesChunkHash, JavascriptModulesRenderModulePackage, JsPlugin,
 };
 use rustc_hash::FxHashSet;
 
@@ -236,7 +236,7 @@ async fn render_js_module_package(
   compilation: &Compilation,
   chunk_key: &ChunkUkey,
   module: &dyn Module,
-  render_source: &mut RenderSource,
+  render_source: &mut BoxSource,
   _init_fragments: &mut ChunkInitFragments,
   runtime_template: &RuntimeCodeTemplate<'_>,
 ) -> Result<()> {
@@ -311,9 +311,9 @@ async fn render_js_module_package(
     }
   }
 
-  new_source.add(render_source.source.clone());
+  new_source.add(render_source.clone());
 
-  render_source.source = new_source.boxed();
+  *render_source = new_source.boxed();
 
   Ok(())
 }

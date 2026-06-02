@@ -4,13 +4,13 @@ use rspack_core::{
   ChunkUkey, Compilation, CompilationAdditionalChunkRuntimeRequirements,
   CompilationDependentFullHash, CompilationParams, CompilerCompilation, Plugin,
   RuntimeCodeTemplate, RuntimeGlobals, RuntimeModule,
-  rspack_sources::{ConcatSource, RawStringSource, SourceExt},
+  rspack_sources::{BoxSource, ConcatSource, RawStringSource, SourceExt},
 };
 use rspack_error::Result;
 use rspack_hash::RspackHash;
 use rspack_hook::{plugin, plugin_hook};
 use rspack_plugin_javascript::{
-  JavascriptModulesChunkHash, JavascriptModulesRenderChunk, JsPlugin, RenderSource,
+  JavascriptModulesChunkHash, JavascriptModulesRenderChunk, JsPlugin,
   runtime::render_chunk_runtime_modules,
 };
 use rspack_util::json_stringify_str;
@@ -124,7 +124,7 @@ async fn render_chunk(
   &self,
   compilation: &Compilation,
   chunk_ukey: &ChunkUkey,
-  render_source: &mut RenderSource,
+  render_source: &mut BoxSource,
   runtime_template: &RuntimeCodeTemplate<'_>,
 ) -> Result<()> {
   let hooks = JsPlugin::get_compilation_hooks(compilation.id());
@@ -133,14 +133,16 @@ async fn render_chunk(
     .chunk_by_ukey
     .expect_get(chunk_ukey);
   let base_chunk_output_name = get_chunk_output_name(chunk, compilation).await?;
-  let mut sources = ConcatSource::default();
-  sources.add(RawStringSource::from(format!(
-    "exports.ids = [{}];\n",
-    rspack_util::json_stringify(chunk.expect_id())
-  )));
-  sources.add(RawStringSource::from_static("exports.modules = "));
-  sources.add(render_source.source.clone());
-  sources.add(RawStringSource::from_static(";\n"));
+  let mut sources = ConcatSource::new([
+    RawStringSource::from(format!(
+      "exports.ids = [{}];\n",
+      rspack_util::json_stringify(chunk.expect_id())
+    ))
+    .boxed(),
+    RawStringSource::from_static("exports.modules = ").boxed(),
+    render_source.clone(),
+    RawStringSource::from_static(";\n").boxed(),
+  ]);
   if compilation
     .build_chunk_graph_artifact
     .chunk_graph
@@ -180,9 +182,7 @@ var {} = require({});
       .keys()
       .next_back()
       .expect("should have last entry module");
-    let mut startup_render_source = RenderSource {
-      source: start_up_source,
-    };
+    let mut startup_render_source = start_up_source;
     hooks
       .try_read()
       .expect("should have js plugin drive")
@@ -195,8 +195,8 @@ var {} = require({});
         runtime_template,
       )
       .await?;
-    sources.add(startup_render_source.source);
-    render_source.source = ConcatSource::new(vec![
+    sources.add(startup_render_source);
+    *render_source = ConcatSource::new([
       RawStringSource::from_static("(function() {\n").boxed(),
       sources.boxed(),
       RawStringSource::from_static("\n})()").boxed(),
@@ -204,7 +204,7 @@ var {} = require({});
     .boxed();
     return Ok(());
   }
-  render_source.source = sources.boxed();
+  *render_source = sources.boxed();
   Ok(())
 }
 

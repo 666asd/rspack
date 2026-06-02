@@ -10,7 +10,7 @@ use rspack_core::{
   LibraryName, LibraryNonUmdObject, LibraryOptions, ModuleIdentifier, PathData, Plugin,
   RuntimeCodeTemplate, RuntimeGlobals, RuntimeModule, RuntimeVariable, SideEffectsStateArtifact,
   SourceType, UsageState, get_entry_runtime, property_access,
-  rspack_sources::{ConcatSource, RawStringSource, SourceExt},
+  rspack_sources::{BoxSource, ConcatSource, RawStringSource, SourceExt},
   to_identifier,
 };
 use rspack_error::{Result, ToStringResultToRspackResultExt, error, error_bail};
@@ -18,7 +18,7 @@ use rspack_hash::RspackHash;
 use rspack_hook::{plugin, plugin_hook};
 use rspack_plugin_javascript::{
   JavascriptModulesChunkHash, JavascriptModulesEmbedInRuntimeBailout, JavascriptModulesRender,
-  JavascriptModulesRenderStartup, JavascriptModulesStrictRuntimeBailout, JsPlugin, RenderSource,
+  JavascriptModulesRenderStartup, JavascriptModulesStrictRuntimeBailout, JsPlugin,
 };
 use swc_core::atoms::Atom;
 
@@ -212,7 +212,7 @@ async fn render(
   &self,
   compilation: &Compilation,
   chunk_ukey: &ChunkUkey,
-  render_source: &mut RenderSource,
+  render_source: &mut BoxSource,
   _runtime_template: &RuntimeCodeTemplate<'_>,
 ) -> Result<()> {
   let Some(options) = self.get_options_for_chunk(compilation, chunk_ukey)? else {
@@ -232,10 +232,11 @@ async fn render(
         "Library name base ({base}) must be a valid identifier when using a var declaring library type. Either use a valid identifier (e. g. {base_identifier}) or use a different library type (e. g. `type: 'global'`, which assign a property on the global scope instead of declaring a variable). {COMMON_LIBRARY_NAME_MESSAGE}"
       ));
     }
-    let mut source = ConcatSource::default();
-    source.add(RawStringSource::from(format!("var {base};\n")));
-    source.add(render_source.source.clone());
-    render_source.source = source.boxed();
+    let mut concat_source = ConcatSource::new([
+      RawStringSource::from(format!("var {base};\n")).boxed(),
+      render_source.clone(),
+    ]);
+    *render_source = concat_source.boxed();
     return Ok(());
   }
   Ok(())
@@ -247,14 +248,14 @@ async fn render_startup(
   compilation: &Compilation,
   chunk_ukey: &ChunkUkey,
   module: &ModuleIdentifier,
-  render_source: &mut RenderSource,
+  render_source: &mut BoxSource,
   runtime_template: &RuntimeCodeTemplate<'_>,
 ) -> Result<()> {
   let Some(options) = self.get_options_for_chunk(compilation, chunk_ukey)? else {
     return Ok(());
   };
   let mut source = ConcatSource::default();
-  source.add(render_source.source.clone());
+  source.add(render_source.clone());
   let chunk = compilation
     .build_chunk_graph_artifact
     .chunk_by_ukey
@@ -347,7 +348,7 @@ async fn render_startup(
       access_with_init(&full_name_resolved, self.options.prefix.len(), false)
     )));
   }
-  render_source.source = source.boxed();
+  *render_source = source.boxed();
   Ok(())
 }
 

@@ -4,14 +4,14 @@ use rspack_core::{
   ChunkUkey, Compilation, CompilationParams, CompilerCompilation, ExportProvided, ExportsType,
   LibraryOptions, ModuleGraph, ModuleIdentifier, Plugin, RuntimeCodeTemplate, RuntimeVariable,
   UsedNameItem, property_access,
-  rspack_sources::{ConcatSource, RawStringSource, SourceExt},
+  rspack_sources::{BoxSource, ConcatSource, RawStringSource, SourceExt},
   to_identifier, to_module_export_name,
 };
 use rspack_error::{Result, error_bail};
 use rspack_hash::RspackHash;
 use rspack_hook::{plugin, plugin_hook};
 use rspack_plugin_javascript::{
-  JavascriptModulesChunkHash, JavascriptModulesRenderStartup, JsPlugin, RenderSource,
+  JavascriptModulesChunkHash, JavascriptModulesRenderStartup, JsPlugin,
 };
 
 use crate::utils::{COMMON_LIBRARY_NAME_MESSAGE, get_options_for_chunk};
@@ -61,7 +61,7 @@ async fn render_startup(
   compilation: &Compilation,
   chunk_ukey: &ChunkUkey,
   module: &ModuleIdentifier,
-  render_source: &mut RenderSource,
+  render_source: &mut BoxSource,
   runtime_template: &RuntimeCodeTemplate<'_>,
 ) -> Result<()> {
   let Some(_) = self.get_options_for_chunk(compilation, chunk_ukey)? else {
@@ -71,7 +71,7 @@ async fn render_startup(
   let mut source = ConcatSource::default();
   let is_async = ModuleGraph::is_async(&compilation.async_modules_artifact, module);
   let module_graph = compilation.get_module_graph();
-  source.add(render_source.source.clone());
+  source.add(render_source.clone());
   // export { local as exported }
   let mut exports: Vec<(String, Option<String>)> = vec![];
   if is_async {
@@ -140,7 +140,7 @@ async fn render_startup(
     };
     source.add(RawStringSource::from(exports_string));
   }
-  render_source.source = source.boxed();
+  *render_source = source.boxed();
   Ok(())
 }
 

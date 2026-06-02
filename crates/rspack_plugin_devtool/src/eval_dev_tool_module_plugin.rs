@@ -13,7 +13,7 @@ use rspack_hash::RspackHash;
 use rspack_hook::{plugin, plugin_hook};
 use rspack_plugin_javascript::{
   JavascriptModulesChunkHash, JavascriptModulesInlineInRuntimeBailout,
-  JavascriptModulesRenderModuleContent, JsPlugin, RenderSource,
+  JavascriptModulesRenderModuleContent, JsPlugin,
 };
 use rspack_util::fx_hash::FxDashMap;
 
@@ -90,13 +90,13 @@ async fn render_module_content(
   compilation: &Compilation,
   chunk_ukey: &ChunkUkey,
   module: &dyn Module,
-  render_source: &mut RenderSource,
+  render_source: &mut BoxSource,
   _init_fragments: &mut ChunkInitFragments,
   runtime_template: &RuntimeCodeTemplate<'_>,
 ) -> Result<()> {
-  let origin_source = render_source.source.clone();
+  let origin_source = render_source.clone();
   if let Some(cached_source) = self.cache.get(&origin_source) {
-    render_source.source = cached_source.value().clone();
+    *render_source = cached_source.value().clone();
     return Ok(());
   } else if module.as_external_module().is_some() {
     return Ok(());
@@ -175,7 +175,7 @@ async fn render_module_content(
   };
 
   self.cache.insert(origin_source, source.clone());
-  render_source.source = source;
+  *render_source = source;
   Ok(())
 }
 

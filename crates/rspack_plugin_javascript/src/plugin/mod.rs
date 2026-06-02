@@ -926,9 +926,7 @@ var {} = {{}};
           runtime_template.render_runtime_globals(&RuntimeGlobals::EXPORTS),
         )));
       }
-      let mut render_source = RenderSource {
-        source: startup_sources.boxed(),
-      };
+      let mut render_source = startup_sources.boxed();
       hooks
         .render_startup
         .call(
@@ -939,7 +937,7 @@ var {} = {{}};
           runtime_template,
         )
         .await?;
-      sources.add(render_source.source);
+      sources.add(render_source);
     } else if let Some(last_entry_module) = compilation
       .build_chunk_graph_artifact
       .chunk_graph
@@ -947,9 +945,7 @@ var {} = {{}};
       .keys()
       .next_back()
     {
-      let mut render_source = RenderSource {
-        source: RawStringSource::from(startup.join("\n") + "\n").boxed(),
-      };
+      let mut render_source = RawStringSource::from(startup.join("\n") + "\n").boxed();
       hooks
         .render_startup
         .call(
@@ -960,7 +956,7 @@ var {} = {{}};
           runtime_template,
         )
         .await?;
-      sources.add(render_source.source);
+      sources.add(render_source);
     }
     if has_entry_modules
       && runtime_requirements.contains(RuntimeGlobals::RETURN_EXPORTS_FROM_RUNTIME)
@@ -978,9 +974,7 @@ var {} = {{}};
       chunk_init_fragments,
       &mut ChunkRenderContext {},
     )?;
-    let mut render_source = RenderSource {
-      source: final_source,
-    };
+    let mut render_source = final_source;
     hooks
       .render
       .call(
@@ -991,13 +985,9 @@ var {} = {{}};
       )
       .await?;
     Ok(if iife {
-      ConcatSource::new(vec![
-        render_source.source,
-        RawStringSource::from_static(";").boxed(),
-      ])
-      .boxed()
+      ConcatSource::new([render_source, RawStringSource::from_static(";").boxed()]).boxed()
     } else {
-      render_source.source
+      render_source
     })
   }
 
@@ -1407,9 +1397,7 @@ var {} = {{}};
     )
     .await?
     .unwrap_or_else(|| (RawStringSource::from_static("{}").boxed(), Vec::new()));
-    let mut render_source = RenderSource {
-      source: chunk_modules_source,
-    };
+    let mut render_source = chunk_modules_source;
     hooks
       .render_chunk
       .call(
@@ -1420,13 +1408,11 @@ var {} = {{}};
       )
       .await?;
     let source_with_fragments = render_init_fragments(
-      render_source.source,
+      render_source,
       chunk_init_fragments,
       &mut ChunkRenderContext {},
     )?;
-    let mut render_source = RenderSource {
-      source: source_with_fragments,
-    };
+    let mut render_source = source_with_fragments;
     hooks
       .render
       .call(
@@ -1436,7 +1422,7 @@ var {} = {{}};
         runtime_template,
       )
       .await?;
-    concat_source.add(render_source.source);
+    concat_source.add(render_source);
     if !is_module {
       concat_source.add(RawStringSource::from_static(";"));
     }

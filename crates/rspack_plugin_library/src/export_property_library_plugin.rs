@@ -6,13 +6,13 @@ use rspack_core::{
   CompilerCompilation, EntryData, ExportsInfoArtifact, LibraryExport, LibraryOptions, LibraryType,
   ModuleIdentifier, Plugin, RuntimeCodeTemplate, RuntimeGlobals, RuntimeModule,
   SideEffectsStateArtifact, UsageState, get_entry_runtime, property_access,
-  rspack_sources::{ConcatSource, RawStringSource, SourceExt},
+  rspack_sources::{BoxSource, ConcatSource, RawStringSource, SourceExt},
 };
 use rspack_error::Result;
 use rspack_hash::RspackHash;
 use rspack_hook::{plugin, plugin_hook};
 use rspack_plugin_javascript::{
-  JavascriptModulesChunkHash, JavascriptModulesRenderStartup, JsPlugin, RenderSource,
+  JavascriptModulesChunkHash, JavascriptModulesRenderStartup, JsPlugin,
 };
 
 use crate::utils::get_options_for_chunk;
@@ -76,20 +76,22 @@ async fn render_startup(
   compilation: &Compilation,
   chunk_ukey: &ChunkUkey,
   _module: &ModuleIdentifier,
-  render_source: &mut RenderSource,
+  render_source: &mut BoxSource,
   _runtime_template: &RuntimeCodeTemplate<'_>,
 ) -> Result<()> {
   let Some(options) = self.get_options_for_chunk(compilation, chunk_ukey) else {
     return Ok(());
   };
   if let Some(export) = options.export {
-    let mut s = ConcatSource::default();
-    s.add(render_source.source.clone());
-    s.add(RawStringSource::from(format!(
-      "__webpack_exports__ = __webpack_exports__{};",
-      property_access(export, 0)
-    )));
-    render_source.source = s.boxed();
+    let mut concat_source = ConcatSource::new([
+      render_source.clone(),
+      RawStringSource::from(format!(
+        "var __webpack_exports__ = {};\n",
+        property_access(export, 0)
+      ))
+      .boxed(),
+    ]);
+    *render_source = concat_source.boxed();
     return Ok(());
   }
   Ok(())

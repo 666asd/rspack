@@ -4,13 +4,14 @@ use rspack_core::{
   ChunkInitFragments, ChunkUkey, CodeGenerationDataFilename, Compilation, CompilationParams,
   CompilerCompilation, DependencyId, JavascriptParserUrl, Module, ModuleType,
   NormalModuleFactoryParser, ParserAndGenerator, ParserOptions, Plugin, RuntimeCodeTemplate,
-  URLStaticMode, rspack_sources::ReplaceSource,
+  URLStaticMode,
+  rspack_sources::{BoxSource, ReplaceSource},
 };
 use rspack_error::Result;
 use rspack_hook::{plugin, plugin_hook};
 
 use crate::{
-  JavascriptModulesRenderModuleContent, JsPlugin, RenderSource,
+  JavascriptModulesRenderModuleContent, JsPlugin,
   dependency::{URL_STATIC_PLACEHOLDER, URL_STATIC_PLACEHOLDER_RE},
   parser_and_generator::JavaScriptParserAndGenerator,
 };
@@ -61,7 +62,7 @@ async fn render_module_content(
   compilation: &Compilation,
   chunk_ukey: &ChunkUkey,
   module: &dyn Module,
-  render_source: &mut RenderSource,
+  render_source: &mut BoxSource,
   _init_fragments: &mut ChunkInitFragments,
   _runtime_template: &RuntimeCodeTemplate<'_>,
 ) -> Result<()> {
@@ -75,8 +76,8 @@ async fn render_module_content(
     .code_generation_results
     .get(&module.identifier(), Some(runtime));
   if codegen_result.data.contains::<URLStaticMode>() {
-    let content = render_source.source.source().into_string_lossy();
-    let mut replace_source = ReplaceSource::new(render_source.source.clone());
+    let content = render_source.source().into_string_lossy();
+    let mut replace_source = ReplaceSource::new(render_source.clone());
     let replacement = URL_STATIC_PLACEHOLDER_RE
       .find_iter(&content)
       .map(|cap| (cap.start(), cap.end()));
@@ -105,7 +106,7 @@ async fn render_module_content(
       );
     }
 
-    render_source.source = Arc::new(replace_source);
+    *render_source = Arc::new(replace_source);
   }
   Ok(())
 }

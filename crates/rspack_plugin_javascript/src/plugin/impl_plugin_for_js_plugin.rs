@@ -622,7 +622,7 @@ async fn render_manifest(
         .call(compilation, chunk_ukey, &mut asset_info, &runtime_template)
         .await?
       {
-        source.source
+        source
       } else if is_hot_update {
         self
           .render_chunk(compilation, chunk_ukey, &output_path, &runtime_template)

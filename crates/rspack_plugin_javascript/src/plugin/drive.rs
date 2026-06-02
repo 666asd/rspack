@@ -7,13 +7,13 @@ use rspack_hook::define_hook;
 #[cfg(allocative)]
 use rspack_util::allocative;
 
-define_hook!(JavascriptModulesRenderChunk: Series(compilation: &Compilation, chunk_ukey: &ChunkUkey, source: &mut RenderSource, runtime_template: &RuntimeCodeTemplate<'_>));
-define_hook!(JavascriptModulesRenderChunkContent: SeriesBail(compilation: &Compilation, chunk_ukey: &ChunkUkey, asset_info: &mut AssetInfo, runtime_template: &RuntimeCodeTemplate<'_>) -> RenderSource);
-define_hook!(JavascriptModulesRender: Series(compilation: &Compilation, chunk_ukey: &ChunkUkey, source: &mut RenderSource, runtime_template: &RuntimeCodeTemplate<'_>));
-define_hook!(JavascriptModulesRenderStartup: Series(compilation: &Compilation, chunk_ukey: &ChunkUkey, module: &ModuleIdentifier, source: &mut RenderSource, runtime_template: &RuntimeCodeTemplate<'_>));
-define_hook!(JavascriptModulesRenderModuleContent: Series(compilation: &Compilation, chunk_ukey: &ChunkUkey,module: &dyn Module, source: &mut RenderSource, init_fragments: &mut ChunkInitFragments, runtime_template: &RuntimeCodeTemplate<'_>),tracing=false);
-define_hook!(JavascriptModulesRenderModuleContainer: Series(compilation: &Compilation, chunk_ukey: &ChunkUkey,module: &dyn Module, source: &mut RenderSource, init_fragments: &mut ChunkInitFragments, runtime_template: &RuntimeCodeTemplate<'_>),tracing=false);
-define_hook!(JavascriptModulesRenderModulePackage: Series(compilation: &Compilation, chunk_ukey: &ChunkUkey, module: &dyn Module, source: &mut RenderSource, init_fragments: &mut ChunkInitFragments, runtime_template: &RuntimeCodeTemplate<'_>),tracing=false);
+define_hook!(JavascriptModulesRenderChunk: Series(compilation: &Compilation, chunk_ukey: &ChunkUkey, source: &mut BoxSource, runtime_template: &RuntimeCodeTemplate<'_>));
+define_hook!(JavascriptModulesRenderChunkContent: SeriesBail(compilation: &Compilation, chunk_ukey: &ChunkUkey, asset_info: &mut AssetInfo, runtime_template: &RuntimeCodeTemplate<'_>) -> BoxSource);
+define_hook!(JavascriptModulesRender: Series(compilation: &Compilation, chunk_ukey: &ChunkUkey, source: &mut BoxSource, runtime_template: &RuntimeCodeTemplate<'_>));
+define_hook!(JavascriptModulesRenderStartup: Series(compilation: &Compilation, chunk_ukey: &ChunkUkey, module: &ModuleIdentifier, source: &mut BoxSource, runtime_template: &RuntimeCodeTemplate<'_>));
+define_hook!(JavascriptModulesRenderModuleContent: Series(compilation: &Compilation, chunk_ukey: &ChunkUkey,module: &dyn Module, source: &mut BoxSource, init_fragments: &mut ChunkInitFragments, runtime_template: &RuntimeCodeTemplate<'_>),tracing=false);
+define_hook!(JavascriptModulesRenderModuleContainer: Series(compilation: &Compilation, chunk_ukey: &ChunkUkey,module: &dyn Module, source: &mut BoxSource, init_fragments: &mut ChunkInitFragments, runtime_template: &RuntimeCodeTemplate<'_>),tracing=false);
+define_hook!(JavascriptModulesRenderModulePackage: Series(compilation: &Compilation, chunk_ukey: &ChunkUkey, module: &dyn Module, source: &mut BoxSource, init_fragments: &mut ChunkInitFragments, runtime_template: &RuntimeCodeTemplate<'_>),tracing=false);
 define_hook!(JavascriptModulesChunkHash: Series(compilation: &Compilation, chunk_ukey: &ChunkUkey, hasher: &mut RspackHash));
 define_hook!(JavascriptModulesInlineInRuntimeBailout: SeriesBail(compilation: &Compilation) -> String);
 define_hook!(JavascriptModulesEmbedInRuntimeBailout: SeriesBail(compilation: &Compilation, module: &BoxModule, chunk: &Chunk) -> String);
@@ -44,9 +44,4 @@ pub struct JavascriptModulesPluginHooks {
   pub embed_in_runtime_bailout: JavascriptModulesEmbedInRuntimeBailoutHook,
   #[cfg_attr(allocative, allocative(skip))]
   pub strict_runtime_bailout: JavascriptModulesStrictRuntimeBailoutHook,
-}
-
-#[derive(Debug)]
-pub struct RenderSource {
-  pub source: BoxSource,
 }

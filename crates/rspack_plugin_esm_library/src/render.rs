@@ -7,11 +7,11 @@ use rspack_core::{
   ModuleIdentifier, PathData, PathInfo, RuntimeCodeTemplate, RuntimeGlobals, RuntimeVariable,
   SourceType, export_name, get_js_chunk_filename_template, get_undo_path, render_imports,
   render_init_fragments,
-  rspack_sources::{ConcatSource, RawStringSource, ReplaceSource, Source, SourceExt},
+  rspack_sources::{BoxSource, ConcatSource, RawStringSource, ReplaceSource, Source, SourceExt},
 };
 use rspack_error::Result;
 use rspack_plugin_javascript::{
-  JsPlugin, RenderSource,
+  JsPlugin,
   dependency::{URL_STATIC_PLACEHOLDER, URL_STATIC_PLACEHOLDER_RE},
   runtime::{AUTO_PUBLIC_PATH_PLACEHOLDER, render_module, render_runtime_modules},
 };
@@ -138,7 +138,7 @@ impl EsmLibraryPlugin {
     chunk_ukey: &ChunkUkey,
     asset_info: &mut AssetInfo,
     runtime_template: &RuntimeCodeTemplate<'_>,
-  ) -> Result<Option<RenderSource>> {
+  ) -> Result<Option<BoxSource>> {
     let module_graph = compilation.get_module_graph();
 
     // In this phase we only read from the lock, no write happen in this phase, the
@@ -823,9 +823,7 @@ var {} = {{}};
       final_source
     };
 
-    Ok(Some(RenderSource {
-      source: final_source,
-    }))
+    Ok(Some(final_source))
   }
 
   pub async fn render_runtime(
