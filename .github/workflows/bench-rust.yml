@@ -113,6 +113,7 @@ jobs:
         timeout-minutes: 30
         env:
           TMPDIR: ${{ runner.temp }}/codspeed-valgrind-tmp
+          CODSPEED_LOG: debug
         with:
           mode: walltime
           run: |
