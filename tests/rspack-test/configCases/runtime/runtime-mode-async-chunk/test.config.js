@@ -17,7 +17,10 @@ module.exports = {
       .join("\n");
 
     expect(mainSource).toContain(
-      "var __rspack_context = { r: __webpack_require__ };",
+      'var __rspack_context = typeof __rspack_context !== "undefined" ? __rspack_context : {};',
+    );
+    expect(mainSource).toContain(
+      'if (!__rspack_context.r && typeof __webpack_require__ !== "undefined") __rspack_context.r = __webpack_require__;',
     );
     expect(mainSource).toContain("module.exports, __rspack_context");
     expect(asyncChunkSource).toContain("__rspack_context.d");

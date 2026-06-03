@@ -185,7 +185,10 @@ async fn runtime_requirements_in_tree(
     runtime_requirements_mut.insert(RuntimeGlobals::ENSURE_CHUNK_HANDLERS);
   }
 
-  if runtime_requirements.contains(RuntimeGlobals::ENSURE_CHUNK) {
+  if runtime_requirements.contains(RuntimeGlobals::ENSURE_CHUNK)
+    || (!compilation.options.output.module
+      && runtime_requirements.contains(RuntimeGlobals::ENSURE_CHUNK_HANDLERS))
+  {
     let c = compilation
       .build_chunk_graph_artifact
       .chunk_by_ukey
@@ -210,7 +213,6 @@ async fn runtime_requirements_in_tree(
       .map(|library| library.library_type.clone())
   };
 
-  let runtime_template = compilation.runtime_template.create_runtime_code_template();
   #[allow(clippy::collapsible_match)]
   for runtime_requirement in runtime_requirements.iter() {
     match runtime_requirement {
@@ -258,12 +260,12 @@ async fn runtime_requirements_in_tree(
       RuntimeGlobals::GET_CHUNK_SCRIPT_FILENAME => {
         runtime_modules_to_add.push((
           *chunk_ukey,
-          GetChunkFilenameRuntimeModule::new(
+          GetChunkFilenameRuntimeModule::new_with_runtime_global(
             &compilation.runtime_template,
             "javascript",
             "javascript",
             SourceType::JavaScript,
-            runtime_template.render_runtime_globals(&RuntimeGlobals::GET_CHUNK_SCRIPT_FILENAME),
+            RuntimeGlobals::GET_CHUNK_SCRIPT_FILENAME,
             |_| false,
             |chunk, compilation| {
               chunk_has_js(&chunk.ukey(), compilation).then(|| {
@@ -281,12 +283,12 @@ async fn runtime_requirements_in_tree(
       RuntimeGlobals::GET_CHUNK_CSS_FILENAME => {
         runtime_modules_to_add.push((
           *chunk_ukey,
-          GetChunkFilenameRuntimeModule::new(
+          GetChunkFilenameRuntimeModule::new_with_runtime_global(
             &compilation.runtime_template,
             "css",
             "css",
             SourceType::Css,
-            runtime_template.render_runtime_globals(&RuntimeGlobals::GET_CHUNK_CSS_FILENAME),
+            RuntimeGlobals::GET_CHUNK_CSS_FILENAME,
             |runtime_requirements| {
               runtime_requirements.contains(RuntimeGlobals::HMR_DOWNLOAD_UPDATE_HANDLERS)
             },

@@ -2,9 +2,10 @@ use std::hash::Hash;
 
 use rspack_core::{
   ChunkGraph, ChunkKind, ChunkUkey, Compilation, CompilationAdditionalChunkRuntimeRequirements,
-  CompilationParams, CompilerCompilation, Plugin, RuntimeCodeTemplate, RuntimeGlobals,
-  RuntimeModule, RuntimeVariable,
+  CompilationParams, CompilerCompilation, Plugin, RuntimeCodeTemplate, RuntimeGlobalRenderMode,
+  RuntimeGlobals, RuntimeModule, RuntimeVariable,
   rspack_sources::{ConcatSource, RawStringSource, SourceExt},
+  runtime_mode::RuntimeMode,
 };
 use rspack_error::Result;
 use rspack_hash::RspackHash;
@@ -132,7 +133,14 @@ async fn render_chunk(
     source.add(render_source.source.clone());
     if has_runtime_modules {
       source.add(RawStringSource::from_static(","));
-      source.add(render_chunk_runtime_modules(compilation, chunk_ukey, runtime_template).await?);
+      if compilation.options.experiments.runtime_mode == RuntimeMode::Rspack {
+        let runtime_template = compilation
+          .runtime_template
+          .create_runtime_code_template_with_render_mode(RuntimeGlobalRenderMode::RspackModule);
+        source.add(render_chunk_runtime_modules(compilation, chunk_ukey, &runtime_template).await?);
+      } else {
+        source.add(render_chunk_runtime_modules(compilation, chunk_ukey, runtime_template).await?);
+      }
     }
     source.add(RawStringSource::from_static(")"));
   } else {
@@ -149,10 +157,24 @@ async fn render_chunk(
     source.add(render_source.source.clone());
     let has_entry = chunk.has_entry_module(&compilation.build_chunk_graph_artifact.chunk_graph);
     if has_entry || has_runtime_modules {
+      let rspack_module_runtime_template;
+      let runtime_template = if compilation.options.experiments.runtime_mode == RuntimeMode::Rspack
+      {
+        rspack_module_runtime_template = compilation
+          .runtime_template
+          .create_runtime_code_template_with_render_mode(RuntimeGlobalRenderMode::RspackModule);
+        &rspack_module_runtime_template
+      } else {
+        runtime_template
+      };
+      let runtime_arguments = if runtime_template.uses_runtime_context() {
+        runtime_template.render_runtime_variable(&RuntimeVariable::Context)
+      } else {
+        runtime_template.render_runtime_globals(&RuntimeGlobals::REQUIRE)
+      };
       source.add(RawStringSource::from_static(","));
       source.add(RawStringSource::from(format!(
-        "function({}) {{\n",
-        runtime_template.render_runtime_globals(&RuntimeGlobals::REQUIRE)
+        "function({runtime_arguments}) {{\n",
       )));
       if has_runtime_modules {
         source.add(render_runtime_modules(compilation, chunk_ukey, runtime_template).await?);

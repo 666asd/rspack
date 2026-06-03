@@ -605,6 +605,12 @@ pub async fn process_chunks_runtime_requirements(
       ChunkGraph::get_tree_runtime_requirements(compilation, &entry_ukey)
         .renderable_require_scope(),
     );
+    metadata
+      .context_setter_fields
+      .insert(metadata.runtime_module_requirements);
+    metadata
+      .context_setter_fields
+      .insert(metadata.hook_exposed_requirements);
     compilation
       .runtime_proxy_metadata_artifact
       .insert(entry_ukey, metadata);

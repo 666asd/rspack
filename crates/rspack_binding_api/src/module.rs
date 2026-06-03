@@ -733,6 +733,8 @@ pub struct JsExecuteModuleArg {
   pub runtime_modules: Vec<String>,
   pub codegen_results: JsCodegenerationResults,
   pub id: u32,
+  pub public_path: Option<String>,
+  pub base_uri: Option<String>,
 }
 
 #[derive(Default)]

@@ -25,6 +25,7 @@ pub struct GetChunkFilenameRuntimeModule {
   content_type: &'static str,
   source_type: SourceType,
   global: String,
+  runtime_global: Option<RuntimeGlobals>,
   #[cacheable(with=Unsupported)]
   all_chunks: GetChunkFilenameAllChunks,
   #[cacheable(with=Unsupported)]
@@ -39,6 +40,7 @@ impl fmt::Debug for GetChunkFilenameRuntimeModule {
       .field("content_type", &self.content_type)
       .field("source_type", &self.source_type)
       .field("global", &self.global)
+      .field("runtime_global", &self.runtime_global)
       .field("all_chunks", &"...")
       .finish()
   }
@@ -65,6 +67,31 @@ impl GetChunkFilenameRuntimeModule {
       content_type,
       source_type,
       global,
+      None,
+      Box::new(all_chunks),
+      Box::new(filename_for_chunk),
+    )
+  }
+
+  pub fn new_with_runtime_global<
+    F: Fn(&RuntimeGlobals) -> bool + Sync + Send + 'static,
+    T: Fn(&Chunk, &Compilation) -> Option<Filename> + Sync + Send + 'static,
+  >(
+    runtime_template: &RuntimeTemplate,
+    content_type: &'static str,
+    name: &'static str,
+    source_type: SourceType,
+    runtime_global: RuntimeGlobals,
+    all_chunks: F,
+    filename_for_chunk: T,
+  ) -> Self {
+    Self::with_name(
+      runtime_template,
+      &format!("get {name} chunk filename"),
+      content_type,
+      source_type,
+      String::new(),
+      Some(runtime_global),
       Box::new(all_chunks),
       Box::new(filename_for_chunk),
     )
@@ -386,7 +413,9 @@ impl RuntimeModule for GetChunkFilenameRuntimeModule {
     }
 
     let source = runtime_template.render(&self.id, Some(serde_json::json!({
-      "_global": self.global,
+      "_global": self.runtime_global.as_ref().map(|runtime_global| {
+        runtime_template.render_runtime_globals(runtime_global)
+      }).unwrap_or_else(|| self.global.clone()),
       "_static_urls": static_urls
                         .iter()
                         .map(|(filename, chunk_ids)| stringify_static_chunk_map(filename, chunk_ids))

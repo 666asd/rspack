@@ -2734,24 +2734,39 @@ impl ConcatenatedModule {
           .get(&binding.info_id)
           .and_then(|info| info.try_as_concatenated())
           .expect("should have concatenate module info");
-        let name = info.internal_names.get(export_id).unwrap_or_else(|| {
-          panic!(
-            "The export \"{}\" in \"{}\" has no internal name (existing names: {})",
-            export_id,
-            get_cached_readable_identifier(
-              &info.module,
-              module_graph,
-              module_static_cache,
-              context
-            ),
-            info
-              .internal_names
-              .iter()
-              .map(|(name, symbol)| format!("{name}: {symbol}"))
-              .collect::<Vec<String>>()
-              .join(", ")
-          )
-        });
+        let name = info
+          .internal_names
+          .get(export_id)
+          .or_else(|| {
+            export_id
+              .as_str()
+              .starts_with("__nested_rspack_require_")
+              .then(|| {
+                info
+                  .internal_names
+                  .iter()
+                  .find_map(|(key, value)| (key.as_str() == "__webpack_require__").then_some(value))
+              })
+              .flatten()
+          })
+          .unwrap_or_else(|| {
+            panic!(
+              "The export \"{}\" in \"{}\" has no internal name (existing names: {})",
+              export_id,
+              get_cached_readable_identifier(
+                &info.module,
+                module_graph,
+                module_static_cache,
+                context
+              ),
+              info
+                .internal_names
+                .iter()
+                .map(|(name, symbol)| format!("{name}: {symbol}"))
+                .collect::<Vec<String>>()
+                .join(", ")
+            )
+          });
         let reference = format!(
           "{}{}{}",
           name,

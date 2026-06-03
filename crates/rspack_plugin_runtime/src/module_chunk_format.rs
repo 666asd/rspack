@@ -3,8 +3,10 @@ use std::hash::Hash;
 use rspack_core::{
   ChunkGraph, ChunkKind, ChunkUkey, Compilation, CompilationAdditionalChunkRuntimeRequirements,
   CompilationDependentFullHash, CompilationParams, CompilerCompilation, ModuleIdentifier, Plugin,
-  RuntimeCodeTemplate, RuntimeGlobals, RuntimeModule, RuntimeVariable, SourceType,
+  RuntimeCodeTemplate, RuntimeGlobalRenderMode, RuntimeGlobals, RuntimeModule, RuntimeVariable,
+  SourceType,
   rspack_sources::{ConcatSource, RawStringSource, Source, SourceExt},
+  runtime_mode::RuntimeMode,
 };
 use rspack_error::Result;
 use rspack_hash::RspackHash;
@@ -66,6 +68,7 @@ async fn additional_chunk_runtime_requirements(
     .get_number_of_entry_modules(chunk_ukey)
     > 0
   {
+    runtime_requirements.insert(RuntimeGlobals::REQUIRE);
     runtime_requirements.insert(RuntimeGlobals::EXTERNAL_INSTALL_CHUNK);
   }
 
@@ -143,6 +146,16 @@ async fn render_chunk(
     .chunk_by_ukey
     .expect_get(chunk_ukey);
   let base_chunk_output_name = get_chunk_output_name(chunk, compilation).await?;
+  let rspack_module_runtime_template;
+  let chunk_runtime_template =
+    if compilation.options.experiments.runtime_mode == RuntimeMode::Rspack {
+      rspack_module_runtime_template = compilation
+        .runtime_template
+        .create_runtime_code_template_with_render_mode(RuntimeGlobalRenderMode::RspackModule);
+      &rspack_module_runtime_template
+    } else {
+      runtime_template
+    };
 
   let chunk_id_expr = rspack_util::json_stringify(chunk.expect_id());
 
@@ -168,7 +181,14 @@ async fn render_chunk(
     sources.add(RawStringSource::from_static(
       "export const __rspack_esm_runtime = ",
     ));
-    sources.add(render_chunk_runtime_modules(compilation, chunk_ukey, runtime_template).await?);
+    if matches!(chunk.kind(), ChunkKind::HotUpdate)
+      && compilation.options.experiments.runtime_mode == RuntimeMode::Rspack
+    {
+      sources
+        .add(render_chunk_runtime_modules(compilation, chunk_ukey, chunk_runtime_template).await?);
+    } else {
+      sources.add(render_chunk_runtime_modules(compilation, chunk_ukey, runtime_template).await?);
+    }
     sources.add(RawStringSource::from_static(";\n"));
   }
 
@@ -179,9 +199,14 @@ async fn render_chunk(
 
   if chunk.has_entry_module(&compilation.build_chunk_graph_artifact.chunk_graph) {
     let runtime_chunk_output_name = get_runtime_chunk_output_name(compilation, chunk_ukey).await?;
+    let runtime_import = if chunk_runtime_template.uses_runtime_context() {
+      chunk_runtime_template.render_runtime_variable(&RuntimeVariable::Context)
+    } else {
+      chunk_runtime_template.render_runtime_variable(&RuntimeVariable::Require)
+    };
     sources.add(RawStringSource::from(format!(
       "import {{ {} }} from '{}';\n",
-      runtime_template.render_runtime_globals(&RuntimeGlobals::REQUIRE),
+      runtime_import,
       get_relative_path(
         base_chunk_output_name
           .trim_start_matches("/")
@@ -202,9 +227,9 @@ async fn render_chunk(
 
     startup_source.push(format!(
       "var {} = function(moduleId) {{ return {}({} = moduleId); }}",
-      runtime_template.render_runtime_variable(&RuntimeVariable::StartupExec),
-      runtime_template.render_runtime_globals(&RuntimeGlobals::REQUIRE),
-      runtime_template.render_runtime_globals(&RuntimeGlobals::ENTRY_MODULE_ID)
+      chunk_runtime_template.render_runtime_variable(&RuntimeVariable::StartupExec),
+      chunk_runtime_template.render_runtime_globals(&RuntimeGlobals::REQUIRE),
+      chunk_runtime_template.render_runtime_globals(&RuntimeGlobals::ENTRY_MODULE_ID)
     ));
 
     let module_graph = compilation.get_module_graph();
@@ -260,7 +285,7 @@ async fn render_chunk(
         let index_str2 = index_buffer2.format(index);
         startup_source.push(format!(
           "{}(__rspack_chunk_{});",
-          runtime_template.render_runtime_globals(&RuntimeGlobals::EXTERNAL_INSTALL_CHUNK),
+          chunk_runtime_template.render_runtime_globals(&RuntimeGlobals::EXTERNAL_INSTALL_CHUNK),
           index_str2
         ));
       }
@@ -280,13 +305,14 @@ async fn render_chunk(
           } else {
             String::new()
           },
-          runtime_template.render_runtime_variable(&RuntimeVariable::StartupExec),
+          chunk_runtime_template.render_runtime_variable(&RuntimeVariable::StartupExec),
         ));
       }
     }
 
     if use_startup_entrypoint && !entry_module_ids.is_empty() {
-      let startup_exec = runtime_template.render_runtime_variable(&RuntimeVariable::StartupExec);
+      let startup_exec =
+        chunk_runtime_template.render_runtime_variable(&RuntimeVariable::StartupExec);
       let module_ids_code = entry_module_ids
         .iter()
         .map(|module_id_expr| format!("{startup_exec}({module_id_expr})"))
@@ -295,7 +321,7 @@ async fn render_chunk(
       startup_source.push(format!(
         "var {} = {}(0, [], function() {{\n        return {};\n      }});",
         runtime_template.render_runtime_variable(&RuntimeVariable::Exports),
-        runtime_template.render_runtime_globals(&RuntimeGlobals::STARTUP_ENTRYPOINT),
+        chunk_runtime_template.render_runtime_globals(&RuntimeGlobals::STARTUP_ENTRYPOINT),
         module_ids_code
       ));
     }
@@ -316,7 +342,7 @@ async fn render_chunk(
         chunk_ukey,
         last_entry_module,
         &mut render_source,
-        runtime_template,
+        chunk_runtime_template,
       )
       .await?;
     sources.add(render_source.source);

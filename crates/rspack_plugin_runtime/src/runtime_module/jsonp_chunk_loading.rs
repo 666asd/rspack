@@ -7,7 +7,7 @@ use rspack_core::{
 };
 use rspack_plugin_javascript::impl_plugin_for_js_plugin::chunk_has_js;
 
-use super::generate_javascript_hmr_runtime;
+use super::{generate_javascript_hmr_runtime, utils::render_runtime_require};
 use crate::{
   LinkPrefetchData, LinkPreloadData, RuntimeModuleChunkWrapper, RuntimePlugin,
   extract_runtime_globals_from_ejs, get_chunk_runtime_requirements,
@@ -417,6 +417,7 @@ impl RuntimeModule for JsonpChunkLoadingRuntimeModule {
         Some(serde_json::json!({
           "_chunk_loading_global_expr": &chunk_loading_global_expr,
           "_with_on_chunk_load": with_on_chunk_load,
+          "RUNTIME_REQUIRE": render_runtime_require(runtime_template),
         })),
       )?;
 

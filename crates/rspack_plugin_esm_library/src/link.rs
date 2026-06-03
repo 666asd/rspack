@@ -12,11 +12,12 @@ use rspack_core::{
   ConditionalInitFragment, DependencyType, ExportInfo, ExportMode, ExportProvided,
   ExportsInfoArtifact, ExportsType, FindTargetResult, ImportSpec, InitFragmentKey, ModuleGraph,
   ModuleGraphCacheArtifact, ModuleIdentifier, ModuleInfo, NAMESPACE_OBJECT_EXPORT, PathData,
-  RuntimeGlobals, SideEffectsStateArtifact, SourceType, URLStaticMode, UsageState, UsedName,
-  UsedNameItem, collect_ident, escape_name_atom_ref, find_new_name, find_target,
-  get_cached_readable_identifier, get_js_chunk_filename_template, get_module_directives,
-  get_module_hashbang, property_access, property_name, reserved_names::RESERVED_NAMES_ATOM_SET,
-  rspack_sources::ReplaceSource, split_readable_identifier, to_normal_comment,
+  RuntimeGlobalRenderMode, RuntimeGlobals, SideEffectsStateArtifact, SourceType, URLStaticMode,
+  UsageState, UsedName, UsedNameItem, collect_ident, escape_name_atom_ref, find_new_name,
+  find_target, get_cached_readable_identifier, get_js_chunk_filename_template,
+  get_module_directives, get_module_hashbang, property_access, property_name,
+  reserved_names::RESERVED_NAMES_ATOM_SET, rspack_sources::ReplaceSource,
+  runtime_mode::RuntimeMode as ExperimentRuntimeMode, split_readable_identifier, to_normal_comment,
 };
 use rspack_error::{Diagnostic, Error, Result};
 use rspack_plugin_javascript::{
@@ -640,7 +641,14 @@ impl EsmLibraryPlugin {
           changed = true;
 
           let module_info = concate_modules_map[module_info_id].as_concatenated();
-          let mut runtime_template = compilation.runtime_template.create_module_code_template();
+          let mut runtime_template =
+            if compilation.options.experiments.runtime_mode == ExperimentRuntimeMode::Rspack {
+              compilation
+                .runtime_template
+                .create_module_code_template_with_render_mode(RuntimeGlobalRenderMode::RspackModule)
+            } else {
+              compilation.runtime_template.create_module_code_template()
+            };
 
           let module_graph = compilation.get_module_graph();
           let box_module = module_graph
@@ -2615,8 +2623,11 @@ var {} = {{}};
         let runtime_requirements = info.get_runtime_requirements();
         if !runtime_requirements.is_empty() && runtime_chunk != *chunk {
           let runtime_template = compilation.runtime_template.create_runtime_code_template();
-          let require_symbol: Atom = runtime_template
-            .render_runtime_globals(&RuntimeGlobals::REQUIRE)
+          let require_symbol: Atom = compilation
+            .options
+            .experiments
+            .runtime_mode
+            .render_module_factory_require_argument(&runtime_template)
             .into();
           if !runtime_chunks_exporting_require_via_runtime_module.contains(&runtime_chunk) {
             Self::add_chunk_export(

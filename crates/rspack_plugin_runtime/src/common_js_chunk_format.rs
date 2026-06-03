@@ -1,10 +1,11 @@
 use std::hash::Hash;
 
 use rspack_core::{
-  ChunkUkey, Compilation, CompilationAdditionalChunkRuntimeRequirements,
+  ChunkKind, ChunkUkey, Compilation, CompilationAdditionalChunkRuntimeRequirements,
   CompilationDependentFullHash, CompilationParams, CompilerCompilation, Plugin,
-  RuntimeCodeTemplate, RuntimeGlobals, RuntimeModule,
+  RuntimeCodeTemplate, RuntimeGlobalRenderMode, RuntimeGlobals, RuntimeModule, RuntimeVariable,
   rspack_sources::{ConcatSource, RawStringSource, SourceExt},
+  runtime_mode::RuntimeMode,
 };
 use rspack_error::Result;
 use rspack_hash::RspackHash;
@@ -147,24 +148,56 @@ async fn render_chunk(
     .has_chunk_runtime_modules(chunk_ukey)
   {
     sources.add(RawStringSource::from_static("exports.runtime = "));
-    sources.add(render_chunk_runtime_modules(compilation, chunk_ukey, runtime_template).await?);
+    if matches!(chunk.kind(), ChunkKind::HotUpdate)
+      && compilation.options.experiments.runtime_mode == RuntimeMode::Rspack
+    {
+      let runtime_template = compilation
+        .runtime_template
+        .create_runtime_code_template_with_render_mode(RuntimeGlobalRenderMode::RspackModule);
+      sources.add(render_chunk_runtime_modules(compilation, chunk_ukey, &runtime_template).await?);
+    } else {
+      sources.add(render_chunk_runtime_modules(compilation, chunk_ukey, runtime_template).await?);
+    }
     sources.add(RawStringSource::from_static(";\n"));
   }
 
   if chunk.has_entry_module(&compilation.build_chunk_graph_artifact.chunk_graph) {
+    let rspack_module_runtime_template;
+    let runtime_template = if compilation.options.experiments.runtime_mode == RuntimeMode::Rspack {
+      rspack_module_runtime_template = compilation
+        .runtime_template
+        .create_runtime_code_template_with_render_mode(RuntimeGlobalRenderMode::RspackModule);
+      &rspack_module_runtime_template
+    } else {
+      runtime_template
+    };
     let runtime_chunk_output_name = get_runtime_chunk_output_name(compilation, chunk_ukey).await?;
-    sources.add(RawStringSource::from(format!(
-      r#"// load runtime
+    let runtime_require_path = json_stringify_str(&get_relative_path(
+      base_chunk_output_name
+        .trim_start_matches("/")
+        .trim_start_matches("\\"),
+      &runtime_chunk_output_name,
+    ));
+    if runtime_template.uses_runtime_context() {
+      sources.add(RawStringSource::from(format!(
+        r#"// load runtime
+var {} = require({});
+var {} = {}.r;
+"#,
+        runtime_template.render_runtime_variable(&RuntimeVariable::Context),
+        runtime_require_path,
+        runtime_template.render_runtime_variable(&RuntimeVariable::Require),
+        runtime_template.render_runtime_variable(&RuntimeVariable::Context)
+      )));
+    } else {
+      sources.add(RawStringSource::from(format!(
+        r#"// load runtime
 var {} = require({});
 "#,
-      runtime_template.render_runtime_globals(&RuntimeGlobals::REQUIRE),
-      json_stringify_str(&get_relative_path(
-        base_chunk_output_name
-          .trim_start_matches("/")
-          .trim_start_matches("\\"),
-        &runtime_chunk_output_name
-      ))
-    )));
+        runtime_template.render_runtime_globals(&RuntimeGlobals::REQUIRE),
+        runtime_require_path
+      )));
+    }
     sources.add(RawStringSource::from(format!(
       "{}(exports)\n",
       runtime_template.render_runtime_globals(&RuntimeGlobals::EXTERNAL_INSTALL_CHUNK),

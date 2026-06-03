@@ -22,9 +22,7 @@ describeByWalk(
 		);
 	},
 	{
-		source: path.resolve(__dirname, "./hotCases/runtime"),
-		dist: path.resolve(__dirname, "./js/runtime-mode-hot-web"),
-		level: 1,
-		exclude: [/^(?!accept$)/]
+		source: path.resolve(__dirname, "./hotCases"),
+		dist: path.resolve(__dirname, "./js/runtime-mode-hot-web")
 	}
 );

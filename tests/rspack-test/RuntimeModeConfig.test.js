@@ -14,9 +14,7 @@ describeByWalk(
 		createConfigCase(name, src, dist, rspackRuntimeModeOptions);
 	},
 	{
-		source: path.join(__dirname, "configCases/runtime"),
-		dist: path.resolve(__dirname, "./js/runtime-mode-config"),
-		level: 1,
-		exclude: [/^(?!runtime-mode-)/]
+		source: path.join(__dirname, "configCases"),
+		dist: path.resolve(__dirname, "./js/runtime-mode-config")
 	}
 );

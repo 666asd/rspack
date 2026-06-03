@@ -582,6 +582,7 @@ impl RuntimeGlobals {
     self
       .intersection(*REQUIRE_SCOPE_GLOBALS)
       .difference(RuntimeGlobals::REQUIRE_SCOPE)
+      .difference(RuntimeGlobals::HMR_RUNTIME_STATE_PREFIX)
   }
 
   pub fn to_lexical_name(&self) -> Option<&str> {

@@ -33,7 +33,29 @@ module.exports = {
               path: a.path,
             }));
             assetsInfo.sort((a, b) => (a.path > b.path ? 1 : -1));
-            expect(assetsInfo).toMatchInlineSnapshot(`
+            if (globalThis.__RSPACK_TEST_RUNTIME_MODE_RSPACK) {
+              expect(assetsInfo).toMatchInlineSnapshot(`
+                Array [
+                  Object {
+                    path: a.js,
+                    size: 13370,
+                  },
+                  Object {
+                    path: b.js,
+                    size: 13370,
+                  },
+                  Object {
+                    path: c_js.js,
+                    size: 213,
+                  },
+                  Object {
+                    path: d_js.js,
+                    size: 213,
+                  },
+                ]
+              `);
+            } else {
+              expect(assetsInfo).toMatchInlineSnapshot(`
               Array [
                 Object {
                   path: a.js,
@@ -53,6 +75,7 @@ module.exports = {
                 },
               ]
             `);
+            }
           });
         });
       },

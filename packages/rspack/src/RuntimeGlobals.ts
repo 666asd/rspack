@@ -469,6 +469,7 @@ export function renderModulePrefix(
 
 export enum RuntimeVariable {
   Require,
+  Context,
   Modules,
   ModuleCache,
   Module,
@@ -483,6 +484,8 @@ export function renderRuntimeVariables(
   switch (variable) {
     case RuntimeVariable.Require:
       return '__webpack_require__';
+    case RuntimeVariable.Context:
+      return '__rspack_context';
     case RuntimeVariable.Modules:
       return '__webpack_modules__';
     case RuntimeVariable.ModuleCache:

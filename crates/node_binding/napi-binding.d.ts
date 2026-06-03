@@ -859,6 +859,8 @@ export interface JsExecuteModuleArg {
   runtimeModules: Array<string>
   codegenResults: JsCodegenerationResults
   id: number
+  publicPath?: string
+  baseUri?: string
 }
 
 export interface JsExecuteModuleResult {

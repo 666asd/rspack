@@ -4,7 +4,7 @@ use itertools::Itertools;
 use rspack_core::{
   BooleanMatcher, ChunkUkey, Compilation, RuntimeGlobals, RuntimeModule,
   RuntimeModuleGenerateContext, RuntimeModuleStage, RuntimeTemplate, compile_boolean_matcher,
-  impl_runtime_module,
+  impl_runtime_module, runtime_mode::RuntimeMode as ExperimentRuntimeMode,
 };
 use rspack_error::Result;
 use rspack_plugin_runtime::{
@@ -30,8 +30,10 @@ static CSS_LOADING_WITH_PRELOAD_TEMPLATE: &str =
 static CSS_LOADING_WITH_PRELOAD_LINK_TEMPLATE: &str =
   include_str!("./runtime/css_loading_with_preload_link.ejs");
 
-static CSS_LOADING_BASIC_RUNTIME_REQUIREMENTS: LazyLock<RuntimeGlobals> =
-  LazyLock::new(|| extract_runtime_globals_from_ejs(CSS_LOADING_TEMPLATE));
+static CSS_LOADING_BASIC_RUNTIME_REQUIREMENTS: LazyLock<RuntimeGlobals> = LazyLock::new(|| {
+  extract_runtime_globals_from_ejs(CSS_LOADING_TEMPLATE)
+    | extract_runtime_globals_from_ejs(CSS_LOADING_CREATE_LINK_TEMPLATE)
+});
 static CSS_LOADING_WITH_LOADING_RUNTIME_REQUIREMENTS: LazyLock<RuntimeGlobals> =
   LazyLock::new(|| extract_runtime_globals_from_ejs(CSS_LOADING_WITH_LOADING_TEMPLATE));
 static CSS_LOADING_WITH_HMR_RUNTIME_REQUIREMENTS: LazyLock<RuntimeGlobals> =
@@ -136,6 +138,14 @@ enum TemplateId {
 
 #[async_trait::async_trait]
 impl RuntimeModule for CssLoadingRuntimeModule {
+  fn additional_runtime_requirements(&self, compilation: &Compilation) -> RuntimeGlobals {
+    if compilation.options.experiments.runtime_mode == ExperimentRuntimeMode::Rspack {
+      RuntimeGlobals::SCRIPT_NONCE
+    } else {
+      RuntimeGlobals::default()
+    }
+  }
+
   fn stage(&self) -> RuntimeModuleStage {
     RuntimeModuleStage::Attach
   }

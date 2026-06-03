@@ -7,7 +7,10 @@ use rspack_core::{
 };
 use rspack_plugin_javascript::impl_plugin_for_js_plugin::chunk_has_js;
 
-use super::{generate_javascript_hmr_runtime, utils::get_output_dir};
+use super::{
+  generate_javascript_hmr_runtime,
+  utils::{get_output_dir, render_runtime_require},
+};
 use crate::{
   extract_runtime_globals_from_ejs, get_chunk_runtime_requirements,
   runtime_module::utils::{get_initial_chunk_ids, stringify_chunks},
@@ -255,7 +258,8 @@ impl RuntimeModule for ReadFileChunkLoadingRuntimeModule {
           "_with_on_chunk_loaded": match with_on_chunk_load {
             true => format!("{}();", runtime_template.render_runtime_globals(&RuntimeGlobals::ON_CHUNKS_LOADED)),
             false => String::new(),
-          }
+          },
+          "RUNTIME_REQUIRE": render_runtime_require(runtime_template),
         })),
       )?;
 
@@ -294,7 +298,9 @@ impl RuntimeModule for ReadFileChunkLoadingRuntimeModule {
     if with_external_install_chunk {
       let source_with_external_install_chunk = runtime_template.render(
         &self.template_id(TemplateId::WithExternalInstallChunk),
-        None,
+        Some(serde_json::json!({
+          "RUNTIME_REQUIRE": render_runtime_require(runtime_template),
+        })),
       )?;
 
       source.push_str(&source_with_external_install_chunk);

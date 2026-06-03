@@ -6,8 +6,8 @@
 
 use rspack_cacheable::cacheable;
 use rspack_core::{
-  DependencyId, RuntimeModule, RuntimeModuleGenerateContext, RuntimeModuleStage, RuntimeTemplate,
-  impl_runtime_module,
+  DependencyId, RuntimeGlobalRenderMode, RuntimeModule, RuntimeModuleGenerateContext,
+  RuntimeModuleStage, RuntimeTemplate, impl_runtime_module, runtime_mode::RuntimeMode,
 };
 use rspack_error::Result;
 
@@ -92,7 +92,14 @@ impl RuntimeModule for EmbedFederationRuntimeModule {
 
     // Generate module execution code for each federation runtime dependency
     let mut module_executions = String::with_capacity(federation_runtime_modules.len() * 64);
-    let mut runtime_template = compilation.runtime_template.create_module_code_template();
+    let render_mode = if compilation.options.experiments.runtime_mode == RuntimeMode::Rspack {
+      RuntimeGlobalRenderMode::RspackModule
+    } else {
+      RuntimeGlobalRenderMode::Webpack
+    };
+    let mut runtime_template = compilation
+      .runtime_template
+      .create_module_code_template_with_render_mode(render_mode);
 
     for dep_id in federation_runtime_modules {
       let module_str = runtime_template.module_raw(compilation, &dep_id, "", false);

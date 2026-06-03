@@ -61,6 +61,18 @@ import {
   runSyncOrAsync,
 } from './utils';
 
+const pathToFileUri = (resourcePath: string) => {
+  const normalizedPath = resourcePath.replace(/\\/g, '/');
+  const pathname = normalizedPath.startsWith('/')
+    ? normalizedPath
+    : `/${normalizedPath}`;
+  return `file://${pathname}`.replace(/#/g, '%23').replace(/\?/g, '%3F');
+};
+
+const getDefaultBaseUri = (resourcePath: string) => {
+  return pathToFileUri(resourcePath);
+};
+
 const LOADER_PROCESS_NAME = 'Loader Analysis';
 
 function createLoaderObject(
@@ -411,24 +423,27 @@ export async function runLoaders(
     }
     if (!callback) {
       return new Promise((resolve, reject) => {
+        const baseUri =
+          options.baseUri ?? getDefaultBaseUri(context.resourcePath);
         compiler
           ._lastCompilation!.__internal_getInner()
           .importModule(
             request,
             options.layer,
             options.publicPath,
-            options.baseUri,
+            baseUri,
             context._module.identifier(),
             loaderContext.context,
             finalCallback(reject, resolve),
           );
       });
     }
+    const baseUri = options.baseUri ?? getDefaultBaseUri(context.resourcePath);
     return compiler._lastCompilation!.__internal_getInner().importModule(
       request,
       options.layer,
       options.publicPath,
-      options.baseUri,
+      baseUri,
       context._module.identifier(),
       loaderContext.context,
       finalCallback(

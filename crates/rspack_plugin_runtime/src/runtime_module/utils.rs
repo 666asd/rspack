@@ -1,7 +1,8 @@
 use std::fmt::Write as _;
 
 use rspack_core::{
-  Chunk, ChunkLoading, ChunkUkey, Compilation, PathData, RuntimeCodeTemplate, SourceType,
+  Chunk, ChunkLoading, ChunkUkey, Compilation, PathData, RuntimeCodeTemplate, RuntimeGlobals,
+  RuntimeVariable, SourceType,
   chunk_graph_chunk::{ChunkId, ChunkIdSet},
   get_js_chunk_filename_template, get_undo_path,
 };
@@ -239,8 +240,17 @@ pub fn generate_javascript_hmr_runtime(
     Some(serde_json::json!({
       "_loading_method": method,
       "_is_hot_test": is_hot_test(),
+      "RUNTIME_REQUIRE": render_runtime_require(runtime_template),
     })),
   )
+}
+
+pub fn render_runtime_require(runtime_template: &RuntimeCodeTemplate) -> String {
+  if runtime_template.uses_runtime_context() {
+    runtime_template.render_runtime_variable(&RuntimeVariable::Context)
+  } else {
+    runtime_template.render_runtime_globals(&RuntimeGlobals::REQUIRE)
+  }
 }
 
 #[cfg(test)]

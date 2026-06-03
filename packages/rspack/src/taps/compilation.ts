@@ -5,6 +5,8 @@ import {
   __from_binding_runtime_globals,
   __to_binding_runtime_globals,
   isReservedRuntimeGlobal,
+  renderRuntimeVariables,
+  RuntimeVariable,
 } from '../RuntimeGlobals';
 import { createRenderedRuntimeModule } from '../RuntimeModule';
 import { createHash } from '../util/createHash';
@@ -200,6 +202,8 @@ export const createCompilationHooksRegisters: CreatePartialRegisters<
           id,
           codegenResults,
           runtimeModules,
+          publicPath: executePublicPath,
+          baseUri,
         }: binding.JsExecuteModuleArg) {
           try {
             const RuntimeGlobals = getCompiler().rspack.RuntimeGlobals;
@@ -225,7 +229,19 @@ export const createCompilationHooksRegisters: CreatePartialRegisters<
                 handler(execOptions);
               }
 
-              const result = codegenResults.map[id]['build time'];
+              const resultEntry =
+                codegenResults.map[id] ??
+                codegenResults.map[
+                  Object.keys(codegenResults.map).find(
+                    (key) => key === id || key.endsWith(id),
+                  )!
+                ];
+              if (resultEntry === undefined) {
+                throw new Error(
+                  `Cannot find build-time code generation result for ${JSON.stringify(id)}`,
+                );
+              }
+              const result = resultEntry['build time'];
 
               const moduleObject = execOptions.module;
 
@@ -238,7 +254,10 @@ export const createCompilationHooksRegisters: CreatePartialRegisters<
                       codeGenerationResult: new CodeGenerationResult(result),
                       moduleObject,
                     },
-                    { [RuntimeGlobals.require]: moduleRequireFn },
+                    {
+                      [RuntimeGlobals.require]: moduleRequireFn,
+                      [runtimeContextName]: runtimeContext,
+                    },
                   ),
                 'Compilation.hooks.executeModule',
               );
@@ -259,11 +278,118 @@ export const createCompilationHooksRegisters: CreatePartialRegisters<
                   '',
                 )
               ] = []);
+            const runtimeContext: Record<PropertyKey, any> = {
+              r: moduleRequireFn,
+            };
+            const runtimeContextName = renderRuntimeVariables(
+              RuntimeVariable.Context,
+              getCompiler().options,
+            );
+            const pathToFileUri = (resourcePath: string) => {
+              const normalizedPath = resourcePath.replace(/\\/g, '/');
+              const pathname = normalizedPath.startsWith('/')
+                ? normalizedPath
+                : `/${normalizedPath}`;
+              return `file://${pathname}`
+                .replace(/#/g, '%23')
+                .replace(/\?/g, '%3F');
+            };
+            const entryResource = String(entry).split('!').pop();
+            if (baseUri) {
+              runtimeContext[
+                RuntimeGlobals.baseURI.replace(`${RuntimeGlobals.require}.`, '')
+              ] ??= baseUri;
+            } else if (entryResource) {
+              runtimeContext[
+                RuntimeGlobals.baseURI.replace(`${RuntimeGlobals.require}.`, '')
+              ] ??= pathToFileUri(entryResource);
+            }
 
             for (const runtimeModule of runtimeModules) {
               moduleRequireFn(runtimeModule);
             }
 
+            for (const key of Reflect.ownKeys(moduleRequireFn)) {
+              if (key === 'r') continue;
+              runtimeContext[key] =
+                moduleRequireFn[key as keyof typeof moduleRequireFn];
+            }
+            const publicPathKey = RuntimeGlobals.publicPath.replace(
+              `${RuntimeGlobals.require}.`,
+              '',
+            );
+            const publicPath =
+              executePublicPath ?? getCompiler().options.output.publicPath;
+            if (
+              runtimeContext[publicPathKey] === undefined &&
+              typeof publicPath === 'string' &&
+              publicPath !== 'auto'
+            ) {
+              runtimeContext[publicPathKey] = publicPath;
+            }
+            const definePropertyGettersKey =
+              RuntimeGlobals.definePropertyGetters.replace(
+                `${RuntimeGlobals.require}.`,
+                '',
+              );
+            const makeNamespaceObjectKey =
+              RuntimeGlobals.makeNamespaceObject.replace(
+                `${RuntimeGlobals.require}.`,
+                '',
+              );
+            const compatGetDefaultExportKey =
+              RuntimeGlobals.compatGetDefaultExport.replace(
+                `${RuntimeGlobals.require}.`,
+                '',
+              );
+            const hasOwnPropertyKey = RuntimeGlobals.hasOwnProperty.replace(
+              `${RuntimeGlobals.require}.`,
+              '',
+            );
+            runtimeContext[hasOwnPropertyKey] ??= (obj: object, prop: string) =>
+              Object.prototype.hasOwnProperty.call(obj, prop);
+            runtimeContext[definePropertyGettersKey] ??= (
+              exports: any,
+              definition: Record<string, () => any>,
+            ) => {
+              for (const key in definition) {
+                if (
+                  runtimeContext[hasOwnPropertyKey](definition, key) &&
+                  !runtimeContext[hasOwnPropertyKey](exports, key)
+                ) {
+                  Object.defineProperty(exports, key, {
+                    enumerable: true,
+                    get: definition[key],
+                  });
+                }
+              }
+            };
+            const makeNamespaceObject =
+              moduleRequireFn[
+                makeNamespaceObjectKey as keyof typeof moduleRequireFn
+              ] ??
+              ((exports: any) => {
+                if (typeof Symbol !== 'undefined' && Symbol.toStringTag) {
+                  Object.defineProperty(exports, Symbol.toStringTag, {
+                    value: 'Module',
+                  });
+                }
+                Object.defineProperty(exports, '__esModule', {
+                  value: true,
+                });
+              });
+            if (makeNamespaceObjectKey !== 'r') {
+              runtimeContext[makeNamespaceObjectKey] = makeNamespaceObject;
+            }
+            runtimeContext.ns = runtimeContext.ns ?? makeNamespaceObject;
+            runtimeContext[compatGetDefaultExportKey] ??= (module: any) => {
+              const getter =
+                module && module.__esModule
+                  ? () => module.default
+                  : () => module;
+              runtimeContext[definePropertyGettersKey](getter, { a: getter });
+              return getter;
+            };
             const executeResult = moduleRequireFn(entry);
             getCompiler()
               .__internal__get_module_execution_results_map()

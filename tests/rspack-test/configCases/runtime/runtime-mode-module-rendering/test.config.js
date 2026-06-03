@@ -9,11 +9,13 @@ module.exports = {
       "utf-8",
     );
 
-    expect(source).toContain("var __rspack_context = { r: __webpack_require__ };");
+    expect(source).toContain(
+      'var __rspack_context = typeof __rspack_context !== "undefined" ? __rspack_context : {};',
+    );
     expect(source).toContain("__rspack_context.d");
     expect(source).toContain("__rspack_context.ns");
-    expect(source).toContain("__rspack_context.d = definePropertyGetters");
-    expect(source).toContain("__rspack_context.ns = makeNamespaceObject");
+    expect(source).toContain('Object.defineProperty(__rspack_context, "d"');
+    expect(source).toContain('Object.defineProperty(__rspack_context, "ns"');
     expect(source).toContain("module.exports, __rspack_context");
     expect(source).toContain("definePropertyGetters =");
     expect(source).toContain("makeNamespaceObject =");

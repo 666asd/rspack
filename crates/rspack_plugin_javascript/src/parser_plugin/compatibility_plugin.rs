@@ -72,6 +72,31 @@ impl CompatibilityPlugin {
       }),
     );
   }
+
+  fn tag_updated_nested_require_data(
+    &self,
+    parser: &mut JavascriptParser,
+    name: Atom,
+    rename: String,
+    in_short_hand: bool,
+    start: u32,
+    end: u32,
+  ) {
+    parser.tag_variable(
+      name,
+      NESTED_IDENTIFIER_TAG,
+      Some(NestedRequireData {
+        name: rename.clone(),
+        update: true,
+        loc: DependencyRange::new(start, end),
+        in_short_hand,
+      }),
+    );
+    parser.add_presentational_dependency(Box::new(ConstDependency::new(
+      DependencyRange::new(start, end),
+      rename.into(),
+    )));
+  }
 }
 
 #[rspack_macros::implemented_javascript_parser_hooks]
@@ -180,9 +205,24 @@ impl JavascriptParserPlugin for CompatibilityPlugin {
     let ident = fn_decl.ident()?;
     let name = &ident.sym;
     if name.as_str() != parser.parser_runtime_requirements.require {
+      return None;
+    }
+
+    let is_nested_webpack_bootstrap = if parser.is_top_level_scope() {
+      true
+    } else {
+      parser
+        .source
+        .get(fn_decl.span().real_lo() as usize..fn_decl.span().real_hi() as usize)
+        .is_some_and(|source| {
+          source.contains("__webpack_modules__") || source.contains("__webpack_module_cache__")
+        })
+    };
+
+    if !is_nested_webpack_bootstrap {
       None
     } else {
-      self.tag_nested_require_data(
+      self.tag_updated_nested_require_data(
         parser,
         name.clone(),
         {

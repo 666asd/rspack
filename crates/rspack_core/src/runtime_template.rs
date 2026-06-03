@@ -31,9 +31,12 @@ use crate::{
 
 pub struct RuntimeTemplate {
   compiler_options: Arc<CompilerOptions>,
-  runtime_globals: Arc<Map<String, Value>>,
-  runtime_global_render_mode: RuntimeGlobalRenderMode,
-  dojang: Option<Dojang>,
+  webpack_runtime_globals: Arc<Map<String, Value>>,
+  rspack_module_runtime_globals: Arc<Map<String, Value>>,
+  rspack_runtime_globals: Arc<Map<String, Value>>,
+  webpack_dojang: Option<Dojang>,
+  rspack_module_dojang: Option<Dojang>,
+  rspack_dojang: Option<Dojang>,
 }
 
 static RUNTIME_GLOBALS_PATTERN: LazyLock<Regex> =
@@ -70,13 +73,7 @@ impl Debug for RuntimeTemplate {
 
 impl RuntimeTemplate {
   pub fn new(compiler_options: Arc<CompilerOptions>) -> Self {
-    let runtime_global_render_mode =
-      if compiler_options.experiments.runtime_mode == RuntimeMode::Rspack {
-        RuntimeGlobalRenderMode::RspackRuntimeModule
-      } else {
-        RuntimeGlobalRenderMode::Webpack
-      };
-    let runtime_globals = Arc::new(
+    let webpack_runtime_globals = Arc::new(
       RuntimeGlobals::all()
         .iter_names()
         .map(|(name, value)| {
@@ -85,96 +82,82 @@ impl RuntimeTemplate {
             Value::String(render_runtime_globals_by_mode(
               &value,
               &compiler_options,
-              runtime_global_render_mode,
+              RuntimeGlobalRenderMode::Webpack,
+            )),
+          )
+        })
+        .collect::<Map<String, Value>>(),
+    );
+    let rspack_runtime_globals = Arc::new(
+      RuntimeGlobals::all()
+        .iter_names()
+        .map(|(name, value)| {
+          (
+            name.to_string(),
+            Value::String(render_runtime_globals_by_mode(
+              &value,
+              &compiler_options,
+              RuntimeGlobalRenderMode::RspackRuntimeModule,
+            )),
+          )
+        })
+        .collect::<Map<String, Value>>(),
+    );
+    let rspack_module_runtime_globals = Arc::new(
+      RuntimeGlobals::all()
+        .iter_names()
+        .map(|(name, value)| {
+          (
+            name.to_string(),
+            Value::String(render_runtime_globals_by_mode(
+              &value,
+              &compiler_options,
+              RuntimeGlobalRenderMode::RspackModule,
             )),
           )
         })
         .collect::<Map<String, Value>>(),
     );
 
-    let mut dojang = Dojang::new();
-    let runtime_globals_cloned = runtime_globals.clone();
-    let compiler_options_cloned = compiler_options.clone();
-    dojang.functions.insert(
-      "basicFunction".into(),
-      FunctionContainer::F1(Box::new(move |args: Operand| {
-        dojang_basic_function(args, &runtime_globals_cloned, &compiler_options_cloned)
-      })),
+    let webpack_dojang =
+      create_runtime_module_dojang(webpack_runtime_globals.clone(), compiler_options.clone());
+    let rspack_module_dojang = create_runtime_module_dojang(
+      rspack_module_runtime_globals.clone(),
+      compiler_options.clone(),
     );
-
-    let runtime_globals_cloned = runtime_globals.clone();
-    let compiler_options_cloned = compiler_options.clone();
-    dojang.functions.insert(
-      "returningFunction".into(),
-      FunctionContainer::F2(Box::new(move |args: Operand, return_value: Operand| {
-        dojang_returning_function(
-          args,
-          return_value,
-          &runtime_globals_cloned,
-          &compiler_options_cloned,
-        )
-      })),
-    );
-
-    let runtime_globals_cloned = runtime_globals.clone();
-    let compiler_options_cloned = compiler_options.clone();
-    dojang.functions.insert(
-      "expressionFunction".into(),
-      FunctionContainer::F2(Box::new(move |args: Operand, expression: Operand| {
-        dojang_expression_function(
-          args,
-          expression,
-          &runtime_globals_cloned,
-          &compiler_options_cloned,
-        )
-      })),
-    );
-
-    let compiler_options_cloned = compiler_options.clone();
-    dojang.functions.insert(
-      "emptyFunction".into(),
-      FunctionContainer::F0(Box::new(move || {
-        dojang_empty_function(&compiler_options_cloned)
-      })),
-    );
-
-    let runtime_globals_cloned = runtime_globals.clone();
-    let compiler_options_cloned = compiler_options.clone();
-    dojang.functions.insert(
-      "destructureArray".into(),
-      FunctionContainer::F2(Box::new(move |items: Operand, value: Operand| {
-        dojang_array_destructure(
-          items,
-          value,
-          &runtime_globals_cloned,
-          &compiler_options_cloned,
-        )
-      })),
-    );
+    let rspack_dojang =
+      create_runtime_module_dojang(rspack_runtime_globals.clone(), compiler_options.clone());
 
     Self {
       compiler_options,
-      runtime_globals,
-      runtime_global_render_mode,
-      dojang: Some(dojang),
+      webpack_runtime_globals,
+      rspack_module_runtime_globals,
+      rspack_runtime_globals,
+      webpack_dojang: Some(webpack_dojang),
+      rspack_module_dojang: Some(rspack_module_dojang),
+      rspack_dojang: Some(rspack_dojang),
     }
   }
 
   pub fn add_templates(&mut self, templates: Vec<(String, String)>) {
     for (key, template) in templates {
-      if !self
-        .dojang
-        .as_ref()
-        .expect("dojang should be initialized")
-        .templates
-        .contains_key(&key)
-      {
-        self
-          .dojang
-          .as_mut()
+      for dojang in [
+        &mut self.webpack_dojang,
+        &mut self.rspack_module_dojang,
+        &mut self.rspack_dojang,
+      ] {
+        if !dojang
+          .as_ref()
           .expect("dojang should be initialized")
-          .add_with_option(key.clone(), template)
-          .unwrap_or_else(|_| panic!("failed to add template {key}"));
+          .templates
+          .contains_key(&key)
+        {
+          dojang
+            .as_mut()
+            .expect("dojang should be initialized")
+            .add_with_option(key.clone(), template.clone())
+            .unwrap_or_else(|_| panic!("failed to add template {key}"));
+        }
       }
     }
   }
@@ -212,13 +195,115 @@ impl RuntimeTemplate {
   }
 
   pub fn create_runtime_code_template<'a>(&'a self) -> RuntimeCodeTemplate<'a> {
+    let render_mode = if self.compiler_options.experiments.runtime_mode == RuntimeMode::Rspack {
+      RuntimeGlobalRenderMode::RspackRuntimeModule
+    } else {
+      RuntimeGlobalRenderMode::Webpack
+    };
+    self.create_runtime_code_template_with_render_mode(render_mode)
+  }
+
+  pub fn create_runtime_code_template_with_render_mode<'a>(
+    &'a self,
+    render_mode: RuntimeGlobalRenderMode,
+  ) -> RuntimeCodeTemplate<'a> {
+    let (runtime_globals, dojang) = match render_mode {
+      RuntimeGlobalRenderMode::RspackRuntimeModule => (
+        self.rspack_runtime_globals.clone(),
+        self
+          .rspack_dojang
+          .as_ref()
+          .expect("dojang should be initialized"),
+      ),
+      RuntimeGlobalRenderMode::RspackModule => (
+        self.rspack_module_runtime_globals.clone(),
+        self
+          .rspack_module_dojang
+          .as_ref()
+          .expect("dojang should be initialized"),
+      ),
+      RuntimeGlobalRenderMode::Webpack => (
+        self.webpack_runtime_globals.clone(),
+        self
+          .webpack_dojang
+          .as_ref()
+          .expect("dojang should be initialized"),
+      ),
+    };
     RuntimeCodeTemplate::new(
       self.compiler_options.clone(),
-      self.runtime_globals.clone(),
-      self.dojang.as_ref().expect("dojang should be initialized"),
-      self.runtime_global_render_mode,
+      runtime_globals,
+      dojang,
+      render_mode,
     )
   }
+}
+
+fn create_runtime_module_dojang(
+  runtime_globals: Arc<Map<String, Value>>,
+  compiler_options: Arc<CompilerOptions>,
+) -> Dojang {
+  let mut dojang = Dojang::new();
+  let runtime_globals_cloned = runtime_globals.clone();
+  let compiler_options_cloned = compiler_options.clone();
+  dojang.functions.insert(
+    "basicFunction".into(),
+    FunctionContainer::F1(Box::new(move |args: Operand| {
+      dojang_basic_function(args, &runtime_globals_cloned, &compiler_options_cloned)
+    })),
+  );
+
+  let runtime_globals_cloned = runtime_globals.clone();
+  let compiler_options_cloned = compiler_options.clone();
+  dojang.functions.insert(
+    "returningFunction".into(),
+    FunctionContainer::F2(Box::new(move |args: Operand, return_value: Operand| {
+      dojang_returning_function(
+        args,
+        return_value,
+        &runtime_globals_cloned,
+        &compiler_options_cloned,
+      )
+    })),
+  );
+
+  let runtime_globals_cloned = runtime_globals.clone();
+  let compiler_options_cloned = compiler_options.clone();
+  dojang.functions.insert(
+    "expressionFunction".into(),
+    FunctionContainer::F2(Box::new(move |args: Operand, expression: Operand| {
+      dojang_expression_function(
+        args,
+        expression,
+        &runtime_globals_cloned,
+        &compiler_options_cloned,
+      )
+    })),
+  );
+
+  let compiler_options_cloned = compiler_options.clone();
+  dojang.functions.insert(
+    "emptyFunction".into(),
+    FunctionContainer::F0(Box::new(move || {
+      dojang_empty_function(&compiler_options_cloned)
+    })),
+  );
+
+  let runtime_globals_cloned = runtime_globals.clone();
+  let compiler_options_cloned = compiler_options.clone();
+  dojang.functions.insert(
+    "destructureArray".into(),
+    FunctionContainer::F2(Box::new(move |items: Operand, value: Operand| {
+      dojang_array_destructure(
+        items,
+        value,
+        &runtime_globals_cloned,
+        &compiler_options_cloned,
+      )
+    })),
+  );
+
+  dojang
 }
 
 fn render_runtime_globals_by_mode(
@@ -238,6 +323,16 @@ fn render_runtime_globals_by_mode(
         );
       }
 
+      if runtime_globals == &RuntimeGlobals::HMR_RUNTIME_STATE_PREFIX
+        && let Some(name) = runtime_globals.property_name()
+      {
+        return format!(
+          "{}.r{}",
+          runtime_variable_to_string(&RuntimeVariable::Context, compiler_options),
+          property_access([name], 0)
+        );
+      }
+
       if runtime_globals.renderable_require_scope() == *runtime_globals
         && let Some(name) = runtime_globals.context_property_name()
       {
@@ -251,8 +346,24 @@ fn render_runtime_globals_by_mode(
       runtime_globals_to_string(runtime_globals, compiler_options)
     }
     RuntimeGlobalRenderMode::RspackRuntimeModule => {
-      if runtime_globals != &RuntimeGlobals::HMR_RUNTIME_STATE_PREFIX
-        && runtime_globals.renderable_require_scope() == *runtime_globals
+      if runtime_globals == &RuntimeGlobals::REQUIRE {
+        return format!(
+          "{}.r",
+          runtime_variable_to_string(&RuntimeVariable::Context, compiler_options)
+        );
+      }
+
+      if runtime_globals == &RuntimeGlobals::HMR_RUNTIME_STATE_PREFIX
+        && let Some(name) = runtime_globals.property_name()
+      {
+        return format!(
+          "{}.r{}",
+          runtime_variable_to_string(&RuntimeVariable::Context, compiler_options),
+          property_access([name], 0)
+        );
+      }
+
+      if runtime_globals.renderable_require_scope() == *runtime_globals
         && let Some(name) = runtime_globals.to_lexical_name()
       {
         return name.to_string();
@@ -1558,6 +1669,14 @@ impl<'a> RuntimeCodeTemplate<'a> {
 
   pub fn render_runtime_variable(&self, runtime_variable: &RuntimeVariable) -> String {
     runtime_variable_to_string(runtime_variable, &self.compiler_options)
+  }
+
+  pub fn uses_runtime_context(&self) -> bool {
+    self.render_mode != RuntimeGlobalRenderMode::Webpack
+  }
+
+  pub fn uses_lexical_runtime_globals(&self) -> bool {
+    self.render_mode == RuntimeGlobalRenderMode::RspackRuntimeModule
   }
 
   pub fn render_exports_argument(&self, exports_argument: ExportsArgument) -> String {
