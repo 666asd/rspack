@@ -1753,6 +1753,8 @@ impl JavascriptParser<'_> {
   }
 
   fn walk_simple_assign_target(&mut self, target: &SimpleAssignTarget) {
+    let old_in_assign_target = self.in_assign_target;
+    self.in_assign_target = true;
     match target {
       SimpleAssignTarget::Ident(ident) => self.walk_identifier(ident),
       SimpleAssignTarget::Member(member) => self.walk_member_expression(member),
@@ -1766,6 +1768,7 @@ impl JavascriptParser<'_> {
       | SimpleAssignTarget::TsInstantiation(_)
       | SimpleAssignTarget::Invalid(_) => unreachable!(),
     }
+    self.in_assign_target = old_in_assign_target;
   }
 
   fn walk_assign_target_pattern(&mut self, pat: &AssignTargetPat) {

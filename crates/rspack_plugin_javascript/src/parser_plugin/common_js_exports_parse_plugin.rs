@@ -248,6 +248,7 @@ fn handle_access_export(
     remaining.to_vec(),
     remaining_optionals.to_vec(),
     call_args.is_some(),
+    parser.in_assign_target,
   )));
   if let Some(call_args) = call_args {
     parser.walk_expr_or_spread(call_args);

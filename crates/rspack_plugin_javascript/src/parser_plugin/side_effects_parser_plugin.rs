@@ -13,10 +13,11 @@ use swc_core::{
   },
   ecma::{
     ast::{
-      ArrayPat, ArrowExpr, AssignPat, AssignPatProp, BlockStmt, BlockStmtOrExpr, Class,
-      ClassMember, Decl, ExportSpecifier, Expr, ExprOrSpread, Function, ImportSpecifier,
-      KeyValuePatProp, ModuleDecl, ModuleExportName, ModuleItem, ObjectPat, ObjectPatProp, Pat,
-      Program, PropName, RestPat, Stmt, VarDecl, VarDeclKind, VarDeclOrExpr,
+      ArrayPat, ArrowExpr, AssignExpr, AssignOp, AssignPat, AssignPatProp, BlockStmt,
+      BlockStmtOrExpr, Class, ClassMember, Decl, ExportSpecifier, Expr, ExprOrSpread, Function,
+      ImportSpecifier, KeyValuePatProp, Lit, MemberProp, ModuleDecl, ModuleExportName, ModuleItem,
+      ObjectPat, ObjectPatProp, Pat, Program, PropName, RestPat, SimpleAssignTarget, Stmt, VarDecl,
+      VarDeclKind, VarDeclOrExpr,
     },
     utils::{ExprCtx, ExprExt},
     visit::{Visit, VisitWith},
@@ -1566,6 +1567,46 @@ pub fn is_pure_function<'a>(
   true
 }
 
+fn is_common_js_export_assignment(expr: &AssignExpr) -> bool {
+  if !matches!(expr.op, AssignOp::Assign) {
+    return false;
+  }
+
+  let Some(SimpleAssignTarget::Member(member)) = expr.left.as_simple() else {
+    return false;
+  };
+
+  let mut members = Vec::new();
+  let mut current_member = member;
+
+  loop {
+    match &current_member.prop {
+      MemberProp::Ident(ident) => members.push(ident.sym.clone()),
+      MemberProp::Computed(computed) => match computed.expr.as_ref() {
+        Expr::Lit(Lit::Str(str)) => members.push(str.value.to_atom_lossy().into_owned()),
+        _ => return false,
+      },
+      MemberProp::PrivateName(_) => return false,
+    }
+
+    match current_member.obj.as_ref() {
+      Expr::Ident(ident) => {
+        members.push(ident.sym.clone());
+        break;
+      }
+      Expr::Member(inner_member) => {
+        current_member = inner_member;
+      }
+      _ => return false,
+    }
+  }
+
+  members.reverse();
+
+  matches!(members.as_slice(), [first, ..] if first == "exports" && members.len() > 1)
+    || matches!(members.as_slice(), [first, second, ..] if first == "module" && second == "exports")
+}
+
 #[inline(never)]
 pub fn is_pure_expression<'a>(
   parser: &mut JavascriptParser,
@@ -1603,6 +1644,16 @@ pub fn is_pure_expression<'a>(
         unresolved_ctxt,
         comments,
       ),
+      Expr::Assign(assign_expr) if is_common_js_export_assignment(assign_expr) => {
+        is_pure_expression(
+          parser,
+          analyze_side_effects_free,
+          &assign_expr.right,
+          unresolved_ctxt,
+          comments,
+          callees,
+        )
+      }
       Expr::Paren(_) => unreachable!(),
       Expr::Seq(seq_expr) => {
         for expr in &seq_expr.exprs {

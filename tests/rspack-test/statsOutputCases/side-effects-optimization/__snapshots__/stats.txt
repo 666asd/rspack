@@ -10,7 +10,6 @@ cacheable modules xx KiB
       ModuleConcatenation bailout: List of module exports is dynamic (huh : maybe provided (runtime-defined) and used in main)
     ./node_modules/big-module/log.js xx bytes [built] [code generated]
       [only some exports used: huh]
-      Statement with side_effects in source code at ./node_modules/big-module/log.js<LINE_COL_RANGE>
       ModuleConcatenation bailout: List of module exports is dynamic (huh : maybe provided (runtime-defined) and used in main)
   modules by path ./node_modules/module-with-export/*.js xx KiB
     ./node_modules/module-with-export/index.js xx KiB [built] [code generated]
