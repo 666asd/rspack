@@ -1,6 +1,8 @@
 const path = require("path");
 const { describeByWalk, createConfigCase } = require("@rspack/test-tools");
 
+process.env.RSPACK_TEST_RUNTIME_MODE_RSPACK = "true";
+
 describeByWalk(
 	__filename,
 	(name, src, dist) => {

@@ -154,9 +154,6 @@ export default defineConfig({
     exclude: [
       'NativeWatcher*.test.js',
     ],
-    env: {
-      RSPACK_TEST_RUNTIME_MODE_RSPACK: 'true',
-    },
   }],
   reporters,
   pool: {
