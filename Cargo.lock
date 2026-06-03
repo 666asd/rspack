@@ -5133,6 +5133,7 @@ dependencies = [
 name = "rspack_sources"
 version = "0.100.6"
 dependencies = [
+ "bumpalo",
  "dyn-clone",
  "memchr",
  "regex",

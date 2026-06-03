@@ -17,6 +17,7 @@ codspeed         = []
 rspack_cacheable = ["dep:rkyv"]
 
 [dependencies]
+bumpalo           = { workspace = true, features = ["collections"] }
 dyn-clone         = { workspace = true }
 memchr            = { workspace = true, features = ["std"] }
 rkyv              = { workspace = true, optional = true }

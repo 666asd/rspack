@@ -23,6 +23,7 @@ pub fn get_map<'a>(
   chunks: &'a dyn Chunks,
   options: &MapOptions,
 ) -> Option<SourceMap> {
+  let _allocation_scope = object_pool.scope();
   let mut mappings_encoder = create_encoder(options.columns);
   let mut sources: Vec<String> = Vec::new();
   let mut sources_content: Vec<Arc<str>> = Vec::new();
