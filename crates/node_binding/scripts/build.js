@@ -47,7 +47,8 @@ async function build() {
 		const use_build_std = values.profile === "release"
 			|| values.profile === "release-debug"
 			|| values.profile === "release-wasi"
-			|| values.profile === "profiling";
+			|| values.profile === "profiling"
+			|| values.profile === "bloaty";
 
 		if (values.profile) {
 			args.push("--profile", values.profile);

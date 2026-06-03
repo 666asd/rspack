@@ -482,6 +482,11 @@ lto             = "thin"
 split-debuginfo = "off"
 strip           = false
 
+[profile.bloaty]
+debug    = "full"
+inherits = "profiling"
+strip    = "none"
+
 [profile.release-wasi]
 debug     = 'full'
 inherits  = "release"

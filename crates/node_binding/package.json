@@ -20,6 +20,7 @@
     "build:debug": "node scripts/build.js --profile release-debug",
     "build:ci": "node scripts/build.js --profile ci",
     "build:profiling": "node scripts/build.js --profile profiling",
+    "build:bloaty": "node scripts/build.js --profile bloaty",
     "build:release": "node scripts/build.js --profile release",
     "build:dev:wasm": "DISABLE_PLUGIN=1 RUST_TARGET=wasm32-wasip1-threads node scripts/build.js",
     "build:release:wasm": "DISABLE_PLUGIN=1 RUST_TARGET=wasm32-wasip1-threads node scripts/build.js --profile release-wasi",
