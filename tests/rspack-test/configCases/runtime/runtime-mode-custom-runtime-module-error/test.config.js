@@ -1,4 +1,4 @@
 /** @type {import("../../../..").TConfigCaseConfig} */
 module.exports = {
-  error: true,
+  findBundle: () => ['bundle0.js'],
 };

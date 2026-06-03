@@ -3,7 +3,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 
 use super::*;
 use crate::{
-  CodeGenerationRuntimeRequirementsWrite, RuntimeProxyMetadata, cache::Cache,
+  ChunkKind, CodeGenerationRuntimeRequirementsWrite, RuntimeProxyMetadata, cache::Cache,
   compilation::pass::PassExt, logger::Logger, runtime_mode::RuntimeMode as ExperimentRuntimeMode,
 };
 
@@ -517,12 +517,14 @@ pub async fn process_chunks_runtime_requirements(
     return Ok(());
   }
 
-  let mut has_custom_runtime_module = false;
   for &entry_ukey in &entries {
     let entry = compilation
       .build_chunk_graph_artifact
       .chunk_by_ukey
       .expect_get(&entry_ukey);
+    if entry.kind() == ChunkKind::HotUpdate {
+      continue;
+    }
     let referenced_chunks =
       entry.get_all_referenced_chunks(&compilation.build_chunk_graph_artifact.chunk_group_by_ukey);
     let mut metadata = RuntimeProxyMetadata::default();
@@ -532,6 +534,9 @@ pub async fn process_chunks_runtime_requirements(
         .build_chunk_graph_artifact
         .chunk_by_ukey
         .expect_get(chunk_ukey);
+      if chunk.kind() == ChunkKind::HotUpdate {
+        continue;
+      }
       for mid in compilation
         .build_chunk_graph_artifact
         .chunk_graph
@@ -576,11 +581,23 @@ pub async fn process_chunks_runtime_requirements(
             .additional_runtime_requirements(compilation)
             .renderable_require_scope(),
         );
-        if runtime_module.get_custom_source().is_some()
-          || runtime_module.get_constructor_name() == "RuntimeModuleFromJs"
-        {
-          metadata.has_custom_runtime_module = true;
-        }
+      }
+
+      let chunk_runtime_requirements =
+        ChunkGraph::get_chunk_runtime_requirements(compilation, chunk_ukey);
+      if chunk_runtime_requirements.intersects(RuntimeGlobals::HMR_DOWNLOAD_UPDATE_HANDLERS) {
+        metadata
+          .runtime_module_requirements
+          .insert(RuntimeGlobals::ENSURE_CHUNK_HANDLERS);
+      }
+      if chunk_runtime_requirements.intersects(
+        RuntimeGlobals::ENSURE_CHUNK_HANDLERS
+          | RuntimeGlobals::LOAD_SCRIPT
+          | RuntimeGlobals::CREATE_SCRIPT,
+      ) {
+        metadata
+          .runtime_module_requirements
+          .insert(RuntimeGlobals::SCRIPT_NONCE);
       }
     }
 
@@ -588,17 +605,9 @@ pub async fn process_chunks_runtime_requirements(
       ChunkGraph::get_tree_runtime_requirements(compilation, &entry_ukey)
         .renderable_require_scope(),
     );
-    has_custom_runtime_module |= metadata.has_custom_runtime_module;
     compilation
       .runtime_proxy_metadata_artifact
       .insert(entry_ukey, metadata);
-  }
-
-  if has_custom_runtime_module {
-    logger.time_end(start);
-    return Err(rspack_error::error!(
-      "runtimeMode \"rspack\" does not support custom runtime modules because __webpack_require__.x helper access is not exposed"
-    ));
   }
 
   logger.time_end(start);

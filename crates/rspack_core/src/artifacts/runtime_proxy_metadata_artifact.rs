@@ -10,7 +10,6 @@ pub struct RuntimeProxyMetadata {
   pub runtime_module_requirements: RuntimeGlobals,
   pub context_setter_fields: RuntimeGlobals,
   pub hook_exposed_requirements: RuntimeGlobals,
-  pub has_custom_runtime_module: bool,
 }
 
 impl RuntimeProxyMetadata {

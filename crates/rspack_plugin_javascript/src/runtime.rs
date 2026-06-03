@@ -1,7 +1,8 @@
 use rayon::prelude::*;
 use rspack_core::{
-  ChunkGraph, ChunkInitFragments, ChunkUkey, CodeGenerationPublicPathAutoReplace, Compilation,
-  Module, RuntimeCodeTemplate, RuntimeGlobals, RuntimeProxyMetadata, RuntimeVariable, SourceType,
+  ChunkGraph, ChunkInitFragments, ChunkKind, ChunkUkey, CodeGenerationPublicPathAutoReplace,
+  Compilation, Module, RuntimeCodeTemplate, RuntimeGlobals, RuntimeProxyMetadata, RuntimeVariable,
+  SourceType,
   chunk_graph_chunk::ChunkIdSet,
   get_undo_path, property_access,
   rspack_sources::{
@@ -335,6 +336,14 @@ pub fn should_render_runtime_context(compilation: &Compilation, chunk_ukey: &Chu
     return false;
   }
 
+  let chunk = compilation
+    .build_chunk_graph_artifact
+    .chunk_by_ukey
+    .expect_get(chunk_ukey);
+  if chunk.kind() == ChunkKind::HotUpdate {
+    return false;
+  }
+
   runtime_context_metadata(compilation, chunk_ukey).is_some_and(|metadata| {
     !metadata.lexical_fields().is_empty() || !metadata.context_fields().is_empty()
   }) || should_render_runtime_context_require(compilation, chunk_ukey)
@@ -419,7 +428,7 @@ fn render_runtime_context_fields(
   let runtime_context = runtime_template.render_runtime_variable(&RuntimeVariable::Context);
 
   for runtime_global in runtime_globals_in_order(metadata.context_fields()) {
-    let Some(key) = runtime_global.property_name() else {
+    let Some(key) = runtime_global.context_property_name() else {
       continue;
     };
     let Some(lexical_name) = runtime_global.to_lexical_name() else {

@@ -140,6 +140,10 @@ export function overrideOptions(
       level: 'error',
     };
   }
+  if (process.env.RSPACK_TEST_RUNTIME_MODE_RSPACK) {
+    options.experiments ??= {};
+    options.experiments.runtimeMode = 'rspack';
+  }
 }
 
 export function findBundle(

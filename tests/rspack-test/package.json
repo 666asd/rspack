@@ -10,7 +10,8 @@
     "test": "rstest",
     "testu": "rstest -u",
     "test:base": "rstest --project base",
-    "test:hot": "rstest --project hottest"
+    "test:hot": "rstest --project hottest",
+    "test:runtime-mode": "rstest --project runtimeMode"
   },
   "devDependencies": {
     "@babel/core": "^7.29.7",

@@ -239,7 +239,7 @@ fn render_runtime_globals_by_mode(
       }
 
       if runtime_globals.renderable_require_scope() == *runtime_globals
-        && let Some(name) = runtime_globals.property_name()
+        && let Some(name) = runtime_globals.context_property_name()
       {
         return format!(
           "{}{}",
@@ -251,7 +251,8 @@ fn render_runtime_globals_by_mode(
       runtime_globals_to_string(runtime_globals, compiler_options)
     }
     RuntimeGlobalRenderMode::RspackRuntimeModule => {
-      if runtime_globals.renderable_require_scope() == *runtime_globals
+      if runtime_globals != &RuntimeGlobals::HMR_RUNTIME_STATE_PREFIX
+        && runtime_globals.renderable_require_scope() == *runtime_globals
         && let Some(name) = runtime_globals.to_lexical_name()
       {
         return name.to_string();

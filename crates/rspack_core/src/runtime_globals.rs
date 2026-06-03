@@ -428,7 +428,7 @@ pub fn runtime_globals_property_name(runtime_globals: &RuntimeGlobals) -> Option
     RuntimeGlobals::STARTUP_NO_DEFAULT => "x (no default handler)",
     RuntimeGlobals::ENSURE_CHUNK_INCLUDE_ENTRIES => "f (include entries)",
     RuntimeGlobals::STARTUP => "x",
-    RuntimeGlobals::MAKE_NAMESPACE_OBJECT => "ns",
+    RuntimeGlobals::MAKE_NAMESPACE_OBJECT => "r",
     RuntimeGlobals::MAKE_DEFERRED_NAMESPACE_OBJECT => "z",
     RuntimeGlobals::MAKE_OPTIMIZED_DEFERRED_NAMESPACE_OBJECT => "zO",
     RuntimeGlobals::DEFERRED_MODULES_ASYNC_TRANSITIVE_DEPENDENCIES => "zT",
@@ -564,6 +564,14 @@ static RUNTIME_GLOBAL_MAP: LazyLock<RuntimeGlobalMap> = LazyLock::new(|| {
 impl RuntimeGlobals {
   pub fn property_name(&self) -> Option<&'static str> {
     runtime_globals_property_name(self)
+  }
+
+  pub fn context_property_name(&self) -> Option<&'static str> {
+    if self == &RuntimeGlobals::MAKE_NAMESPACE_OBJECT {
+      return Some("ns");
+    }
+
+    self.property_name()
   }
 
   pub fn from_property_name(property_name: &str) -> Option<Self> {

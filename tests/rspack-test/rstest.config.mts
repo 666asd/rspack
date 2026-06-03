@@ -111,6 +111,7 @@ const sharedConfig = defineProject({
       : undefined,
     __RSPACK_PATH__: path.resolve(root, "packages/rspack"),
     __RSPACK_TEST_TOOLS_PATH__: path.resolve(root, "packages/rspack-test-tools"),
+    RSPACK_TEST_RUNTIME_MODE_RSPACK: process.env.RSPACK_TEST_RUNTIME_MODE_RSPACK,
     __DEBUG__: process.env.DEBUG === "test" ? 'true' : 'false',
   },
   ...(wasmConfig || {}),
@@ -123,6 +124,7 @@ export default defineConfig({
     name: 'base',
     exclude: [
       'NativeWatcher*.test.js',
+      'RuntimeMode*.test.js',
     ],
   }, {
     extends: sharedConfig,
@@ -143,6 +145,18 @@ export default defineConfig({
     retry: 0, // re-try in native watcher tests is useless
     maxConcurrency: 1,
     testTimeout: 30_000,
+  }, {
+    extends: sharedConfig,
+    name: 'runtimeMode',
+    include: process.env.WASM ? [] : [
+      'RuntimeMode*.test.js',
+    ],
+    exclude: [
+      'NativeWatcher*.test.js',
+    ],
+    env: {
+      RSPACK_TEST_RUNTIME_MODE_RSPACK: 'true',
+    },
   }],
   reporters,
   pool: {
@@ -150,4 +164,3 @@ export default defineConfig({
     execArgv: ['--no-warnings', '--expose-gc', '--max-old-space-size=8192', '--experimental-vm-modules'],
   },
 });
-
