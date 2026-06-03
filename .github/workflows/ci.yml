@@ -96,10 +96,10 @@ jobs:
     if: ${{ needs.check-changed.outputs.code_changed == 'true' }}
     uses: ./.github/workflows/bench-rust.yml
     with:
-      target: x86_64-unknown-linux-gnu
+      target: aarch64-unknown-linux-gnu
       measurement: walltime
       bench_target: walltime
-      runner: '"physical-1-exclusive"'
+      runner: '"codspeed-macro"'
 
   test-windows:
     name: Test Windows
