@@ -217,9 +217,16 @@ impl FsWatcher {
       None => return,
     };
     let accessor = self.path_manager.access();
-    let added_files: Vec<ArcPath> = accessor.files().1.iter().map(|p| p.clone()).collect();
-    let added_missing: Vec<ArcPath> = accessor.missing().1.iter().map(|p| p.clone()).collect();
-    for path in added_files.iter().chain(added_missing.iter()) {
+    // Scan ALL registered files (not just newly added). The race we are
+    // defeating — events arriving between the consumer's start_time mark
+    // and this watch() call — can hit any registered file, not just
+    // newly-discovered ones. Cost is one hashmap lookup per registered
+    // file (no syscalls), and `force_event` itself only emits when
+    // safe_time recorded actual activity.
+    let all_files: Vec<ArcPath> = accessor.files().0.iter().map(|p| p.clone()).collect();
+    let all_missing: Vec<ArcPath> = accessor.missing().0.iter().map(|p| p.clone()).collect();
+    drop(accessor);
+    for path in all_files.iter().chain(all_missing.iter()) {
       if let Some(safe_time) = self.path_manager.safe_time(path)
         && safe_time >= start_time
       {

@@ -195,18 +195,25 @@ impl Trigger {
     }
   }
 
-  /// Stat every registered file under `dir` and fire a synthetic Change
-  /// event for any file whose mtime advanced past the stored baseline.
+  /// Two-pass rescan of `dir` to recover file events that FSEvents
+  /// coalesced into the parent directory:
   ///
-  /// Uses `has_mtime_changed` (which atomically reads-and-updates the
-  /// baseline) so a follow-up real fs event for the same file finds the
-  /// new baseline and is correctly suppressed as a duplicate — no
-  /// double-firing in the common case where the OS later catches up and
-  /// delivers the missed file event.
+  /// 1. Registered files under `dir`: use `has_mtime_changed` (atomic
+  ///    baseline read-and-update) and force-dispatch via `force_event`
+  ///    when mtime advanced.
+  /// 2. Actual directory contents (`fs::read_dir` recursively): catch
+  ///    files rspack hasn't registered as fileDependencies yet (e.g.,
+  ///    `import('./src/other')` targets for which `compilation
+  ///    .fileDependencies` shrank across an incremental rebuild). Such
+  ///    files are not in `files.all` so step 1 misses them entirely —
+  ///    step 2 stats them and dispatches the raw file path via
+  ///    `force_event_raw` so the consumer (rspack/rstest) gets a chance
+  ///    to look up its own dep graph and rerun the right test, instead
+  ///    of just seeing a directory-level event with no file info.
   fn rescan_directory_files(&self, dir: &ArcPath) {
     let accessor = self.path_manager.access();
     let dir_path = dir.as_ref();
-    let candidates: Vec<ArcPath> = accessor
+    let registered_candidates: Vec<ArcPath> = accessor
       .files()
       .0
       .iter()
@@ -214,9 +221,43 @@ impl Trigger {
       .map(|f| f.clone())
       .collect();
     drop(accessor);
-    for file in candidates {
+    for file in registered_candidates {
       if self.path_manager.has_mtime_changed(&file) {
         self.force_event(&file, FsEventKind::Change);
+      }
+    }
+
+    self.rescan_unregistered_files(dir);
+  }
+
+  /// Walk `dir` (recursively, one level at a time) and dispatch synthetic
+  /// Change events for any file whose mtime advanced — including files
+  /// rspack hasn't registered. Mirrors watchpack's per-entry `fs.lstat`
+  /// strategy in `DirectoryWatcher.onWatchEvent`.
+  fn rescan_unregistered_files(&self, dir: &ArcPath) {
+    let entries = match std::fs::read_dir(dir.as_ref()) {
+      Ok(e) => e,
+      Err(_) => return,
+    };
+    for entry in entries.flatten() {
+      let entry_path = entry.path();
+      let arc_path = ArcPath::from(entry_path);
+      let metadata = match entry.metadata() {
+        Ok(m) => m,
+        Err(_) => continue,
+      };
+      if metadata.is_file() {
+        // Skip files already covered by the registered-files pass.
+        if self.path_manager.access().files().0.contains(&arc_path) {
+          continue;
+        }
+        if self.path_manager.try_advance_mtime(&arc_path) {
+          self.force_event_raw(&arc_path, FsEventKind::Change);
+        }
+      } else if metadata.is_dir() {
+        // Recurse. Bounded by the project tree; in practice 10s-1000s
+        // of files which is fast (single stat per file, no I/O reads).
+        self.rescan_unregistered_files(&arc_path);
       }
     }
   }
@@ -237,6 +278,21 @@ impl Trigger {
     if !associated_event.is_empty() {
       self.trigger_events(associated_event);
     }
+  }
+
+  /// Dispatch a synthetic event for `path` *as-is* — no symlink
+  /// translation, no `find_associated_event` filtering, no mtime check.
+  /// The path goes straight into the aggregator's changed_files set so
+  /// the consumer sees this exact file path.
+  ///
+  /// Used by `rescan_unregistered_files` to deliver paths that
+  /// `find_associated_event` would otherwise filter out (because the file
+  /// is not in any registered set). Letting these paths through is the
+  /// only way to defeat the FSEvents-only-dir-event class of races for
+  /// files rspack hasn't registered (e.g. dynamic-import targets dropped
+  /// from compilation.fileDependencies by an incremental rebuild).
+  pub fn force_event_raw(&self, path: &ArcPath, kind: FsEventKind) {
+    self.trigger_events(vec![(path.clone(), kind)]);
   }
 
   /// Helper to construct a `DependencyFinder` for the current path register state.
