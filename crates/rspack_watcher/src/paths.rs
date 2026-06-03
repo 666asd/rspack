@@ -244,48 +244,6 @@ impl PathManager {
     self.safe_times.get(path).map(|t| *t)
   }
 
-  /// Compare `path`'s current mtime to the stored baseline and atomically
-  /// advance the baseline if it has moved forward. Returns `true` if the
-  /// mtime changed (or no baseline was recorded yet — first sight counts
-  /// as a change).
-  ///
-  /// Unlike `has_mtime_changed`, this does NOT short-circuit on the
-  /// `files.all` membership check, so it is safe to call for paths
-  /// discovered by directory walks (which may include files rspack hasn't
-  /// registered as a fileDependency). Used by `Trigger::rescan_directory_files`
-  /// to detect mtime advances on un-registered files that FSEvents
-  /// coalesced into a parent-dir event.
-  pub fn try_advance_mtime(&self, path: &ArcPath) -> bool {
-    let current_mtime = match path
-      .metadata()
-      .and_then(|m| m.modified().or_else(|_| m.created()))
-    {
-      Ok(mtime) => mtime,
-      Err(_) => return false,
-    };
-
-    match self.file_mtimes.get(path) {
-      Some(baseline) => {
-        let baseline_val = *baseline;
-        if current_mtime != baseline_val {
-          drop(baseline);
-          self.file_mtimes.insert(path.clone(), current_mtime);
-          true
-        } else {
-          false
-        }
-      }
-      None => {
-        self.file_mtimes.insert(path.clone(), current_mtime);
-        // First sight: treat as "no prior info, possibly changed". The
-        // caller (dir-event rescan) is invoked because the parent dir
-        // bumped, so a never-before-seen file in there is almost
-        // certainly a real change worth reporting.
-        true
-      }
-    }
-  }
-
   /// Look up the originally-registered path for an event path that may have
   /// been symlink-resolved by the OS file watcher. Returns the registered
   /// form when the event's realpath matches a registered file/directory's
