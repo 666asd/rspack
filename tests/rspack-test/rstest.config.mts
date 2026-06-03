@@ -111,7 +111,6 @@ const sharedConfig = defineProject({
       : undefined,
     __RSPACK_PATH__: path.resolve(root, "packages/rspack"),
     __RSPACK_TEST_TOOLS_PATH__: path.resolve(root, "packages/rspack-test-tools"),
-    RSPACK_TEST_RUNTIME_MODE_RSPACK: process.env.RSPACK_TEST_RUNTIME_MODE_RSPACK,
     __DEBUG__: process.env.DEBUG === "test" ? 'true' : 'false',
   },
   ...(wasmConfig || {}),

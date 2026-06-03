@@ -34,7 +34,10 @@ function toPosixPath(filename: string) {
 }
 
 function getRuntimeModeSnapshotFilename(filename: string): string | undefined {
-  if (!process.env.RSPACK_TEST_RUNTIME_MODE_RSPACK) {
+  if (
+    !(globalThis as { __RSPACK_TEST_RUNTIME_MODE_RSPACK?: boolean })
+      .__RSPACK_TEST_RUNTIME_MODE_RSPACK
+  ) {
     return;
   }
 
