@@ -121,15 +121,26 @@ impl Trigger {
     let path = &path_owned;
 
     // Filter out events for paths the consumer asked to ignore (e.g.
-    // build output directories). Without this, `find_associated_event`
-    // will surface the registered parent directory for every event in
-    // an ignored subtree, producing a noisy stream of `[parent_dir]`-only
-    // js_event_handle batches that masquerade as real source-tree changes
-    // and trigger noise rebuilds in the consumer.
-    if let Some(s) = path.to_str()
-      && self.path_manager.ignored.should_be_ignored(s)
+    // build output directories). Walk the path AND every ancestor and
+    // check against the ignored patterns: rstest-style glob patterns
+    // like `**/dist/.rstest-temp` match the DIRECTORY itself but not
+    // files inside it. Without the ancestor walk, every write to
+    // `dist/.rstest-temp/foo.mjs` survives the filter, hits the
+    // `is_registered_file=false` branch, and `find_associated_event`
+    // surfaces the registered parent root as a `[root]`-only dispatched
+    // event. That batch masquerades as a real source-tree change in the
+    // consumer and triggers a noise rebuild, which races with the user's
+    // intended `fs.update()` and causes test flake.
     {
-      return;
+      let mut current: Option<&std::path::Path> = Some(path.as_ref());
+      while let Some(p) = current {
+        if let Some(s) = p.to_str()
+          && self.path_manager.ignored.should_be_ignored(s)
+        {
+          return;
+        }
+        current = p.parent();
+      }
     }
 
     // Stamp activity BEFORE any registration / mtime gating. Even if the
