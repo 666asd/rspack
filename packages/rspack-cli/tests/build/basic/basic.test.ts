@@ -100,6 +100,25 @@ describe('build command', () => {
     const durationMs = Number(value) * (unit === 's' ? 1000 : 1);
     expect(durationMs).toBeGreaterThanOrEqual(1000);
   });
+  it('should not include close duration in stats json time', async () => {
+    const { exitCode, stderr, stdout } = await run(
+      __dirname,
+      ['--config', './entry.close-time.js', '--json'],
+      {},
+      {},
+      true,
+    );
+    expect(exitCode).toBe(0);
+    expect(stderr).toBeFalsy();
+
+    const doneStats = JSON.parse(
+      await readFile(
+        resolve(__dirname, 'dist/close-time/done-time.json'),
+        'utf-8',
+      ),
+    );
+    expect(JSON.parse(stdout).time).toBe(doneStats.time);
+  });
   it.concurrent('should work with mjs configuration ', async () => {
     const { exitCode, stderr, stdout } = await run(
       __dirname,
