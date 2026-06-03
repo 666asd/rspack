@@ -12,7 +12,7 @@ use crate::{
   decoder::MappingsDecoder,
   encoder::create_encoder,
   linear_map::LinearMap,
-  object_pool::ObjectPool,
+  object_pool::{ObjectPool, Pooled},
   source::{Mapping, OriginalLocation},
   source_content_lines::SourceContentLines,
   with_utf16::WithUtf16,
@@ -856,8 +856,8 @@ fn stream_chunks_of_source_map_lines_full<'a>(
 
 #[derive(Debug)]
 struct SourceMapLineData<'a> {
-  pub mappings_data: Vec<i64>,
-  pub chunks: Vec<TextSpan<'a>>,
+  pub mappings_data: Pooled<'a, i64>,
+  pub chunks: Pooled<'a, TextSpan<'a>>,
 }
 
 type InnerSourceIndexValueMapping<'a> = LinearMap<(Cow<'a, str>, Option<&'a Arc<str>>)>;
@@ -894,7 +894,8 @@ pub fn stream_chunks_of_combined_source_map<'a>(
   let inner_name_index_mapping: RefCell<LinearMap<i64>> = RefCell::new(LinearMap::default());
   let inner_name_index_value_mapping: RefCell<LinearMap<Cow<str>>> =
     RefCell::new(LinearMap::default());
-  let inner_source_map_line_data: RefCell<Vec<SourceMapLineData>> = RefCell::new(Vec::new());
+  let inner_source_map_line_data: RefCell<Pooled<'a, SourceMapLineData<'a>>> =
+    RefCell::new(object_pool.pull_vec(0));
 
   let find_inner_mapping = |line: i64, column: i64| -> Option<u32> {
     let inner_source_map_line_data = inner_source_map_line_data.borrow();
@@ -1240,8 +1241,8 @@ pub fn stream_chunks_of_combined_source_map<'a>(
                 .reserve(mapping_generated_line_len - inner_source_map_line_data_len + 1);
               while inner_source_map_line_data.len() <= mapping_generated_line_len {
                 inner_source_map_line_data.push(SourceMapLineData {
-                  mappings_data: Default::default(),
-                  chunks: vec![],
+                  mappings_data: object_pool.pull_vec(0),
+                  chunks: object_pool.pull_vec(0),
                 });
               }
             }
@@ -1322,6 +1323,7 @@ pub fn stream_and_get_source_and_map<'a>(
   on_source: OnSource<'_, 'a>,
   on_name: OnName<'_, 'a>,
 ) -> (GeneratedInfo, Option<SourceMap>) {
+  let _allocation_scope = object_pool.scope();
   let mut mappings_encoder = create_encoder(options.columns);
   let mut sources: Vec<String> = Vec::new();
   let mut sources_content: Vec<Arc<str>> = Vec::new();

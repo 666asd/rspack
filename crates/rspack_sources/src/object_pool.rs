@@ -41,6 +41,11 @@ impl ObjectPool {
 
   /// Retrieves temporary `usize` scratch storage with at least the requested capacity.
   pub fn pull<'a>(&'a self, requested_capacity: usize) -> Pooled<'a> {
+    self.pull_vec(requested_capacity)
+  }
+
+  /// Retrieves temporary scratch storage with at least the requested capacity.
+  pub(crate) fn pull_vec<'a, T>(&'a self, requested_capacity: usize) -> Pooled<'a, T> {
     if self.active_scopes.get() == 0 {
       return Pooled::new_heap(requested_capacity);
     }
@@ -89,19 +94,19 @@ impl Drop for Scope<'_> {
   }
 }
 
-/// Temporary `usize` scratch storage.
+/// Temporary scratch storage.
 #[derive(Debug)]
-pub struct Pooled<'object_pool> {
-  inner: PooledInner<'object_pool>,
+pub struct Pooled<'object_pool, T = usize> {
+  inner: PooledInner<'object_pool, T>,
 }
 
 #[derive(Debug)]
-enum PooledInner<'object_pool> {
-  Bump(BumpVec<'object_pool, usize>),
-  Heap(Vec<usize>),
+enum PooledInner<'object_pool, T> {
+  Bump(BumpVec<'object_pool, T>),
+  Heap(Vec<T>),
 }
 
-impl<'object_pool> Pooled<'object_pool> {
+impl<'object_pool, T> Pooled<'object_pool, T> {
   fn new_in(capacity: usize, bump: &'object_pool Bump) -> Self {
     Self {
       inner: PooledInner::Bump(BumpVec::with_capacity_in(capacity, bump)),
@@ -114,37 +119,44 @@ impl<'object_pool> Pooled<'object_pool> {
     }
   }
 
-  pub fn as_mut(&mut self) -> &mut [usize] {
+  pub fn as_mut(&mut self) -> &mut [T] {
     match &mut self.inner {
       PooledInner::Bump(vec) => vec.as_mut_slice(),
       PooledInner::Heap(vec) => vec.as_mut_slice(),
     }
   }
 
-  pub fn as_ref(&self) -> &[usize] {
+  pub fn as_ref(&self) -> &[T] {
     match &self.inner {
       PooledInner::Bump(vec) => vec.as_slice(),
       PooledInner::Heap(vec) => vec.as_slice(),
     }
   }
 
-  pub fn push(&mut self, value: usize) {
+  pub fn push(&mut self, value: T) {
     match &mut self.inner {
       PooledInner::Bump(vec) => vec.push(value),
       PooledInner::Heap(vec) => vec.push(value),
     }
   }
+
+  pub fn reserve(&mut self, additional: usize) {
+    match &mut self.inner {
+      PooledInner::Bump(vec) => vec.reserve(additional),
+      PooledInner::Heap(vec) => vec.reserve(additional),
+    }
+  }
 }
 
-impl std::ops::Deref for Pooled<'_> {
-  type Target = [usize];
+impl<T> std::ops::Deref for Pooled<'_, T> {
+  type Target = [T];
 
   fn deref(&self) -> &Self::Target {
     self.as_ref()
   }
 }
 
-impl std::ops::DerefMut for Pooled<'_> {
+impl<T> std::ops::DerefMut for Pooled<'_, T> {
   fn deref_mut(&mut self) -> &mut Self::Target {
     self.as_mut()
   }
