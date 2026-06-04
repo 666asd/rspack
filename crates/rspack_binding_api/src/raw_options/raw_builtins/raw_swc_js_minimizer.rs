@@ -50,7 +50,19 @@ fn try_deserialize_into<T>(value: JsonValue) -> Result<T>
 where
   T: DeserializeOwned,
 {
-  simd_json::serde::from_owned_value(value.into_inner()).to_rspack_result()
+  let value = value.into_inner();
+  match simd_json::serde::from_owned_value(value.clone()) {
+    Ok(value) => Ok(value),
+    Err(error) => {
+      if let simd_json::OwnedValue::String(raw) = value
+        && let Ok(parsed) = simd_json::from_reader::<_, simd_json::OwnedValue>(raw.as_bytes())
+      {
+        return simd_json::serde::from_owned_value(parsed).to_rspack_result();
+      }
+
+      Err::<T, _>(error).to_rspack_result()
+    }
+  }
 }
 
 fn into_extract_comments(c: Option<RawExtractComments>) -> Option<ExtractComments> {
@@ -110,5 +122,34 @@ impl TryFrom<RawSwcJsMinimizerRspackPluginOptions> for PluginOptions {
         ..Default::default()
       },
     })
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn should_deserialize_stringified_json_minimizer_options() {
+    let raw = RawSwcJsMinimizerRspackPluginOptions {
+      test: None,
+      include: None,
+      exclude: None,
+      extract_comments: None,
+      minimizer_options: RawSwcJsMinimizerOptions {
+        ecma: JsonValue(simd_json::OwnedValue::String("5".to_string())),
+        compress: JsonValue(simd_json::OwnedValue::String(r#"{"passes":2}"#.to_string())),
+        mangle: JsonValue(simd_json::OwnedValue::String("true".to_string())),
+        format: JsonValue(simd_json::OwnedValue::String(
+          r#"{"comments":false}"#.to_string(),
+        )),
+        module: None,
+        minify: None,
+      },
+    };
+
+    let options = PluginOptions::try_from(raw);
+
+    assert!(options.is_ok(), "{options:?}");
   }
 }
