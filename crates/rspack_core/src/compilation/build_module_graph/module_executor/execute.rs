@@ -327,7 +327,7 @@ impl Task<ExecutorTaskContext> for ExecuteTask {
 
       let mut runtime_template = compilation
         .runtime_template
-        .create_module_runtime_module_code_template();
+        .create_runtime_module_code_template();
       let mut code_generation_context = ModuleCodeGenerationContext {
         compilation: &compilation,
         runtime: None,

@@ -11,9 +11,8 @@ use criterion::{BatchSize, black_box};
 use rspack::builder::{Builder as _, NodeOptionBuilder};
 use rspack_benchmark::Criterion;
 use rspack_core::{
-  BuildInfo, BuildMeta, Compiler, CompilerOptions, Mode, ModuleCodeTemplate, ModuleIdentifier,
-  ModuleType, Optimization, ParseMeta, ParserOptions, ResourceData, RuntimeGlobalRenderMode,
-  SideEffectOption,
+  BuildInfo, BuildMeta, Compiler, CompilerOptions, Mode, ModuleIdentifier, ModuleType,
+  Optimization, ParseMeta, ParserOptions, ResourceData, SideEffectOption,
 };
 use rspack_javascript_compiler::{JavaScriptCompiler, ast::Program};
 use rspack_plugin_javascript::{
@@ -177,10 +176,12 @@ fn prepare_scan_dependencies_benchmark_case(
     module_type,
     resource_data: ResourceData::new_with_resource(resource_path.to_string()),
     unresolved_mark,
-    parser_runtime_requirements: ParserRuntimeRequirementsData::new(&ModuleCodeTemplate::new(
-      compiler_options,
-      RuntimeGlobalRenderMode::Webpack,
-    )),
+    parser_runtime_requirements: ParserRuntimeRequirementsData::new(
+      &compiler
+        .compilation
+        .runtime_template
+        .create_module_code_template(),
+    ),
   }
 }
 

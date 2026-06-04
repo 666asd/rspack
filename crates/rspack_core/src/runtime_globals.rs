@@ -310,73 +310,20 @@ impl Default for RuntimeGlobals {
 }
 
 pub static REQUIRE_SCOPE_GLOBALS: LazyLock<RuntimeGlobals> = LazyLock::new(|| {
-  RuntimeGlobals::REQUIRE_SCOPE
-    | RuntimeGlobals::MODULE_CACHE
-    | RuntimeGlobals::ENSURE_CHUNK
-    | RuntimeGlobals::ENSURE_CHUNK_HANDLERS
-    | RuntimeGlobals::PUBLIC_PATH
-    | RuntimeGlobals::GET_CHUNK_SCRIPT_FILENAME
-    | RuntimeGlobals::GET_CHUNK_CSS_FILENAME
-    | RuntimeGlobals::LOAD_SCRIPT
-    | RuntimeGlobals::HAS_OWN_PROPERTY
-    | RuntimeGlobals::MODULE_FACTORIES_ADD_ONLY
-    | RuntimeGlobals::ON_CHUNKS_LOADED
-    | RuntimeGlobals::MODULE_FACTORIES
-    | RuntimeGlobals::INTERCEPT_MODULE_EXECUTION
-    | RuntimeGlobals::HMR_DOWNLOAD_MANIFEST
-    | RuntimeGlobals::HMR_DOWNLOAD_UPDATE_HANDLERS
-    | RuntimeGlobals::HMR_INVALIDATE_MODULE_HANDLERS
-    | RuntimeGlobals::HMR_MODULE_DATA
-    | RuntimeGlobals::HMR_RUNTIME_STATE_PREFIX
-    | RuntimeGlobals::GET_UPDATE_MANIFEST_FILENAME
-    | RuntimeGlobals::GET_CHUNK_UPDATE_SCRIPT_FILENAME
-    | RuntimeGlobals::GET_CHUNK_UPDATE_CSS_FILENAME
-    | RuntimeGlobals::AMD_DEFINE
-    | RuntimeGlobals::AMD_OPTIONS
-    | RuntimeGlobals::EXTERNAL_INSTALL_CHUNK
-    | RuntimeGlobals::GET_FULL_HASH
-    | RuntimeGlobals::GLOBAL
-    | RuntimeGlobals::INSTANTIATE_WASM
-    | RuntimeGlobals::ASYNC_MODULE
-    | RuntimeGlobals::ASYNC_MODULE_EXPORT_SYMBOL
-    | RuntimeGlobals::BASE_URI
-    | RuntimeGlobals::STARTUP_ENTRYPOINT
-    | RuntimeGlobals::STARTUP_CHUNK_DEPENDENCIES
-    | RuntimeGlobals::CREATE_SCRIPT_URL
-    | RuntimeGlobals::CREATE_SCRIPT
-    | RuntimeGlobals::GET_TRUSTED_TYPES_POLICY
-    | RuntimeGlobals::DEFINE_PROPERTY_GETTERS
-    | RuntimeGlobals::ENTRY_MODULE_ID
-    | RuntimeGlobals::STARTUP_NO_DEFAULT
-    | RuntimeGlobals::ENSURE_CHUNK_INCLUDE_ENTRIES
-    | RuntimeGlobals::STARTUP
-    | RuntimeGlobals::MAKE_NAMESPACE_OBJECT
-    | RuntimeGlobals::MAKE_DEFERRED_NAMESPACE_OBJECT
-    | RuntimeGlobals::MAKE_OPTIMIZED_DEFERRED_NAMESPACE_OBJECT
-    | RuntimeGlobals::COMPAT_GET_DEFAULT_EXPORT
-    | RuntimeGlobals::CREATE_FAKE_NAMESPACE_OBJECT
-    | RuntimeGlobals::ESM_MODULE_DECORATOR
-    | RuntimeGlobals::NODE_MODULE_DECORATOR
-    | RuntimeGlobals::SYSTEM_CONTEXT
-    | RuntimeGlobals::CURRENT_REMOTE_GET_SCOPE
-    | RuntimeGlobals::SHARE_SCOPE_MAP
-    | RuntimeGlobals::INITIALIZE_SHARING
-    | RuntimeGlobals::SCRIPT_NONCE
-    | RuntimeGlobals::RELATIVE_URL
-    | RuntimeGlobals::CHUNK_NAME
-    | RuntimeGlobals::RUNTIME_ID
-    | RuntimeGlobals::PREFETCH_CHUNK
-    | RuntimeGlobals::PREFETCH_CHUNK_HANDLERS
-    | RuntimeGlobals::PRELOAD_CHUNK
-    | RuntimeGlobals::PRELOAD_CHUNK_HANDLERS
-    | RuntimeGlobals::UNCAUGHT_ERROR_HANDLER
-    | RuntimeGlobals::RSPACK_VERSION
-    | RuntimeGlobals::RSPACK_UNIQUE_ID
-    | RuntimeGlobals::ASYNC_STARTUP
-    | RuntimeGlobals::RSC_MANIFEST
-    | RuntimeGlobals::TO_BINARY
-    | RuntimeGlobals::DEFERRED_MODULES_ASYNC_TRANSITIVE_DEPENDENCIES
-    | RuntimeGlobals::DEFERRED_MODULES_ASYNC_TRANSITIVE_DEPENDENCIES_SYMBOL
+  let mut runtime_globals = RuntimeGlobals::all();
+  runtime_globals.remove(
+    RuntimeGlobals::MODULE
+      | RuntimeGlobals::MODULE_ID
+      | RuntimeGlobals::REQUIRE
+      | RuntimeGlobals::CHUNK_CALLBACK
+      | RuntimeGlobals::RETURN_EXPORTS_FROM_RUNTIME
+      | RuntimeGlobals::MODULE_LOADED
+      | RuntimeGlobals::EXPORTS
+      | RuntimeGlobals::THIS_AS_EXPORTS
+      | RuntimeGlobals::HAS_CSS_MODULES
+      | RuntimeGlobals::HAS_FETCH_PRIORITY,
+  );
+  runtime_globals
 });
 
 pub static MODULE_GLOBALS: LazyLock<RuntimeGlobals> =

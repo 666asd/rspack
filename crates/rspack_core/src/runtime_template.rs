@@ -222,7 +222,7 @@ impl RuntimeTemplate {
     )
   }
 
-  pub fn create_module_runtime_module_code_template(&self) -> ModuleCodeTemplate {
+  pub fn create_runtime_module_code_template(&self) -> ModuleCodeTemplate {
     ModuleCodeTemplate::new(
       self.compiler_options.clone(),
       self.module_runtime_globals.clone(),
