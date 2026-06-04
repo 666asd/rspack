@@ -12,12 +12,11 @@ use rspack_core::{
   ConditionalInitFragment, DependencyType, ExportInfo, ExportMode, ExportProvided,
   ExportsInfoArtifact, ExportsType, FindTargetResult, ImportSpec, InitFragmentKey, ModuleGraph,
   ModuleGraphCacheArtifact, ModuleIdentifier, ModuleInfo, NAMESPACE_OBJECT_EXPORT, PathData,
-  RuntimeGlobalRenderMode, RuntimeGlobals, SideEffectsStateArtifact, SourceType, URLStaticMode,
-  UsageState, UsedName, UsedNameItem, collect_ident, escape_name_atom_ref, find_new_name,
-  find_target, get_cached_readable_identifier, get_js_chunk_filename_template,
-  get_module_directives, get_module_hashbang, property_access, property_name,
-  reserved_names::RESERVED_NAMES_ATOM_SET, rspack_sources::ReplaceSource,
-  runtime_mode::RuntimeMode as ExperimentRuntimeMode, split_readable_identifier, to_normal_comment,
+  RuntimeGlobals, SideEffectsStateArtifact, SourceType, URLStaticMode, UsageState, UsedName,
+  UsedNameItem, collect_ident, escape_name_atom_ref, find_new_name, find_target,
+  get_cached_readable_identifier, get_js_chunk_filename_template, get_module_directives,
+  get_module_hashbang, property_access, property_name, reserved_names::RESERVED_NAMES_ATOM_SET,
+  rspack_sources::ReplaceSource, split_readable_identifier, to_normal_comment,
 };
 use rspack_error::{Diagnostic, Error, Result};
 use rspack_plugin_javascript::{
@@ -641,14 +640,7 @@ impl EsmLibraryPlugin {
           changed = true;
 
           let module_info = concate_modules_map[module_info_id].as_concatenated();
-          let mut runtime_template =
-            if compilation.options.experiments.runtime_mode == ExperimentRuntimeMode::Rspack {
-              compilation
-                .runtime_template
-                .create_module_code_template_with_render_mode(RuntimeGlobalRenderMode::RspackModule)
-            } else {
-              compilation.runtime_template.create_module_code_template()
-            };
+          let mut runtime_template = compilation.runtime_template.create_module_code_template();
 
           let module_graph = compilation.get_module_graph();
           let box_module = module_graph

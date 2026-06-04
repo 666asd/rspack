@@ -30,8 +30,8 @@ use rspack_collections::{Identifier, IdentifierDashMap, IdentifierLinkedMap, Ide
 use rspack_core::{
   ChunkGraph, ChunkGroupUkey, ChunkInitFragments, ChunkRenderContext, ChunkUkey,
   CodeGenerationDataTopLevelDeclarations, Compilation, CompilationId, ConcatenatedModuleIdent,
-  ExportsArgument, IdentCollector, Module, RuntimeCodeTemplate, RuntimeGlobalRenderMode,
-  RuntimeGlobals, RuntimeVariable, SourceType,
+  ExportsArgument, IdentCollector, Module, RuntimeCodeTemplate, RuntimeGlobals, RuntimeVariable,
+  SourceType,
   concatenated_module::find_new_name,
   property_access, render_init_fragments,
   reserved_names::RESERVED_NAMES_ATOM_SET,
@@ -432,7 +432,7 @@ var {} = {{}};
       let module_factories = if uses_runtime_context {
         let runtime_context = runtime_template.render_runtime_variable(&RuntimeVariable::Context);
         let name = RuntimeGlobals::MODULE_FACTORIES
-          .context_property_name()
+          .property_name()
           .expect("module factories should have context property name");
         format!("{runtime_context}{}", property_access([name], 0))
       } else {
@@ -454,7 +454,7 @@ var {} = {{}};
       let module_cache_runtime_global = if uses_runtime_context {
         let runtime_context = runtime_template.render_runtime_variable(&RuntimeVariable::Context);
         let name = RuntimeGlobals::MODULE_CACHE
-          .context_property_name()
+          .property_name()
           .expect("module cache should have context property name");
         format!("{runtime_context}{}", property_access([name], 0))
       } else {
@@ -476,7 +476,7 @@ var {} = {{}};
       let intercept_module_execution = if uses_runtime_context {
         let runtime_context = runtime_template.render_runtime_variable(&RuntimeVariable::Context);
         let name = RuntimeGlobals::INTERCEPT_MODULE_EXECUTION
-          .context_property_name()
+          .property_name()
           .expect("intercept module execution should have context property name");
         format!("{runtime_context}{}", property_access([name], 0))
       } else {
@@ -796,7 +796,7 @@ var {} = {{}};
     {
       rspack_module_runtime_template = compilation
         .runtime_template
-        .create_runtime_code_template_with_render_mode(RuntimeGlobalRenderMode::RspackModule);
+        .create_module_runtime_code_template();
       &rspack_module_runtime_template
     } else {
       runtime_template

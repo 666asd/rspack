@@ -222,7 +222,37 @@ pub fn impl_runtime_module(
         code_generation_context: &mut ::rspack_core::ModuleCodeGenerationContext,
       ) -> rspack_error::Result<::rspack_core::CodeGenerationResult> {
         let mut result = ::rspack_core::CodeGenerationResult::default();
-        result.add(::rspack_core::SourceType::Runtime, self.get_generated_code(code_generation_context.compilation).await?);
+        let source = if code_generation_context.runtime_template.runtime_module_render_mode().is_some() {
+          use ::rspack_collections::Identifiable;
+          use ::rspack_core::rspack_sources::SourceExt;
+          use ::rspack_util::source_map::ModuleSourceMapConfig;
+
+          let source_str = if let Some(custom_source) = ::rspack_core::CustomSourceRuntimeModule::get_custom_source(self) {
+            custom_source
+          } else {
+            let runtime_template = code_generation_context
+              .compilation
+              .runtime_template
+              .create_module_runtime_code_template();
+            let context = ::rspack_core::RuntimeModuleGenerateContext {
+              compilation: code_generation_context.compilation,
+              runtime_template: &runtime_template,
+            };
+            self.generate(&context).await?
+          };
+          if self.get_source_map_kind().enabled() {
+            ::rspack_core::rspack_sources::OriginalSource::new(
+              source_str,
+              self.identifier().as_str(),
+            )
+            .boxed()
+          } else {
+            ::rspack_core::rspack_sources::RawStringSource::from(source_str).boxed()
+          }
+        } else {
+          self.get_generated_code(code_generation_context.compilation).await?
+        };
+        result.add(::rspack_core::SourceType::Runtime, source);
         Ok(result)
       }
 

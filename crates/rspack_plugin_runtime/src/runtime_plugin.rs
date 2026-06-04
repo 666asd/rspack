@@ -260,7 +260,7 @@ async fn runtime_requirements_in_tree(
       RuntimeGlobals::GET_CHUNK_SCRIPT_FILENAME => {
         runtime_modules_to_add.push((
           *chunk_ukey,
-          GetChunkFilenameRuntimeModule::new_with_runtime_global(
+          GetChunkFilenameRuntimeModule::new(
             &compilation.runtime_template,
             "javascript",
             "javascript",
@@ -283,7 +283,7 @@ async fn runtime_requirements_in_tree(
       RuntimeGlobals::GET_CHUNK_CSS_FILENAME => {
         runtime_modules_to_add.push((
           *chunk_ukey,
-          GetChunkFilenameRuntimeModule::new_with_runtime_global(
+          GetChunkFilenameRuntimeModule::new(
             &compilation.runtime_template,
             "css",
             "css",

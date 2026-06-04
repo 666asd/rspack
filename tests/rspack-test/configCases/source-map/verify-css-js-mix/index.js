@@ -17,7 +17,6 @@ it("verify importing css js source map", async () => {
 		"webpack:///./a.js",
 		"webpack:///./index.js",
 		"webpack:///webpack/runtime/make_namespace_object",
-		"webpack:///webpack/runtime/nonce",
 	] : [
 		"webpack:///./a.js",
 		"webpack:///./index.js",

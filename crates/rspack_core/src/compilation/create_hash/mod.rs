@@ -1,9 +1,10 @@
 use async_trait::async_trait;
-use rspack_sources::SourceExt;
 use rustc_hash::FxHashSet;
 
 use super::*;
-use crate::{cache::Cache, compilation::pass::PassExt, logger::Logger};
+use crate::{
+  ModuleCodeGenerationContext, cache::Cache, compilation::pass::PassExt, logger::Logger,
+};
 
 pub struct ChunkHashResult {
   pub hash: RspackHashDigest,
@@ -485,14 +486,20 @@ pub async fn runtime_modules_code_generation(compilation: &mut Compilation) -> R
         let s = unsafe { token.used((compilation_ref, runtime_module_identifier, runtime_module)) };
         s.spawn(
           |(compilation, runtime_module_identifier, runtime_module)| async {
-            let source_str = runtime_module.generate_with_custom(compilation).await?;
-            let source = if runtime_module.get_source_map_kind().enabled() {
-              rspack_sources::OriginalSource::new(source_str, runtime_module.identifier().as_str())
-                .boxed()
-            } else {
-              rspack_sources::RawStringSource::from(source_str).boxed()
+            let mut runtime_template = compilation.runtime_template.create_module_code_template();
+            let mut code_generation_context = ModuleCodeGenerationContext {
+              compilation,
+              runtime: None,
+              concatenation_scope: None,
+              runtime_template: &mut runtime_template,
             };
-            Ok((*runtime_module_identifier, source))
+            let result = runtime_module
+              .code_generation(&mut code_generation_context)
+              .await?;
+            let source = result
+              .get(&SourceType::Runtime)
+              .expect("should have source");
+            Ok((*runtime_module_identifier, source.clone()))
           },
         )
       })

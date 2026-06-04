@@ -553,7 +553,7 @@ async fn runtime_requirement_in_tree(
 
     runtime_modules_to_add.push((
       *chunk_ukey,
-      Box::new(GetChunkFilenameRuntimeModule::new(
+      Box::new(GetChunkFilenameRuntimeModule::new_with_custom_global(
         &compilation.runtime_template,
         "css",
         "mini-css",

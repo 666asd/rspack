@@ -226,12 +226,6 @@ impl Task<ExecutorTaskContext> for ExecuteTask {
     let mut compilation = origin_context.transform_to_temp_compilation();
     let main_compilation_plugin_driver = compilation.plugin_driver.clone();
     compilation.plugin_driver = compilation.buildtime_plugin_driver.clone();
-    let rendered_public_path = if let Some(public_path) = public_path.as_ref() {
-      Some(public_path.render(&compilation, "").await)
-    } else {
-      None
-    };
-
     tracing::debug!("modules: {:?}", &modules);
 
     let mut chunk_graph = ChunkGraph::default();
@@ -254,8 +248,8 @@ impl Task<ExecutorTaskContext> for ExecuteTask {
         chunk_loading: Some(crate::ChunkLoading::Disable),
         wasm_loading: Some(crate::WasmLoading::Disable),
         async_chunks: Some(false),
-        public_path: public_path.clone(),
-        base_uri: base_uri.clone(),
+        public_path,
+        base_uri,
         filename: None,
         library: None,
         depend_on: None,
@@ -331,7 +325,9 @@ impl Task<ExecutorTaskContext> for ExecuteTask {
         .get(runtime_id)
         .expect("runtime module exist");
 
-      let mut runtime_template = compilation.runtime_template.create_module_code_template();
+      let mut runtime_template = compilation
+        .runtime_template
+        .create_module_runtime_module_code_template();
       let mut code_generation_context = ModuleCodeGenerationContext {
         compilation: &compilation,
         runtime: None,
@@ -368,8 +364,6 @@ impl Task<ExecutorTaskContext> for ExecuteTask {
         &runtime_modules,
         &compilation.code_generation_results,
         &id,
-        &rendered_public_path,
-        &base_uri,
       )
       .await;
 

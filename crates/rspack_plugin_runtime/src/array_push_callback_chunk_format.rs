@@ -2,8 +2,8 @@ use std::hash::Hash;
 
 use rspack_core::{
   ChunkGraph, ChunkKind, ChunkUkey, Compilation, CompilationAdditionalChunkRuntimeRequirements,
-  CompilationParams, CompilerCompilation, Plugin, RuntimeCodeTemplate, RuntimeGlobalRenderMode,
-  RuntimeGlobals, RuntimeModule, RuntimeVariable,
+  CompilationParams, CompilerCompilation, Plugin, RuntimeCodeTemplate, RuntimeGlobals,
+  RuntimeModule, RuntimeVariable,
   rspack_sources::{ConcatSource, RawStringSource, SourceExt},
   runtime_mode::RuntimeMode,
 };
@@ -136,7 +136,7 @@ async fn render_chunk(
       if compilation.options.experiments.runtime_mode == RuntimeMode::Rspack {
         let runtime_template = compilation
           .runtime_template
-          .create_runtime_code_template_with_render_mode(RuntimeGlobalRenderMode::RspackModule);
+          .create_module_runtime_code_template();
         source.add(render_chunk_runtime_modules(compilation, chunk_ukey, &runtime_template).await?);
       } else {
         source.add(render_chunk_runtime_modules(compilation, chunk_ukey, runtime_template).await?);
@@ -162,19 +162,15 @@ async fn render_chunk(
       {
         rspack_module_runtime_template = compilation
           .runtime_template
-          .create_runtime_code_template_with_render_mode(RuntimeGlobalRenderMode::RspackModule);
+          .create_module_runtime_code_template();
         &rspack_module_runtime_template
       } else {
         runtime_template
       };
-      let runtime_arguments = if runtime_template.uses_runtime_context() {
-        runtime_template.render_runtime_variable(&RuntimeVariable::Context)
-      } else {
-        runtime_template.render_runtime_globals(&RuntimeGlobals::REQUIRE)
-      };
       source.add(RawStringSource::from_static(","));
       source.add(RawStringSource::from(format!(
-        "function({runtime_arguments}) {{\n",
+        "function({}) {{\n",
+        runtime_template.render_runtime_argument()
       )));
       if has_runtime_modules {
         source.add(render_runtime_modules(compilation, chunk_ukey, runtime_template).await?);

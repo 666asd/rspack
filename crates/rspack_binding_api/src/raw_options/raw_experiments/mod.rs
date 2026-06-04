@@ -3,7 +3,6 @@ mod raw_incremental;
 use napi_derive::napi;
 pub use raw_incremental::RawIncremental;
 use rspack_core::{Experiments, runtime_mode::RuntimeMode};
-use rspack_error::Result;
 use rspack_regex::RspackRegex;
 
 use super::WithFalse;
@@ -20,21 +19,19 @@ pub struct RawExperiments {
   pub runtime_mode: Option<String>,
 }
 
-impl TryFrom<RawExperiments> for Experiments {
-  type Error = rspack_error::Error;
-
-  fn try_from(value: RawExperiments) -> Result<Self> {
+impl From<RawExperiments> for Experiments {
+  fn from(value: RawExperiments) -> Self {
     let runtime_mode = if value.runtime_mode.as_deref() == Some("rspack") {
       RuntimeMode::Rspack
     } else {
       RuntimeMode::Webpack
     };
 
-    Ok(Self {
+    Self {
       css: value.css.unwrap_or(false),
       defer_import: value.defer_import,
       pure_functions: value.pure_functions,
       runtime_mode,
-    })
+    }
   }
 }

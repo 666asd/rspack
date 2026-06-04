@@ -18,6 +18,6 @@ module.exports = {
     expect(source).toContain("__rspack_context.r");
     expect(source).toContain("module.exports, __rspack_context");
     expect(source).not.toContain("__rspack_context.d");
-    expect(source).not.toContain("__rspack_context.ns");
+    expect(source).not.toContain("__rspack_context.N");
   },
 };

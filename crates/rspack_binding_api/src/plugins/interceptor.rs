@@ -1245,8 +1245,6 @@ impl CompilationExecuteModule for CompilationExecuteModuleTap {
     runtime_modules: &IdentifierSet,
     code_generation_results: &BindingCell<rspack_core::CodeGenerationResults>,
     id: &ExecuteModuleId,
-    public_path: &Option<String>,
-    base_uri: &Option<String>,
   ) -> rspack_error::Result<()> {
     self
       .function
@@ -1255,8 +1253,6 @@ impl CompilationExecuteModule for CompilationExecuteModuleTap {
         runtime_modules: runtime_modules.iter().map(|id| id.to_string()).collect(),
         codegen_results: code_generation_results.as_ref().into(),
         id: *id,
-        public_path: public_path.clone(),
-        base_uri: base_uri.clone(),
       })
       .await
   }

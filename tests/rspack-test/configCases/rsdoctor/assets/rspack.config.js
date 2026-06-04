@@ -34,47 +34,43 @@ module.exports = {
             }));
             assetsInfo.sort((a, b) => (a.path > b.path ? 1 : -1));
             if (globalThis.__RSPACK_TEST_RUNTIME_MODE_RSPACK) {
-              expect(assetsInfo).toMatchInlineSnapshot(`
-                Array [
-                  Object {
-                    path: a.js,
-                    size: 13370,
-                  },
-                  Object {
-                    path: b.js,
-                    size: 13370,
-                  },
-                  Object {
-                    path: c_js.js,
-                    size: 213,
-                  },
-                  Object {
-                    path: d_js.js,
-                    size: 213,
-                  },
-                ]
-              `);
+              expect(assetsInfo).toEqual([
+                {
+                  path: 'a.js',
+                  size: 9292,
+                },
+                {
+                  path: 'b.js',
+                  size: 9292,
+                },
+                {
+                  path: 'c_js.js',
+                  size: 213,
+                },
+                {
+                  path: 'd_js.js',
+                  size: 213,
+                },
+              ]);
             } else {
-              expect(assetsInfo).toMatchInlineSnapshot(`
-              Array [
-                Object {
-                  path: a.js,
+              expect(assetsInfo).toEqual([
+                {
+                  path: 'a.js',
                   size: 4298,
                 },
-                Object {
-                  path: b.js,
+                {
+                  path: 'b.js',
                   size: 4298,
                 },
-                Object {
-                  path: c_js.js,
+                {
+                  path: 'c_js.js',
                   size: 219,
                 },
-                Object {
-                  path: d_js.js,
+                {
+                  path: 'd_js.js',
                   size: 219,
                 },
-              ]
-            `);
+              ]);
             }
           });
         });

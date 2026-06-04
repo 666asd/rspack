@@ -3,8 +3,7 @@ use std::hash::Hash;
 use rspack_core::{
   ChunkGraph, ChunkKind, ChunkUkey, Compilation, CompilationAdditionalChunkRuntimeRequirements,
   CompilationDependentFullHash, CompilationParams, CompilerCompilation, ModuleIdentifier, Plugin,
-  RuntimeCodeTemplate, RuntimeGlobalRenderMode, RuntimeGlobals, RuntimeModule, RuntimeVariable,
-  SourceType,
+  RuntimeCodeTemplate, RuntimeGlobals, RuntimeModule, RuntimeVariable, SourceType,
   rspack_sources::{ConcatSource, RawStringSource, Source, SourceExt},
   runtime_mode::RuntimeMode,
 };
@@ -151,7 +150,7 @@ async fn render_chunk(
     if compilation.options.experiments.runtime_mode == RuntimeMode::Rspack {
       rspack_module_runtime_template = compilation
         .runtime_template
-        .create_runtime_code_template_with_render_mode(RuntimeGlobalRenderMode::RspackModule);
+        .create_module_runtime_code_template();
       &rspack_module_runtime_template
     } else {
       runtime_template

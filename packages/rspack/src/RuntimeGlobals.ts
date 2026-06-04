@@ -555,7 +555,7 @@ function renderRuntimeGlobals(
     case RuntimeGlobals.definePropertyGetters:
       return `${scope_name}.d`;
     case RuntimeGlobals.makeNamespaceObject:
-      return `${scope_name}.r`;
+      return `${scope_name}.N`;
     case RuntimeGlobals.createFakeNamespaceObject:
       return `${scope_name}.t`;
     case RuntimeGlobals.compatGetDefaultExport:

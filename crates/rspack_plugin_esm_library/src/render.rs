@@ -4,9 +4,9 @@ use rspack_collections::IdentifierIndexSet;
 use rspack_core::{
   AssetInfo, Chunk, ChunkGraph, ChunkGroup, ChunkRenderContext, ChunkUkey,
   CodeGenerationDataFilename, Compilation, ConcatenatedModuleInfo, DependencyId, InitFragment,
-  ModuleIdentifier, PathData, PathInfo, RuntimeCodeTemplate, RuntimeGlobalRenderMode,
-  RuntimeGlobals, RuntimeVariable, SourceType, export_name, get_js_chunk_filename_template,
-  get_undo_path, render_imports, render_init_fragments,
+  ModuleIdentifier, PathData, PathInfo, RuntimeCodeTemplate, RuntimeGlobals, RuntimeVariable,
+  SourceType, export_name, get_js_chunk_filename_template, get_undo_path, render_imports,
+  render_init_fragments,
   rspack_sources::{ConcatSource, RawStringSource, ReplaceSource, Source, SourceExt},
 };
 use rspack_error::Result;
@@ -160,7 +160,7 @@ impl EsmLibraryPlugin {
     let module_runtime_template = if runtime_template.uses_runtime_context() {
       rspack_module_runtime_template = compilation
         .runtime_template
-        .create_runtime_code_template_with_render_mode(RuntimeGlobalRenderMode::RspackModule);
+        .create_module_runtime_code_template();
       &rspack_module_runtime_template
     } else {
       runtime_template

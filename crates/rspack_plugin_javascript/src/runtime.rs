@@ -1,8 +1,8 @@
 use rayon::prelude::*;
 use rspack_core::{
-  ChunkGraph, ChunkInitFragments, ChunkKind, ChunkUkey, CodeGenerationPublicPathAutoReplace,
-  Compilation, Module, RuntimeCodeTemplate, RuntimeGlobals, RuntimeModuleGenerateContext,
-  RuntimeProxyMetadata, RuntimeVariable, SourceType,
+  ChunkGraph, ChunkInitFragments, ChunkUkey, CodeGenerationPublicPathAutoReplace, Compilation,
+  Module, RuntimeCodeTemplate, RuntimeGlobals, RuntimeModuleGenerateContext, RuntimeProxyMetadata,
+  RuntimeVariable, SourceType,
   chunk_graph_chunk::ChunkIdSet,
   get_undo_path, property_access,
   rspack_sources::{
@@ -234,13 +234,7 @@ pub async fn render_module(
         });
       }
       if need_require {
-        args.push(
-          if compilation.options.experiments.runtime_mode == RuntimeMode::Rspack {
-            runtime_template.render_runtime_variable(&RuntimeVariable::Context)
-          } else {
-            runtime_template.render_runtime_globals(&RuntimeGlobals::REQUIRE)
-          },
-        );
+        args.push(runtime_template.render_runtime_argument());
       }
 
       let mut container_sources = ConcatSource::default();
@@ -357,14 +351,6 @@ pub fn should_render_runtime_context(compilation: &Compilation, chunk_ukey: &Chu
     return false;
   }
 
-  let chunk = compilation
-    .build_chunk_graph_artifact
-    .chunk_by_ukey
-    .expect_get(chunk_ukey);
-  if chunk.kind() == ChunkKind::HotUpdate {
-    return false;
-  }
-
   runtime_context_metadata(compilation, chunk_ukey).is_some_and(|metadata| {
     !metadata.lexical_fields().is_empty() || !metadata.context_fields().is_empty()
   }) || should_render_runtime_context_require(compilation, chunk_ukey)
@@ -473,7 +459,7 @@ fn render_runtime_context_fields(
       continue;
     }
 
-    let Some(key) = runtime_global.context_property_name() else {
+    let Some(key) = runtime_global.property_name() else {
       continue;
     };
     let Some(lexical_name) = runtime_global.to_lexical_name() else {
@@ -481,12 +467,23 @@ fn render_runtime_context_fields(
     };
 
     if has_setter {
-      sources.add(RawStringSource::from(format!(
-        "var __rspack_context_field = Object.getOwnPropertyDescriptor({}, {}); if (__rspack_context_field && Object.prototype.hasOwnProperty.call(__rspack_context_field, \"value\")) {} = __rspack_context_field.value;\n",
-        runtime_context,
-        rspack_util::json_stringify(key),
-        lexical_name
-      )));
+      if runtime_global == RuntimeGlobals::CREATE_FAKE_NAMESPACE_OBJECT {
+        sources.add(RawStringSource::from(format!(
+          "var __rspack_context_field = Object.getOwnPropertyDescriptor({}, {}); if (__rspack_context_field && Object.prototype.hasOwnProperty.call(__rspack_context_field, \"value\")) {} = __rspack_context_field.value;\n",
+          runtime_context,
+          rspack_util::json_stringify(key),
+          lexical_name
+        )));
+      } else {
+        sources.add(RawStringSource::from(format!(
+          "var __rspack_context_field = Object.getOwnPropertyDescriptor({}, {}); if (__rspack_context_field) {} = Object.prototype.hasOwnProperty.call(__rspack_context_field, \"value\") ? __rspack_context_field.value : {}{};\n",
+          runtime_context,
+          rspack_util::json_stringify(key),
+          lexical_name,
+          runtime_context,
+          property_access([key], 0)
+        )));
+      }
       let getter_value = if runtime_global == RuntimeGlobals::CREATE_FAKE_NAMESPACE_OBJECT {
         format!(
           "function(value, mode) {{ return {lexical_name}.call(typeof this === \"function\" ? this : this.r, value, mode); }}"
@@ -555,13 +552,9 @@ pub async fn render_chunk_runtime_modules(
   }
 
   let mut sources = ConcatSource::default();
-  let runtime_module_arguments = if runtime_template.uses_runtime_context() {
-    runtime_template.render_runtime_variable(&RuntimeVariable::Context)
-  } else {
-    runtime_template.render_runtime_globals(&RuntimeGlobals::REQUIRE)
-  };
   sources.add(RawStringSource::from(format!(
-    "function({runtime_module_arguments}) {{\n",
+    "function({}) {{\n",
+    runtime_template.render_runtime_argument()
   )));
   sources.add(runtime_modules_sources);
   sources.add(RawStringSource::from_static("\n}\n"));
@@ -696,11 +689,6 @@ pub async fn render_runtime_modules(
     sources.add(RawStringSource::from(format!(
       "if (typeof {require} !== \"undefined\") {runtime_context}.r = {require};\n"
     )));
-    if let Some(context_fields) =
-      render_runtime_context_fields(compilation, chunk_ukey, runtime_template, true, false)
-    {
-      sources.add(context_fields);
-    }
   }
   if let Some(context_fields) =
     render_runtime_context_fields(compilation, chunk_ukey, runtime_template, false, true)

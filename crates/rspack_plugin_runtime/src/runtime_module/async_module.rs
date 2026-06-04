@@ -2,7 +2,7 @@ use std::sync::LazyLock;
 
 use rspack_core::{
   Compilation, RuntimeGlobals, RuntimeModule, RuntimeModuleGenerateContext, RuntimeTemplate,
-  RuntimeVariable, impl_runtime_module, runtime_mode::RuntimeMode,
+  RuntimeVariable, impl_runtime_module,
 };
 
 use crate::extract_runtime_globals_from_ejs;
@@ -40,11 +40,7 @@ impl RuntimeModule for AsyncRuntimeModule {
     vec![(self.id.to_string(), ASYNC_MODULE_TEMPLATE.to_string())]
   }
 
-  fn additional_runtime_requirements(&self, compilation: &Compilation) -> RuntimeGlobals {
-    if compilation.options.experiments.runtime_mode == RuntimeMode::Rspack {
-      ASYNC_MODULE_RUNTIME_REQUIREMENTS.renderable_require_scope()
-    } else {
-      RuntimeGlobals::default()
-    }
+  fn additional_runtime_requirements(&self, _compilation: &Compilation) -> RuntimeGlobals {
+    *ASYNC_MODULE_RUNTIME_REQUIREMENTS
   }
 }

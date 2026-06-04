@@ -428,7 +428,7 @@ pub fn runtime_globals_property_name(runtime_globals: &RuntimeGlobals) -> Option
     RuntimeGlobals::STARTUP_NO_DEFAULT => "x (no default handler)",
     RuntimeGlobals::ENSURE_CHUNK_INCLUDE_ENTRIES => "f (include entries)",
     RuntimeGlobals::STARTUP => "x",
-    RuntimeGlobals::MAKE_NAMESPACE_OBJECT => "r",
+    RuntimeGlobals::MAKE_NAMESPACE_OBJECT => "N",
     RuntimeGlobals::MAKE_DEFERRED_NAMESPACE_OBJECT => "z",
     RuntimeGlobals::MAKE_OPTIMIZED_DEFERRED_NAMESPACE_OBJECT => "zO",
     RuntimeGlobals::DEFERRED_MODULES_ASYNC_TRANSITIVE_DEPENDENCIES => "zT",
@@ -464,16 +464,13 @@ pub fn runtime_globals_property_name(runtime_globals: &RuntimeGlobals) -> Option
   })
 }
 
-pub fn runtime_globals_to_string(
-  runtime_globals: &RuntimeGlobals,
-  compiler_options: &CompilerOptions,
-) -> String {
+pub fn runtime_globals_to_string(runtime_globals: &RuntimeGlobals) -> String {
   if runtime_globals == &RuntimeGlobals::EXPORTS {
-    return runtime_variable_to_string(&RuntimeVariable::Exports, compiler_options);
+    return runtime_variable_name(&RuntimeVariable::Exports).to_string();
   }
 
   if runtime_globals == &RuntimeGlobals::REQUIRE {
-    return runtime_variable_to_string(&RuntimeVariable::Require, compiler_options);
+    return runtime_variable_name(&RuntimeVariable::Require).to_string();
   }
 
   if runtime_globals == &RuntimeGlobals::MODULE {
@@ -483,9 +480,9 @@ pub fn runtime_globals_to_string(
   let name = runtime_globals_property_name(runtime_globals)
     .expect("runtime global should have a property name");
   if REQUIRE_SCOPE_GLOBALS.contains(*runtime_globals) {
-    let require = runtime_variable_to_string(&RuntimeVariable::Require, compiler_options);
+    let require = runtime_variable_name(&RuntimeVariable::Require);
     let mut result = String::with_capacity(require.len() + 1 + name.len());
-    result.push_str(&require);
+    result.push_str(require);
     result.push('.');
     result.push_str(name);
     return result;
@@ -516,14 +513,18 @@ pub fn runtime_variable_to_string(
   _compiler_options: &CompilerOptions,
 ) -> String {
   // TODO: use compiler options to get runtime variable names
+  runtime_variable_name(runtime_variable).to_string()
+}
+
+pub fn runtime_variable_name(runtime_variable: &RuntimeVariable) -> &'static str {
   match *runtime_variable {
-    RuntimeVariable::Require => "__webpack_require__".to_string(),
-    RuntimeVariable::Context => "__rspack_context".to_string(),
-    RuntimeVariable::Modules => "__webpack_modules__".to_string(),
-    RuntimeVariable::ModuleCache => "__webpack_module_cache__".to_string(),
-    RuntimeVariable::Exports => "__webpack_exports__".to_string(),
-    RuntimeVariable::Module => "__webpack_module__".to_string(),
-    RuntimeVariable::StartupExec => "__webpack_exec__".to_string(),
+    RuntimeVariable::Require => "__webpack_require__",
+    RuntimeVariable::Context => "__rspack_context",
+    RuntimeVariable::Modules => "__webpack_modules__",
+    RuntimeVariable::ModuleCache => "__webpack_module_cache__",
+    RuntimeVariable::Exports => "__webpack_exports__",
+    RuntimeVariable::Module => "__webpack_module__",
+    RuntimeVariable::StartupExec => "__webpack_exec__",
   }
 }
 
@@ -566,12 +567,8 @@ impl RuntimeGlobals {
     runtime_globals_property_name(self)
   }
 
-  pub fn context_property_name(&self) -> Option<&'static str> {
-    if self == &RuntimeGlobals::MAKE_NAMESPACE_OBJECT {
-      return Some("ns");
-    }
-
-    self.property_name()
+  pub fn name(&self) -> Option<&'static str> {
+    RUNTIME_GLOBAL_MAP.0.get(self).copied()
   }
 
   pub fn from_property_name(property_name: &str) -> Option<Self> {
@@ -583,6 +580,21 @@ impl RuntimeGlobals {
       .intersection(*REQUIRE_SCOPE_GLOBALS)
       .difference(RuntimeGlobals::REQUIRE_SCOPE)
       .difference(RuntimeGlobals::HMR_RUNTIME_STATE_PREFIX)
+  }
+
+  pub fn runtime_context_additional_requirements(self) -> Self {
+    let mut requirements = RuntimeGlobals::default();
+    if self.intersects(RuntimeGlobals::HMR_DOWNLOAD_UPDATE_HANDLERS) {
+      requirements.insert(RuntimeGlobals::ENSURE_CHUNK_HANDLERS);
+    }
+    if self.intersects(
+      RuntimeGlobals::ENSURE_CHUNK_HANDLERS
+        | RuntimeGlobals::LOAD_SCRIPT
+        | RuntimeGlobals::CREATE_SCRIPT,
+    ) {
+      requirements.insert(RuntimeGlobals::SCRIPT_NONCE);
+    }
+    requirements
   }
 
   pub fn to_lexical_name(&self) -> Option<&str> {

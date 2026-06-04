@@ -3,7 +3,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 
 use super::*;
 use crate::{
-  ChunkKind, CodeGenerationRuntimeRequirementsWrite, RuntimeProxyMetadata, cache::Cache,
+  CodeGenerationRuntimeRequirementsWrite, RuntimeProxyMetadata, cache::Cache,
   compilation::pass::PassExt, logger::Logger, runtime_mode::RuntimeMode as ExperimentRuntimeMode,
 };
 
@@ -522,11 +522,9 @@ pub async fn process_chunks_runtime_requirements(
       .build_chunk_graph_artifact
       .chunk_by_ukey
       .expect_get(&entry_ukey);
-    if entry.kind() == ChunkKind::HotUpdate {
-      continue;
-    }
-    let referenced_chunks =
+    let mut referenced_chunks =
       entry.get_all_referenced_chunks(&compilation.build_chunk_graph_artifact.chunk_group_by_ukey);
+    referenced_chunks.insert(entry_ukey);
     let mut metadata = RuntimeProxyMetadata::default();
 
     for chunk_ukey in referenced_chunks.iter() {
@@ -534,9 +532,6 @@ pub async fn process_chunks_runtime_requirements(
         .build_chunk_graph_artifact
         .chunk_by_ukey
         .expect_get(chunk_ukey);
-      if chunk.kind() == ChunkKind::HotUpdate {
-        continue;
-      }
       for mid in compilation
         .build_chunk_graph_artifact
         .chunk_graph
@@ -585,20 +580,11 @@ pub async fn process_chunks_runtime_requirements(
 
       let chunk_runtime_requirements =
         ChunkGraph::get_chunk_runtime_requirements(compilation, chunk_ukey);
-      if chunk_runtime_requirements.intersects(RuntimeGlobals::HMR_DOWNLOAD_UPDATE_HANDLERS) {
-        metadata
-          .runtime_module_requirements
-          .insert(RuntimeGlobals::ENSURE_CHUNK_HANDLERS);
-      }
-      if chunk_runtime_requirements.intersects(
-        RuntimeGlobals::ENSURE_CHUNK_HANDLERS
-          | RuntimeGlobals::LOAD_SCRIPT
-          | RuntimeGlobals::CREATE_SCRIPT,
-      ) {
-        metadata
-          .runtime_module_requirements
-          .insert(RuntimeGlobals::SCRIPT_NONCE);
-      }
+      metadata.runtime_module_requirements.insert(
+        chunk_runtime_requirements
+          .runtime_context_additional_requirements()
+          .renderable_require_scope(),
+      );
     }
 
     metadata.hook_exposed_requirements.insert(
