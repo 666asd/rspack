@@ -120,141 +120,141 @@ body {
 }
 
 @layer default {
-body {
-	background: black;
-}
+  body {
+  	background: black;
+  }
 
 }
 @layer default {
-body {
-	background: black;
-}
+  body {
+  	background: black;
+  }
 
 }
 @supports (display: flex) {
-body {
-	background: black;
-}
+  body {
+  	background: black;
+  }
 
 }
 @supports (display: flex) {
-body {
-	background: black;
-}
+  body {
+  	background: black;
+  }
 
 }
 @media screen and (min-width: 400px){
-body {
-	background: black;
-}
+  body {
+  	background: black;
+  }
 
 }
 @media screen and (min-width: 400px){
-body {
-	background: black;
-}
+  body {
+  	background: black;
+  }
 
 }
 @supports (display: flex) {
-@layer default {
-body {
-	background: black;
-}
+  @layer default {
+    body {
+    	background: black;
+    }
 
-}
+  }
 }
 @media screen and (min-width: 400px){
-@layer default {
-body {
-	background: black;
-}
+  @layer default {
+    body {
+    	background: black;
+    }
 
-}
+  }
 }
 @media screen and (min-width: 400px){
-@supports (display: flex) {
-body {
-	background: black;
-}
+  @supports (display: flex) {
+    body {
+    	background: black;
+    }
 
-}
+  }
 }
 @media screen and (min-width: 400px){
-@supports (display: flex) {
-@layer default {
-body {
-	background: black;
-}
+  @supports (display: flex) {
+    @layer default {
+      body {
+      	background: black;
+      }
 
-}
-}
+    }
+  }
 }
 @media screen and (min-width: 400px){
-@supports (display: flex) {
-@layer default {
-body {
-	background: black;
-}
+  @supports (display: flex) {
+    @layer default {
+      body {
+      	background: black;
+      }
 
-}
-}
+    }
+  }
 }
 @media screen and (min-width: 400px){
-@supports (display: flex) {
-@layer default {
-body {
-	background: black;
-}
+  @supports (display: flex) {
+    @layer default {
+      body {
+      	background: black;
+      }
 
-}
-}
+    }
+  }
 }
 @media screen and (min-width: 400px){
-@supports (display: flex) {
-@layer default {
-body {
-	background: black;
-}
+  @supports (display: flex) {
+    @layer default {
+      body {
+      	background: black;
+      }
 
-}
-}
+    }
+  }
 }
 @media screen and (min-width: 400px){
-@supports (background: url(./img.png)) {
-@layer default {
-body {
-	background: black;
-}
+  @supports (background: url(./img.png)) {
+    @layer default {
+      body {
+      	background: black;
+      }
 
-}
-}
+    }
+  }
 }
 @media screen and (min-width: 400px){
-@supports (background: url("./img.png")) {
-@layer default {
-body {
-	background: black;
-}
+  @supports (background: url("./img.png")) {
+    @layer default {
+      body {
+      	background: black;
+      }
 
-}
-}
+    }
+  }
 }
 @media screen{
-body {
-	background: black;
-}
-
-}
-@media screen{
-body {
-	background: black;
-}
+  body {
+  	background: black;
+  }
 
 }
 @media screen{
-body {
-	background: black;
+  body {
+  	background: black;
+  }
+
 }
+@media screen{
+  body {
+  	background: black;
+  }
 
 }
 body {
@@ -266,21 +266,21 @@ body {
 }
 
 @layer base {
-body {
-	background: green;
-}
+  body {
+  	background: green;
+  }
 
 }
 @supports (display: flex) {
-body {
-	background: green;
-}
+  body {
+  	background: green;
+  }
 
 }
 @media screen, print{
-body {
-	background: green;
-}
+  body {
+  	background: green;
+  }
 
 }
 a {
@@ -320,21 +320,21 @@ a {
 }
 
 @media screen and (orientation:landscape){
-a {
-	color: red;
-}
+  a {
+  	color: red;
+  }
 
 }
 @media SCREEN AND (ORIENTATION: LANDSCAPE){
-a {
-	color: red;
-}
+  a {
+  	color: red;
+  }
 
 }
 @media (min-width: 100px){
-a {
-	color: red;
-}
+  a {
+  	color: red;
+  }
 
 }
 .class {
@@ -346,9 +346,9 @@ a {
 }
 
 @media screen and (orientation:landscape){
-a {
-	color: red;
-}
+  a {
+  	color: red;
+  }
 
 }
 .class {
@@ -464,18 +464,18 @@ a {
 }
 
 @supports (display: flex) {
-.class {
-	content: "style4.css";
-}
+  .class {
+  	content: "style4.css";
+  }
 
 }
 @media screen and (orientation:landscape){
-@supports (display: flex) {
-.class {
-	content: "style4.css";
-}
+  @supports (display: flex) {
+    .class {
+    	content: "style4.css";
+    }
 
-}
+  }
 }
 .class {
 	content: "style4.css";
@@ -490,217 +490,217 @@ a {
 }
 
 @media screen and (orientation: landscape){
-.class {
-	content: "test.css";
-}
-.using-loader { color: red; }
+  .class {
+  	content: "test.css";
+  }
+  .using-loader { color: red; }
 }
 a {
   color: red;
 }
 @media screen and (orientation:landscape){
-a {
-  color: blue;
-}
+  a {
+    color: blue;
+  }
 }
 a {
   color: red;
 }
 @supports () {
-.class {
-	content: "style5.css";
-}
+  .class {
+  	content: "style5.css";
+  }
 
 }
 @supports () {
-.class {
-	content: "style5.css";
-}
+  .class {
+  	content: "style5.css";
+  }
 
 }
 @supports (unknown) {
-.class {
-	content: "style5.css";
-}
+  .class {
+  	content: "style5.css";
+  }
 
 }
 @supports (display: flex) {
-.class {
-	content: "style5.css";
-}
+  .class {
+  	content: "style5.css";
+  }
 
 }
 @supports (display: flex !important) {
-.class {
-	content: "style5.css";
-}
+  .class {
+  	content: "style5.css";
+  }
 
 }
 @media screen and (min-width: 400px){
-@supports (display: flex) {
-.class {
-	content: "style5.css";
-}
+  @supports (display: flex) {
+    .class {
+    	content: "style5.css";
+    }
 
-}
+  }
 }
 @supports (selector(a b)) {
-.class {
-	content: "style5.css";
-}
+  .class {
+  	content: "style5.css";
+  }
 
 }
 @supports (display: flex) {
-.class {
-	content: "style5.css";
-}
+  .class {
+  	content: "style5.css";
+  }
 
 }
 @layer {
-.class {
-	content: "layer.css";
-}
+  .class {
+  	content: "layer.css";
+  }
 
 }
 @layer default {
-.class {
-	content: "layer.css";
-}
+  .class {
+  	content: "layer.css";
+  }
 
 }
 @media screen and (min-width: 400px){
-@supports (display: flex) {
-@layer default {
-.class {
-	content: "layer.css";
-}
+  @supports (display: flex) {
+    @layer default {
+      .class {
+      	content: "layer.css";
+      }
 
-}
-}
+    }
+  }
 }
 @media screen and (min-width: 400px){
-@supports (display: flex) {
-@layer {
-.class {
-	content: "layer.css";
-}
+  @supports (display: flex) {
+    @layer {
+      .class {
+      	content: "layer.css";
+      }
 
-}
-}
+    }
+  }
 }
 @media screen and (min-width: 400px){
-@supports (display: flex) {
-@layer {
-.class {
-	content: "layer.css";
-}
+  @supports (display: flex) {
+    @layer {
+      .class {
+      	content: "layer.css";
+      }
 
-}
-}
+    }
+  }
 }
 @layer {
-.class {
-	content: "layer.css";
-}
+  .class {
+  	content: "layer.css";
+  }
 
 }
 @layer foo.bar.baz {
-.class {
-	content: "layer.css";
-}
+  .class {
+  	content: "layer.css";
+  }
 
 }
 @layer {
-.class {
-	content: "layer.css";
-}
+  .class {
+  	content: "layer.css";
+  }
 
 }
 @media screen and (min-width:400px){
-@supports (display: flex) {
-@layer default {
-.class {
-	content: "style6.css";
-}
+  @supports (display: flex) {
+    @layer default {
+      .class {
+      	content: "style6.css";
+      }
 
-}
-}
+    }
+  }
 }
 @media screen and (min-width:400px){
-@supports (display: flex) {
-@layer default {
-.class {
-	content: "style6.css";
-}
+  @supports (display: flex) {
+    @layer default {
+      .class {
+      	content: "style6.css";
+      }
 
-}
-}
+    }
+  }
 }
 @media screen and (min-width:400px){
-@supports (display: flex) {
-.class {
-	content: "style6.css";
-}
+  @supports (display: flex) {
+    .class {
+    	content: "style6.css";
+    }
 
-}
+  }
 }
 @media screen and (min-width:400px){
-.class {
-	content: "style6.css";
-}
-
-}
-@media screen and (min-width:400px){
-.class {
-	content: "style6.css";
-}
+  .class {
+  	content: "style6.css";
+  }
 
 }
 @media screen and (min-width:400px){
-.class {
-	content: "style6.css";
+  .class {
+  	content: "style6.css";
+  }
+
 }
+@media screen and (min-width:400px){
+  .class {
+  	content: "style6.css";
+  }
 
 }
 @media screen     and     (     min-width     :     400px     ){
-@supports (display     :     flex) {
-@layer default {
-.class {
-	content: "style6.css";
-}
+  @supports (display     :     flex) {
+    @layer default {
+      .class {
+      	content: "style6.css";
+      }
 
-}
-}
+    }
+  }
 }
 @media SCREEN AND (MIN-WIDTH: 400PX){
-@supports (DISPLAY: FLEX) {
-@layer DEFAULT {
-.class {
-	content: "style6.css";
-}
+  @supports (DISPLAY: FLEX) {
+    @layer DEFAULT {
+      .class {
+      	content: "style6.css";
+      }
 
-}
-}
+    }
+  }
 }
 @media SCREEN AND (MIN-WIDTH: 400PX){
-@supports (DISPLAY: FLEX) {
-@layer {
-.class {
-	content: "style6.css";
-}
+  @supports (DISPLAY: FLEX) {
+    @layer {
+      .class {
+      	content: "style6.css";
+      }
 
-}
-}
+    }
+  }
 }
 @media /* Comment */ screen/* Comment */ and/* Comment */ (/* Comment */min-width/* Comment */: /* Comment */400px/* Comment */){
-@supports (/* Comment */display/* Comment */:/* Comment */ flex/* Comment */) {
-@layer /* Comment */default/* Comment */ {
-.class {
-	content: "style6.css";
-}
+  @supports (/* Comment */display/* Comment */:/* Comment */ flex/* Comment */) {
+    @layer /* Comment */default/* Comment */ {
+      .class {
+      	content: "style6.css";
+      }
 
-}
-}
+    }
+  }
 }
 .class {
 	content: "style6.css";
@@ -711,15 +711,15 @@ a {
 }
 
 @media /* Comment *//* Comment */{
-.class {
-	content: "style6.css";
-}
+  .class {
+  	content: "style6.css";
+  }
 
 }
 @media /* Comment *//* Comment */{
-.class {
-	content: "style6.css";
-}
+  .class {
+  	content: "style6.css";
+  }
 
 }
 .class {
@@ -731,121 +731,121 @@ a {
 }
 
 @media /* Comment */ print and (orientation:landscape){
-.class {
-	content: "style6.css";
-}
+  .class {
+  	content: "style6.css";
+  }
 
 }
 @media /* Comment */print and (orientation:landscape)/* Comment */{
-.class {
-	content: "style6.css";
-}
+  .class {
+  	content: "style6.css";
+  }
 
 }
 @media /* Comment */ print and (orientation:landscape){
-.class {
-	content: "style6.css";
-}
+  .class {
+  	content: "style6.css";
+  }
 
 }
 @media screen and (min-width: 400px){
-.class {
-	content: "style8.css";
-}
+  .class {
+  	content: "style8.css";
+  }
 
 }
 @media (prefers-color-scheme: dark){
-.class {
-	content: "style8.css";
-}
+  .class {
+  	content: "style8.css";
+  }
 
 }
 @supports (display: flex) {
-.class {
-	content: "style8.css";
-}
+  .class {
+  	content: "style8.css";
+  }
 
 }
 @supports (((display: flex))) {
-.class {
-	content: "style8.css";
-}
+  .class {
+  	content: "style8.css";
+  }
 
 }
 @media screen and (((min-width: 400px))){
-@supports (((display: inline-grid))) {
-.class {
-	content: "style8.css";
-}
+  @supports (((display: inline-grid))) {
+    .class {
+    	content: "style8.css";
+    }
 
-}
+  }
 }
 @supports (display: grid) {
-.class {
-	content: "style8.css";
-}
+  .class {
+  	content: "style8.css";
+  }
 
 }
 @media screen and (min-width: 400px){
-@supports (display: flex) {
-.class {
-	content: "style8.css";
-}
+  @supports (display: flex) {
+    .class {
+    	content: "style8.css";
+    }
 
-}
+  }
 }
 @layer framework {
-.class {
-	content: "style8.css";
-}
+  .class {
+  	content: "style8.css";
+  }
 
 }
 @layer default {
-.class {
-	content: "style8.css";
-}
+  .class {
+  	content: "style8.css";
+  }
 
 }
 @layer base {
-.class {
-	content: "style8.css";
-}
+  .class {
+  	content: "style8.css";
+  }
 
 }
 @supports (display: flex) {
-@layer default {
-.class {
-	content: "style8.css";
-}
+  @layer default {
+    .class {
+    	content: "style8.css";
+    }
 
-}
+  }
 }
 @media screen and (min-width: 400px){
-@supports (display: flex) {
-@layer default {
-.class {
-	content: "style8.css";
-}
+  @supports (display: flex) {
+    @layer default {
+      .class {
+      	content: "style8.css";
+      }
 
-}
-}
+    }
+  }
 }
 @layer {
-a {
-	color: red;
-}
+  a {
+  	color: red;
+  }
 
 }
 @media unknown(default) unknown(display: flex) unknown{
-.class {
-	content: "style9.css";
-}
+  .class {
+  	content: "style9.css";
+  }
 
 }
 @media unknown(default){
-.class {
-	content: "style9.css";
-}
+  .class {
+  	content: "style9.css";
+  }
 
 }
 .style11 {
@@ -871,410 +871,410 @@ div{color: red;}
 }
 
 @media screen and (min-width: 400px){
-@media screen and (max-width: 500px){
-@media screen and (orientation: portrait){
-.class {
-	deep-deep-nested: 1;
-}
+  @media screen and (max-width: 500px){
+    @media screen and (orientation: portrait){
+      .class {
+      	deep-deep-nested: 1;
+      }
 
-}
-}
+    }
+  }
 }
 @media screen and (min-width: 400px){
-@media screen and (max-width: 500px){
+  @media screen and (max-width: 500px){
+    
+    
+    .class {
+    	deep-nested: 1;
+    }
 
-
-.class {
-	deep-nested: 1;
-}
-
-}
+  }
 }
 @media screen and (min-width: 400px){
-
-
-.class {
-	nested: 1;
-}
+  
+  
+  .class {
+  	nested: 1;
+  }
 
 }
 @supports (display: flex) {
-@supports (display: grid) {
-@supports (display: table) {
-.class {
-	deep-deep-nested: 1;
-}
+  @supports (display: grid) {
+    @supports (display: table) {
+      .class {
+      	deep-deep-nested: 1;
+      }
 
-}
-}
+    }
+  }
 }
 @supports (display: flex) {
-@supports (display: grid) {
+  @supports (display: grid) {
+    
+    
+    .class {
+    	deep-nested: 1;
+    }
 
-
-.class {
-	deep-nested: 1;
-}
-
-}
+  }
 }
 @supports (display: flex) {
-
-
-.class {
-	nested: 1;
-}
+  
+  
+  .class {
+  	nested: 1;
+  }
 
 }
 @layer foo {
-@layer bar {
-@layer baz {
-.class {
-	deep-deep-nested: 1;
-}
+  @layer bar {
+    @layer baz {
+      .class {
+      	deep-deep-nested: 1;
+      }
 
-}
-}
+    }
+  }
 }
 @layer foo {
-@layer bar {
+  @layer bar {
+    
+    
+    .class {
+    	deep-nested: 1;
+    }
 
-
-.class {
-	deep-nested: 1;
-}
-
-}
+  }
 }
 @layer foo {
-
-
-.class {
-	nested: 1;
-}
+  
+  
+  .class {
+  	nested: 1;
+  }
 
 }
 @media screen and (min-width: 400px){
-@supports (display: flex) {
-@layer foo {
-@media screen and (min-width: 500px){
-@supports (display: grid) {
-@layer bar {
-@media screen and (min-width: 600px){
-@supports (display: table) {
-@layer baz {
-.class {
-	deep-deep-nested: 1;
-}
+  @supports (display: flex) {
+    @layer foo {
+      @media screen and (min-width: 500px){
+        @supports (display: grid) {
+          @layer bar {
+            @media screen and (min-width: 600px){
+              @supports (display: table) {
+                @layer baz {
+                  .class {
+                  	deep-deep-nested: 1;
+                  }
 
-}
-}
-}
-}
-}
-}
-}
-}
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
 }
 @media screen and (min-width: 400px){
-@supports (display: flex) {
-@layer foo {
-@media screen and (min-width: 500px){
-@supports (display: grid) {
-@layer bar {
+  @supports (display: flex) {
+    @layer foo {
+      @media screen and (min-width: 500px){
+        @supports (display: grid) {
+          @layer bar {
+            
+            
+            .class {
+            	deep-nested: 1;
+            }
 
-
-.class {
-	deep-nested: 1;
-}
-
-}
-}
-}
-}
-}
+          }
+        }
+      }
+    }
+  }
 }
 @media screen and (min-width: 400px){
-@supports (display: flex) {
-@layer foo {
+  @supports (display: flex) {
+    @layer foo {
+      
+      
+      .class {
+      	nested: 1;
+      }
 
-
-.class {
-	nested: 1;
-}
-
-}
-}
+    }
+  }
 }
 @media screen and (min-width: 400px){
-@supports (display: flex) {
-@layer bar {
-.class {
-	deep-deep-nested: 1;
-}
+  @supports (display: flex) {
+    @layer bar {
+      .class {
+      	deep-deep-nested: 1;
+      }
 
-}
-}
+    }
+  }
 }
 @media screen and (min-width: 400px){
-@supports (display: flex) {
+  @supports (display: flex) {
+    
+    
+    .class {
+    	deep-nested: 1;
+    }
 
-
-.class {
-	deep-nested: 1;
-}
-
-}
+  }
 }
 @media screen and (min-width: 400px){
-
-
-.class {
-	nested: 1;
-}
+  
+  
+  .class {
+  	nested: 1;
+  }
 
 }
 @layer {
-@layer {
-@layer {
-.class {
-	deep-deep-nested: 1;
-}
+  @layer {
+    @layer {
+      .class {
+      	deep-deep-nested: 1;
+      }
 
-}
-}
-}
-@layer {
-@layer {
-
-
-.class {
-	deep-nested: 1;
-}
-
-}
+    }
+  }
 }
 @layer {
-@layer base {
-@layer baz {
-.class {
-	deep-deep-nested: 1;
-}
+  @layer {
+    
+    
+    .class {
+    	deep-nested: 1;
+    }
 
-}
-}
+  }
 }
 @layer {
-@layer base {
+  @layer base {
+    @layer baz {
+      .class {
+      	deep-deep-nested: 1;
+      }
 
-
-.class {
-	deep-nested: 1;
-}
-
-}
+    }
+  }
 }
 @layer {
+  @layer base {
+    
+    
+    .class {
+    	deep-nested: 1;
+    }
 
-
-
-.class {
-	deep-nested: 1;
+  }
 }
+@layer {
+  
+  
+  
+  .class {
+  	deep-nested: 1;
+  }
 
 }
 @media screen and (orientation: portrait){
-.class {
-	deep-deep-nested: 1;
-}
+  .class {
+  	deep-deep-nested: 1;
+  }
 
 }
 @media screen and (orientation: portrait){
-@supports (display: flex) {
-.class {
-	content: "style8.css";
-}
+  @supports (display: flex) {
+    .class {
+    	content: "style8.css";
+    }
 
-}
+  }
 }
 @media screen and (orientation: portrait){
-
-
-
-.class {
-	duplicate-nested: true;
-}
+  
+  
+  
+  .class {
+  	duplicate-nested: true;
+  }
 
 }
 @media screen and (orientation: portrait){
-@supports (display: flex) {
-@layer {
-@layer {
-.class {
-	deep-deep-nested: 1;
-}
+  @supports (display: flex) {
+    @layer {
+      @layer {
+        .class {
+        	deep-deep-nested: 1;
+        }
 
-}
-}
-}
+      }
+    }
+  }
 }
 @media screen and (orientation: portrait){
-@supports (display: flex) {
-@layer {
+  @supports (display: flex) {
+    @layer {
+      
+      
+      .class {
+      	deep-nested: 1;
+      }
 
-
-.class {
-	deep-nested: 1;
-}
-
-}
-}
+    }
+  }
 }
 @media screen and (orientation: portrait){
-@supports (display: flex) {
-@layer base {
-@layer baz {
-.class {
-	deep-deep-nested: 1;
-}
+  @supports (display: flex) {
+    @layer base {
+      @layer baz {
+        .class {
+        	deep-deep-nested: 1;
+        }
 
-}
-}
-}
+      }
+    }
+  }
 }
 @media screen and (orientation: portrait){
-@supports (display: flex) {
-@layer base {
+  @supports (display: flex) {
+    @layer base {
+      
+      
+      .class {
+      	deep-nested: 1;
+      }
 
-
-.class {
-	deep-nested: 1;
-}
-
-}
-}
+    }
+  }
 }
 @media screen and (orientation: portrait){
-@supports (display: flex) {
+  @supports (display: flex) {
+    
+    
+    
+    .class {
+    	deep-nested: 1;
+    }
 
-
-
-.class {
-	deep-nested: 1;
-}
-
-}
+  }
 }
 @media screen and (min-width: 400px){
-@supports (display: flex) {
-@layer super.foo {
-@media screen and (min-width: 500px){
-@supports (display: grid) {
-@layer bar {
-@media screen and (min-width: 600px){
-@supports (display: table) {
-@layer baz {
-.class {
-	deep-deep-nested: 1;
-}
+  @supports (display: flex) {
+    @layer super.foo {
+      @media screen and (min-width: 500px){
+        @supports (display: grid) {
+          @layer bar {
+            @media screen and (min-width: 600px){
+              @supports (display: table) {
+                @layer baz {
+                  .class {
+                  	deep-deep-nested: 1;
+                  }
 
-}
-}
-}
-}
-}
-}
-}
-}
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
 }
 @media screen and (min-width: 400px){
-@supports (display: flex) {
-@layer super.foo {
-@media screen and (min-width: 500px){
-@supports (display: grid) {
-@layer bar {
+  @supports (display: flex) {
+    @layer super.foo {
+      @media screen and (min-width: 500px){
+        @supports (display: grid) {
+          @layer bar {
+            
+            
+            .class {
+            	deep-nested: 1;
+            }
 
-
-.class {
-	deep-nested: 1;
-}
-
-}
-}
-}
-}
-}
+          }
+        }
+      }
+    }
+  }
 }
 @media screen and (min-width: 400px){
-@supports (display: flex) {
-@layer super.foo {
+  @supports (display: flex) {
+    @layer super.foo {
+      
+      
+      .class {
+      	nested: 1;
+      }
 
-
-.class {
-	nested: 1;
-}
-
-}
-}
+    }
+  }
 }
 @media screen and (min-width: 400px){
-@supports (unknown: layer(super.foo)) {
-a {
-	color: red;
-}
+  @supports (unknown: layer(super.foo)) {
+    a {
+    	color: red;
+    }
 
-}
+  }
 }
 @media screen and (min-width: 400px){
-@supports (url: url("./unknown.css")) {
-a {
-	color: red;
-}
+  @supports (url: url("./unknown.css")) {
+    a {
+    	color: red;
+    }
 
-}
+  }
 }
 @media screen and (min-width: 400px){
-@supports (url: url(./unknown.css)) {
-a {
-	color: red;
-}
+  @supports (url: url(./unknown.css)) {
+    a {
+    	color: red;
+    }
 
-}
+  }
 }
 @media unknown("foo") screen and (min-width: 400px){
-@supports (display: flex) {
-@layer super.foo {
-a {
-	color: red;
-}
+  @supports (display: flex) {
+    @layer super.foo {
+      a {
+      	color: red;
+      }
 
-}
-}
+    }
+  }
 }
 @media unknown(foo) screen and (min-width: 400px){
-@supports (display: url("./unknown.css")) {
-@layer super.foo {
-a {
-	color: red;
-}
+  @supports (display: url("./unknown.css")) {
+    @layer super.foo {
+      a {
+      	color: red;
+      }
 
-}
-}
+    }
+  }
 }
 @media "foo" screen and (min-width: 400px){
-@supports (display: url(./unknown.css)) {
-@layer super.foo {
-a {
-	color: red;
-}
+  @supports (display: url(./unknown.css)) {
+    @layer super.foo {
+      a {
+      	color: red;
+      }
 
-}
-}
+    }
+  }
 }
 @media "string"{
-a {
-	color: red;
-}
+  a {
+  	color: red;
+  }
 
 }
 a {
@@ -1282,9 +1282,9 @@ a {
 }
 
 @media url(./style2.css?multiple=2){
-a {
-	color: red;
-}
+  a {
+  	color: red;
+  }
 
 }
 a {
@@ -1296,9 +1296,9 @@ a {
 }
 
 @media (prefers-color-scheme: dark){
-a {
-  color: white;
-}
+  a {
+    color: white;
+  }
 
 }
 
@@ -1698,141 +1698,141 @@ body {
 }
 
 @layer default {
-body {
-	background: black;
-}
+  body {
+  	background: black;
+  }
 
 }
 @layer default {
-body {
-	background: black;
-}
+  body {
+  	background: black;
+  }
 
 }
 @supports (display: flex) {
-body {
-	background: black;
-}
+  body {
+  	background: black;
+  }
 
 }
 @supports (display: flex) {
-body {
-	background: black;
-}
+  body {
+  	background: black;
+  }
 
 }
 @media screen and (min-width: 400px){
-body {
-	background: black;
-}
+  body {
+  	background: black;
+  }
 
 }
 @media screen and (min-width: 400px){
-body {
-	background: black;
-}
+  body {
+  	background: black;
+  }
 
 }
 @supports (display: flex) {
-@layer default {
-body {
-	background: black;
-}
+  @layer default {
+    body {
+    	background: black;
+    }
 
-}
+  }
 }
 @media screen and (min-width: 400px){
-@layer default {
-body {
-	background: black;
-}
+  @layer default {
+    body {
+    	background: black;
+    }
 
-}
+  }
 }
 @media screen and (min-width: 400px){
-@supports (display: flex) {
-body {
-	background: black;
-}
+  @supports (display: flex) {
+    body {
+    	background: black;
+    }
 
-}
+  }
 }
 @media screen and (min-width: 400px){
-@supports (display: flex) {
-@layer default {
-body {
-	background: black;
-}
+  @supports (display: flex) {
+    @layer default {
+      body {
+      	background: black;
+      }
 
-}
-}
+    }
+  }
 }
 @media screen and (min-width: 400px){
-@supports (display: flex) {
-@layer default {
-body {
-	background: black;
-}
+  @supports (display: flex) {
+    @layer default {
+      body {
+      	background: black;
+      }
 
-}
-}
+    }
+  }
 }
 @media screen and (min-width: 400px){
-@supports (display: flex) {
-@layer default {
-body {
-	background: black;
-}
+  @supports (display: flex) {
+    @layer default {
+      body {
+      	background: black;
+      }
 
-}
-}
+    }
+  }
 }
 @media screen and (min-width: 400px){
-@supports (display: flex) {
-@layer default {
-body {
-	background: black;
-}
+  @supports (display: flex) {
+    @layer default {
+      body {
+      	background: black;
+      }
 
-}
-}
+    }
+  }
 }
 @media screen and (min-width: 400px){
-@supports (background: url(./img.png)) {
-@layer default {
-body {
-	background: black;
-}
+  @supports (background: url(./img.png)) {
+    @layer default {
+      body {
+      	background: black;
+      }
 
-}
-}
+    }
+  }
 }
 @media screen and (min-width: 400px){
-@supports (background: url("./img.png")) {
-@layer default {
-body {
-	background: black;
-}
+  @supports (background: url("./img.png")) {
+    @layer default {
+      body {
+      	background: black;
+      }
 
-}
-}
+    }
+  }
 }
 @media screen{
-body {
-	background: black;
-}
-
-}
-@media screen{
-body {
-	background: black;
-}
+  body {
+  	background: black;
+  }
 
 }
 @media screen{
-body {
-	background: black;
+  body {
+  	background: black;
+  }
+
 }
+@media screen{
+  body {
+  	background: black;
+  }
 
 }
 body {
@@ -1844,21 +1844,21 @@ body {
 }
 
 @layer base {
-body {
-	background: green;
-}
+  body {
+  	background: green;
+  }
 
 }
 @supports (display: flex) {
-body {
-	background: green;
-}
+  body {
+  	background: green;
+  }
 
 }
 @media screen, print{
-body {
-	background: green;
-}
+  body {
+  	background: green;
+  }
 
 }
 a {
@@ -1898,21 +1898,21 @@ a {
 }
 
 @media screen and (orientation:landscape){
-a {
-	color: red;
-}
+  a {
+  	color: red;
+  }
 
 }
 @media SCREEN AND (ORIENTATION: LANDSCAPE){
-a {
-	color: red;
-}
+  a {
+  	color: red;
+  }
 
 }
 @media (min-width: 100px){
-a {
-	color: red;
-}
+  a {
+  	color: red;
+  }
 
 }
 .class {
@@ -1924,9 +1924,9 @@ a {
 }
 
 @media screen and (orientation:landscape){
-a {
-	color: red;
-}
+  a {
+  	color: red;
+  }
 
 }
 .class {
@@ -2042,18 +2042,18 @@ a {
 }
 
 @supports (display: flex) {
-.class {
-	content: "style4.css";
-}
+  .class {
+  	content: "style4.css";
+  }
 
 }
 @media screen and (orientation:landscape){
-@supports (display: flex) {
-.class {
-	content: "style4.css";
-}
+  @supports (display: flex) {
+    .class {
+    	content: "style4.css";
+    }
 
-}
+  }
 }
 .class {
 	content: "style4.css";
@@ -2068,217 +2068,217 @@ a {
 }
 
 @media screen and (orientation: landscape){
-.class {
-	content: "test.css";
-}
-.using-loader { color: red; }
+  .class {
+  	content: "test.css";
+  }
+  .using-loader { color: red; }
 }
 a {
   color: red;
 }
 @media screen and (orientation:landscape){
-a {
-  color: blue;
-}
+  a {
+    color: blue;
+  }
 }
 a {
   color: red;
 }
 @supports () {
-.class {
-	content: "style5.css";
-}
+  .class {
+  	content: "style5.css";
+  }
 
 }
 @supports () {
-.class {
-	content: "style5.css";
-}
+  .class {
+  	content: "style5.css";
+  }
 
 }
 @supports (unknown) {
-.class {
-	content: "style5.css";
-}
+  .class {
+  	content: "style5.css";
+  }
 
 }
 @supports (display: flex) {
-.class {
-	content: "style5.css";
-}
+  .class {
+  	content: "style5.css";
+  }
 
 }
 @supports (display: flex !important) {
-.class {
-	content: "style5.css";
-}
+  .class {
+  	content: "style5.css";
+  }
 
 }
 @media screen and (min-width: 400px){
-@supports (display: flex) {
-.class {
-	content: "style5.css";
-}
+  @supports (display: flex) {
+    .class {
+    	content: "style5.css";
+    }
 
-}
+  }
 }
 @supports (selector(a b)) {
-.class {
-	content: "style5.css";
-}
+  .class {
+  	content: "style5.css";
+  }
 
 }
 @supports (display: flex) {
-.class {
-	content: "style5.css";
-}
+  .class {
+  	content: "style5.css";
+  }
 
 }
 @layer {
-.class {
-	content: "layer.css";
-}
+  .class {
+  	content: "layer.css";
+  }
 
 }
 @layer default {
-.class {
-	content: "layer.css";
-}
+  .class {
+  	content: "layer.css";
+  }
 
 }
 @media screen and (min-width: 400px){
-@supports (display: flex) {
-@layer default {
-.class {
-	content: "layer.css";
-}
+  @supports (display: flex) {
+    @layer default {
+      .class {
+      	content: "layer.css";
+      }
 
-}
-}
+    }
+  }
 }
 @media screen and (min-width: 400px){
-@supports (display: flex) {
-@layer {
-.class {
-	content: "layer.css";
-}
+  @supports (display: flex) {
+    @layer {
+      .class {
+      	content: "layer.css";
+      }
 
-}
-}
+    }
+  }
 }
 @media screen and (min-width: 400px){
-@supports (display: flex) {
-@layer {
-.class {
-	content: "layer.css";
-}
+  @supports (display: flex) {
+    @layer {
+      .class {
+      	content: "layer.css";
+      }
 
-}
-}
+    }
+  }
 }
 @layer {
-.class {
-	content: "layer.css";
-}
+  .class {
+  	content: "layer.css";
+  }
 
 }
 @layer foo.bar.baz {
-.class {
-	content: "layer.css";
-}
+  .class {
+  	content: "layer.css";
+  }
 
 }
 @layer {
-.class {
-	content: "layer.css";
-}
+  .class {
+  	content: "layer.css";
+  }
 
 }
 @media screen and (min-width:400px){
-@supports (display: flex) {
-@layer default {
-.class {
-	content: "style6.css";
-}
+  @supports (display: flex) {
+    @layer default {
+      .class {
+      	content: "style6.css";
+      }
 
-}
-}
+    }
+  }
 }
 @media screen and (min-width:400px){
-@supports (display: flex) {
-@layer default {
-.class {
-	content: "style6.css";
-}
+  @supports (display: flex) {
+    @layer default {
+      .class {
+      	content: "style6.css";
+      }
 
-}
-}
+    }
+  }
 }
 @media screen and (min-width:400px){
-@supports (display: flex) {
-.class {
-	content: "style6.css";
-}
+  @supports (display: flex) {
+    .class {
+    	content: "style6.css";
+    }
 
-}
+  }
 }
 @media screen and (min-width:400px){
-.class {
-	content: "style6.css";
-}
-
-}
-@media screen and (min-width:400px){
-.class {
-	content: "style6.css";
-}
+  .class {
+  	content: "style6.css";
+  }
 
 }
 @media screen and (min-width:400px){
-.class {
-	content: "style6.css";
+  .class {
+  	content: "style6.css";
+  }
+
 }
+@media screen and (min-width:400px){
+  .class {
+  	content: "style6.css";
+  }
 
 }
 @media screen     and     (     min-width     :     400px     ){
-@supports (display     :     flex) {
-@layer default {
-.class {
-	content: "style6.css";
-}
+  @supports (display     :     flex) {
+    @layer default {
+      .class {
+      	content: "style6.css";
+      }
 
-}
-}
+    }
+  }
 }
 @media SCREEN AND (MIN-WIDTH: 400PX){
-@supports (DISPLAY: FLEX) {
-@layer DEFAULT {
-.class {
-	content: "style6.css";
-}
+  @supports (DISPLAY: FLEX) {
+    @layer DEFAULT {
+      .class {
+      	content: "style6.css";
+      }
 
-}
-}
+    }
+  }
 }
 @media SCREEN AND (MIN-WIDTH: 400PX){
-@supports (DISPLAY: FLEX) {
-@layer {
-.class {
-	content: "style6.css";
-}
+  @supports (DISPLAY: FLEX) {
+    @layer {
+      .class {
+      	content: "style6.css";
+      }
 
-}
-}
+    }
+  }
 }
 @media /* Comment */ screen/* Comment */ and/* Comment */ (/* Comment */min-width/* Comment */: /* Comment */400px/* Comment */){
-@supports (/* Comment */display/* Comment */:/* Comment */ flex/* Comment */) {
-@layer /* Comment */default/* Comment */ {
-.class {
-	content: "style6.css";
-}
+  @supports (/* Comment */display/* Comment */:/* Comment */ flex/* Comment */) {
+    @layer /* Comment */default/* Comment */ {
+      .class {
+      	content: "style6.css";
+      }
 
-}
-}
+    }
+  }
 }
 .class {
 	content: "style6.css";
@@ -2289,15 +2289,15 @@ a {
 }
 
 @media /* Comment *//* Comment */{
-.class {
-	content: "style6.css";
-}
+  .class {
+  	content: "style6.css";
+  }
 
 }
 @media /* Comment *//* Comment */{
-.class {
-	content: "style6.css";
-}
+  .class {
+  	content: "style6.css";
+  }
 
 }
 .class {
@@ -2309,121 +2309,121 @@ a {
 }
 
 @media /* Comment */ print and (orientation:landscape){
-.class {
-	content: "style6.css";
-}
+  .class {
+  	content: "style6.css";
+  }
 
 }
 @media /* Comment */print and (orientation:landscape)/* Comment */{
-.class {
-	content: "style6.css";
-}
+  .class {
+  	content: "style6.css";
+  }
 
 }
 @media /* Comment */ print and (orientation:landscape){
-.class {
-	content: "style6.css";
-}
+  .class {
+  	content: "style6.css";
+  }
 
 }
 @media screen and (min-width: 400px){
-.class {
-	content: "style8.css";
-}
+  .class {
+  	content: "style8.css";
+  }
 
 }
 @media (prefers-color-scheme: dark){
-.class {
-	content: "style8.css";
-}
+  .class {
+  	content: "style8.css";
+  }
 
 }
 @supports (display: flex) {
-.class {
-	content: "style8.css";
-}
+  .class {
+  	content: "style8.css";
+  }
 
 }
 @supports (((display: flex))) {
-.class {
-	content: "style8.css";
-}
+  .class {
+  	content: "style8.css";
+  }
 
 }
 @media screen and (((min-width: 400px))){
-@supports (((display: inline-grid))) {
-.class {
-	content: "style8.css";
-}
+  @supports (((display: inline-grid))) {
+    .class {
+    	content: "style8.css";
+    }
 
-}
+  }
 }
 @supports (display: grid) {
-.class {
-	content: "style8.css";
-}
+  .class {
+  	content: "style8.css";
+  }
 
 }
 @media screen and (min-width: 400px){
-@supports (display: flex) {
-.class {
-	content: "style8.css";
-}
+  @supports (display: flex) {
+    .class {
+    	content: "style8.css";
+    }
 
-}
+  }
 }
 @layer framework {
-.class {
-	content: "style8.css";
-}
+  .class {
+  	content: "style8.css";
+  }
 
 }
 @layer default {
-.class {
-	content: "style8.css";
-}
+  .class {
+  	content: "style8.css";
+  }
 
 }
 @layer base {
-.class {
-	content: "style8.css";
-}
+  .class {
+  	content: "style8.css";
+  }
 
 }
 @supports (display: flex) {
-@layer default {
-.class {
-	content: "style8.css";
-}
+  @layer default {
+    .class {
+    	content: "style8.css";
+    }
 
-}
+  }
 }
 @media screen and (min-width: 400px){
-@supports (display: flex) {
-@layer default {
-.class {
-	content: "style8.css";
-}
+  @supports (display: flex) {
+    @layer default {
+      .class {
+      	content: "style8.css";
+      }
 
-}
-}
+    }
+  }
 }
 @layer {
-a {
-	color: red;
-}
+  a {
+  	color: red;
+  }
 
 }
 @media unknown(default) unknown(display: flex) unknown{
-.class {
-	content: "style9.css";
-}
+  .class {
+  	content: "style9.css";
+  }
 
 }
 @media unknown(default){
-.class {
-	content: "style9.css";
-}
+  .class {
+  	content: "style9.css";
+  }
 
 }
 .style11 {
@@ -2449,410 +2449,410 @@ div{color: red;}
 }
 
 @media screen and (min-width: 400px){
-@media screen and (max-width: 500px){
-@media screen and (orientation: portrait){
-.class {
-	deep-deep-nested: 1;
-}
+  @media screen and (max-width: 500px){
+    @media screen and (orientation: portrait){
+      .class {
+      	deep-deep-nested: 1;
+      }
 
-}
-}
+    }
+  }
 }
 @media screen and (min-width: 400px){
-@media screen and (max-width: 500px){
+  @media screen and (max-width: 500px){
+    
+    
+    .class {
+    	deep-nested: 1;
+    }
 
-
-.class {
-	deep-nested: 1;
-}
-
-}
+  }
 }
 @media screen and (min-width: 400px){
-
-
-.class {
-	nested: 1;
-}
+  
+  
+  .class {
+  	nested: 1;
+  }
 
 }
 @supports (display: flex) {
-@supports (display: grid) {
-@supports (display: table) {
-.class {
-	deep-deep-nested: 1;
-}
+  @supports (display: grid) {
+    @supports (display: table) {
+      .class {
+      	deep-deep-nested: 1;
+      }
 
-}
-}
+    }
+  }
 }
 @supports (display: flex) {
-@supports (display: grid) {
+  @supports (display: grid) {
+    
+    
+    .class {
+    	deep-nested: 1;
+    }
 
-
-.class {
-	deep-nested: 1;
-}
-
-}
+  }
 }
 @supports (display: flex) {
-
-
-.class {
-	nested: 1;
-}
+  
+  
+  .class {
+  	nested: 1;
+  }
 
 }
 @layer foo {
-@layer bar {
-@layer baz {
-.class {
-	deep-deep-nested: 1;
-}
+  @layer bar {
+    @layer baz {
+      .class {
+      	deep-deep-nested: 1;
+      }
 
-}
-}
+    }
+  }
 }
 @layer foo {
-@layer bar {
+  @layer bar {
+    
+    
+    .class {
+    	deep-nested: 1;
+    }
 
-
-.class {
-	deep-nested: 1;
-}
-
-}
+  }
 }
 @layer foo {
-
-
-.class {
-	nested: 1;
-}
+  
+  
+  .class {
+  	nested: 1;
+  }
 
 }
 @media screen and (min-width: 400px){
-@supports (display: flex) {
-@layer foo {
-@media screen and (min-width: 500px){
-@supports (display: grid) {
-@layer bar {
-@media screen and (min-width: 600px){
-@supports (display: table) {
-@layer baz {
-.class {
-	deep-deep-nested: 1;
-}
+  @supports (display: flex) {
+    @layer foo {
+      @media screen and (min-width: 500px){
+        @supports (display: grid) {
+          @layer bar {
+            @media screen and (min-width: 600px){
+              @supports (display: table) {
+                @layer baz {
+                  .class {
+                  	deep-deep-nested: 1;
+                  }
 
-}
-}
-}
-}
-}
-}
-}
-}
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
 }
 @media screen and (min-width: 400px){
-@supports (display: flex) {
-@layer foo {
-@media screen and (min-width: 500px){
-@supports (display: grid) {
-@layer bar {
+  @supports (display: flex) {
+    @layer foo {
+      @media screen and (min-width: 500px){
+        @supports (display: grid) {
+          @layer bar {
+            
+            
+            .class {
+            	deep-nested: 1;
+            }
 
-
-.class {
-	deep-nested: 1;
-}
-
-}
-}
-}
-}
-}
+          }
+        }
+      }
+    }
+  }
 }
 @media screen and (min-width: 400px){
-@supports (display: flex) {
-@layer foo {
+  @supports (display: flex) {
+    @layer foo {
+      
+      
+      .class {
+      	nested: 1;
+      }
 
-
-.class {
-	nested: 1;
-}
-
-}
-}
+    }
+  }
 }
 @media screen and (min-width: 400px){
-@supports (display: flex) {
-@layer bar {
-.class {
-	deep-deep-nested: 1;
-}
+  @supports (display: flex) {
+    @layer bar {
+      .class {
+      	deep-deep-nested: 1;
+      }
 
-}
-}
+    }
+  }
 }
 @media screen and (min-width: 400px){
-@supports (display: flex) {
+  @supports (display: flex) {
+    
+    
+    .class {
+    	deep-nested: 1;
+    }
 
-
-.class {
-	deep-nested: 1;
-}
-
-}
+  }
 }
 @media screen and (min-width: 400px){
-
-
-.class {
-	nested: 1;
-}
+  
+  
+  .class {
+  	nested: 1;
+  }
 
 }
 @layer {
-@layer {
-@layer {
-.class {
-	deep-deep-nested: 1;
-}
+  @layer {
+    @layer {
+      .class {
+      	deep-deep-nested: 1;
+      }
 
-}
-}
-}
-@layer {
-@layer {
-
-
-.class {
-	deep-nested: 1;
-}
-
-}
+    }
+  }
 }
 @layer {
-@layer base {
-@layer baz {
-.class {
-	deep-deep-nested: 1;
-}
+  @layer {
+    
+    
+    .class {
+    	deep-nested: 1;
+    }
 
-}
-}
+  }
 }
 @layer {
-@layer base {
+  @layer base {
+    @layer baz {
+      .class {
+      	deep-deep-nested: 1;
+      }
 
-
-.class {
-	deep-nested: 1;
-}
-
-}
+    }
+  }
 }
 @layer {
+  @layer base {
+    
+    
+    .class {
+    	deep-nested: 1;
+    }
 
-
-
-.class {
-	deep-nested: 1;
+  }
 }
+@layer {
+  
+  
+  
+  .class {
+  	deep-nested: 1;
+  }
 
 }
 @media screen and (orientation: portrait){
-.class {
-	deep-deep-nested: 1;
-}
+  .class {
+  	deep-deep-nested: 1;
+  }
 
 }
 @media screen and (orientation: portrait){
-@supports (display: flex) {
-.class {
-	content: "style8.css";
-}
+  @supports (display: flex) {
+    .class {
+    	content: "style8.css";
+    }
 
-}
+  }
 }
 @media screen and (orientation: portrait){
-
-
-
-.class {
-	duplicate-nested: true;
-}
+  
+  
+  
+  .class {
+  	duplicate-nested: true;
+  }
 
 }
 @media screen and (orientation: portrait){
-@supports (display: flex) {
-@layer {
-@layer {
-.class {
-	deep-deep-nested: 1;
-}
+  @supports (display: flex) {
+    @layer {
+      @layer {
+        .class {
+        	deep-deep-nested: 1;
+        }
 
-}
-}
-}
+      }
+    }
+  }
 }
 @media screen and (orientation: portrait){
-@supports (display: flex) {
-@layer {
+  @supports (display: flex) {
+    @layer {
+      
+      
+      .class {
+      	deep-nested: 1;
+      }
 
-
-.class {
-	deep-nested: 1;
-}
-
-}
-}
+    }
+  }
 }
 @media screen and (orientation: portrait){
-@supports (display: flex) {
-@layer base {
-@layer baz {
-.class {
-	deep-deep-nested: 1;
-}
+  @supports (display: flex) {
+    @layer base {
+      @layer baz {
+        .class {
+        	deep-deep-nested: 1;
+        }
 
-}
-}
-}
+      }
+    }
+  }
 }
 @media screen and (orientation: portrait){
-@supports (display: flex) {
-@layer base {
+  @supports (display: flex) {
+    @layer base {
+      
+      
+      .class {
+      	deep-nested: 1;
+      }
 
-
-.class {
-	deep-nested: 1;
-}
-
-}
-}
+    }
+  }
 }
 @media screen and (orientation: portrait){
-@supports (display: flex) {
+  @supports (display: flex) {
+    
+    
+    
+    .class {
+    	deep-nested: 1;
+    }
 
-
-
-.class {
-	deep-nested: 1;
-}
-
-}
+  }
 }
 @media screen and (min-width: 400px){
-@supports (display: flex) {
-@layer super.foo {
-@media screen and (min-width: 500px){
-@supports (display: grid) {
-@layer bar {
-@media screen and (min-width: 600px){
-@supports (display: table) {
-@layer baz {
-.class {
-	deep-deep-nested: 1;
-}
+  @supports (display: flex) {
+    @layer super.foo {
+      @media screen and (min-width: 500px){
+        @supports (display: grid) {
+          @layer bar {
+            @media screen and (min-width: 600px){
+              @supports (display: table) {
+                @layer baz {
+                  .class {
+                  	deep-deep-nested: 1;
+                  }
 
-}
-}
-}
-}
-}
-}
-}
-}
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
 }
 @media screen and (min-width: 400px){
-@supports (display: flex) {
-@layer super.foo {
-@media screen and (min-width: 500px){
-@supports (display: grid) {
-@layer bar {
+  @supports (display: flex) {
+    @layer super.foo {
+      @media screen and (min-width: 500px){
+        @supports (display: grid) {
+          @layer bar {
+            
+            
+            .class {
+            	deep-nested: 1;
+            }
 
-
-.class {
-	deep-nested: 1;
-}
-
-}
-}
-}
-}
-}
+          }
+        }
+      }
+    }
+  }
 }
 @media screen and (min-width: 400px){
-@supports (display: flex) {
-@layer super.foo {
+  @supports (display: flex) {
+    @layer super.foo {
+      
+      
+      .class {
+      	nested: 1;
+      }
 
-
-.class {
-	nested: 1;
-}
-
-}
-}
+    }
+  }
 }
 @media screen and (min-width: 400px){
-@supports (unknown: layer(super.foo)) {
-a {
-	color: red;
-}
+  @supports (unknown: layer(super.foo)) {
+    a {
+    	color: red;
+    }
 
-}
+  }
 }
 @media screen and (min-width: 400px){
-@supports (url: url("./unknown.css")) {
-a {
-	color: red;
-}
+  @supports (url: url("./unknown.css")) {
+    a {
+    	color: red;
+    }
 
-}
+  }
 }
 @media screen and (min-width: 400px){
-@supports (url: url(./unknown.css)) {
-a {
-	color: red;
-}
+  @supports (url: url(./unknown.css)) {
+    a {
+    	color: red;
+    }
 
-}
+  }
 }
 @media unknown("foo") screen and (min-width: 400px){
-@supports (display: flex) {
-@layer super.foo {
-a {
-	color: red;
-}
+  @supports (display: flex) {
+    @layer super.foo {
+      a {
+      	color: red;
+      }
 
-}
-}
+    }
+  }
 }
 @media unknown(foo) screen and (min-width: 400px){
-@supports (display: url("./unknown.css")) {
-@layer super.foo {
-a {
-	color: red;
-}
+  @supports (display: url("./unknown.css")) {
+    @layer super.foo {
+      a {
+      	color: red;
+      }
 
-}
-}
+    }
+  }
 }
 @media "foo" screen and (min-width: 400px){
-@supports (display: url(./unknown.css)) {
-@layer super.foo {
-a {
-	color: red;
-}
+  @supports (display: url(./unknown.css)) {
+    @layer super.foo {
+      a {
+      	color: red;
+      }
 
-}
-}
+    }
+  }
 }
 @media "string"{
-a {
-	color: red;
-}
+  a {
+  	color: red;
+  }
 
 }
 a {
@@ -2860,9 +2860,9 @@ a {
 }
 
 @media url(./style2.css?multiple=2){
-a {
-	color: red;
-}
+  a {
+  	color: red;
+  }
 
 }
 a {
@@ -2874,9 +2874,9 @@ a {
 }
 
 @media (prefers-color-scheme: dark){
-a {
-  color: white;
-}
+  a {
+    color: white;
+  }
 
 }
 

@@ -43,8 +43,6 @@ pub(super) struct CssModuleParser<'context> {
   code_generation_dependencies: Vec<BoxModuleDependency>,
   css_exports: CssExports,
   css_local_names: CssLocalNames,
-  inherited_render_conditions: Vec<CssModuleRenderCondition>,
-  render_condition: CssModuleRenderCondition,
   icss_definitions: FxHashMap<String, IcssDefinition>,
   current_icss_import_from: Option<String>,
   composes_order: ComposesOrderState,
@@ -179,23 +177,14 @@ impl<'context> CssModuleParser<'context> {
     let generator_options = css_generator_options(parse_context.module_generator_options);
     let source = remove_bom(parse_context.source.clone());
     let source_code: Arc<str> = source.source().into_string_lossy().into();
-    let (inherited_render_conditions, render_condition) = parse_context
-      .build_info
-      .css
-      .as_deref()
-      .map(|css| {
-        (
-          css.inherited_render_conditions.clone(),
-          css.render_condition.clone(),
-        )
-      })
-      .unwrap_or_default();
+
     let export_type = parse_context
       .build_info
       .css
       .as_deref()
       .and_then(|css_build_info| css_build_info.export_type)
       .or(parser_options.export_type);
+
     let exports_only = generator_options
       .exports_only
       .expect("should have exports_only");
@@ -215,8 +204,6 @@ impl<'context> CssModuleParser<'context> {
       code_generation_dependencies: vec![],
       css_exports: Default::default(),
       css_local_names: Default::default(),
-      inherited_render_conditions,
-      render_condition,
       icss_definitions: Default::default(),
       current_icss_import_from: None,
       composes_order: Default::default(),
@@ -780,14 +767,23 @@ impl<'context> CssModuleParser<'context> {
   }
 
   fn css_import_inherited_render_conditions(&self) -> Vec<CssModuleRenderCondition> {
-    if self.render_condition.is_empty() {
-      return self.inherited_render_conditions.to_vec();
-    }
+    let (mut inherited_render_conditions, render_condition) = self
+      .parse_context
+      .build_info
+      .css
+      .as_deref()
+      .map(|css| {
+        (
+          css.inherited_render_conditions.clone(),
+          css.render_condition.clone(),
+        )
+      })
+      .unwrap_or_default();
 
-    let mut inherited_render_conditions =
-      Vec::with_capacity(self.inherited_render_conditions.len() + 1);
-    inherited_render_conditions.extend(self.inherited_render_conditions.iter().cloned());
-    inherited_render_conditions.push(self.render_condition.clone());
+    if render_condition.is_empty() {
+      return inherited_render_conditions;
+    }
+    inherited_render_conditions.push(render_condition.clone());
     inherited_render_conditions
   }
 
