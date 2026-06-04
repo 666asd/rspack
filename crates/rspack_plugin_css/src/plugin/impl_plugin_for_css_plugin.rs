@@ -11,12 +11,12 @@ use rspack_core::{
   ChunkLoadingType, ChunkUkey, Compilation, CompilationContentHash, CompilationId,
   CompilationParams, CompilationRenderManifest, CompilationRuntimeRequirementInTree,
   CompilerCompilation, CssAutoOrModuleParserOptions, CssBuildInfo, CssExportType,
-  CssModuleGeneratorOptions, CssModuleRenderCondition, DependencyType, ManifestAssetType, Module,
-  ModuleFactoryCreateData, ModuleGraph, ModuleIdentifier, ModuleType,
+  CssModuleGeneratorOptions, CssModuleRenderCondition, DependencyType, GeneratorOptions,
+  ManifestAssetType, Module, ModuleFactoryCreateData, ModuleGraph, ModuleIdentifier, ModuleType,
   NormalModuleCreateData, NormalModuleFactoryAfterResolve, NormalModuleFactoryModule,
-  ParserAndGenerator, PathData, Plugin, PublicPath, RenderManifestEntry, RuntimeGlobals,
-  RuntimeModule, RuntimeModuleExt, SelfModuleFactory, SourceType, get_css_chunk_filename_template,
-  css_module_render_conditions_identifier,
+  ParserAndGenerator, ParserOptions, PathData, Plugin, PublicPath, RenderManifestEntry,
+  RuntimeGlobals, RuntimeModule, RuntimeModuleExt, SelfModuleFactory, SourceType,
+  css_module_render_conditions_identifier, get_css_chunk_filename_template,
   rspack_sources::{BoxSource, CachedSource, ReplaceSource, Source, SourceExt},
 };
 use rspack_error::{Diagnostic, Result, ToStringResultToRspackResultExt};
@@ -200,7 +200,7 @@ impl CssPlugin {
                 let mut builder = CssSourceBuilder::new(false);
                 if builder.push_css_source(
                   cur_source.clone(),
-                  render_conditions,
+                  &render_conditions,
                   css_module_has_charset(debug_info.module),
                 ) {
                   builder.push_line();
@@ -250,12 +250,14 @@ impl CssPlugin {
     let non_import_css_resources = ordered_css_modules
       .iter()
       .filter(|module| !css_module_is_import_dependency(**module))
+      .filter(|module| module_sources.contains_key(&module.identifier()))
       .filter_map(|module| css_module_resource(*module))
       .collect::<HashSet<_>>();
 
     let mut builder = CssSourceBuilder::new(false);
     for module in ordered_css_modules {
       if css_module_is_import_dependency(*module)
+        && css_render_conditions_from_module(*module).is_empty()
         && let Some(resource) = css_module_resource(*module)
         && non_import_css_resources.contains(resource)
       {
@@ -275,12 +277,12 @@ impl CssPlugin {
   }
 }
 
-fn css_render_conditions_from_module(module: &dyn Module) -> &[CssModuleRenderCondition] {
+fn css_render_conditions_from_module(module: &dyn Module) -> Vec<CssModuleRenderCondition> {
   module
     .build_info()
     .css
     .as_deref()
-    .map(|css| css.render_conditions.as_slice())
+    .map(|css| css.render_conditions().cloned().collect())
     .unwrap_or_default()
 }
 
@@ -359,7 +361,10 @@ async fn normal_module_factory_module(
   let render_conditions = dependency
     .downcast_ref::<CssImportDependency>()
     .map(|dep| dep.render_conditions())
-    .unwrap_or_default();
+    .into_iter()
+    .flatten()
+    .cloned()
+    .collect::<Vec<_>>();
   let export_type = css_dependency_export_type(dependency);
   if render_conditions.is_empty() && export_type.is_none() && !is_css_dependency {
     return Ok(());
@@ -369,7 +374,8 @@ async fn normal_module_factory_module(
     .build_info_mut()
     .css
     .get_or_insert_with(|| Box::new(CssBuildInfo::default()));
-  css_build_info.render_conditions = render_conditions.to_vec();
+  css_build_info.inherited_render_conditions = render_conditions;
+  css_build_info.render_condition = CssModuleRenderCondition::default();
   css_build_info.export_type = export_type;
   css_build_info.css_import_dependency = is_css_import_dependency;
 
@@ -395,8 +401,33 @@ fn css_dependency_export_type(dependency: &BoxDependency) -> Option<CssExportTyp
     })
 }
 
-fn css_render_conditions_key(conditions: &[CssModuleRenderCondition]) -> String {
+fn css_render_conditions_key<'a>(
+  conditions: impl IntoIterator<Item = &'a CssModuleRenderCondition>,
+) -> String {
   css_module_render_conditions_identifier(conditions).unwrap_or_default()
+}
+
+fn css_parser_options(options: Option<&ParserOptions>) -> Option<CssAutoOrModuleParserOptions> {
+  options.and_then(|options| {
+    options
+      .get_css()
+      .map(CssAutoOrModuleParserOptions::from)
+      .or_else(|| {
+        options
+          .get_css_global()
+          .map(|options| CssAutoOrModuleParserOptions::from(options.clone()))
+      })
+      .or_else(|| options.get_css_auto().cloned())
+  })
+}
+
+fn css_generator_options(options: Option<&GeneratorOptions>) -> Option<CssModuleGeneratorOptions> {
+  options.and_then(|options| {
+    options
+      .get_css()
+      .map(CssModuleGeneratorOptions::from)
+      .or_else(|| options.get_css_module().cloned())
+  })
 }
 
 #[plugin_hook(CompilerCompilation for CssPlugin)]
@@ -686,61 +717,40 @@ impl Plugin for CssPlugin {
     ctx.register_parser_and_generator_builder(
       ModuleType::Css,
       Box::new(|options| {
-        let p = options
-          .parser_options()
-          .and_then(|p| p.get_css())
-          .expect("should have CssParserOptions");
-        let g = options
-          .generator_options()
-          .and_then(|g| g.get_css())
+        let p = css_parser_options(options.parser_options()).expect("should have CssParserOptions");
+        let g = css_generator_options(options.generator_options())
           .expect("should have CssGeneratorOptions");
-        Box::new(CssParserAndGenerator::new(
-          CssModuleGeneratorOptions::from(g),
-          CssAutoOrModuleParserOptions::from(p),
-        )) as Box<dyn ParserAndGenerator>
+        Box::new(CssParserAndGenerator::new(&g, &p)) as Box<dyn ParserAndGenerator>
       }),
     );
     ctx.register_parser_and_generator_builder(
       ModuleType::CssGlobal,
       Box::new(|options| {
-        let p = options
-          .parser_options()
-          .and_then(|p| p.get_css_global())
-          .expect("should have CssModuleParserOptions");
-        let g = options
-          .generator_options()
-          .and_then(|g| g.get_css_global())
+        let p =
+          css_parser_options(options.parser_options()).expect("should have CssModuleParserOptions");
+        let g = css_generator_options(options.generator_options())
           .expect("should have CssModuleGeneratorOptions");
-        Box::new(CssParserAndGenerator::new(g.clone(), p.clone().into()))
-          as Box<dyn ParserAndGenerator>
+        Box::new(CssParserAndGenerator::new(&g, &p)) as Box<dyn ParserAndGenerator>
       }),
     );
     ctx.register_parser_and_generator_builder(
       ModuleType::CssModule,
       Box::new(|options| {
-        let p = options
-          .parser_options()
-          .and_then(|p| p.get_css_module())
+        let p = css_parser_options(options.parser_options())
           .expect("should have CssAutoOrModuleParserOptions");
-        let g = options
-          .generator_options()
-          .and_then(|g| g.get_css_module())
+        let g = css_generator_options(options.generator_options())
           .expect("should have CssModuleGeneratorOptions");
-        Box::new(CssParserAndGenerator::new(g.clone(), p.clone())) as Box<dyn ParserAndGenerator>
+        Box::new(CssParserAndGenerator::new(&g, &p)) as Box<dyn ParserAndGenerator>
       }),
     );
     ctx.register_parser_and_generator_builder(
       ModuleType::CssAuto,
       Box::new(|options| {
-        let p = options
-          .parser_options()
-          .and_then(|p| p.get_css_auto())
+        let p = css_parser_options(options.parser_options())
           .expect("should have CssAutoOrModuleParserOptions");
-        let g = options
-          .generator_options()
-          .and_then(|g| g.get_css_auto())
+        let g = css_generator_options(options.generator_options())
           .expect("should have CssModuleGeneratorOptions");
-        Box::new(CssParserAndGenerator::new(g.clone(), p.clone())) as Box<dyn ParserAndGenerator>
+        Box::new(CssParserAndGenerator::new(&g, &p)) as Box<dyn ParserAndGenerator>
       }),
     );
 

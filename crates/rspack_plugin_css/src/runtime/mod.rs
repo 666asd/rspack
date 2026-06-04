@@ -6,8 +6,8 @@ use rspack_core::{
   compile_boolean_matcher, impl_runtime_module,
 };
 use rspack_plugin_runtime::{
-  CreateLinkData, CreateStyleData, LinkPrefetchData, LinkPreloadData, RuntimeModuleChunkWrapper,
-  RuntimePlugin, chunk_has_css, extract_runtime_globals_from_ejs, get_chunk_runtime_requirements,
+  CreateLinkData, LinkPrefetchData, LinkPreloadData, RuntimeModuleChunkWrapper, RuntimePlugin,
+  chunk_has_css, extract_runtime_globals_from_ejs, get_chunk_runtime_requirements,
   stringify_chunks,
 };
 use rspack_util::json_stringify;
@@ -470,20 +470,6 @@ impl CssExportRuntimeModule {
       code
     };
 
-    let runtime_hooks = RuntimePlugin::get_compilation_hooks(compilation.id());
-    let create_style = runtime_hooks
-      .borrow()
-      .create_style
-      .call(CreateStyleData {
-        code: create_style_element_code,
-        chunk: RuntimeModuleChunkWrapper {
-          chunk_ukey,
-          compilation_id: compilation.id(),
-          compilation: NonNull::from(compilation),
-        },
-      })
-      .await?;
-
     let css_inject_style =
       runtime_template.render_runtime_globals(&RuntimeGlobals::CSS_INJECT_STYLE);
     let hmr_download_update_handlers =
@@ -493,7 +479,7 @@ impl CssExportRuntimeModule {
       &self.id.to_string(),
       Some(serde_json::json!({
         "_data_webpack_prefix": data_webpack_prefix,
-        "_create_style": &create_style.code,
+        "_create_style": &create_style_element_code,
         "_css_inject_style": &css_inject_style,
         "_with_hmr": with_hmr,
         "HMR_DOWNLOAD_UPDATE_HANDLERS": &hmr_download_update_handlers,

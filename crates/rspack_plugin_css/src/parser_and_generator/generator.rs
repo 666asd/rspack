@@ -92,19 +92,19 @@ impl<'a, 'g> CssModuleGenerator<'a, 'g> {
   pub fn generate_javascript_source(mut self) -> Result<BoxSource> {
     match self.export_type {
       Some(CssExportType::Text) => {
-        let css = self.css_text_expr_with_imports();
+        let css = self.css_text_expr_with_imports(true);
         let source = self.generate_css_text_exports(&css)?;
         self.concat_source.add(RawStringSource::from(source));
       }
       Some(CssExportType::CssStyleSheet) => {
-        let css = self.css_text_expr_with_imports();
+        let css = self.css_text_expr_with_imports(true);
         let source = self.generate_css_style_sheet_exports(&css)?;
         self.concat_source.add(RawStringSource::from(source));
       }
       Some(CssExportType::Style) if !self.exports_only => {
         let imports = self.render_css_imports_for_style();
         let css_source = self.render_css_module_source();
-        let css = self.css_text_expr(css_source, &[]);
+        let css = self.css_text_expr(css_source, &[], false);
         self.concat_source.add(RawStringSource::from(imports));
         let inject_style = self.render_css_inject_style(&css);
         self.concat_source.add(RawStringSource::from(inject_style));
@@ -139,6 +139,14 @@ impl<'a, 'g> CssModuleGenerator<'a, 'g> {
   }
 
   pub(crate) fn render_css_module_source(&mut self) -> BoxSource {
+    self.render_css_module_source_with_options(false)
+  }
+
+  fn render_css_module_source_for_text(&mut self) -> BoxSource {
+    self.render_css_module_source_with_options(true)
+  }
+
+  fn render_css_module_source_with_options(&mut self, preserve_icss_symbols: bool) -> BoxSource {
     let module = self.module;
     let mut source = ReplaceSource::new(self.source.clone());
     let compilation = self.generate_context.compilation;
@@ -156,6 +164,9 @@ impl<'a, 'g> CssModuleGenerator<'a, 'g> {
     let module_graph = compilation.get_module_graph();
     module.get_dependencies().iter().for_each(|id| {
       let dep = module_graph.dependency_by_id(id);
+      if preserve_icss_symbols && matches!(dep.dependency_type(), DependencyType::CssIcssSymbol) {
+        return;
+      }
 
       if let Some(dependency) = dep.as_dependency_code_generation() {
         if let Some(template) = dependency
@@ -193,16 +204,29 @@ impl<'a, 'g> CssModuleGenerator<'a, 'g> {
     source.boxed()
   }
 
-  fn css_text_expr_with_imports(&mut self) -> String {
+  fn css_text_expr_with_imports(&mut self, preserve_icss_symbols: bool) -> String {
     if !self.has_css_imports() {
-      let css_source = self.render_css_module_source();
-      return self.css_text_expr(css_source, &[]);
+      let css_source = if preserve_icss_symbols {
+        self.render_css_module_source_for_text()
+      } else {
+        self.render_css_module_source()
+      };
+      return self.css_text_expr(css_source, &[], preserve_icss_symbols);
     }
 
     let mut seen = HashSet::default();
     let mut builder = CssSourceBuilder::new(false);
-    let render_conditions = self.css_build_info.render_conditions.clone();
-    self.render_ordered_css_sources(&mut builder, &render_conditions, &mut seen);
+    let render_conditions = self
+      .css_build_info
+      .render_conditions()
+      .cloned()
+      .collect::<Vec<_>>();
+    self.render_ordered_css_sources(
+      &mut builder,
+      &render_conditions,
+      &mut seen,
+      preserve_icss_symbols,
+    );
     json_stringify_str(&builder.into_css_text())
   }
 
@@ -219,14 +243,19 @@ impl<'a, 'g> CssModuleGenerator<'a, 'g> {
     builder: &mut CssSourceBuilder,
     render_conditions: &[CssModuleRenderCondition],
     seen: &mut HashSet<rspack_collections::Identifier>,
+    preserve_icss_symbols: bool,
   ) {
     let module = self.module;
     if !seen.insert(module.identifier()) {
       return;
     }
 
-    self.render_css_import_sources(builder, seen);
-    let css_source = self.render_css_module_source();
+    self.render_css_import_sources(builder, seen, preserve_icss_symbols);
+    let css_source = if preserve_icss_symbols {
+      self.render_css_module_source_for_text()
+    } else {
+      self.render_css_module_source()
+    };
     if !css_source.source().is_empty() {
       if self.css_build_info.has_charset {
         builder.set_has_charset();
@@ -244,6 +273,7 @@ impl<'a, 'g> CssModuleGenerator<'a, 'g> {
     &mut self,
     builder: &mut CssSourceBuilder,
     seen: &mut HashSet<rspack_collections::Identifier>,
+    preserve_icss_symbols: bool,
   ) {
     let compilation = self.generate_context.compilation;
     let module_graph = compilation.get_module_graph();
@@ -263,7 +293,10 @@ impl<'a, 'g> CssModuleGenerator<'a, 'g> {
       };
       imported_modules.push((
         imported_module.module_identifier,
-        css_import_dep.render_conditions().to_vec(),
+        css_import_dep
+          .render_conditions()
+          .cloned()
+          .collect::<Vec<_>>(),
       ));
     }
 
@@ -276,7 +309,7 @@ impl<'a, 'g> CssModuleGenerator<'a, 'g> {
       };
 
       let mut child = self.child_generator(imported_source, imported_module.as_ref());
-      child.render_ordered_css_sources(builder, &render_conditions, seen);
+      child.render_ordered_css_sources(builder, &render_conditions, seen, preserve_icss_symbols);
     }
   }
 
@@ -284,6 +317,7 @@ impl<'a, 'g> CssModuleGenerator<'a, 'g> {
     &self,
     css_source: BoxSource,
     render_conditions: &[CssModuleRenderCondition],
+    _preserve_icss_symbols: bool,
   ) -> String {
     let mut builder = CssSourceBuilder::new(self.css_build_info.has_charset);
     builder.push_css_source(
@@ -335,9 +369,12 @@ impl<'a, 'g> CssModuleGenerator<'a, 'g> {
         continue;
       };
 
-      let render_conditions = css_import_dep.render_conditions().to_vec();
+      let render_conditions = css_import_dep
+        .render_conditions()
+        .cloned()
+        .collect::<Vec<_>>();
       if is_style_export_css_module(imported_module.as_ref())
-        && self.css_build_info.render_conditions.is_empty()
+        && self.css_build_info.render_conditions().next().is_none()
         && render_conditions.is_empty()
       {
         code.push_str(&concat_string!(
@@ -365,7 +402,7 @@ impl<'a, 'g> CssModuleGenerator<'a, 'g> {
       let mut child = self.child_generator(source, imported_module.as_ref());
       code.push_str(&child.render_style_imports(visited_inlined_modules));
       let css_source = child.render_css_module_source();
-      let css = child.css_text_expr(css_source, &render_conditions);
+      let css = child.css_text_expr(css_source, &render_conditions, false);
       let style_module_id = if render_conditions_key.is_empty() {
         module_id.to_string()
       } else {

@@ -294,12 +294,22 @@ fn css_module_id_for_local_ident(compilation: &Compilation, module: &dyn Module)
     .build_info()
     .css
     .as_deref()
-    .is_some_and(|css_build_info| !css_build_info.render_conditions.is_empty());
-  if !needs_stable_long_id || module_id.contains('?') {
+    .is_some_and(|css_build_info| css_build_info.render_conditions().next().is_some());
+  if !needs_stable_long_id {
     return module_id.to_string();
   }
 
-  let full_name = make_paths_relative(&compilation.options.context, module.identifier().as_str());
+  let module_id = module_id.split('?').next().unwrap_or(module_id);
+  let full_name = module
+    .as_normal_module()
+    .and_then(|module| {
+      module
+        .resource_resolved_data()
+        .path()
+        .map(|path| path.as_str())
+    })
+    .unwrap_or_else(|| module.identifier().as_str());
+  let full_name = make_paths_relative(&compilation.options.context, full_name);
   let hash = get_css_module_id_hash(full_name, 4);
   let mut stable_id = String::with_capacity(module_id.len() + 1 + hash.len());
   stable_id.push_str(module_id);

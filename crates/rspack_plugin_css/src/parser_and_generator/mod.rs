@@ -47,6 +47,8 @@ pub type CssExportsRef<'a> = FxIndexMap<&'a str, &'a FxIndexSet<CssExport>>;
 #[cacheable]
 #[derive(Debug)]
 pub struct CssParserAndGenerator {
+  pub generator_options: CssModuleGeneratorOptions,
+  pub parser_options: CssAutoOrModuleParserOptions,
   pub exports_only: bool,
   pub hot: bool,
 }
@@ -61,8 +63,8 @@ impl CssParserAndGenerator {
       .expect("should have exports_only");
 
     Self {
-      generator_options,
-      parser_options,
+      generator_options: generator_options.clone(),
+      parser_options: parser_options.clone(),
       exports_only,
       hot: false,
     }
@@ -237,8 +239,8 @@ impl ParserAndGenerator for CssParserAndGenerator {
     }
 
     CssModuleParser::new(
-      &self.generator_options,
       &self.parser_options,
+      &self.generator_options,
       self.exports_only,
       parse_context,
     )

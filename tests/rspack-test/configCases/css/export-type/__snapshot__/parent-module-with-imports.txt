@@ -25,7 +25,7 @@
   @supports (display: flex) {
     @layer framework {
       @layer utilities {
-        .imported-layer_css_b6af-imported-layer {
+        .imported-layer_css_a34c-imported-layer {
         	padding: 10px;
         	margin: 5px;
         }
@@ -38,7 +38,7 @@
   @supports (display: flex) {
     @layer framework {
       @supports (display: grid) {
-        .imported-base_css_62ae-imported-base {
+        .imported-base_css_fe88-imported-base {
         	color: blue;
         	font-size: 14px;
         }
@@ -51,7 +51,7 @@
   @supports (display: flex) {
     @layer framework {
       @media screen and (min-width: 768px){
-        .imported-base_css_62ae-imported-base {
+        .imported-base_css_fe88-imported-base {
         	color: blue;
         	font-size: 14px;
         }
@@ -66,7 +66,7 @@
       @media screen and (max-width: 1024px){
         @supports (display: flex) {
           @layer components {
-            .imported-layer_css_b6af-imported-layer {
+            .imported-layer_css_a34c-imported-layer {
             	padding: 10px;
             	margin: 5px;
             }
@@ -88,26 +88,26 @@
       
       
       
-      .module-with-imports_css_e692-main-class {
+      .module-with-imports_css_e314-main-class {
       	color: purple;
       	display: flex;
       	background-image: url("./img.png");
       }
       
       @layer base {
-      	.module-with-imports_css_e692-base-class {
+      	.module-with-imports_css_e314-base-class {
       		font-family: sans-serif;
       	}
       }
       
       @supports (display: grid) {
-      	.module-with-imports_css_e692-grid-class {
+      	.module-with-imports_css_e314-grid-class {
       		display: grid;
       	}
       }
       
       @media (min-width: 600px) {
-      	.module-with-imports_css_e692-responsive-class {
+      	.module-with-imports_css_e314-responsive-class {
       		width: 100%;
       	}
       }
