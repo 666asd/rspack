@@ -2738,16 +2738,19 @@ impl ConcatenatedModule {
           .internal_names
           .get(export_id)
           .or_else(|| {
-            export_id
-              .as_str()
-              .starts_with("__nested_rspack_require_")
-              .then(|| {
-                info
-                  .internal_names
-                  .iter()
-                  .find_map(|(key, value)| (key.as_str() == "__webpack_require__").then_some(value))
-              })
-              .flatten()
+            let export_id = export_id.as_str();
+            let (original_name, nested_prefix) =
+              if export_id.starts_with("__nested_rspack_require_") {
+                ("__webpack_require__", "__nested_rspack_require_")
+              } else if export_id == "__nested_rspack_exports__" {
+                ("__webpack_exports__", "__nested_rspack_exports__")
+              } else {
+                return None;
+              };
+            info.internal_names.iter().find_map(|(key, value)| {
+              (key.as_str() == original_name || key.as_str().starts_with(nested_prefix))
+                .then_some(value)
+            })
           })
           .unwrap_or_else(|| {
             panic!(

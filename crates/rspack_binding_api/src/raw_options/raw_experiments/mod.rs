@@ -3,7 +3,7 @@ mod raw_incremental;
 use napi_derive::napi;
 pub use raw_incremental::RawIncremental;
 use rspack_core::{Experiments, runtime_mode::RuntimeMode};
-use rspack_error::{Result, error};
+use rspack_error::Result;
 use rspack_regex::RspackRegex;
 
 use super::WithFalse;
@@ -24,10 +24,10 @@ impl TryFrom<RawExperiments> for Experiments {
   type Error = rspack_error::Error;
 
   fn try_from(value: RawExperiments) -> Result<Self> {
-    let runtime_mode = match value.runtime_mode.as_deref() {
-      Some("rspack") => RuntimeMode::Rspack,
-      Some("webpack") | None => RuntimeMode::Webpack,
-      Some(value) => return Err(error!("invalid experiments.runtimeMode: {value}")),
+    let runtime_mode = if value.runtime_mode.as_deref() == Some("rspack") {
+      RuntimeMode::Rspack
+    } else {
+      RuntimeMode::Webpack
     };
 
     Ok(Self {

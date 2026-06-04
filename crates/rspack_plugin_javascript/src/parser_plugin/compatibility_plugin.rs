@@ -167,6 +167,12 @@ impl JavascriptParserPlugin for CompatibilityPlugin {
     for_name: &str,
   ) -> Option<bool> {
     if for_name == parser.parser_runtime_requirements.exports {
+      if parser
+        .get_tag_data::<NestedRequireData>(&ident.sym, NESTED_IDENTIFIER_TAG)
+        .is_some_and(|data| data.loc == DependencyRange::from(ident.span))
+      {
+        return None;
+      }
       self.tag_nested_require_data(
         parser,
         ident.sym.clone(),
@@ -177,6 +183,12 @@ impl JavascriptParserPlugin for CompatibilityPlugin {
       );
       return Some(true);
     } else if for_name == parser.parser_runtime_requirements.require {
+      if parser
+        .get_tag_data::<NestedRequireData>(&ident.sym, NESTED_IDENTIFIER_TAG)
+        .is_some_and(|data| data.loc == DependencyRange::from(ident.span))
+      {
+        return None;
+      }
       let start = ident.span().real_lo();
       let end = ident.span().real_hi();
       self.tag_nested_require_data(
@@ -276,6 +288,7 @@ impl JavascriptParserPlugin for CompatibilityPlugin {
     let nested_require_data = NestedRequireData::downcast_mut(tag_info);
     let mut deps: Vec<BoxDependencyTemplate> = Vec::with_capacity(2);
     let name = nested_require_data.name.clone();
+    let ident_range = DependencyRange::from(ident.span);
     if !nested_require_data.update {
       let shorthand = nested_require_data.in_short_hand;
       deps.push(Box::new(ConstDependency::new(
@@ -287,10 +300,16 @@ impl JavascriptParserPlugin for CompatibilityPlugin {
         },
       )));
       nested_require_data.update = true;
+      if ident_range == nested_require_data.loc {
+        parser.add_presentational_dependencies(deps);
+        return Some(true);
+      }
+    } else if ident_range == nested_require_data.loc {
+      return Some(true);
     }
 
     deps.push(Box::new(ConstDependency::new(
-      ident.span.into(),
+      ident_range,
       if parser.in_short_hand {
         format!("{}: {}", ident.sym, name).into()
       } else {
