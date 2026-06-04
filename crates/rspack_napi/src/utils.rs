@@ -224,11 +224,7 @@ pub fn unknown_to_json_value(value: Unknown) -> napi::Result<Option<simd_json::O
     }
     napi::ValueType::Number => {
       let number = value.coerce_to_number()?.get_double()?;
-      if number.is_finite() {
-        Ok(Some(number.into()))
-      } else {
-        Ok(None)
-      }
+      Ok(number_to_json_value(number))
     }
     napi::ValueType::String => {
       let s = value.coerce_to_string()?.into_utf8()?.into_owned()?;
@@ -256,5 +252,50 @@ pub fn unknown_to_json_value(value: Unknown) -> napi::Result<Option<simd_json::O
     | napi::ValueType::External
     | napi::ValueType::BigInt
     | napi::ValueType::Unknown => Ok(None),
+  }
+}
+
+fn number_to_json_value(number: f64) -> Option<simd_json::OwnedValue> {
+  const MAX_SAFE_INTEGER: f64 = 9_007_199_254_740_991.0;
+
+  if !number.is_finite() {
+    return None;
+  }
+
+  if number.fract() == 0.0 && (-MAX_SAFE_INTEGER..=MAX_SAFE_INTEGER).contains(&number) {
+    return Some((number as i64).into());
+  }
+
+  Some(number.into())
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn should_preserve_integer_numbers_as_json_integers() {
+    assert_eq!(
+      number_to_json_value(2.0),
+      Some(simd_json::OwnedValue::Static(StaticNode::I64(2)))
+    );
+    assert_eq!(
+      number_to_json_value(-2.0),
+      Some(simd_json::OwnedValue::Static(StaticNode::I64(-2)))
+    );
+  }
+
+  #[test]
+  fn should_keep_fractional_numbers_as_json_floats() {
+    assert!(matches!(
+      number_to_json_value(2.5),
+      Some(simd_json::OwnedValue::Static(StaticNode::F64(_)))
+    ));
+  }
+
+  #[test]
+  fn should_ignore_non_finite_numbers() {
+    assert_eq!(number_to_json_value(f64::NAN), None);
+    assert_eq!(number_to_json_value(f64::INFINITY), None);
   }
 }

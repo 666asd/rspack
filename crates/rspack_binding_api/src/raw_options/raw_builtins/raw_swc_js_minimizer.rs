@@ -152,4 +152,26 @@ mod tests {
 
     assert!(options.is_ok(), "{options:?}");
   }
+
+  #[test]
+  fn should_deserialize_default_minimizer_options() {
+    let raw = RawSwcJsMinimizerRspackPluginOptions {
+      test: None,
+      include: None,
+      exclude: None,
+      extract_comments: None,
+      minimizer_options: RawSwcJsMinimizerOptions {
+        ecma: JsonValue(5.into()),
+        compress: JsonValue(simd_json::json!({ "passes": 2 })),
+        mangle: JsonValue(true.into()),
+        format: JsonValue(simd_json::json!({ "comments": false })),
+        module: None,
+        minify: None,
+      },
+    };
+
+    let options = PluginOptions::try_from(raw);
+
+    assert!(options.is_ok(), "{options:?}");
+  }
 }
