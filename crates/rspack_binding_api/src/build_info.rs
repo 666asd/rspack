@@ -7,7 +7,7 @@ use napi::{
   },
 };
 use rspack_core::WeakBindingCell;
-use rspack_napi::unknown_to_json_value;
+use rspack_napi::{json_value_to_napi_value, unknown_to_json_value};
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::{define_symbols, module::Module};
@@ -294,7 +294,7 @@ impl ToNapiValue for BuildInfo {
               FromNapiMutRef::from_napi_mut_ref(env.raw(), object.raw())?;
 
             this.with_mut(|module| {
-              let mut extras = serde_json::Map::new();
+              let mut extras = simd_json::value::owned::Object::default();
               let names = Array::from_unknown(object.get_property_names()?.to_unknown())?;
               for index in 0..names.len() {
                 if let Some(name) = names.get::<String>(index)?
@@ -317,7 +317,7 @@ impl ToNapiValue for BuildInfo {
           let extras = &module.build_info().extras;
           properties.reserve(extras.len() + 1);
           for (key, value) in extras {
-            let napi_val = ToNapiValue::to_napi_value(env, value)?;
+            let napi_val = json_value_to_napi_value(env, value)?;
             properties.push(
               Property::new()
                 .with_utf8_name(key)?

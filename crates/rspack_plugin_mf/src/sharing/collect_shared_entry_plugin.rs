@@ -12,6 +12,7 @@ use rspack_error::Result;
 use rspack_hook::{plugin, plugin_hook};
 use rustc_hash::FxHashMap;
 use serde::Serialize;
+use simd_json::prelude::{ValueAsScalar, ValueObjectAccess};
 
 use super::consume_shared_plugin::ConsumeOptions;
 use crate::ShareScope;
@@ -84,7 +85,7 @@ impl CollectSharedEntryPlugin {
         package_json_path.push("package.json");
         if package_json_path.exists()
           && let Ok(content) = std::fs::read_to_string(&package_json_path)
-          && let Ok(json) = serde_json::from_str::<serde_json::Value>(&content)
+          && let Ok(json) = simd_json::from_reader::<_, simd_json::OwnedValue>(content.as_bytes())
           && let Some(version) = json.get("version").and_then(|v| v.as_str())
         {
           return Some(version.to_string());
@@ -226,7 +227,7 @@ async fn finish_make(&self, compilation: &mut Compilation) -> Result<()> {
     );
   }
 
-  let json = serde_json::to_string_pretty(&shared)
+  let json = simd_json::to_string_pretty(&shared)
     .expect("CollectSharedEntryPlugin: failed to serialize share entries");
 
   // Get filename, or use default when absent

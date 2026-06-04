@@ -212,7 +212,7 @@ impl RuntimeModule for ImportScriptsChunkLoadingRuntimeModule {
     if with_loading || with_callback {
       let render_source = runtime_template.render(
         &self.template_id(TemplateId::Raw),
-        Some(serde_json::json!({
+        Some(simd_json::json!({
           "_chunk_loading_global_expr": format!(
             "{}[\"{}\"]",
             &compilation.options.output.global_object, &compilation.options.output.chunk_loading_global
@@ -227,7 +227,7 @@ impl RuntimeModule for ImportScriptsChunkLoadingRuntimeModule {
     if with_loading {
       let render_source = runtime_template.render(
         &self.template_id(TemplateId::WithLoading),
-        Some(serde_json::json!({
+        Some(simd_json::json!({
           "_js_matcher": has_js_matcher.render("chunkId"),
           "_with_create_script_url": self.with_create_script_url,
         })),
@@ -236,7 +236,7 @@ impl RuntimeModule for ImportScriptsChunkLoadingRuntimeModule {
     }
 
     if with_hmr {
-      let source_with_hmr = runtime_template.render(&self.template_id(TemplateId::WithHmr), Some(serde_json::json!({
+      let source_with_hmr = runtime_template.render(&self.template_id(TemplateId::WithHmr), Some(simd_json::json!({
         "_with_create_script_url": self.with_create_script_url,
         "_global_object": &compilation.options.output.global_object.as_str(),
         "_hot_update_global": &rspack_util::json_stringify_str(&compilation.options.output.hot_update_global),

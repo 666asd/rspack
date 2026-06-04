@@ -15,6 +15,7 @@ use rspack_core::{
 use rspack_error::{Diagnostic, Result, error};
 use rspack_hook::{plugin, plugin_hook};
 use rustc_hash::FxHashMap;
+use simd_json::prelude::{ValueAsObject, ValueAsScalar, ValueObjectAccess};
 
 use super::{
   consume_shared_module::ConsumeSharedModule,
@@ -104,7 +105,7 @@ pub async fn resolve_matched_configs(
 }
 
 pub fn get_required_version_from_description_file(
-  data: &serde_json::Value,
+  data: &simd_json::OwnedValue,
   package_name: &str,
 ) -> Option<ConsumeVersion> {
   let data = data.as_object()?;
@@ -233,7 +234,7 @@ impl ConsumeSharedPlugin {
         let (data, checked_description_file_paths) = get_description_file(
           fs,
           context.as_path(),
-          Some(|data: &serde_json::Value| {
+          Some(|data: &simd_json::OwnedValue| {
             let name_matches = data.get("name").and_then(|n| n.as_str()) == Some(package_name);
             let version_matches = get_required_version_from_description_file(data, package_name)
               .is_some_and(|version| matches!(version, ConsumeVersion::Version(_)));

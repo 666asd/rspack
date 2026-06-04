@@ -73,7 +73,7 @@ impl RuntimeModule for LoadScriptRuntimeModule {
 
     let create_script_code = runtime_template.render(
       &self.template_id(TemplateId::CreateScript),
-      Some(serde_json::json!({
+      Some(simd_json::json!({
         "_script_type": &compilation.options.output.script_type,
         "_unique_prefix": unique_prefix.is_some(),
         "_with_fetch_priority": with_fetch_priority,
@@ -100,7 +100,7 @@ impl RuntimeModule for LoadScriptRuntimeModule {
 
     let render_source = runtime_template.render(
       &self.template_id(TemplateId::Raw),
-      Some(serde_json::json!({
+      Some(simd_json::json!({
         "_unique_prefix": unique_prefix.unwrap_or_default(),
         "_create_script": res.code,
         "_chunk_load_timeout": compilation.options.output.chunk_load_timeout.to_string(),

@@ -14,6 +14,7 @@ use rspack_error::{Diagnostic, Result};
 use rspack_hook::{plugin, plugin_hook};
 use rspack_loader_runner::ResourceData;
 use rustc_hash::FxHashMap;
+use simd_json::prelude::{ValueAsObject, ValueAsScalar, ValueObjectAccess};
 use tokio::sync::RwLock;
 
 use super::{

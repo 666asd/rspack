@@ -90,7 +90,7 @@ fn auto_public_path_template(
 
   runtime_template.render(
     id,
-    Some(serde_json::json!({
+    Some(simd_json::json!({
       "_script_type": output.script_type,
       "_import_meta_name": import_meta_name,
       "_undo_path": undo_path

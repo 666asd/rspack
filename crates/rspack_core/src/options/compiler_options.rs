@@ -23,4 +23,4 @@ pub struct CompilerOptions {
   pub __references: References,
 }
 
-pub type References = serde_json::Map<String, serde_json::Value>;
+pub type References = simd_json::value::owned::Object;

@@ -7,6 +7,7 @@ use std::{
 
 use anyhow::Result;
 use clap::Args;
+use simd_json::prelude::ValueAsScalar;
 
 fn get_workspace_root() -> PathBuf {
   Path::new(
@@ -57,7 +58,8 @@ fn generate_workspace_versions(out_path: &str) -> Result<()> {
   // Get Rspack version
   let package_json_path = workspace_root.join("package.json");
   let package_json_content = fs::read_to_string(&package_json_path)?;
-  let package_json: serde_json::Value = serde_json::from_str(&package_json_content)?;
+  let package_json: simd_json::OwnedValue =
+    simd_json::from_reader(package_json_content.as_bytes())?;
   let rspack_version = package_json["version"]
     .as_str()
     .expect("version field in package.json is not a string");

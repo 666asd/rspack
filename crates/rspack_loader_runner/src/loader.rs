@@ -36,7 +36,7 @@ pub struct LoaderItem<Context: Send> {
   #[allow(dead_code)]
   fragment: Option<String>,
   /// Data shared between pitching and normal
-  data: serde_json::Value,
+  data: simd_json::OwnedValue,
   r#type: String,
   pitch_executed: AtomicBool,
   normal_executed: AtomicBool,
@@ -81,13 +81,13 @@ impl<C: Send> LoaderItem<C> {
   }
 
   #[inline]
-  pub fn data(&self) -> &serde_json::Value {
+  pub fn data(&self) -> &simd_json::OwnedValue {
     &self.data
   }
 
   #[inline]
   #[doc(hidden)]
-  pub fn set_data(&mut self, data: serde_json::Value) {
+  pub fn set_data(&mut self, data: simd_json::OwnedValue) {
     self.data = data;
   }
 
@@ -219,7 +219,7 @@ impl<C: Send> From<Arc<dyn Loader<C>>> for LoaderItem<C> {
         path,
         query,
         fragment,
-        data: serde_json::Value::Null,
+        data: ().into(),
         r#type: ty,
         pitch_executed: AtomicBool::new(false),
         normal_executed: AtomicBool::new(false),
@@ -238,7 +238,7 @@ impl<C: Send> From<Arc<dyn Loader<C>>> for LoaderItem<C> {
       path,
       query,
       fragment,
-      data: serde_json::Value::Null,
+      data: ().into(),
       r#type: String::default(),
       pitch_executed: AtomicBool::new(false),
       normal_executed: AtomicBool::new(false),

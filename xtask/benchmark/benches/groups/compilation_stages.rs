@@ -985,8 +985,10 @@ pub(crate) fn concatenate_module_code_generation_benchmark(c: &mut Criterion, rt
 }
 
 fn load_random_table() -> Vec<Vec<usize>> {
-  serde_json::from_str::<Vec<Vec<usize>>>(include_str!("../build_chunk_graph/random_table.json"))
-    .expect("should not fail to parse random table json")
+  simd_json::from_reader::<_, Vec<Vec<usize>>>(
+    include_str!("../build_chunk_graph/random_table.json").as_bytes(),
+  )
+  .expect("should not fail to parse random table json")
 }
 
 fn create_general_stage_compiler(fs: Arc<MemoryFileSystem>) -> Compiler {

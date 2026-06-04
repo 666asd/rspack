@@ -44,7 +44,7 @@ impl RuntimeModule for GetTrustedTypesPolicyRuntimeModule {
 
     let source = context.runtime_template.render(
       &self.id,
-      Some(serde_json::json!({
+      Some(simd_json::json!({
         "_create_script": runtime_requirements.contains(RuntimeGlobals::CREATE_SCRIPT),
         "_create_script_url": runtime_requirements.contains(RuntimeGlobals::CREATE_SCRIPT_URL),
         "_wrap_try_catch": wrap_policy_creation_in_try_catch,

@@ -26,7 +26,7 @@ use rspack_util::{
   ext::DynHash,
   source_map::{ModuleSourceMapConfig, SourceMapKind},
 };
-use serde_json::json;
+use simd_json::json;
 use tracing::{Instrument, info_span};
 
 use crate::{

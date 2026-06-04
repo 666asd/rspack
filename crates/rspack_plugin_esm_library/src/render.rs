@@ -67,7 +67,7 @@ fn normalize_raw_import_source(source: &str) -> Cow<'_, str> {
     } else {
       value.clone()
     };
-    if let Ok(next) = serde_json::from_str::<String>(&decode_target) {
+    if let Ok(next) = simd_json::from_reader::<_, String>(decode_target.as_bytes()) {
       changed = true;
       value = next;
       continue;

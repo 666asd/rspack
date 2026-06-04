@@ -29,7 +29,7 @@ impl RuntimeModule for CreateScriptUrlRuntimeModule {
     let compilation = context.compilation;
     let source = context.runtime_template.render(
       &self.id,
-      Some(serde_json::json!({
+      Some(simd_json::json!({
         "_trusted_types": compilation.options.output.trusted_types.is_some(),
       })),
     )?;

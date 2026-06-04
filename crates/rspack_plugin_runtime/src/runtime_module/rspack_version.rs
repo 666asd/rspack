@@ -29,7 +29,7 @@ impl RuntimeModule for RspackVersionRuntimeModule {
   ) -> rspack_error::Result<String> {
     let source = context.runtime_template.render(
       &self.id,
-      Some(serde_json::json!({
+      Some(simd_json::json!({
         "_version": format!("\"{}\"", &self.version),
       })),
     )?;

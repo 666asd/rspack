@@ -323,7 +323,7 @@ async fn process_assets(&self, compilation: &mut Compilation) -> Result<()> {
       && let Some(file) = compilation.assets().get(file_name)
       && let Some(source) = file.get_source()
       && let SourceValue::String(content) = source.source()
-      && let Ok(mut stats_root) = serde_json::from_str::<StatsRoot>(&content)
+      && let Ok(mut stats_root) = simd_json::from_reader::<_, StatsRoot>(content.as_bytes())
     {
       let shared_referenced_exports = self
         .shared_referenced_exports
@@ -336,7 +336,7 @@ async fn process_assets(&self, compilation: &mut Compilation) -> Result<()> {
         }
       }
 
-      let updated_content = serde_json::to_string_pretty(&stats_root)
+      let updated_content = simd_json::to_string_pretty(&stats_root)
         .map_err(|e| rspack_error::error!("Failed to serialize stats root: {}", e))?;
 
       compilation.update_asset(file_name, |_, info| {

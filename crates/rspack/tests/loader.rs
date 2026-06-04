@@ -7,7 +7,7 @@ use rspack_core::{
 };
 use rspack_paths::Utf8Path;
 use rspack_regex::RspackRegex;
-use serde_json::json;
+use simd_json::json;
 
 #[cfg(feature = "loader_lightningcss")]
 #[tokio::test(flavor = "multi_thread")]

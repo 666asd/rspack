@@ -289,7 +289,7 @@ impl RuntimeModule for ModuleChunkLoadingRuntimeModule {
     if with_loading || with_external_install_chunk {
       let raw_source = runtime_template.render(
         &self.template(TemplateId::Raw),
-        Some(serde_json::json!({
+        Some(simd_json::json!({
           "_modules": runtime_template.render_runtime_variable(&RuntimeVariable::Modules),
           "_with_on_chunk_load": with_on_chunk_load,
         })),
@@ -306,7 +306,7 @@ impl RuntimeModule for ModuleChunkLoadingRuntimeModule {
       } else {
         runtime_template.render(
           &self.template(TemplateId::WithLoading),
-          Some(serde_json::json!({
+          Some(simd_json::json!({
             "_js_matcher": &has_js_matcher.render("chunkId"),
             "_import_function_name":&compilation.options.output.import_function_name,
             "_output_dir": &root_output_dir,
@@ -337,7 +337,7 @@ impl RuntimeModule for ModuleChunkLoadingRuntimeModule {
       if with_prefetch {
         let link_prefetch_code = runtime_template.render(
           &self.template(TemplateId::WithPrefetchLink),
-          Some(serde_json::json!({
+          Some(simd_json::json!({
             "_cross_origin": cross_origin_loading.to_string(),
           })),
         )?;
@@ -358,7 +358,7 @@ impl RuntimeModule for ModuleChunkLoadingRuntimeModule {
 
         let raw_source = runtime_template.render(
           &self.template(TemplateId::WithPrefetch),
-          Some(serde_json::json!({
+          Some(simd_json::json!({
             "_link_prefetch": &res.code,
             "_js_matcher": &js_matcher,
             "_is_neutral_platform": is_neutral_platform
@@ -370,7 +370,7 @@ impl RuntimeModule for ModuleChunkLoadingRuntimeModule {
       if with_preload {
         let link_preload_code = runtime_template.render(
           &self.template(TemplateId::WithPreloadLink),
-          Some(serde_json::json!({
+          Some(simd_json::json!({
             "_cross_origin": cross_origin_loading.to_string(),
           })),
         )?;
@@ -391,7 +391,7 @@ impl RuntimeModule for ModuleChunkLoadingRuntimeModule {
 
         let raw_source = runtime_template.render(
           &self.template(TemplateId::WithPreload),
-          Some(serde_json::json!({
+          Some(simd_json::json!({
             "_js_matcher": &js_matcher,
             "_link_preload": &res.code,
             "_is_neutral_platform": is_neutral_platform
@@ -439,7 +439,7 @@ impl RuntimeModule for ModuleChunkLoadingRuntimeModule {
         )?,
         runtime_template.render(
           &self.template(TemplateId::WithHMR),
-          Some(serde_json::json!({
+          Some(simd_json::json!({
             "_modules": runtime_template.render_runtime_variable(&RuntimeVariable::Modules),
             "_import_function_name": import_function_name,
           })),
@@ -452,7 +452,7 @@ impl RuntimeModule for ModuleChunkLoadingRuntimeModule {
     if with_hmr_manifest {
       source.push_str(&runtime_template.render(
         &self.template(TemplateId::WithHMRManifest),
-        Some(serde_json::json!({
+        Some(simd_json::json!({
           "_import_function_name": import_function_name,
         })),
       )?)

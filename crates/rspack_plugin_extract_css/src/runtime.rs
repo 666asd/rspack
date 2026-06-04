@@ -234,7 +234,7 @@ impl RuntimeModule for CssLoadingRuntimeModule {
 
     let create_link_raw = runtime_template.render(
       &self.template_id(TemplateId::CreateLink),
-      Some(serde_json::json!({
+      Some(simd_json::json!({
         "_set_attributes": &attr,
         "_set_linktype": self.link_type.clone().unwrap_or_default(),
         "_cross_origin": compilation.options.output.cross_origin_loading.to_string(),
@@ -257,7 +257,7 @@ impl RuntimeModule for CssLoadingRuntimeModule {
 
     let raw = runtime_template.render(
       &self.template_id(TemplateId::Raw),
-      Some(serde_json::json!({
+      Some(simd_json::json!({
         "_create_link": &create_link.code,
         "_insert": match &self.insert {
           InsertType::Fn(f) => format!("({f})(linkTag);"),
@@ -284,7 +284,7 @@ impl RuntimeModule for CssLoadingRuntimeModule {
           .expect_get(self.chunk.as_ref().expect("should attached chunk"));
         let loading = runtime_template.render(
           &self.template_id(TemplateId::WithLoading),
-          Some(serde_json::json!({
+          Some(simd_json::json!({
             "_installed_chunks": format!(
               "{}: 0,\n",
               rspack_util::json_stringify(chunk.expect_id())
@@ -325,7 +325,7 @@ impl RuntimeModule for CssLoadingRuntimeModule {
     {
       let link_prefetch_raw = runtime_template.render(
         &self.template_id(TemplateId::WithPrefetchLink),
-        Some(serde_json::json!({
+        Some(simd_json::json!({
           "_cross_origin": compilation.options.output.cross_origin_loading.to_string(),
         })),
       )?;
@@ -345,7 +345,7 @@ impl RuntimeModule for CssLoadingRuntimeModule {
 
       let prefetch = runtime_template.render(
         &self.template_id(TemplateId::WithPrefetch),
-        Some(serde_json::json!({
+        Some(simd_json::json!({
           "_create_prefetch_link": &link_prefetch.code,
           "_css_matcher": has_css_matcher.render("chunkId"),
         })),
@@ -359,7 +359,7 @@ impl RuntimeModule for CssLoadingRuntimeModule {
     {
       let link_preload_raw = runtime_template.render(
         &self.template_id(TemplateId::WithPreloadLink),
-        Some(serde_json::json!({
+        Some(simd_json::json!({
           "_cross_origin": compilation.options.output.cross_origin_loading.to_string(),
         })),
       )?;
@@ -379,7 +379,7 @@ impl RuntimeModule for CssLoadingRuntimeModule {
 
       let preload = runtime_template.render(
         &self.template_id(TemplateId::WithPreload),
-        Some(serde_json::json!({
+        Some(simd_json::json!({
           "_create_preload_link": &link_preload.code,
           "_css_matcher": has_css_matcher.render("chunkId"),
         })),

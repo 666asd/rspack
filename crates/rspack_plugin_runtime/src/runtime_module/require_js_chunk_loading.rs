@@ -260,7 +260,7 @@ impl RuntimeModule for RequireChunkLoadingRuntimeModule {
     if with_loading || with_external_install_chunk {
       let raw_source = runtime_template.render(
         &self.template_id(TemplateId::Raw),
-        Some(serde_json::json!({
+        Some(simd_json::json!({
           "_with_on_chunk_loaded": match with_on_chunk_load {
             true => format!("{}();", runtime_template
                 .render_runtime_globals(&RuntimeGlobals::ON_CHUNKS_LOADED)),
@@ -281,7 +281,7 @@ impl RuntimeModule for RequireChunkLoadingRuntimeModule {
       } else {
         let source_with_loading_matcher = runtime_template.render(
           &self.template_id(TemplateId::WithLoadingMatcher),
-          Some(serde_json::json!({
+          Some(simd_json::json!({
             "_js_matcher": &has_js_matcher.render("chunkId"),
             "_output_dir": &root_output_dir,
           })),

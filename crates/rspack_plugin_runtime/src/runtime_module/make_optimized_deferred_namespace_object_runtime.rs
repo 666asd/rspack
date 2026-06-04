@@ -45,7 +45,7 @@ impl RuntimeModule for MakeOptimizedDeferredNamespaceObjectRuntimeModule {
       .contains(RuntimeGlobals::ASYNC_MODULE);
     let source = runtime_template.render(
       &self.id,
-      Some(serde_json::json!({
+      Some(simd_json::json!({
         "_module_cache": runtime_template.render_runtime_variable(&RuntimeVariable::ModuleCache),
         "_has_async": has_async,
       })),

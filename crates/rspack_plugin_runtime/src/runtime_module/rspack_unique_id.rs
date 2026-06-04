@@ -38,7 +38,7 @@ impl RuntimeModule for RspackUniqueIdRuntimeModule {
   ) -> rspack_error::Result<String> {
     let source = context.runtime_template.render(
       &self.id,
-      Some(serde_json::json!({
+      Some(simd_json::json!({
         "_bundler_name": &self.bundler_name,
         "_bundler_version": &self.bundler_version,
       })),

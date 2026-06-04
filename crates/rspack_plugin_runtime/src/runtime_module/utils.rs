@@ -236,7 +236,7 @@ pub fn generate_javascript_hmr_runtime(
 ) -> Result<String> {
   runtime_template.render(
     key,
-    Some(serde_json::json!({
+    Some(simd_json::json!({
       "_loading_method": method,
       "_is_hot_test": is_hot_test(),
     })),

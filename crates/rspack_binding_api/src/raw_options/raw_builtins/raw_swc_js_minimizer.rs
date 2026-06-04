@@ -1,6 +1,7 @@
 use napi::Either;
 use napi_derive::napi;
 use rspack_error::{Result, ToStringResultToRspackResultExt};
+use rspack_napi::JsonValue;
 use rspack_plugin_swc_js_minimizer::{
   ExtractComments, MinimizerOptions, OptionWrapper, PluginOptions,
 };
@@ -33,19 +34,19 @@ pub struct RawSwcJsMinimizerRspackPluginOptions {
 #[derive(Debug)]
 #[napi(object, object_to_js = false)]
 pub struct RawSwcJsMinimizerOptions {
-  pub ecma: serde_json::Value,
-  pub compress: serde_json::Value,
-  pub mangle: serde_json::Value,
-  pub format: serde_json::Value,
+  pub ecma: JsonValue,
+  pub compress: JsonValue,
+  pub mangle: JsonValue,
+  pub format: JsonValue,
   pub module: Option<bool>,
   pub minify: Option<bool>,
 }
 
-fn try_deserialize_into<T>(value: serde_json::Value) -> Result<T>
+fn try_deserialize_into<T>(value: JsonValue) -> Result<T>
 where
   T: DeserializeOwned,
 {
-  serde_json::from_value(value).to_rspack_result()
+  simd_json::serde::from_owned_value(value.into_inner()).to_rspack_result()
 }
 
 fn into_extract_comments(c: Option<RawExtractComments>) -> Option<ExtractComments> {

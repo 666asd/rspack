@@ -48,6 +48,7 @@ use rspack_ids::{
   NamedChunkIdsPlugin, NamedModuleIdsPlugin, NaturalChunkIdsPlugin, NaturalModuleIdsPlugin,
   OccurrenceChunkIdsPlugin, SyncModuleIdsPlugin,
 };
+use rspack_napi::JsonValue;
 use rspack_plugin_asset::AssetPlugin;
 use rspack_plugin_banner::BannerPlugin;
 use rspack_plugin_case_sensitive::CaseSensitivePlugin;
@@ -320,11 +321,18 @@ impl<'a> BuiltinPlugin<'a> {
     match name {
       // webpack also have these plugins
       BuiltinPluginName::DefinePlugin => {
-        let plugin = DefinePlugin::new(
-          downcast_into(self.options)
-            .map_err(|report| napi::Error::from_reason(report.to_string()))?,
-        )
-        .boxed();
+        let definitions = match downcast_into::<JsonValue>(self.options)
+          .map_err(|report| napi::Error::from_reason(report.to_string()))?
+          .into_inner()
+        {
+          simd_json::OwnedValue::Object(object) => *object,
+          _ => {
+            return Err(napi::Error::from_reason(
+              "DefinePlugin options should be an object",
+            ));
+          }
+        };
+        let plugin = DefinePlugin::new(definitions).boxed();
         plugins.push(plugin);
       }
       BuiltinPluginName::ProvidePlugin => {

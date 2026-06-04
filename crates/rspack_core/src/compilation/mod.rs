@@ -1354,7 +1354,7 @@ pub struct AssetInfo {
   /// This is a hack to store the additional fields in the rust struct.
   /// Related: packages/rspack/src/Compilation.ts
   #[cacheable(with=AsPreset)]
-  pub extras: serde_json::Map<String, serde_json::Value>,
+  pub extras: simd_json::value::owned::Object,
 }
 
 impl AssetInfo {
@@ -1432,7 +1432,9 @@ impl AssetInfo {
     // merge vec fields
     self.chunk_hash.extend(another.chunk_hash);
     self.content_hash.extend(another.content_hash);
-    self.extras.extend(another.extras);
+    for (key, value) in another.extras {
+      self.extras.insert(key, value);
+    }
     // self.full_hash.extend(another.full_hash.iter().cloned());
     // self.module_hash.extend(another.module_hash.iter().cloned());
 

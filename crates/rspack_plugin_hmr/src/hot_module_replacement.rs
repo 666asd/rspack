@@ -36,7 +36,7 @@ impl RuntimeModule for HotModuleReplacementRuntimeModule {
   ) -> rspack_error::Result<String> {
     let content = context.runtime_template.render(
       self.id.as_str(),
-      Some(serde_json::json!({
+      Some(simd_json::json!({
         "_is_hot_test": is_hot_test(),
       })),
     )?;

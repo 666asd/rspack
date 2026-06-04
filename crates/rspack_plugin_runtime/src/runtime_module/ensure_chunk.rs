@@ -63,7 +63,7 @@ impl RuntimeModule for EnsureChunkRuntimeModule {
 
       runtime_template.render(
         &self.template_id(TemplateId::Raw),
-        Some(serde_json::json!({
+        Some(simd_json::json!({
           "_fetch_priority": fetch_priority,
         })),
       )?

@@ -16,7 +16,7 @@ pub struct ResolveRequest {
   pub path: String,
   pub query: String,
   pub fragment: String,
-  pub description_file_data: Option<serde_json::Value>,
+  pub description_file_data: Option<simd_json::OwnedValue>,
   pub description_file_path: Option<String>,
   pub file_dependencies: Vec<String>,
   pub missing_dependencies: Vec<String>,
@@ -92,7 +92,7 @@ impl JsResolver {
               .drain()
               .map(|path| path.to_string_lossy().into_owned())
               .collect();
-            Ok(match serde_json::to_string(&resolve_request) {
+            Ok(match simd_json::to_string(&resolve_request) {
               Ok(json) => Either::<String, ()>::A(json),
               Err(_) => Either::B(()),
             })

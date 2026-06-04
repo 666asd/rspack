@@ -150,9 +150,9 @@ impl Resolver {
         path: r.path().to_path_buf().assert_utf8(),
         query: r.query().unwrap_or_default().to_string(),
         fragment: r.fragment().unwrap_or_default().to_string(),
-        description_data: r
-          .package_json()
-          .map(|d| DescriptionData::new(d.directory().to_path_buf(), Arc::clone(d.raw_json()))),
+        description_data: r.package_json().map(|d| {
+          DescriptionData::new(d.directory().to_path_buf(), convert_raw_json(d.raw_json()))
+        }),
       })),
       Err(rspack_resolver::ResolveError::Ignored(_)) => Ok(ResolveResult::Ignored),
       Err(error) => Err(ResolveInnerError::RspackResolver(error)),
@@ -186,9 +186,9 @@ impl Resolver {
         path: r.path().to_path_buf().assert_utf8(),
         query: r.query().unwrap_or_default().to_string(),
         fragment: r.fragment().unwrap_or_default().to_string(),
-        description_data: r
-          .package_json()
-          .map(|d| DescriptionData::new(d.directory().to_path_buf(), Arc::clone(d.raw_json()))),
+        description_data: r.package_json().map(|d| {
+          DescriptionData::new(d.directory().to_path_buf(), convert_raw_json(d.raw_json()))
+        }),
       })),
       Err(rspack_resolver::ResolveError::Ignored(_)) => Ok(ResolveResult::Ignored),
       Err(error) => Err(ResolveInnerError::RspackResolver(error)),
@@ -199,6 +199,14 @@ impl Resolver {
   pub fn inner_fs(&self) -> Arc<dyn ReadableFileSystem> {
     self.inner_fs.clone()
   }
+}
+
+fn convert_raw_json<T: serde::Serialize>(json: &Arc<T>) -> Arc<simd_json::OwnedValue> {
+  let mut bytes = simd_json::to_vec(json.as_ref()).expect("package.json should serialize");
+  Arc::new(
+    simd_json::from_slice::<simd_json::OwnedValue>(&mut bytes)
+      .expect("serialized package.json should parse"),
+  )
 }
 
 impl ResolveInnerError {

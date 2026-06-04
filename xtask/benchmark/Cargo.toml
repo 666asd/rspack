@@ -39,7 +39,7 @@ rspack_regex               = { workspace = true }
 rspack_sources             = { workspace = true }
 rspack_tasks               = { workspace = true }
 rustc-hash                 = { workspace = true }
-serde_json                 = { workspace = true }
+simd-json                 = { workspace = true }
 swc_core                   = { workspace = true, features = ["__parser", "base"] }
 
 [[bench]]

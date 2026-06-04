@@ -2,6 +2,7 @@ use async_recursion::async_recursion;
 use rspack_error::Result;
 use rspack_loader_runner::ResourceData;
 use rspack_paths::Utf8Path;
+use simd_json::prelude::ValueObjectAccess;
 
 use crate::{
   DataRef, DependencyCategory, ImportAttributes, ModuleRule, ModuleRuleEffect,

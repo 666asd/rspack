@@ -42,7 +42,7 @@ impl RuntimeModule for ChunkPrefetchPreloadFunctionRuntimeModule {
     let runtime_template = context.runtime_template;
     let source = runtime_template.render(
       &self.id,
-      Some(serde_json::json!({
+      Some(simd_json::json!({
         "_runtime_handlers":  runtime_template.render_runtime_globals(&self.runtime_handlers),
         "_runtime_function": runtime_template.render_runtime_globals(&self.runtime_function),
       })),

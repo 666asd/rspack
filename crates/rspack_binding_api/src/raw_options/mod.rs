@@ -5,10 +5,11 @@ use napi::{
 use napi_derive::napi;
 use rspack_core::{
   CacheOptions, CompilerOptions, Context, Experiments, ModuleOptions, NodeDirnameOption,
-  NodeFilenameOption, NodeGlobalOption, NodeOption, OutputOptions, References,
+  NodeFilenameOption, NodeGlobalOption, NodeOption, OutputOptions,
   incremental::{IncrementalOptions, IncrementalPasses},
 };
 use rspack_error::error;
+use rspack_napi::JsonValue;
 
 mod raw_builtins;
 mod raw_cache;
@@ -66,7 +67,7 @@ pub struct RawOptions {
   pub amd: Option<String>,
   pub bail: bool,
   #[napi(js_name = "__references", ts_type = "Record<string, any>")]
-  pub __references: References,
+  pub __references: JsonValue,
   #[napi(js_name = "__virtual_files")]
   pub __virtual_files: Option<Vec<JsVirtualFile>>,
 }
@@ -130,6 +131,11 @@ impl TryFrom<RawOptions> for CompilerOptions {
       })
       .transpose()?;
 
+    let __references = match value.__references.into_inner() {
+      simd_json::OwnedValue::Object(object) => *object,
+      _ => return Err(error!("__references should be an object")),
+    };
+
     Ok(CompilerOptions {
       name: value.name,
       context,
@@ -146,7 +152,7 @@ impl TryFrom<RawOptions> for CompilerOptions {
       node,
       amd: value.amd,
       bail: value.bail,
-      __references: value.__references,
+      __references,
     })
   }
 }

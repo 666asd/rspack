@@ -624,7 +624,7 @@ async fn process_assets(&self, compilation: &mut Compilation) -> Result<()> {
     exposes: exposes.clone(),
   };
   // emit stats
-  let stats_json = serde_json::to_string_pretty(&stats_root).expect("serialize stats");
+  let stats_json = simd_json::to_string_pretty(&stats_root).expect("serialize stats");
   compilation.emit_asset(
     self.options.stats_file_name.clone(),
     CompilationAsset::new(
@@ -673,7 +673,7 @@ async fn process_assets(&self, compilation: &mut Compilation) -> Result<()> {
       })
       .collect(),
   };
-  let manifest_json: String = serde_json::to_string_pretty(&manifest).expect("serialize manifest");
+  let manifest_json: String = simd_json::to_string_pretty(&manifest).expect("serialize manifest");
   compilation.emit_asset(
     self.options.manifest_file_name.clone(),
     CompilationAsset::new(

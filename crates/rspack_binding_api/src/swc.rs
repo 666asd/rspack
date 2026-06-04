@@ -44,7 +44,8 @@ fn _to_source_map_kind(source_maps: Option<SourceMapsConfig>) -> SourceMapKind {
 
 fn _transform(source: String, options: String) -> napi::Result<TransformOutput> {
   #[cfg_attr(not(feature = "plugin"), allow(unused_mut))]
-  let mut options: SwcOptions = serde_json::from_str(&options)?;
+  let mut options: SwcOptions = simd_json::from_reader(options.as_bytes())
+    .map_err(|e| napi::Error::new(napi::Status::InvalidArg, e.to_string()))?;
 
   #[cfg(feature = "plugin")]
   {
@@ -84,7 +85,8 @@ pub fn transform_sync(source: String, options: String) -> napi::Result<Transform
 }
 
 fn _minify(source: String, options: String) -> napi::Result<TransformOutput> {
-  let options: JsMinifyOptions = serde_json::from_str(&options)?;
+  let options: JsMinifyOptions = simd_json::from_reader(options.as_bytes())
+    .map_err(|e| napi::Error::new(napi::Status::InvalidArg, e.to_string()))?;
   let compiler = JavaScriptCompiler::new();
   compiler
     .minify(

@@ -212,7 +212,7 @@ impl RuntimeModule for CssLoadingRuntimeModule {
 
       let create_link_raw = context.runtime_template.render(
         &self.template_id(TemplateId::CreateLink),
-        Some(serde_json::json!({
+        Some(simd_json::json!({
           "_with_fetch_priority": with_fetch_priority,
           "_cross_origin": match &compilation.options.output.cross_origin_loading {
             CrossOriginLoading::Disable => String::new(),
@@ -287,7 +287,7 @@ installedChunks[chunkId] = 0;
 
       let raw_source = context.runtime_template.render(
         &self.template_id(TemplateId::Raw),
-        Some(serde_json::json!({
+        Some(simd_json::json!({
           "_unique_name": unique_name,
           "_css_chunk_data": &load_css_chunk_data,
           "_create_link": &create_link.code,
@@ -300,7 +300,7 @@ installedChunks[chunkId] = 0;
       if with_loading {
         let source_with_loading = context.runtime_template.render(
           &self.template_id(TemplateId::WithLoading),
-          Some(serde_json::json!({
+          Some(simd_json::json!({
             "_css_matcher": &has_css_matcher.render("chunkId"),
             "_is_neutral_platform": is_neutral_platform
           })),
@@ -311,7 +311,7 @@ installedChunks[chunkId] = 0;
       if with_prefetch && !matches!(has_css_matcher, BooleanMatcher::Condition(false)) {
         let link_prefetch_raw = context.runtime_template.render(
           &self.template_id(TemplateId::WithPrefetchLink),
-          Some(serde_json::json!({
+          Some(simd_json::json!({
             "_cross_origin": compilation.options.output.cross_origin_loading.to_string(),
           })),
         )?;
@@ -331,7 +331,7 @@ installedChunks[chunkId] = 0;
 
         let source_with_prefetch = context.runtime_template.render(
           &self.template_id(TemplateId::WithPrefetch),
-          Some(serde_json::json!({
+          Some(simd_json::json!({
             "_css_matcher": &has_css_matcher.render("chunkId"),
             "_create_prefetch_link": &link_prefetch.code,
             "_is_neutral_platform": is_neutral_platform
@@ -343,7 +343,7 @@ installedChunks[chunkId] = 0;
       if with_preload && !matches!(has_css_matcher, BooleanMatcher::Condition(false)) {
         let link_preload_raw = context.runtime_template.render(
           &self.template_id(TemplateId::WithPreloadLink),
-          Some(serde_json::json!({
+          Some(simd_json::json!({
             "_cross_origin": compilation.options.output.cross_origin_loading.to_string(),
           })),
         )?;
@@ -363,7 +363,7 @@ installedChunks[chunkId] = 0;
 
         let source_with_preload = context.runtime_template.render(
           &self.template_id(TemplateId::WithPreload),
-          Some(serde_json::json!({
+          Some(simd_json::json!({
             "_css_matcher": &has_css_matcher.render("chunkId"),
             "_create_preload_link": &link_preload.code,
             "_is_neutral_platform": is_neutral_platform
@@ -375,7 +375,7 @@ installedChunks[chunkId] = 0;
       if with_hmr {
         let source_with_hmr = context.runtime_template.render(
           &self.template_id(TemplateId::WithHmr),
-          Some(serde_json::json!({
+          Some(simd_json::json!({
             "_is_neutral_platform": is_neutral_platform
           })),
         )?;

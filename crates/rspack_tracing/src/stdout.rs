@@ -124,23 +124,23 @@ impl Tracer for StdoutTracer {
               let duration_ms = duration_ns as f64 / 1_000_000.0;
 
               // Build fields object
-              let mut fields = serde_json::Map::new();
-              fields.insert("message".to_string(), serde_json::json!("close"));
+              let mut fields = simd_json::value::owned::Object::default();
+              fields.insert("message".to_string(), simd_json::json!("close"));
               fields.insert(
                 "time.busy".to_string(),
-                serde_json::json!(format!("{:.2}ms", duration_ms)),
+                simd_json::json!(format!("{:.2}ms", duration_ms)),
               );
 
               // Add any args from the event
               if let Some(args) = begin_event.args {
                 for (key, value) in args {
-                  fields.insert(key, serde_json::json!(value));
+                  fields.insert(key, simd_json::json!(value));
                 }
               }
 
               // Build span object if we have track_name
               let span_obj = begin_event.track_name.map(|track_name| {
-                serde_json::json!({
+                simd_json::json!({
                   "name": track_name,
                 })
               });
@@ -150,7 +150,7 @@ impl Tracer for StdoutTracer {
               let timestamp_iso = format_timestamp_iso8601(absolute_ts_micros);
 
               // Build JSON in Rust trace format
-              let json_value = serde_json::json!({
+              let json_value = simd_json::json!({
                 "timestamp": timestamp_iso,
                 "level": "DEBUG",
                 "fields": fields,
@@ -158,7 +158,7 @@ impl Tracer for StdoutTracer {
                 "span": span_obj,
               });
 
-              if let Ok(json_str) = serde_json::to_string(&json_value) {
+              if let Ok(json_str) = simd_json::to_string(&json_value) {
                 // Lock the mutex to access the writer
                 let _ = writeln!(writer.lock().expect("Failed to lock writer"), "{json_str}");
               }

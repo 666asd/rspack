@@ -1,17 +1,17 @@
 use rspack_cacheable::{enable_cacheable as cacheable, from_bytes, to_bytes, with::AsPreset};
-use serde_json::Value;
+use simd_json::OwnedValue as Value;
 
 #[cacheable]
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq)]
 struct Module {
   #[cacheable(with=AsPreset)]
   options: Value,
 }
 
 #[test]
-fn test_preset_serde_json() {
+fn test_preset_simd_json() {
   let module = Module {
-    options: serde_json::from_str("{\"id\":1}").unwrap(),
+    options: simd_json::from_reader("{\"id\":1}".as_bytes()).unwrap(),
   };
 
   let bytes = to_bytes(&module, &()).unwrap();

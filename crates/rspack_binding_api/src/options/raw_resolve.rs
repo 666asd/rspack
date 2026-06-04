@@ -5,10 +5,12 @@ use rspack_core::{
   Restriction, TsconfigOptions, TsconfigReferences,
 };
 use rspack_error::error;
+use rspack_napi::JsonValue;
 use rspack_regex::RspackRegex;
 use rustc_hash::FxHashMap as HashMap;
+use simd_json::prelude::ValueAsScalar;
 
-pub type AliasValue = serde_json::Value;
+pub type AliasValue = JsonValue;
 
 #[derive(Debug)]
 #[napi(object)]

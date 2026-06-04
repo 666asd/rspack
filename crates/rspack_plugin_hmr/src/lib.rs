@@ -397,7 +397,7 @@ To fix this, make sure to include [runtime] in the output.hotUpdateMainFilename 
       m.into_iter().collect()
     };
 
-    let manifest_content = serde_json::json!({
+    let manifest_content = simd_json::json!({
       "c": c,
       "r": r,
       "m": m,

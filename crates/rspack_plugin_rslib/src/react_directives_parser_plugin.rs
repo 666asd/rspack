@@ -53,7 +53,7 @@ impl JavascriptParserPlugin for ReactDirectivesParserPlugin {
 
     parser.build_info.extras.insert(
       "react_directives".to_string(),
-      serde_json::json!(directives.iter().map(|(d, _)| d).collect::<Vec<_>>()),
+      simd_json::json!(directives.iter().map(|(d, _)| d).collect::<Vec<_>>()),
     );
 
     for (_, span) in directives {

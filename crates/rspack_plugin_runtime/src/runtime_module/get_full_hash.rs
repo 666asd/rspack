@@ -28,7 +28,7 @@ impl RuntimeModule for GetFullHashRuntimeModule {
     let compilation = context.compilation;
     let source = context.runtime_template.render(
       &self.id,
-      Some(serde_json::json!({
+      Some(simd_json::json!({
         "_hash": format!("\"{}\"", compilation.get_hash().unwrap_or("XXXX"))
       })),
     )?;

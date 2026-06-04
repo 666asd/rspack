@@ -3,7 +3,7 @@ use rspack_cacheable::{cacheable, cacheable_dyn};
 use rspack_core::{Loader, LoaderContext, RunnerContext};
 use rspack_error::Result;
 use rspack_loader_runner::{DisplayWithSuffix, Identifier};
-use serde_json::json;
+use simd_json::json;
 
 #[cacheable]
 pub struct SimpleLoader;

@@ -129,7 +129,7 @@ impl ConcatenationScope {
       .expect("should have module info");
 
     let export_data = if !options.ids.is_empty() {
-      hex::encode(serde_json::to_string(&options.ids).expect("should serialize to json string"))
+      hex::encode(simd_json::to_string(&options.ids).expect("should serialize to json string"))
     } else {
       "ns".to_string()
     };
@@ -175,7 +175,7 @@ impl ConcatenationScope {
     let ids = if export_data == "ns" {
       vec![]
     } else {
-      serde_json::from_slice(&hex::decode(export_data).ok()?).ok()?
+      simd_json::from_slice(&mut hex::decode(export_data).ok()?).ok()?
     };
 
     let call = if let Some(stripped) = flags.strip_prefix("_call") {

@@ -15,7 +15,7 @@ use rspack_error::Diagnostic;
 use rspack_fs::{MemoryFileSystem, WritableFileSystem};
 use rspack_regex::RspackRegex;
 use rspack_tasks::{CURRENT_COMPILER_CONTEXT, within_compiler_context_for_testing_sync};
-use serde_json::json;
+use simd_json::json;
 
 use crate::groups::diagnostics::assert_no_compilation_errors;
 
@@ -111,9 +111,10 @@ pub fn build_chunk_graph_benchmark_inner(c: &mut Criterion) {
   let _guard = rt.enter();
 
   let fs = Arc::new(MemoryFileSystem::default());
-  let random_table =
-    serde_json::from_str::<Vec<Vec<usize>>>(include_str!("../build_chunk_graph/random_table.json"))
-      .expect("should not fail to parse random table json");
+  let random_table = simd_json::from_reader::<_, Vec<Vec<usize>>>(
+    include_str!("../build_chunk_graph/random_table.json").as_bytes(),
+  )
+  .expect("should not fail to parse random table json");
   let mut compiler = Compiler::builder()
     .context("/")
     .entry("main", "/src/dynamic-0.js")
@@ -234,9 +235,10 @@ pub fn build_module_graph_benchmark_inner(c: &mut Criterion) {
   let _guard = rt.enter();
 
   let fs = Arc::new(MemoryFileSystem::default());
-  let random_table =
-    serde_json::from_str::<Vec<Vec<usize>>>(include_str!("../build_chunk_graph/random_table.json"))
-      .expect("should not fail to parse random table json");
+  let random_table = simd_json::from_reader::<_, Vec<Vec<usize>>>(
+    include_str!("../build_chunk_graph/random_table.json").as_bytes(),
+  )
+  .expect("should not fail to parse random table json");
   rt.block_on(async {
     fs.create_dir_all("/src".into())
       .await

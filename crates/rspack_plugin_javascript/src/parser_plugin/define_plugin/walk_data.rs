@@ -7,7 +7,11 @@ use itertools::Itertools as _;
 use regex::Regex;
 use rspack_error::Diagnostic;
 use rustc_hash::FxHashMap;
-use serde_json::{Map, Value, json};
+use simd_json::{
+  OwnedValue as Value, json,
+  prelude::{ValueAsArray, ValueAsObject},
+  value::owned::Object as Map,
+};
 use swc_core::common::Span;
 
 use super::{
@@ -343,7 +347,7 @@ impl WalkData {
     fn apply_array_define(key: Cow<str>, obj: &[Value], walk_data: &mut WalkData) {
       let key = Arc::<str>::from(key);
       walk_data.can_rename.insert(key.clone(), None);
-      let define_record = ObjectDefineRecord::from_code(Value::Array(obj.to_owned()))
+      let define_record = ObjectDefineRecord::from_code(obj.to_owned().into())
         .with_on_evaluate_identifier(Box::new(move |_, _, _, start, end| {
           Some(object_evaluate_identifier(start, end))
         }))
@@ -359,10 +363,10 @@ impl WalkData {
       walk_data.object_define_record.insert(key, define_record);
     }
 
-    fn apply_object_define(key: Cow<str>, obj: &Map<String, Value>, walk_data: &mut WalkData) {
+    fn apply_object_define(key: Cow<str>, obj: &Map, walk_data: &mut WalkData) {
       let key = Arc::<str>::from(key);
       walk_data.can_rename.insert(key.clone(), None);
-      let define_record = ObjectDefineRecord::from_code(Value::Object(obj.clone()))
+      let define_record = ObjectDefineRecord::from_code(obj.clone().into())
         .with_on_evaluate_identifier(Box::new(move |_, _, _, start, end| {
           Some(object_evaluate_identifier(start, end))
         }))
@@ -402,13 +406,12 @@ impl WalkData {
       })
     }
 
-    fn walk_object(obj: &Map<String, Value>, prefix: Cow<str>, walk_data: &mut WalkData) {
+    fn walk_object(obj: &Map, prefix: Cow<str>, walk_data: &mut WalkData) {
       obj
         .iter()
         .for_each(|(key, code)| walk_code(code, prefix.clone(), Cow::Owned(key.clone()), walk_data))
     }
 
-    let object = definitions.clone().into_iter().collect();
-    walk_object(&object, "".into(), self);
+    walk_object(definitions, "".into(), self);
   }
 }

@@ -3529,7 +3529,7 @@ dependencies = [
  "rspack_tasks",
  "rspack_util",
  "rustc-hash",
- "serde_json",
+ "simd-json",
  "supports-color 3.0.2",
  "tokio",
 ]
@@ -3594,7 +3594,7 @@ dependencies = [
  "rspack_sources",
  "rspack_tasks",
  "rustc-hash",
- "serde_json",
+ "simd-json",
  "swc_core",
  "tokio",
 ]
@@ -3693,8 +3693,8 @@ dependencies = [
  "rspack_workspace",
  "rustc-hash",
  "serde",
- "serde_json",
  "sftrace-setup",
+ "simd-json",
  "swc_core",
  "tokio",
  "tracing",
@@ -3769,7 +3769,7 @@ dependencies = [
  "rspack_resolver",
  "rspack_sources",
  "rustc-hash",
- "serde_json",
+ "simd-json",
  "smol_str",
  "sugar_path",
  "swc_core",
@@ -3798,7 +3798,7 @@ dependencies = [
  "rspack_resolver",
  "rspack_sources",
  "rustc-hash",
- "serde_json",
+ "simd-json",
  "swc_core",
  "ustr-fxhash",
  "xxhash-rust",
@@ -3873,7 +3873,7 @@ dependencies = [
  "rustc-hash",
  "scopeguard",
  "serde",
- "serde_json",
+ "simd-json",
  "simdutf8",
  "smallvec",
  "smol_str",
@@ -3892,11 +3892,9 @@ dependencies = [
 [[package]]
 name = "rspack_dojang"
 version = "0.1.11"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9803670afdceac77551ca44c99b9a63c78e77848bc1d5db11d5a9975a290486e"
 dependencies = [
  "html-escape",
- "serde_json",
+ "simd-json",
 ]
 
 [[package]]
@@ -3910,7 +3908,7 @@ dependencies = [
  "rspack_collections",
  "rspack_location",
  "rspack_paths",
- "serde_json",
+ "simd-json",
  "termcolor",
  "textwrap",
  "unicode-width 0.2.2",
@@ -4013,7 +4011,7 @@ dependencies = [
  "rspack_hook",
  "rspack_loader_runner",
  "serde",
- "serde_json",
+ "simd-json",
  "tokio",
  "tracing",
 ]
@@ -4061,7 +4059,7 @@ dependencies = [
  "rspack_sources",
  "rspack_util",
  "rustc-hash",
- "serde_json",
+ "simd-json",
  "simdutf8",
  "tokio",
  "tracing",
@@ -4091,8 +4089,8 @@ dependencies = [
  "rspack_workspace",
  "rustc-hash",
  "serde",
- "serde_json",
  "sha2",
+ "simd-json",
  "stacker",
  "sugar_path",
  "swc",
@@ -4111,7 +4109,7 @@ dependencies = [
  "rspack_core",
  "rspack_error",
  "rspack_loader_runner",
- "serde_json",
+ "simd-json",
 ]
 
 [[package]]
@@ -4157,7 +4155,7 @@ dependencies = [
  "napi",
  "oneshot",
  "rspack_error",
- "serde_json",
+ "simd-json",
  "tokio",
 ]
 
@@ -4308,7 +4306,7 @@ dependencies = [
  "rspack_plugin_runtime",
  "rspack_util",
  "rustc-hash",
- "serde_json",
+ "simd-json",
  "smol_str",
  "tokio",
  "tracing",
@@ -4374,7 +4372,7 @@ dependencies = [
  "rspack_util",
  "rustc-hash",
  "serde",
- "serde_json",
+ "simd-json",
  "tracing",
 ]
 
@@ -4436,7 +4434,7 @@ dependencies = [
  "rspack_plugin_split_chunks",
  "rspack_util",
  "serde",
- "serde_json",
+ "simd-json",
  "sugar_path",
  "swc_core",
  "swc_experimental_ecma_ast",
@@ -4479,7 +4477,7 @@ dependencies = [
  "rspack_util",
  "rustc-hash",
  "serde",
- "serde_json",
+ "simd-json",
  "tokio",
  "tracing",
  "ustr-fxhash",
@@ -4501,7 +4499,7 @@ dependencies = [
  "rspack_plugin_runtime",
  "rspack_util",
  "rustc-hash",
- "serde_json",
+ "simd-json",
  "tokio",
  "tracing",
 ]
@@ -4525,7 +4523,7 @@ dependencies = [
  "rspack_paths",
  "rspack_util",
  "serde",
- "serde_json",
+ "simd-json",
  "sugar_path",
  "swc_core",
  "swc_html",
@@ -4581,7 +4579,7 @@ dependencies = [
  "rspack_regex",
  "rspack_util",
  "rustc-hash",
- "serde_json",
+ "simd-json",
  "slotmap",
  "smallvec",
  "sugar_path",
@@ -4620,7 +4618,7 @@ dependencies = [
  "rspack_plugin_javascript",
  "rspack_regex",
  "rspack_util",
- "serde_json",
+ "simd-json",
  "tokio",
  "tracing",
 ]
@@ -4641,7 +4639,7 @@ dependencies = [
  "rspack_plugin_remove_duplicate_modules",
  "rspack_plugin_split_chunks",
  "rspack_util",
- "serde_json",
+ "simd-json",
  "swc_core",
  "tracing",
 ]
@@ -4707,7 +4705,7 @@ dependencies = [
  "rspack_util",
  "rustc-hash",
  "serde",
- "serde_json",
+ "simd-json",
  "tokio",
  "tracing",
 ]
@@ -4836,7 +4834,6 @@ dependencies = [
  "rspack_util",
  "rustc-hash",
  "serde",
- "serde_json",
  "simd-json",
  "swc_core",
  "tokio",
@@ -4887,7 +4884,7 @@ dependencies = [
  "rspack_plugin_javascript",
  "rspack_util",
  "rustc-hash",
- "serde_json",
+ "simd-json",
  "swc_core",
  "tracing",
 ]
@@ -4930,7 +4927,7 @@ dependencies = [
  "rspack_plugin_javascript",
  "rspack_util",
  "rustc-hash",
- "serde_json",
+ "simd-json",
  "tokio",
  "tracing",
 ]
@@ -4963,8 +4960,8 @@ dependencies = [
  "rspack_paths",
  "rspack_util",
  "serde",
- "serde_json",
  "sha2",
+ "simd-json",
  "tokio",
  "tracing",
  "url",
@@ -5055,7 +5052,7 @@ dependencies = [
  "rspack_plugin_javascript",
  "rspack_regex",
  "rspack_util",
- "serde_json",
+ "simd-json",
  "swc_config",
  "swc_core",
  "swc_ecma_minifier",
@@ -5213,7 +5210,7 @@ dependencies = [
  "chrono",
  "rspack_tracing_perfetto",
  "rustc-hash",
- "serde_json",
+ "simd-json",
  "tracing-subscriber",
 ]
 
@@ -5254,8 +5251,8 @@ dependencies = [
  "rustc-hash",
  "ryu-js",
  "serde",
- "serde_json",
  "signal-hook",
+ "simd-json",
  "sugar_path",
  "swc_config",
  "swc_core",
@@ -8419,7 +8416,7 @@ dependencies = [
  "anyhow",
  "cargo_toml",
  "clap",
- "serde_json",
+ "simd-json",
 ]
 
 [[package]]

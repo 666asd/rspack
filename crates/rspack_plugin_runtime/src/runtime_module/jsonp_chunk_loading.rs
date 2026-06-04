@@ -284,7 +284,7 @@ impl RuntimeModule for JsonpChunkLoadingRuntimeModule {
       } else {
         runtime_template.render(
           &self.template_id(TemplateId::Raw),
-          Some(serde_json::json!({
+          Some(simd_json::json!({
             "_js_matcher": &js_matcher,
             "_fetch_priority": if with_fetch_priority {
                ", fetchPriority"
@@ -313,7 +313,7 @@ impl RuntimeModule for JsonpChunkLoadingRuntimeModule {
     if with_prefetch && !matches!(has_js_matcher, BooleanMatcher::Condition(false)) {
       let link_prefetch_code = runtime_template.render(
         &self.template_id(TemplateId::WithPrefetchLink),
-        Some(serde_json::json!({
+        Some(simd_json::json!({
           "_cross_origin": cross_origin_loading.to_string(),
         })),
       )?;
@@ -334,7 +334,7 @@ impl RuntimeModule for JsonpChunkLoadingRuntimeModule {
 
       let source_with_prefetch = runtime_template.render(
         &self.template_id(TemplateId::WithPrefetch),
-        Some(serde_json::json!({
+        Some(simd_json::json!({
           "_js_matcher": &js_matcher,
           "_link_prefetch": &res.code,
         })),
@@ -346,7 +346,7 @@ impl RuntimeModule for JsonpChunkLoadingRuntimeModule {
     if with_preload && !matches!(has_js_matcher, BooleanMatcher::Condition(false)) {
       let link_preload_code = runtime_template.render(
         &self.template_id(TemplateId::WithPreloadLink),
-        Some(serde_json::json!({
+        Some(simd_json::json!({
           "_script_type": script_type.as_str(),
           "_cross_origin": cross_origin_loading.to_string(),
         })),
@@ -368,7 +368,7 @@ impl RuntimeModule for JsonpChunkLoadingRuntimeModule {
 
       let source_with_preload = runtime_template.render(
         &self.template_id(TemplateId::WithPreload),
-        Some(serde_json::json!({
+        Some(simd_json::json!({
           "_js_matcher": &js_matcher,
           "_link_preload": &res.code,
         })),
@@ -379,7 +379,7 @@ impl RuntimeModule for JsonpChunkLoadingRuntimeModule {
 
     if with_hmr {
       let source_with_hmr = runtime_template
-        .render(&self.template_id(TemplateId::WithHmr), Some(serde_json::json!({
+        .render(&self.template_id(TemplateId::WithHmr), Some(simd_json::json!({
           "_global_object": &compilation.options.output.global_object,
           "_hot_update_global": &rspack_util::json_stringify_str(&compilation.options.output.hot_update_global),
         })))?;
@@ -414,7 +414,7 @@ impl RuntimeModule for JsonpChunkLoadingRuntimeModule {
       );
       let source_with_callback = runtime_template.render(
         &self.template_id(TemplateId::WithCallback),
-        Some(serde_json::json!({
+        Some(simd_json::json!({
           "_chunk_loading_global_expr": &chunk_loading_global_expr,
           "_with_on_chunk_load": with_on_chunk_load,
         })),

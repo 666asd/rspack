@@ -321,11 +321,11 @@ pub struct DescriptionData {
 
   /// Raw package.json
   #[cacheable(with=AsInner<AsPreset>)]
-  json: Arc<serde_json::Value>,
+  json: Arc<simd_json::OwnedValue>,
 }
 
 impl DescriptionData {
-  pub fn new(path: PathBuf, json: Arc<serde_json::Value>) -> Self {
+  pub fn new(path: PathBuf, json: Arc<simd_json::OwnedValue>) -> Self {
     Self { path, json }
   }
 
@@ -333,11 +333,11 @@ impl DescriptionData {
     &self.path
   }
 
-  pub fn json(&self) -> &serde_json::Value {
+  pub fn json(&self) -> &simd_json::OwnedValue {
     self.json.as_ref()
   }
 
-  pub fn into_parts(self) -> (PathBuf, Arc<serde_json::Value>) {
+  pub fn into_parts(self) -> (PathBuf, Arc<simd_json::OwnedValue>) {
     (self.path, self.json)
   }
 }

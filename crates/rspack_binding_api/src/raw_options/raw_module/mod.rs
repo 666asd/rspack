@@ -27,6 +27,7 @@ use rspack_core::{
   ParserOptions, ParserOptionsMap, TypeReexportPresenceMode,
 };
 use rspack_error::error;
+use rspack_napi::JsonValue;
 use rspack_regex::RspackRegex;
 use rustc_hash::FxHashMap as HashMap;
 
@@ -39,7 +40,7 @@ use crate::{
 /// `options` is
 ///   - a `None` on rust side and handled by js side `getOptions` when
 /// using with `loader`.
-///   - a `Some(string)` on rust side, deserialized by `serde_json::from_str`
+///   - a `Some(string)` on rust side, deserialized by `simd_json::from_reader`
 /// and passed to rust side loader in [get_builtin_loader] when using with
 /// `builtin_loader`.
 #[napi(object)]
@@ -57,7 +58,7 @@ pub enum RawRuleSetCondition {
   logical(Vec<RawRuleSetLogicalConditions>),
   array(Vec<RawRuleSetCondition>),
   #[napi(ts_type = r#"(value: string) => boolean"#)]
-  func(ThreadsafeFunction<serde_json::Value, bool>),
+  func(ThreadsafeFunction<JsonValue, bool>),
 }
 
 impl std::fmt::Debug for RawRuleSetCondition {
@@ -127,7 +128,7 @@ impl TryFrom<RawRuleSetCondition> for rspack_core::RuleSetCondition {
           .collect::<rspack_error::Result<Vec<_>>>()?,
       ),
       RawRuleSetCondition::func(f) => Self::Func(Box::new(move |data| {
-        let data = data.to_value();
+        let data = JsonValue::from(data.to_value());
         let f = f.clone();
         Box::pin(async move { f.call_with_sync(data).await })
       })),

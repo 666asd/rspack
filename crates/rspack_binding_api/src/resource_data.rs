@@ -9,6 +9,7 @@ use napi::{
   sys::napi_value,
 };
 use napi_derive::napi;
+use rspack_napi::{JsonValue, json_value_to_napi_value};
 
 // Converting the descriptionFileData property to a JSObject may become a performance bottleneck.
 // Additionally, descriptionFileData and descriptionFilePath are rarely used, so they are exposed via getter methods and only converted to JSObject when accessed.
@@ -38,7 +39,7 @@ impl ReadonlyResourceData {
     self.with_ref(|resource_data| {
       resource_data
         .description()
-        .map(|desc| unsafe { ToNapiValue::to_napi_value(env.raw(), desc.json()) })
+        .map(|desc| unsafe { json_value_to_napi_value(env.raw(), desc.json()) })
         .transpose()
     })
   }
@@ -130,7 +131,7 @@ pub struct JsResourceData {
   pub query: Option<String>,
   /// Resource fragment with `#` prefix
   pub fragment: Option<String>,
-  pub description_file_data: Option<serde_json::Value>,
+  pub description_file_data: Option<JsonValue>,
   pub description_file_path: Option<String>,
 }
 
@@ -141,7 +142,9 @@ impl From<&rspack_core::ResourceData> for JsResourceData {
       path: value.path().map(|p| p.as_str().to_string()),
       fragment: value.fragment().map(|r| r.to_owned()),
       query: value.query().map(|r| r.to_owned()),
-      description_file_data: value.description().map(|data| data.json().to_owned()),
+      description_file_data: value
+        .description()
+        .map(|data| data.json().to_owned().into()),
       description_file_path: value
         .description()
         .map(|data| data.path().to_string_lossy().into_owned()),

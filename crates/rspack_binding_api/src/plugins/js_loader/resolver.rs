@@ -12,6 +12,7 @@ use rspack_core::{
 use rspack_error::Result;
 use rspack_hook::plugin_hook;
 use rspack_paths::Utf8Path;
+use simd_json::prelude::{ValueAsScalar, ValueObjectAccess};
 
 use super::{JsLoaderRspackPlugin, JsLoaderRspackPluginInner};
 

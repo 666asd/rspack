@@ -5,7 +5,7 @@ use rspack_cacheable::{
 use rspack_paths::Utf8Path;
 use rspack_swc_plugin_import::{ImportOptions, RawImportOptions};
 use serde::{Deserialize, Deserializer};
-use serde_json::{Map, Value};
+use simd_json::{OwnedValue as Value, value::owned::Object as Map};
 use swc_config::{file_pattern::FilePattern, types::BoolConfig};
 use swc_core::base::config::{
   Config, ErrorConfig, FileMatcher, InputSourceMap, IsModule, JscConfig, ModuleConfig, Options,
@@ -154,7 +154,7 @@ pub(crate) struct RawJscConfig {
   #[serde(default)]
   parser: Option<Value>,
   #[serde(flatten)]
-  other_fields: Map<String, Value>,
+  other_fields: Map,
 }
 
 impl RawJscConfig {
@@ -166,20 +166,20 @@ impl RawJscConfig {
   }
 
   // Parse `jsc` as-is, including the original `parser` value.
-  fn parse(&self) -> Result<JscConfig, serde_json::Error> {
-    let mut object: Map<String, Value> = self.other_fields.clone();
+  fn parse(&self) -> Result<JscConfig, simd_json::Error> {
+    let mut object: Map = self.other_fields.clone();
     if let Some(parser) = self.parser.clone() {
       object.insert("parser".into(), parser);
     }
-    serde_json::from_value(Value::Object(object))
+    simd_json::serde::from_owned_value(object.into())
   }
 
   // Parse `jsc` after resolving the parser for a specific resource kind.
   fn parse_for_syntax_kind(
     &self,
     syntax_kind: Option<KnownSyntaxKind>,
-  ) -> Result<JscConfig, serde_json::Error> {
-    let mut jsc: JscConfig = serde_json::from_value(Value::Object(self.other_fields.clone()))?;
+  ) -> Result<JscConfig, simd_json::Error> {
+    let mut jsc: JscConfig = simd_json::serde::from_owned_value(self.other_fields.clone().into())?;
     jsc.syntax = resolve_parser_syntax_for_kind(syntax_kind, &self.parser)?;
     Ok(jsc)
   }
@@ -213,37 +213,37 @@ impl KnownSyntaxKind {
 fn resolve_parser_syntax_for_kind(
   syntax_kind: Option<KnownSyntaxKind>,
   parser: &Option<Value>,
-) -> Result<Option<swc_core::ecma::parser::Syntax>, serde_json::Error> {
+) -> Result<Option<swc_core::ecma::parser::Syntax>, simd_json::Error> {
   let mut parser_map = match parser.clone() {
-    Some(Value::Object(parser)) => parser,
-    Some(parser) => return serde_json::from_value(parser).map(Some),
+    Some(Value::Object(parser)) => *parser,
+    Some(parser) => return simd_json::serde::from_owned_value(parser).map(Some),
     None => Map::default(),
   };
 
   match syntax_kind {
     Some(KnownSyntaxKind::JsLike) => {
       parser_map
-        .entry("syntax")
+        .entry("syntax".into())
         .or_insert(Value::String("ecmascript".into()));
-      parser_map.entry("jsx").or_insert(Value::Bool(true));
+      parser_map.entry("jsx".into()).or_insert(true.into());
     }
     Some(KnownSyntaxKind::Ts | KnownSyntaxKind::MtsCts) => {
       parser_map
-        .entry("syntax")
+        .entry("syntax".into())
         .or_insert(Value::String("typescript".into()));
-      parser_map.entry("tsx").or_insert(Value::Bool(false));
+      parser_map.entry("tsx".into()).or_insert(false.into());
     }
     Some(KnownSyntaxKind::Tsx) => {
       parser_map
-        .entry("syntax")
+        .entry("syntax".into())
         .or_insert(Value::String("typescript".into()));
-      parser_map.entry("tsx").or_insert(Value::Bool(true));
+      parser_map.entry("tsx".into()).or_insert(true.into());
     }
     Some(KnownSyntaxKind::Unknown) => {
       parser_map
-        .entry("syntax")
+        .entry("syntax".into())
         .or_insert(Value::String("typescript".into()));
-      parser_map.entry("tsx").or_insert(Value::Bool(true));
+      parser_map.entry("tsx".into()).or_insert(true.into());
     }
     None => {}
   }
@@ -252,7 +252,7 @@ fn resolve_parser_syntax_for_kind(
     return Ok(None);
   }
 
-  let mut syntax = serde_json::from_value(Value::Object(parser_map))?;
+  let mut syntax = simd_json::serde::from_owned_value(parser_map.into())?;
   if matches!(syntax_kind, Some(KnownSyntaxKind::MtsCts))
     && let swc_core::ecma::parser::Syntax::Typescript(ts) = &mut syntax
   {
@@ -305,7 +305,7 @@ impl ResourceSpecificJscResolver {
     }
   }
 
-  fn parse_for_resource(&self, resource_path: &Utf8Path) -> Result<JscConfig, serde_json::Error> {
+  fn parse_for_resource(&self, resource_path: &Utf8Path) -> Result<JscConfig, simd_json::Error> {
     // Known extensions keep exact inference. Unknown resources fall back to a
     // TSX-capable parser so virtual modules and scheme-based resources can
     // still be compiled under `detectSyntax: "auto"`.
@@ -400,7 +400,7 @@ impl SwcCompilerOptionsWithAdditional {
   pub(crate) fn parse_resource_specific_jsc(
     &self,
     resource_path: &Utf8Path,
-  ) -> Result<Option<JscConfig>, serde_json::Error> {
+  ) -> Result<Option<JscConfig>, simd_json::Error> {
     self
       .resource_specific_jsc
       .as_ref()
@@ -422,9 +422,9 @@ impl AsRefStrConverter for SwcCompilerOptionsWithAdditional {
 const SOURCE_MAP_INLINE: &str = "inline";
 
 impl TryFrom<&str> for SwcCompilerOptionsWithAdditional {
-  type Error = serde_json::Error;
+  type Error = simd_json::Error;
   fn try_from(value: &str) -> Result<Self, Self::Error> {
-    let option: SwcLoaderJsOptions = serde_json::from_str(value)?;
+    let option: SwcLoaderJsOptions = simd_json::from_reader(value.as_bytes())?;
     let SwcLoaderJsOptions {
       source_maps,
       source_map,
@@ -483,7 +483,7 @@ impl TryFrom<&str> for SwcCompilerOptionsWithAdditional {
           source_map_ignore_list,
         },
         swcrc: false,
-        ..serde_json::from_value(serde_json::Value::Object(Default::default()))?
+        ..simd_json::serde::from_owned_value(simd_json::value::owned::Object::default().into())?
       },
       resource_specific_jsc: needs_resource_specific_jsc
         .then(|| ResourceSpecificJscResolver::new(jsc)),
@@ -538,7 +538,8 @@ mod tests {
     let swc_options_from_rspack: Options = swc_options_with_additional.swc_options;
 
     let swc_options_from_native_lib: Options =
-      serde_json::from_value(serde_json::from_str(raw_options).unwrap()).unwrap();
+      simd_json::serde::from_owned_value(simd_json::from_reader(raw_options.as_bytes()).unwrap())
+        .unwrap();
 
     assert_eq!(
       swc_options_from_rspack.env_name,
@@ -560,7 +561,8 @@ mod tests {
     let swc_options_from_rspack: Options = swc_options_with_additional.swc_options;
 
     let swc_options_from_native_lib: Options =
-      serde_json::from_value(serde_json::from_str(raw_options).unwrap()).unwrap();
+      simd_json::serde::from_owned_value(simd_json::from_reader(raw_options.as_bytes()).unwrap())
+        .unwrap();
 
     assert_eq!(
       swc_options_from_native_lib.env_name, "my-env",

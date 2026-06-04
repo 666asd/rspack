@@ -385,7 +385,7 @@ impl RuntimeModule for GetChunkFilenameRuntimeModule {
       }
     }
 
-    let source = runtime_template.render(&self.id, Some(serde_json::json!({
+    let source = runtime_template.render(&self.id, Some(simd_json::json!({
       "_global": self.global,
       "_static_urls": static_urls
                         .iter()

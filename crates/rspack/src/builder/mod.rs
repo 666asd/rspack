@@ -62,7 +62,11 @@ use rspack_hash::{HashDigest, HashFunction, HashSalt};
 use rspack_paths::{AssertUtf8, Utf8PathBuf};
 use rspack_regex::RspackRegex;
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
-use serde_json::json;
+use simd_json::{
+  json,
+  prelude::{ValueAsScalar, ValueObjectAccess},
+  value::owned::Object as JsonObject,
+};
 use supports_color::Stream;
 use target::{TargetProperties, get_targets_properties};
 
@@ -2782,7 +2786,8 @@ impl OutputOptionsBuilder {
       // Try reading from package.json
       let pkg_path = path.join("package.json");
       if let Ok(pkg_content) = std::fs::read_to_string(pkg_path)
-        && let Ok(pkg_json) = serde_json::from_str::<serde_json::Value>(&pkg_content)
+        && let Ok(pkg_json) =
+          simd_json::from_reader::<_, simd_json::OwnedValue>(pkg_content.as_bytes())
         && let Some(name) = pkg_json.get("name").and_then(|n| n.as_str())
       {
         return name.to_string();
@@ -3387,7 +3392,7 @@ impl OptimizationOptionsBuilder {
   where
     V: Into<String>,
   {
-    self.node_env = Some(serde_json::json!(value.into()).to_string());
+    self.node_env = Some(simd_json::json!(value.into()).to_string());
     self
   }
 
@@ -3642,10 +3647,12 @@ impl OptimizationOptionsBuilder {
     if let Some(node_env) = node_env {
       builder_context
         .plugins
-        .push(BuiltinPluginOptions::DefinePlugin(HashMap::from_iter([(
-          "process.env.NODE_ENV".to_string(),
-          format!("{}", json!(node_env)).into(),
-        )])));
+        .push(BuiltinPluginOptions::DefinePlugin(JsonObject::from_iter([
+          (
+            "process.env.NODE_ENV".to_string(),
+            format!("{}", json!(node_env)).into(),
+          ),
+        ])));
     }
 
     Ok(Optimization {

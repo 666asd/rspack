@@ -9,6 +9,7 @@ use rspack_fs::WritableFileSystem;
 use rspack_paths::Utf8Path;
 use rspack_util::fx_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
+use simd_json::prelude::{ValueAsObject, ValueAsScalar, ValueObjectAccess};
 use tokio::sync::Mutex;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -35,7 +36,8 @@ impl Lockfile {
   }
 
   pub fn parse(content: &str) -> Result<Self, String> {
-    let data: serde_json::Value = serde_json::from_str(content).map_err(|e| e.to_string())?;
+    let data: simd_json::OwnedValue =
+      simd_json::from_reader(content.as_bytes()).map_err(|e| e.to_string())?;
 
     let version = data.get("version").and_then(|v| v.as_u64()).unwrap_or(1);
 
@@ -47,10 +49,10 @@ impl Lockfile {
 
     if let Some(entries) = data.get("entries").and_then(|e| e.as_object()) {
       for (key, value) in entries {
-        let entry = if value.is_string() {
+        let entry = if let Some(integrity) = value.as_str() {
           LockfileEntry {
             resolved: key.clone(),
-            integrity: value.as_str().expect("Expected string").to_string(),
+            integrity: integrity.to_string(),
             content_type: String::new(),
             valid_until: 0,
             etag: None,
@@ -82,12 +84,12 @@ impl Lockfile {
     Ok(lockfile)
   }
 
-  pub fn to_json_string(&self) -> Result<String, serde_json::Error> {
-    let json = serde_json::json!({
+  pub fn to_json_string(&self) -> Result<String, simd_json::Error> {
+    let json = simd_json::json!({
         "version": self.version,
         "entries": self.entries
     });
-    serde_json::to_string_pretty(&json)
+    simd_json::to_string_pretty(&json)
   }
 
   pub fn get_entry(&self, resource: &str) -> Option<&LockfileEntry> {

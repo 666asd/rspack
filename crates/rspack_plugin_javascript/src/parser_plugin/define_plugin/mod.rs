@@ -11,8 +11,7 @@ use rspack_core::{
 };
 use rspack_error::{Diagnostic, Error, Result};
 use rspack_hook::{plugin, plugin_hook};
-use rustc_hash::FxHashMap;
-use serde_json::Value;
+use simd_json::value::owned::Object;
 
 use self::walk_data::WalkData;
 use crate::parser_and_generator::JavaScriptParserAndGenerator;
@@ -32,7 +31,7 @@ impl ConflictingValuesError {
   }
 }
 
-pub type DefineValue = FxHashMap<String, Value>;
+pub type DefineValue = Object;
 
 #[plugin]
 #[derive(Debug)]

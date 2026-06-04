@@ -62,7 +62,7 @@ impl RuntimeModule for GetChunkUpdateFilenameRuntimeModule {
 
       let source = runtime_template.render(
         &self.id,
-        Some(serde_json::json!({
+        Some(simd_json::json!({
           "_filename": format!("'{}'", filename),
         })),
       )?;

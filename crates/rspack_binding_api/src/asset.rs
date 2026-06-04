@@ -8,7 +8,7 @@ use napi::{
 };
 use napi_derive::napi;
 use rspack_core::Reflector;
-use rspack_napi::unknown_to_json_value;
+use rspack_napi::{json_value_to_napi_value, unknown_to_json_value};
 use rspack_napi_macros::field_names;
 use rustc_hash::FxHashSet;
 
@@ -72,7 +72,7 @@ pub struct KnownAssetInfo {
 /// Webpack: AssetInfo = KnownAssetInfo & Record<string, any>
 pub struct AssetInfo {
   known: KnownAssetInfo,
-  extras: serde_json::Map<String, serde_json::Value>,
+  extras: simd_json::value::owned::Object,
 }
 
 impl FromNapiValue for AssetInfo {
@@ -81,7 +81,7 @@ impl FromNapiValue for AssetInfo {
       let known = KnownAssetInfo::from_napi_value(env, napi_val)?;
       let known_field_names = FxHashSet::from_iter(KnownAssetInfo::field_names());
 
-      let mut extras = serde_json::Map::new();
+      let mut extras = simd_json::value::owned::Object::default();
       let object = Object::from_napi_value(env, napi_val)?;
       let names = Array::from_napi_value(env, object.get_property_names()?.raw())?;
       for index in 0..names.len() {
@@ -106,7 +106,8 @@ impl ToNapiValue for AssetInfo {
       let napi_value = ToNapiValue::to_napi_value(env, val.known)?;
       let mut js_object = Object::from_napi_value(env, napi_value)?;
       for (key, value) in val.extras {
-        js_object.set_named_property(&key, value)?;
+        let value = json_value_to_napi_value(env, &value)?;
+        js_object.set_named_property(&key, Unknown::from_napi_value(env, value)?)?;
       }
       Ok(napi_value)
     }

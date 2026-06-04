@@ -64,17 +64,17 @@ where
 }
 
 pub fn json_stringify<T: ?Sized + serde::Serialize + std::fmt::Debug>(v: &T) -> String {
-  serde_json::to_string(v).unwrap_or_else(|e| panic!("{e}: {v:?} should able to json stringify"))
+  simd_json::to_string(v).unwrap_or_else(|e| panic!("{e}: {v:?} should able to json stringify"))
 }
 
 pub fn json_stringify_pretty<T: ?Sized + serde::Serialize + std::fmt::Debug>(v: &T) -> String {
-  serde_json::to_string_pretty(v)
+  simd_json::to_string_pretty(v)
     .unwrap_or_else(|e| panic!("{e}: {v:?} should able to json stringify"))
 }
 
 /// JSON-stringify a string value using SIMD-accelerated escaping.
 ///
-/// This is a faster alternative to `serde_json::to_string(s)` for `&str` inputs.
+/// This is a faster alternative to `simd_json::to_string(s)` for `&str` inputs.
 /// The output includes surrounding double quotes, e.g. `json_stringify_str("hello")` returns `"\"hello\""`.
 #[inline]
 pub fn json_stringify_str(s: &str) -> String {

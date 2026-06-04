@@ -27,10 +27,10 @@ impl PackageHelper {
     }
 
     let mut res = None;
-    if let Ok(content) = self.fs.read(&path.join("package.json").assert_utf8()).await
+    if let Ok(mut content) = self.fs.read(&path.join("package.json").assert_utf8()).await
       && let Ok(mut package_json) =
-        serde_json::from_slice::<serde_json::Map<String, serde_json::Value>>(&content)
-      && let Some(serde_json::Value::String(version)) = package_json.remove("version")
+        simd_json::from_slice::<simd_json::value::owned::Object>(&mut content)
+      && let Some(simd_json::OwnedValue::String(version)) = package_json.remove("version")
     {
       res = Some(version);
     }

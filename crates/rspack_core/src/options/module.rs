@@ -15,6 +15,7 @@ use rspack_macros::MergeFrom;
 use rspack_regex::RspackRegex;
 use rspack_util::{MergeFrom, try_all, try_any};
 use rustc_hash::FxHashMap as HashMap;
+use simd_json::prelude::ValueAsScalar;
 use smallvec::SmallVec;
 use tokio::sync::OnceCell;
 
@@ -978,7 +979,7 @@ impl fmt::Debug for RuleSetCondition {
 #[derive(Copy, Clone)]
 pub enum DataRef<'a> {
   Str(&'a str),
-  Value(&'a serde_json::Value),
+  Value(&'a simd_json::OwnedValue),
 }
 
 impl<'s> From<&'s str> for DataRef<'s> {
@@ -987,8 +988,8 @@ impl<'s> From<&'s str> for DataRef<'s> {
   }
 }
 
-impl<'s> From<&'s serde_json::Value> for DataRef<'s> {
-  fn from(value: &'s serde_json::Value) -> Self {
+impl<'s> From<&'s simd_json::OwnedValue> for DataRef<'s> {
+  fn from(value: &'s simd_json::OwnedValue) -> Self {
     Self::Value(value)
   }
 }
@@ -1001,9 +1002,9 @@ impl DataRef<'_> {
     }
   }
 
-  pub fn to_value(&self) -> serde_json::Value {
+  pub fn to_value(&self) -> simd_json::OwnedValue {
     match self {
-      Self::Str(s) => serde_json::Value::String((*s).to_owned()),
+      Self::Str(s) => simd_json::OwnedValue::String((*s).to_owned()),
       Self::Value(v) => (*v).to_owned(),
     }
   }

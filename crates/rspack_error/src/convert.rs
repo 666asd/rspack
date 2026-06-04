@@ -1,5 +1,3 @@
-use miette::SourceOffset;
-
 use crate::{
   Result,
   error::{Error, Label},
@@ -23,14 +21,14 @@ pub trait SerdeResultToRspackResultExt<T> {
   fn to_rspack_result_with_detail(self, content: &str, msg: &str) -> Result<T>;
 }
 
-impl<T> SerdeResultToRspackResultExt<T> for std::result::Result<T, serde_json::Error> {
+impl<T> SerdeResultToRspackResultExt<T> for std::result::Result<T, simd_json::Error> {
   fn to_rspack_result_with_detail(self, content: &str, msg: &str) -> Result<T> {
     self.map_err(|e| {
-      let offset = SourceOffset::from_location(content, e.line(), e.column());
+      let offset = e.index().min(content.len());
       let mut error = Error::error(msg.into());
       error.labels = Some(vec![Label {
         name: Some(e.to_string()),
-        offset: offset.offset(),
+        offset,
         len: 0,
       }]);
       error.src = Some(content.to_string());

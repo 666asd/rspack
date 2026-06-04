@@ -158,9 +158,9 @@ async fn emit(&self, compilation: &mut Compilation) -> Result<()> {
     let format = self.options.format.unwrap_or_default();
 
     let manifest_json = if format {
-      serde_json::to_string_pretty(&manifest).to_rspack_result()?
+      simd_json::to_string_pretty(&manifest).to_rspack_result()?
     } else {
-      serde_json::to_string(&manifest).to_rspack_result()?
+      simd_json::to_string(&manifest).to_rspack_result()?
     };
 
     manifests.insert(target_path, manifest_json);

@@ -2694,7 +2694,7 @@ export interface RawModuleRule {
  * `options` is
  *   - a `None` on rust side and handled by js side `getOptions` when
  * using with `loader`.
- *   - a `Some(string)` on rust side, deserialized by `serde_json::from_str`
+ *   - a `Some(string)` on rust side, deserialized by `simd_json::from_reader`
  * and passed to rust side loader in [get_builtin_loader] when using with
  * `builtin_loader`.
  */

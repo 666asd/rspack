@@ -49,7 +49,7 @@ pub(crate) async fn resolve_loader(
   let options = l.options.as_deref().unwrap_or("{}");
 
   if loader_request.starts_with(LIGHTNINGCSS_LOADER_IDENTIFIER) {
-    let config: crate::config::RawConfig = serde_json::from_str(options)
+    let config: crate::config::RawConfig = simd_json::from_reader(options.as_bytes())
       .to_rspack_result_with_detail(
         options,
         "Could not parse builtin:lightningcss-loader options",

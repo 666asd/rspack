@@ -3,6 +3,7 @@ use std::cmp::Ordering;
 use itertools::Itertools;
 use rspack_collections::Identifier;
 use rspack_util::comparators::compare_ids;
+use simd_json::prelude::{ValueAsArray, ValueAsScalar};
 
 use crate::{
   ChunkGraph, ChunkGroupByUkey, ChunkGroupUkey, ChunkUkey, Compilation, ConcatenatedModule,

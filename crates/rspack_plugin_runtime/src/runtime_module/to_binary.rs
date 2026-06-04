@@ -32,7 +32,7 @@ impl RuntimeModule for ToBinaryRuntimeModule {
 
     let source = context.runtime_template.render(
       &self.id,
-      Some(serde_json::json!({
+      Some(simd_json::json!({
         "_is_node_platform": is_node_platform,
         "_is_web_platform": is_web_platform,
         "_is_neutral_platform": is_neutral_platform,

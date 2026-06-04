@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use rspack_error::{Error, Severity};
 use rspack_util::SpanExt;
-use serde_json::json;
+use simd_json::json;
 use swc_core::{
   common::{FileName, Spanned},
   ecma::{

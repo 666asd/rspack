@@ -820,19 +820,19 @@ impl ContextModule {
       .into_iter()
       .map(|(user_request, module_id, chunks, async_deps)| {
         let value = if short_mode {
-          serde_json::Value::String(module_id)
+          simd_json::OwnedValue::String(module_id)
         } else {
-          let mut array = vec![serde_json::json!(module_id)];
+          let mut array = vec![simd_json::json!(module_id)];
           if let FakeMapValue::Map(fake_map) = &fake_map {
-            array.push(serde_json::json!(fake_map[&module_id].bits()));
+            array.push(simd_json::json!(fake_map[&module_id].bits()));
           }
           if !has_no_chunk {
-            array.push(serde_json::json!(chunks));
+            array.push(simd_json::json!(chunks));
           }
           if !has_no_module_deferred {
-            array.push(serde_json::json!(async_deps))
+            array.push(simd_json::json!(async_deps))
           }
-          serde_json::json!(array)
+          simd_json::json!(array)
         };
         (user_request, value)
       })
@@ -1623,7 +1623,7 @@ fn create_identifier(options: &ContextModuleOptions, resource: Option<&str>) -> 
   };
   if let Some(attributes) = &options.context_options.attributes {
     id += "|importAttributes: ";
-    id += &serde_json::to_string(attributes).expect("json stringify failed");
+    id += &simd_json::to_string(attributes).expect("json stringify failed");
   }
   if let Some(phase) = &options.context_options.phase {
     id += "|importPhase: ";

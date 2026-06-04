@@ -47,7 +47,7 @@ impl RuntimeModule for DefinePropertyGettersRuntimeModule {
     };
     let source = context.runtime_template.render(
       &self.id,
-      Some(serde_json::json!({
+      Some(simd_json::json!({
         "_define_property_code": define_property_code,
       })),
     )?;

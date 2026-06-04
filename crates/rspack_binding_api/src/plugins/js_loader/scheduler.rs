@@ -154,7 +154,7 @@ pub(crate) fn merge_loader_context(
       if from.pitch_executed {
         to.set_pitch_executed()
       }
-      to.set_data(from.data);
+      to.set_data(from.data.into());
       // JS loader should always be considered as finished
       to.set_finish_called();
       to

@@ -23,7 +23,7 @@ impl JavascriptParserPlugin for HashbangParserPlugin {
     // Store hashbang in build_info for later use during rendering
     parser.build_info.extras.insert(
       "hashbang".to_string(),
-      serde_json::Value::String(normalized_hashbang),
+      simd_json::OwnedValue::String(normalized_hashbang),
     );
 
     // Remove hashbang from source code

@@ -52,11 +52,11 @@ fn collect_description_file_paths(mut dir: &Path) -> Vec<PathBuf> {
 
 fn find_ancestor_description_data<T>(
   start_dir: &Path,
-  mut matcher: impl FnMut(&Path, &serde_json::Value) -> Option<T>,
+  mut matcher: impl FnMut(&Path, &simd_json::OwnedValue) -> Option<T>,
 ) -> Option<T> {
   for description_file in collect_description_file_paths(start_dir) {
-    if let Ok(data) = std::fs::read(&description_file)
-      && let Ok(data) = serde_json::from_slice::<serde_json::Value>(&data)
+    if let Ok(mut data) = std::fs::read(&description_file)
+      && let Ok(data) = simd_json::from_slice::<simd_json::OwnedValue>(&mut data)
       && let Some(dir) = description_file.parent()
       && let Some(value) = matcher(dir, &data)
     {
@@ -70,8 +70,8 @@ fn find_ancestor_description_data<T>(
 async fn get_description_file(
   fs: Arc<dyn ReadableFileSystem>,
   dir: &Utf8Path,
-  satisfies_description_file_data: Option<impl Fn(&serde_json::Value) -> bool>,
-) -> (Option<serde_json::Value>, Option<Vec<String>>) {
+  satisfies_description_file_data: Option<impl Fn(&simd_json::OwnedValue) -> bool>,
+) -> (Option<simd_json::OwnedValue>, Option<Vec<String>>) {
   let mut checked_file_paths = FxHashSet::default();
 
   for description_file in collect_description_file_paths(dir.as_std_path()) {
@@ -79,8 +79,8 @@ async fn get_description_file(
       .expect("description file path should remain utf8");
     let data = fs.read(&description_file).await;
 
-    if let Ok(data) = data
-      && let Ok(data) = serde_json::from_slice::<serde_json::Value>(&data)
+    if let Ok(mut data) = data
+      && let Ok(data) = simd_json::from_slice::<simd_json::OwnedValue>(&mut data)
     {
       if satisfies_description_file_data
         .as_ref()

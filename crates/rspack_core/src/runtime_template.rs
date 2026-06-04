@@ -13,7 +13,11 @@ use rspack_dojang::{Context, Dojang, FunctionContainer, Operand};
 use rspack_error::{Error, Result, ToStringResultToRspackResultExt, error};
 use rspack_util::{fx_hash::FxIndexSet, json_stringify};
 use rustc_hash::FxHashSet as HashSet;
-use serde_json::{Map, Value, json};
+use simd_json::{
+  OwnedValue as Value, json,
+  prelude::{ValueAsMutObject, ValueAsScalar},
+  value::owned::Object as Map,
+};
 use swc_core::atoms::Atom;
 
 use crate::{
@@ -30,14 +34,14 @@ use crate::{
 
 pub struct RuntimeTemplate {
   compiler_options: Arc<CompilerOptions>,
-  runtime_globals: Arc<Map<String, Value>>,
+  runtime_globals: Arc<Map>,
   dojang: Option<Dojang>,
 }
 
 static RUNTIME_GLOBALS_PATTERN: LazyLock<Regex> =
   LazyLock::new(|| Regex::new(r"\$\$RUNTIME_GLOBAL_(.*?)\$\$").expect("failed to create regex"));
 
-fn replace_runtime_globals(template: String, runtime_globals: &Map<String, Value>) -> String {
+fn replace_runtime_globals(template: String, runtime_globals: &Map) -> String {
   RUNTIME_GLOBALS_PATTERN
     .replace_all(&template, |caps: &Captures| {
       let name = caps.get(1).expect("name should be a string").as_str();
@@ -69,7 +73,7 @@ impl RuntimeTemplate {
             Value::String(runtime_globals_to_string(&value, &compiler_options)),
           )
         })
-        .collect::<Map<String, Value>>(),
+        .collect::<Map>(),
     );
 
     let mut dojang = Dojang::new();
@@ -193,7 +197,7 @@ impl RuntimeTemplate {
   }
 }
 
-fn to_string(val: &Operand, runtime_globals: &Map<String, Value>) -> String {
+fn to_string(val: &Operand, runtime_globals: &Map) -> String {
   replace_runtime_globals(
     match val {
       Operand::Value(val) => val.as_str().unwrap_or_default().to_string(),
@@ -203,7 +207,7 @@ fn to_string(val: &Operand, runtime_globals: &Map<String, Value>) -> String {
   )
 }
 
-fn join_to_string(val: &Operand, sep: &str, runtime_globals: &Map<String, Value>) -> String {
+fn join_to_string(val: &Operand, sep: &str, runtime_globals: &Map) -> String {
   replace_runtime_globals(
     match val {
       Operand::Array(items) => items
@@ -218,7 +222,7 @@ fn join_to_string(val: &Operand, sep: &str, runtime_globals: &Map<String, Value>
 
 fn dojang_basic_function(
   args: Operand,
-  runtime_globals: &Map<String, Value>,
+  runtime_globals: &Map,
   compiler_options: &Arc<CompilerOptions>,
 ) -> Operand {
   if compiler_options
@@ -241,7 +245,7 @@ fn dojang_basic_function(
 fn dojang_returning_function(
   return_value: Operand,
   args: Operand,
-  runtime_globals: &Map<String, Value>,
+  runtime_globals: &Map,
   compiler_options: &Arc<CompilerOptions>,
 ) -> Operand {
   if compiler_options
@@ -266,7 +270,7 @@ fn dojang_returning_function(
 fn dojang_expression_function(
   expression: Operand,
   args: Operand,
-  runtime_globals: &Map<String, Value>,
+  runtime_globals: &Map,
   compiler_options: &Arc<CompilerOptions>,
 ) -> Operand {
   if compiler_options
@@ -303,7 +307,7 @@ fn dojang_empty_function(compiler_options: &Arc<CompilerOptions>) -> Operand {
 fn dojang_array_destructure(
   items: Operand,
   value: Operand,
-  runtime_globals: &Map<String, Value>,
+  runtime_globals: &Map,
   compiler_options: &Arc<CompilerOptions>,
 ) -> Operand {
   if compiler_options.output.environment.supports_destructuring() {
@@ -741,7 +745,7 @@ impl ModuleCodeTemplate {
       .collect::<Vec<_>>();
 
     if chunks.len() == 1 {
-      let chunk_id = serde_json::to_string(chunks[0].id().expect("should have chunk.id"))
+      let chunk_id = simd_json::to_string(chunks[0].id().expect("should have chunk.id"))
         .expect("should able to json stringify");
 
       let fetch_priority = chunk_group
@@ -781,7 +785,7 @@ impl ModuleCodeTemplate {
           .map(|c| format!(
             "{}({}{})",
             self.render_runtime_globals(&RuntimeGlobals::ENSURE_CHUNK),
-            serde_json::to_string(c.id().expect("should have chunk.id"))
+            simd_json::to_string(c.id().expect("should have chunk.id"))
               .expect("should able to json stringify"),
             fetch_priority
               .map(|x| format!(r#", "{x}""#))
@@ -1460,14 +1464,14 @@ return {}
 
 pub struct RuntimeCodeTemplate<'a> {
   compiler_options: Arc<CompilerOptions>,
-  runtime_globals: Arc<Map<String, Value>>,
+  runtime_globals: Arc<Map>,
   dojang: &'a Dojang,
 }
 
 impl<'a> RuntimeCodeTemplate<'a> {
   pub fn new(
     compiler_options: Arc<CompilerOptions>,
-    runtime_globals: Arc<Map<String, Value>>,
+    runtime_globals: Arc<Map>,
     dojang: &'a Dojang,
   ) -> Self {
     Self {
@@ -1503,27 +1507,24 @@ impl<'a> RuntimeCodeTemplate<'a> {
     "this".to_string()
   }
 
-  pub fn render(&self, key: &str, params: Option<serde_json::Value>) -> Result<String, Error> {
-    let mut render_params = Value::Object(Default::default());
+  pub fn render(&self, key: &str, params: Option<simd_json::OwnedValue>) -> Result<String, Error> {
+    let mut render_params: Value = Map::default().into();
 
-    render_params
+    let render_params_object = render_params
       .as_object_mut()
-      .unwrap_or_else(|| unreachable!())
-      .extend(
-        self
-          .runtime_globals
-          .iter()
-          .map(|(k, v)| (k.clone(), v.clone())),
-      );
+      .unwrap_or_else(|| unreachable!());
+    for (k, v) in self.runtime_globals.iter() {
+      render_params_object.insert(k.clone(), v.clone());
+    }
 
     if let Some(params) = params {
       match params {
         Value::Object(params) => {
-          for (k, v) in params {
-            render_params
-              .as_object_mut()
-              .unwrap_or_else(|| unreachable!())
-              .insert(k, v);
+          let render_params_object = render_params
+            .as_object_mut()
+            .unwrap_or_else(|| unreachable!());
+          for (k, v) in *params {
+            render_params_object.insert(k, v);
           }
         }
         _ => panic!("Should receive a map value"),

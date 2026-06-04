@@ -7,7 +7,7 @@ use rspack_core::{
 };
 use rspack_fs::{MemoryFileSystem, NativeFileSystem, WritableFileSystem};
 use rspack_regex::RspackRegex;
-use serde_json::json;
+use simd_json::json;
 
 // Because `CompilerBuilder` is not `Clone`
 pub type CompilerBuilderGenerator = Arc<dyn Fn() -> CompilerBuilder + Send + Sync>;

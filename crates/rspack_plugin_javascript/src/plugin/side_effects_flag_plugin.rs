@@ -17,6 +17,7 @@ use rspack_core::{
 use rspack_error::{Diagnostic, Result};
 use rspack_hook::{plugin, plugin_hook};
 use rspack_paths::{AssertUtf8, Utf8Path};
+use simd_json::prelude::{ValueAsArray, ValueAsScalar, ValueObjectAccess};
 use sugar_path::SugarPath;
 use swc_core::ecma::ast::*;
 
@@ -36,7 +37,7 @@ enum SideEffects {
 }
 
 impl SideEffects {
-  pub fn from_description(description: &serde_json::Value) -> Option<Self> {
+  pub fn from_description(description: &simd_json::OwnedValue) -> Option<Self> {
     description.get("sideEffects").and_then(|value| {
       if let Some(b) = value.as_bool() {
         Some(SideEffects::Bool(b))

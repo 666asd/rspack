@@ -6,7 +6,10 @@ use rspack_core::{Compilation, Mode};
 use rspack_dojang::{Dojang, Operand, dojang::DojangOptions};
 use rspack_error::{AnyhowResultToRspackResultExt, Result, ToStringResultToRspackResultExt, error};
 use rspack_paths::AssertUtf8;
-use serde_json::Value;
+use simd_json::{
+  OwnedValue as Value,
+  prelude::{ValueAsMutObject, ValueAsScalar},
+};
 
 use crate::{
   asset::HtmlPluginAssets,
@@ -121,14 +124,14 @@ impl HtmlTemplate {
     compilation: &Compilation,
   ) -> Result<()> {
     if matches!(config.template_parameters, TemplateParameters::Disabled) {
-      self.parameters = Some(serde_json::json!({}));
+      self.parameters = Some(simd_json::json!({}));
       Ok(())
     } else {
-      let mut res = serde_json::json!({});
+      let mut res = simd_json::json!({});
 
       merge_json(
         &mut res,
-        serde_json::json!({
+        simd_json::json!({
           "htmlRspackPlugin": {
             "tags": {
               "headTags": &head_tags,
@@ -143,7 +146,7 @@ impl HtmlTemplate {
       // only support "mode" and some fields of "output"
       merge_json(
         &mut res,
-        serde_json::json!({
+        simd_json::json!({
           "rspackConfig": {
             "mode": match compilation.options.mode {
               Mode::Development => "development",
@@ -160,15 +163,15 @@ impl HtmlTemplate {
 
       match &config.template_parameters {
         TemplateParameters::Map(data) => {
-          merge_json(&mut res, serde_json::json!(&data));
+          merge_json(&mut res, simd_json::json!(&data));
         }
         TemplateParameters::Function(func) => {
           let func_res = (func.inner)(
-            serde_json::to_string(&res).unwrap_or_else(|_| panic!("invalid json to_string")),
+            simd_json::to_string(&res).unwrap_or_else(|_| panic!("invalid json to_string")),
           )
           .await;
           match func_res {
-            Ok(new_data) => match serde_json::from_str(&new_data) {
+            Ok(new_data) => match simd_json::from_reader(new_data.as_bytes()) {
               Ok(data) => res = data,
               Err(err) => {
                 return Err(error!(
@@ -221,7 +224,7 @@ impl HtmlTemplate {
         .as_ref()
         .unwrap_or_else(|| unreachable!())
         .inner)(
-        serde_json::to_string(&parameters).unwrap_or_else(|_| panic!("invalid json to_string")),
+        simd_json::to_string(&parameters).unwrap_or_else(|_| panic!("invalid json to_string")),
       )
       .await
       .to_rspack_result_with_message(|e| {
@@ -249,8 +252,8 @@ pub fn merge_json(a: &mut Value, b: Value) {
       let a = a
         .as_object_mut()
         .unwrap_or_else(|| panic!("merged json is not an object"));
-      for (k, v) in b {
-        merge_json(a.entry(k).or_insert(Value::Null), v);
+      for (k, v) in *b {
+        merge_json(a.entry(k).or_insert(().into()), v);
       }
     }
     (a, b) => *a = b,
@@ -259,8 +262,8 @@ pub fn merge_json(a: &mut Value, b: Value) {
 
 pub fn render_tag(op: Operand) -> Operand {
   match op {
-    Operand::Value(obj) => match serde_json::from_value::<HtmlPluginTag>(obj) {
-      Ok(tag) => Operand::Value(Value::from(tag.to_string().as_str())),
+    Operand::Value(obj) => match simd_json::serde::from_owned_value::<HtmlPluginTag>(obj) {
+      Ok(tag) => Operand::Value(Value::from(tag.to_string())),
       Err(_) => Operand::Value(Value::from("")),
     },
     Operand::Array(obj) => Operand::Value(Value::from(

@@ -33,7 +33,9 @@ impl JavascriptParserPlugin for PluginCssExtractParserPlugin {
     {
       let data = if let Some(data) = self.cache.get(&data_str) {
         data.clone()
-      } else if let Ok(data) = serde_json::from_str::<Vec<CssExtractJsonData>>(&data_str) {
+      } else if let Ok(data) =
+        simd_json::from_reader::<_, Vec<CssExtractJsonData>>(data_str.as_bytes())
+      {
         self.cache.insert(data_str, data.clone());
         data
       } else {

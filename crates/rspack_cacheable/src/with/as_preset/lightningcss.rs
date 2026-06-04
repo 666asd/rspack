@@ -32,8 +32,8 @@ where
 {
   #[inline]
   fn serialize_with(field: &Browsers, serializer: &mut S) -> Result<Self::Resolver> {
-    let value = serde_json::to_string(field)
-      .map_err(|_| Error::MessageError("serialize serde_json value failed"))?;
+    let value = simd_json::to_string(field)
+      .map_err(|_| Error::MessageError("serialize simd_json value failed"))?;
     let inner = ArchivedString::serialize_from_str(&value, serializer)?;
     Ok(BrowsersResolver { value, inner })
   }
@@ -44,7 +44,7 @@ where
   D: Fallible<Error = Error>,
 {
   fn deserialize_with(field: &ArchivedString, _deserializer: &mut D) -> Result<Browsers> {
-    serde_json::from_str(field.as_str())
-      .map_err(|_| Error::MessageError("deserialize serde_json value failed"))
+    simd_json::from_reader(field.as_str().as_bytes())
+      .map_err(|_| Error::MessageError("deserialize simd_json value failed"))
   }
 }

@@ -157,7 +157,7 @@ impl EsmLibraryPlugin {
       } else {
         (source_clause, None)
       };
-    let source = serde_json::from_str::<String>(source_literal).ok()?;
+    let source = simd_json::from_reader::<_, String>(source_literal.as_bytes()).ok()?;
     Some((RawImportSource::Source((source, attr)), local_name.into()))
   }
 

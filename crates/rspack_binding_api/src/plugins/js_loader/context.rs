@@ -5,7 +5,7 @@ use napi_derive::napi;
 use rspack_core::{LoaderContext, Module, RunnerContext};
 use rspack_error::ToStringResultToRspackResultExt;
 use rspack_loader_runner::State as LoaderState;
-use rspack_napi::threadsafe_js_value_ref::ThreadsafeJsValueRef;
+use rspack_napi::{JsonValue, threadsafe_js_value_ref::ThreadsafeJsValueRef};
 use rustc_hash::FxHashMap as HashMap;
 
 use crate::{error::RspackError, module::ModuleObject};
@@ -17,7 +17,7 @@ pub struct JsLoaderItem {
   pub r#type: String,
 
   // data
-  pub data: serde_json::Value,
+  pub data: JsonValue,
 
   // status
   pub normal_executed: bool,
@@ -32,7 +32,7 @@ impl From<&rspack_loader_runner::LoaderItem<RunnerContext>> for JsLoaderItem {
       loader: value.request().to_string(),
       r#type: value.r#type().to_string(),
 
-      data: value.data().clone(),
+      data: value.data().clone().into(),
       normal_executed: value.normal_executed(),
       pitch_executed: value.pitch_executed(),
 
@@ -51,7 +51,7 @@ where
     if let Some((r#type, ident)) = identifier.split_once('|') {
       return Self {
         loader: ident.to_string(),
-        data: serde_json::Value::Null,
+        data: JsonValue(().into()),
         r#type: r#type.to_string(),
         pitch_executed: false,
         normal_executed: false,
@@ -60,7 +60,7 @@ where
     }
     Self {
       loader: identifier.to_string(),
-      data: serde_json::Value::Null,
+      data: JsonValue(().into()),
       r#type: String::default(),
       pitch_executed: false,
       normal_executed: false,

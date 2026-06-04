@@ -118,10 +118,10 @@ impl RuntimeModule for EmbedFederationRuntimeModule {
         })
         .collect::<Vec<_>>();
       let entry_chunk_ids_literal =
-        serde_json::to_string(&entry_chunk_ids).expect("Invalid json to string");
+        simd_json::to_string(&entry_chunk_ids).expect("Invalid json to string");
       Ok(context.runtime_template.render(
         &self.template_id(TemplateId::Async),
-        Some(serde_json::json!({
+        Some(simd_json::json!({
           "_module_executions": module_executions,
           "_entry_chunk_ids": entry_chunk_ids_literal,
         })),
@@ -133,7 +133,7 @@ impl RuntimeModule for EmbedFederationRuntimeModule {
       // Sync startup: keep the legacy prevStartup wrapper for minimal surface area.
       Ok(context.runtime_template.render(
         &self.template_id(TemplateId::Sync),
-        Some(serde_json::json!({
+        Some(simd_json::json!({
           "_module_executions": module_executions,
         })),
       )?)

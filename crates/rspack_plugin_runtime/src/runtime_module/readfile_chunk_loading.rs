@@ -251,7 +251,7 @@ impl RuntimeModule for ReadFileChunkLoadingRuntimeModule {
     if with_loading || with_external_install_chunk {
       let raw_source = runtime_template.render(
         &self.template_id(TemplateId::Raw),
-        Some(serde_json::json!({
+        Some(simd_json::json!({
           "_with_on_chunk_loaded": match with_on_chunk_load {
             true => format!("{}();", runtime_template.render_runtime_globals(&RuntimeGlobals::ON_CHUNKS_LOADED)),
             false => String::new(),
@@ -268,7 +268,7 @@ impl RuntimeModule for ReadFileChunkLoadingRuntimeModule {
       } else {
         runtime_template.render(
           &self.template_id(TemplateId::WithLoading),
-          Some(serde_json::json!({
+          Some(simd_json::json!({
             "_js_matcher": &has_js_matcher.render("chunkId"),
             "_output_dir": &root_output_dir,
             "_match_fallback": if matches!(has_js_matcher, BooleanMatcher::Condition(true)) {
@@ -315,7 +315,7 @@ impl RuntimeModule for ReadFileChunkLoadingRuntimeModule {
     if with_hmr_manifest {
       let source_with_hmr_manifest = runtime_template.render(
         &self.template_id(TemplateId::WithHmrManifest),
-        Some(serde_json::json!({
+        Some(simd_json::json!({
           "_output_dir":  &root_output_dir
         })),
       )?;

@@ -4,7 +4,7 @@ use itertools::Itertools as _;
 use rspack_core::{
   BoxDependencyTemplate, ConstDependency, RuntimeGlobals, RuntimeRequirementsDependency,
 };
-use serde_json::{Value, json};
+use simd_json::{OwnedValue as Value, StaticNode, json};
 
 use crate::visitors::{DestructuringAssignmentProperties, JavascriptParser};
 
@@ -64,10 +64,10 @@ pub fn code_to_string<'a>(
   }
 
   match code {
-    Value::Null => Cow::Borrowed("null"),
+    Value::Static(StaticNode::Null) => Cow::Borrowed("null"),
     Value::String(s) => Cow::Borrowed(s),
-    Value::Bool(b) => Cow::Borrowed(if *b { "true" } else { "false" }),
-    Value::Number(n) => Cow::Owned(n.to_string()),
+    Value::Static(StaticNode::Bool(b)) => Cow::Borrowed(if *b { "true" } else { "false" }),
+    Value::Static(n) => Cow::Owned(n.to_string()),
     Value::Array(arr) => {
       let elements = arr
         .iter()

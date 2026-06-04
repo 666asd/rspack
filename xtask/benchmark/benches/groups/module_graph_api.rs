@@ -27,9 +27,10 @@ pub fn module_graph_api_benchmark_inner(c: &mut Criterion) {
   let _guard = rt.enter();
 
   let fs = Arc::new(MemoryFileSystem::default());
-  let random_table =
-    serde_json::from_str::<Vec<Vec<usize>>>(include_str!("../build_chunk_graph/random_table.json"))
-      .expect("should not fail to parse random table json");
+  let random_table = simd_json::from_reader::<_, Vec<Vec<usize>>>(
+    include_str!("../build_chunk_graph/random_table.json").as_bytes(),
+  )
+  .expect("should not fail to parse random table json");
   let mut compiler = Compiler::builder()
     .context("/")
     .entry("main", "/src/dynamic-0.js")
