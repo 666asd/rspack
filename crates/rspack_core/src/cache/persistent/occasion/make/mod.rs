@@ -118,13 +118,13 @@ impl Occasion for MakeOccasion {
         }
         let resource = dep_id.into();
         if let Some(file_dependencies) = info.file_dependencies() {
-          file_dep.add_files(&resource, file_dependencies);
+          file_dep.add_file_paths(&resource, file_dependencies);
         }
         if let Some(context_dependencies) = info.context_dependencies() {
-          context_dep.add_files(&resource, context_dependencies);
+          context_dep.add_file_paths(&resource, context_dependencies);
         }
         if let Some(missing_dependencies) = info.missing_dependencies() {
-          missing_dep.add_files(&resource, missing_dependencies);
+          missing_dep.add_file_paths(&resource, missing_dependencies);
         }
       }
     }

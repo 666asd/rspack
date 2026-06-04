@@ -1,6 +1,11 @@
-use rspack_cacheable::cacheable;
+use std::sync::Arc;
+
+use rspack_cacheable::{
+  cacheable,
+  with::{AsCacheable, AsOption, AsVec},
+};
 use rspack_error::Diagnostic;
-use rspack_paths::ArcPathSet;
+use rspack_paths::{ArcPath, ArcPathSet};
 
 use super::{BoxDependency, DependencyId};
 
@@ -20,11 +25,23 @@ pub struct FactorizeInfo {
   /// Empty represents the overwhelmingly common "only this dependency" case.
   /// Callers that revoke a dependency already know the owner dependency id and
   /// can use that id without storing it in every hot dependency.
-  related_dep_ids: Vec<DependencyId>,
-  file_dependencies: Option<Box<ArcPathSet>>,
-  context_dependencies: Option<Box<ArcPathSet>>,
-  missing_dependencies: Option<Box<ArcPathSet>>,
+  #[cacheable(with=AsOption<AsVec<AsCacheable>>)]
+  related_dep_ids: Option<Arc<[DependencyId]>>,
+  #[cacheable(with=AsOption<AsVec<AsCacheable>>)]
+  file_dependencies: Option<Arc<[ArcPath]>>,
+  #[cacheable(with=AsOption<AsVec<AsCacheable>>)]
+  context_dependencies: Option<Arc<[ArcPath]>>,
+  #[cacheable(with=AsOption<AsVec<AsCacheable>>)]
+  missing_dependencies: Option<Arc<[ArcPath]>>,
   diagnostics: Vec<Diagnostic>,
+}
+
+fn compact_path_set(paths: ArcPathSet) -> Option<Arc<[ArcPath]>> {
+  if paths.is_empty() {
+    None
+  } else {
+    Some(paths.into_iter().collect::<Vec<_>>().into())
+  }
 }
 
 impl FactorizeInfo {
@@ -38,15 +55,13 @@ impl FactorizeInfo {
     Self {
       has_info: true,
       related_dep_ids: if related_dep_ids.len() > 1 {
-        related_dep_ids
+        Some(related_dep_ids.into())
       } else {
-        Vec::new()
+        None
       },
-      file_dependencies: (!file_dependencies.is_empty()).then_some(Box::new(file_dependencies)),
-      context_dependencies: (!context_dependencies.is_empty())
-        .then_some(Box::new(context_dependencies)),
-      missing_dependencies: (!missing_dependencies.is_empty())
-        .then_some(Box::new(missing_dependencies)),
+      file_dependencies: compact_path_set(file_dependencies),
+      context_dependencies: compact_path_set(context_dependencies),
+      missing_dependencies: compact_path_set(missing_dependencies),
       diagnostics,
     }
   }
@@ -76,12 +91,12 @@ impl FactorizeInfo {
   }
 
   pub fn related_dep_ids(&self) -> &[DependencyId] {
-    &self.related_dep_ids
+    self.related_dep_ids.as_deref().unwrap_or_default()
   }
 
   pub fn related_dep_ids_for_revoke(&self, dep_id: DependencyId) -> Vec<DependencyId> {
-    if !self.related_dep_ids.is_empty() {
-      self.related_dep_ids.clone()
+    if let Some(related_dep_ids) = &self.related_dep_ids {
+      related_dep_ids.to_vec()
     } else if self.has_info {
       vec![dep_id]
     } else {
@@ -89,15 +104,15 @@ impl FactorizeInfo {
     }
   }
 
-  pub fn file_dependencies(&self) -> Option<&ArcPathSet> {
+  pub fn file_dependencies(&self) -> Option<&[ArcPath]> {
     self.file_dependencies.as_deref()
   }
 
-  pub fn context_dependencies(&self) -> Option<&ArcPathSet> {
+  pub fn context_dependencies(&self) -> Option<&[ArcPath]> {
     self.context_dependencies.as_deref()
   }
 
-  pub fn missing_dependencies(&self) -> Option<&ArcPathSet> {
+  pub fn missing_dependencies(&self) -> Option<&[ArcPath]> {
     self.missing_dependencies.as_deref()
   }
 

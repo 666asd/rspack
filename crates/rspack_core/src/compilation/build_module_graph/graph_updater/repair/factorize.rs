@@ -171,17 +171,17 @@ impl Task<TaskContext> for FactorizeResultTask {
     if let Some(file_dependencies) = factorize_info.file_dependencies() {
       artifact
         .file_dependencies
-        .add_files(&resource_id, file_dependencies);
+        .add_file_paths(&resource_id, file_dependencies);
     }
     if let Some(context_dependencies) = factorize_info.context_dependencies() {
       artifact
         .context_dependencies
-        .add_files(&resource_id, context_dependencies);
+        .add_file_paths(&resource_id, context_dependencies);
     }
     if let Some(missing_dependencies) = factorize_info.missing_dependencies() {
       artifact
         .missing_dependencies
-        .add_files(&resource_id, missing_dependencies);
+        .add_file_paths(&resource_id, missing_dependencies);
     }
 
     for dep in &mut dependencies {

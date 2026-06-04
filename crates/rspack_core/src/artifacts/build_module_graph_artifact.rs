@@ -135,17 +135,17 @@ impl BuildModuleGraphArtifact {
         if let Some(file_dependencies) = info.file_dependencies() {
           self
             .file_dependencies
-            .remove_files(&resource_id, file_dependencies);
+            .remove_file_paths(&resource_id, file_dependencies);
         }
         if let Some(context_dependencies) = info.context_dependencies() {
           self
             .context_dependencies
-            .remove_files(&resource_id, context_dependencies);
+            .remove_file_paths(&resource_id, context_dependencies);
         }
         if let Some(missing_dependencies) = info.missing_dependencies() {
           self
             .missing_dependencies
-            .remove_files(&resource_id, missing_dependencies);
+            .remove_file_paths(&resource_id, missing_dependencies);
         }
       }
       self.affected_dependencies.mark_as_remove(&dep_id);
@@ -170,17 +170,17 @@ impl BuildModuleGraphArtifact {
         if let Some(file_dependencies) = factorize_info.file_dependencies() {
           self
             .file_dependencies
-            .remove_files(&resource_id, file_dependencies);
+            .remove_file_paths(&resource_id, file_dependencies);
         }
         if let Some(context_dependencies) = factorize_info.context_dependencies() {
           self
             .context_dependencies
-            .remove_files(&resource_id, context_dependencies);
+            .remove_file_paths(&resource_id, context_dependencies);
         }
         if let Some(missing_dependencies) = factorize_info.missing_dependencies() {
           self
             .missing_dependencies
-            .remove_files(&resource_id, missing_dependencies);
+            .remove_file_paths(&resource_id, missing_dependencies);
         }
         factorize_info.related_dep_ids_for_revoke(*dep_id)
       } else {
