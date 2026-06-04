@@ -1,19 +1,19 @@
 @import url("https://fonts.googleapis.com/css2?family=Inter");
 @media (prefers-color-scheme: dark){
-  
-  
-  .b {
-  	color: red;
-  }
+
+
+.b {
+	color: red;
+}
 
 }
 @supports (display: grid) {
-  @layer {
-    .c {
-    	color: pink;
-    }
+@layer {
+.c {
+	color: pink;
+}
 
-  }
+}
 }
 
 
