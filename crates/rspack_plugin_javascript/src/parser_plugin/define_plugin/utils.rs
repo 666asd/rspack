@@ -4,7 +4,7 @@ use itertools::Itertools as _;
 use rspack_core::{
   BoxDependencyTemplate, ConstDependency, RuntimeGlobals, RuntimeRequirementsDependency,
 };
-use simd_json::{OwnedValue as Value, StaticNode, json};
+use simd_json::{OwnedValue as Value, StaticNode};
 
 use crate::visitors::{DestructuringAssignmentProperties, JavascriptParser};
 
@@ -82,7 +82,7 @@ pub fn code_to_string<'a>(
           if obj_keys.is_none_or(|keys| keys.iter().any(|prop| prop.id.as_str() == key)) {
             Some(format!(
               "{}:{}",
-              json!(key),
+              simd_json::to_string(key).expect("object key should serialize"),
               code_to_string(value, None, None)
             ))
           } else {

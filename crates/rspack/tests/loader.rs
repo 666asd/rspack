@@ -7,7 +7,17 @@ use rspack_core::{
 };
 use rspack_paths::Utf8Path;
 use rspack_regex::RspackRegex;
-use simd_json::json;
+use simd_json::{OwnedValue, json};
+
+#[cfg(any(
+  feature = "loader_lightningcss",
+  feature = "loader_swc",
+  feature = "loader_react_refresh",
+  feature = "loader_preact_refresh"
+))]
+fn json_to_string(value: OwnedValue) -> String {
+  simd_json::to_string(&value).expect("loader options should serialize to json")
+}
 
 #[cfg(feature = "loader_lightningcss")]
 #[tokio::test(flavor = "multi_thread")]
@@ -24,11 +34,11 @@ async fn lightningcss() {
         )),
         effect: ModuleRuleEffect {
           r#use: ModuleRuleUse::Array(vec![ModuleRuleUseLoader {
-          loader: "builtin:lightningcss-loader".to_string(),
-          options: Some(json!({
-            "include": 1 // lower nesting syntax
-          }).to_string()),
-        }]),
+            loader: "builtin:lightningcss-loader".to_string(),
+            options: Some(json_to_string(json!({
+              "include": 1 // lower nesting syntax
+            }))),
+          }]),
           ..Default::default()
         },
         ..Default::default()
@@ -61,25 +71,25 @@ async fn swc() {
         )),
         effect: ModuleRuleEffect {
           r#use: ModuleRuleUse::Array(vec![ModuleRuleUseLoader {
-          loader: "builtin:swc-loader".to_string(),
-          options: Some(json!({
-            "jsc": {
-              "parser": {
-                "syntax": "ecmascript",
-                "jsx": true,
-              },
-              "transform": {
-                "react": {
-                  "runtime": "classic",
-                  "pragma": "React.createElement",
-                  "pragmaFrag": "React.Fragment",
-                  "throwIfNamespace": true,
-                  "useBuiltins": false
+            loader: "builtin:swc-loader".to_string(),
+            options: Some(json_to_string(json!({
+              "jsc": {
+                "parser": {
+                  "syntax": "ecmascript",
+                  "jsx": true,
+                },
+                "transform": {
+                  "react": {
+                    "runtime": "classic",
+                    "pragma": "React.createElement",
+                    "pragmaFrag": "React.Fragment",
+                    "throwIfNamespace": true,
+                    "useBuiltins": false
+                  }
                 }
               }
-            }
-          }).to_string()),
-        }]),
+            }))),
+          }]),
           ..Default::default()
         },
         ..Default::default()
@@ -112,30 +122,31 @@ async fn react_refresh() {
         )),
         effect: ModuleRuleEffect {
           r#use: ModuleRuleUse::Array(vec![
-          ModuleRuleUseLoader {
-            loader: "builtin:react-refresh-loader".to_string(),
-            options: None
-          },
-          ModuleRuleUseLoader {
-          loader: "builtin:swc-loader".to_string(),
-          options: Some(json!({
-            "jsc": {
-              "parser": {
-                "syntax": "ecmascript",
-                "jsx": true,
-              },
-              "transform": {
-                "react": {
-                  "runtime": "classic",
-                  "pragma": "React.createElement",
-                  "pragmaFrag": "React.Fragment",
-                  "throwIfNamespace": true,
-                  "useBuiltins": false
+            ModuleRuleUseLoader {
+              loader: "builtin:react-refresh-loader".to_string(),
+              options: None,
+            },
+            ModuleRuleUseLoader {
+              loader: "builtin:swc-loader".to_string(),
+              options: Some(json_to_string(json!({
+                "jsc": {
+                  "parser": {
+                    "syntax": "ecmascript",
+                    "jsx": true,
+                  },
+                  "transform": {
+                    "react": {
+                      "runtime": "classic",
+                      "pragma": "React.createElement",
+                      "pragmaFrag": "React.Fragment",
+                      "throwIfNamespace": true,
+                      "useBuiltins": false
+                    }
+                  }
                 }
-              }
-            }
-          }).to_string()),
-        }]),
+              }))),
+            },
+          ]),
           ..Default::default()
         },
         ..Default::default()
@@ -169,30 +180,31 @@ async fn preact_refresh() {
         )),
         effect: ModuleRuleEffect {
           r#use: ModuleRuleUse::Array(vec![
-          ModuleRuleUseLoader {
-            loader: "builtin:preact-refresh-loader".to_string(),
-            options: None
-          },
-          ModuleRuleUseLoader {
-          loader: "builtin:swc-loader".to_string(),
-          options: Some(json!({
-            "jsc": {
-              "parser": {
-                "syntax": "ecmascript",
-                "jsx": true,
-              },
-              "transform": {
-                "react": {
-                  "runtime": "classic",
-                  "pragma": "Preact.h",
-                  "pragmaFrag": "Preact.Fragment",
-                  "throwIfNamespace": true,
-                  "useBuiltins": false
+            ModuleRuleUseLoader {
+              loader: "builtin:preact-refresh-loader".to_string(),
+              options: None,
+            },
+            ModuleRuleUseLoader {
+              loader: "builtin:swc-loader".to_string(),
+              options: Some(json_to_string(json!({
+                "jsc": {
+                  "parser": {
+                    "syntax": "ecmascript",
+                    "jsx": true,
+                  },
+                  "transform": {
+                    "react": {
+                      "runtime": "classic",
+                      "pragma": "Preact.h",
+                      "pragmaFrag": "Preact.Fragment",
+                      "throwIfNamespace": true,
+                      "useBuiltins": false
+                    }
+                  }
                 }
-              }
-            }
-          }).to_string()),
-        }]),
+              }))),
+            },
+          ]),
           ..Default::default()
         },
         ..Default::default()

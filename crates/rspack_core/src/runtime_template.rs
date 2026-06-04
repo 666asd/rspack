@@ -13,7 +13,7 @@ use rspack_dojang::{Context, Dojang, FunctionContainer, Operand};
 use rspack_error::{Error, Result, ToStringResultToRspackResultExt, error};
 use rspack_util::{fx_hash::FxIndexSet, json_stringify};
 use rustc_hash::FxHashSet as HashSet;
-use simd_json::{OwnedValue as Value, StaticNode, json, value::owned::Object as Map};
+use simd_json::{OwnedValue as Value, StaticNode, value::owned::Object as Map};
 use swc_core::atoms::Atom;
 
 use crate::{
@@ -697,7 +697,7 @@ impl ModuleCodeTemplate {
     let e = format!("Cannot find module '{request}'");
     format!(
       "var e = new Error({}); e.code = 'MODULE_NOT_FOUND'; throw e;",
-      json!(e)
+      simd_json::to_string(&e).expect("missing module error should serialize")
     )
   }
 

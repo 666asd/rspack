@@ -26,7 +26,6 @@ use rspack_util::{
   ext::DynHash,
   source_map::{ModuleSourceMapConfig, SourceMapKind},
 };
-use simd_json::json;
 use tracing::{Instrument, info_span};
 
 use crate::{
@@ -623,9 +622,10 @@ impl Module for NormalModule {
         .contains(&SourceType::JavaScript)
       {
         let error = error.render_report(compilation.options.stats.colors)?;
+        let error = simd_json::to_string(&error).expect("module build error should serialize");
         code_generation_result.add(
           SourceType::JavaScript,
-          RawStringSource::from(format!("throw new Error({});\n", json!(error))).boxed(),
+          RawStringSource::from(format!("throw new Error({error});\n")).boxed(),
         );
         code_generation_result.concatenation_scope = std::mem::take(concatenation_scope);
       }

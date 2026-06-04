@@ -1,3 +1,5 @@
+use std::hash::Hash;
+
 use napi::{
   Env, JsValue,
   bindgen_prelude::{
@@ -43,7 +45,39 @@ impl std::ops::Deref for JsonValue {
 
 impl std::hash::Hash for JsonValue {
   fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-    self.0.to_string().hash(state);
+    hash_json_value(&self.0, state);
+  }
+}
+
+fn hash_json_value<H: std::hash::Hasher>(value: &OwnedValue, state: &mut H) {
+  std::mem::discriminant(value).hash(state);
+
+  match value {
+    OwnedValue::Static(StaticNode::Null) => {}
+    OwnedValue::Static(StaticNode::Bool(b)) => b.hash(state),
+    OwnedValue::Static(StaticNode::I64(n)) => n.hash(state),
+    OwnedValue::Static(StaticNode::U64(n)) => n.hash(state),
+    OwnedValue::Static(StaticNode::F64(n)) => {
+      let n = *n;
+      n.to_bits().hash(state);
+    }
+    OwnedValue::String(s) => s.hash(state),
+    OwnedValue::Array(array) => {
+      array.len().hash(state);
+      for item in array.iter() {
+        hash_json_value(item, state);
+      }
+    }
+    OwnedValue::Object(object) => {
+      object.len().hash(state);
+
+      let mut entries = object.iter().collect::<Vec<_>>();
+      entries.sort_unstable_by_key(|(key, _)| *key);
+      for (key, value) in entries {
+        key.hash(state);
+        hash_json_value(value, state);
+      }
+    }
   }
 }
 

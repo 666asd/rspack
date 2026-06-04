@@ -335,14 +335,14 @@ fn configure_swc_loader(builder: &mut CompilerBuilder) {
         r#use: ModuleRuleUse::Array(vec![ModuleRuleUseLoader {
           loader: "builtin:swc-loader".to_string(),
           options: Some(
-            json!({
+            simd_json::to_string(&json!({
               "jsc": {
                 "parser": {
                   "syntax": "ecmascript",
                 },
               },
-            })
-            .to_string(),
+            }))
+            .expect("swc loader options should serialize to json"),
           ),
         }]),
         ..Default::default()

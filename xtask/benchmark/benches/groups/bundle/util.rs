@@ -62,7 +62,7 @@ pub fn basic_compiler_builder(options: BuilderOptions) -> CompilerBuilder {
           r#use: ModuleRuleUse::Array(vec![ModuleRuleUseLoader {
             loader: "builtin:swc-loader".to_string(),
             options: Some(
-              json!({
+              simd_json::to_string(&json!({
                   "jsc": {
                       "parser": {
                           "syntax": "typescript",
@@ -74,8 +74,8 @@ pub fn basic_compiler_builder(options: BuilderOptions) -> CompilerBuilder {
                           },
                       }
                   },
-              })
-              .to_string(),
+              }))
+              .expect("swc loader options should serialize to json"),
             ),
           }]),
           ..Default::default()
