@@ -7,7 +7,7 @@ use rspack_core::{
 };
 use rspack_error::{Result, ToStringResultToRspackResultExt, error};
 use rspack_hook::{plugin, plugin_hook};
-use serde_json::Value;
+use simd_json::{OwnedValue as Value, StaticNode};
 
 use crate::id_helpers::ModuleFilterFn;
 
@@ -30,13 +30,16 @@ pub struct SyncModuleIdsPluginOptions {
 }
 
 fn parse_module_ids(buffer: &[u8]) -> Result<BTreeMap<String, ModuleId>> {
-  let json: BTreeMap<String, Value> = serde_json::from_slice(buffer).to_rspack_result()?;
+  let mut buffer = buffer.to_vec();
+  let json: BTreeMap<String, Value> = simd_json::from_slice(&mut buffer).to_rspack_result()?;
   let mut data = BTreeMap::new();
   for (key, value) in json {
     let id = match value {
       Value::String(value) => Some(ModuleId::from(value)),
-      Value::Number(value) => Some(ModuleId::from(value.to_string())),
-      Value::Null => None,
+      Value::Static(StaticNode::I64(value)) => Some(ModuleId::from(value.to_string())),
+      Value::Static(StaticNode::U64(value)) => Some(ModuleId::from(value.to_string())),
+      Value::Static(StaticNode::F64(value)) => Some(ModuleId::from(value.to_string())),
+      Value::Static(StaticNode::Null) => None,
       _ => {
         return Err(error!(
           "SyncModuleIdsPlugin: Expected module id for '{}' to be a string, number or null.",
@@ -212,7 +215,7 @@ async fn record_modules(
   }
 
   let json = if data != old_data {
-    Some(serde_json::to_string(&data).to_rspack_result()?)
+    Some(simd_json::to_string(&data).to_rspack_result()?)
   } else {
     None
   };

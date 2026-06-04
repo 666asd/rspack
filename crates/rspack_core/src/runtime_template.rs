@@ -13,11 +13,7 @@ use rspack_dojang::{Context, Dojang, FunctionContainer, Operand};
 use rspack_error::{Error, Result, ToStringResultToRspackResultExt, error};
 use rspack_util::{fx_hash::FxIndexSet, json_stringify};
 use rustc_hash::FxHashSet as HashSet;
-use simd_json::{
-  OwnedValue as Value, json,
-  prelude::{ValueAsMutObject, ValueAsScalar},
-  value::owned::Object as Map,
-};
+use simd_json::{OwnedValue as Value, StaticNode, json, value::owned::Object as Map};
 use swc_core::atoms::Atom;
 
 use crate::{
@@ -220,6 +216,26 @@ fn join_to_string(val: &Operand, sep: &str, runtime_globals: &Map) -> String {
   )
 }
 
+fn simd_value_to_dojang_operand(value: &Value) -> Operand {
+  match value {
+    Value::Static(StaticNode::Null) => Operand::Value(().into()),
+    Value::Static(StaticNode::Bool(value)) => Operand::Value((*value).into()),
+    Value::Static(StaticNode::I64(value)) => Operand::Value((*value).into()),
+    Value::Static(StaticNode::U64(value)) => Operand::Value((*value).into()),
+    Value::Static(StaticNode::F64(value)) => Operand::Value((*value).into()),
+    Value::String(value) => Operand::Value(value.clone().into()),
+    Value::Array(values) => {
+      Operand::Value(values.iter().map(simd_value_to_dojang_operand).collect())
+    }
+    Value::Object(values) => Operand::Value(
+      values
+        .iter()
+        .map(|(key, value)| (key.clone(), simd_value_to_dojang_operand(value)))
+        .collect(),
+    ),
+  }
+}
+
 fn dojang_basic_function(
   args: Operand,
   runtime_globals: &Map,
@@ -230,15 +246,15 @@ fn dojang_basic_function(
     .environment
     .supports_arrow_function()
   {
-    Operand::Value(Value::from(format!(
+    Operand::from(format!(
       r#"({}) =>"#,
       join_to_string(&args, ", ", runtime_globals)
-    )))
+    ))
   } else {
-    Operand::Value(Value::from(format!(
+    Operand::from(format!(
       r#"function({})"#,
       join_to_string(&args, ", ", runtime_globals)
-    )))
+    ))
   }
 }
 
@@ -253,17 +269,17 @@ fn dojang_returning_function(
     .environment
     .supports_arrow_function()
   {
-    Operand::Value(Value::from(format!(
+    Operand::from(format!(
       "({}) => ({})",
       join_to_string(&args, ", ", runtime_globals),
       to_string(&return_value, runtime_globals)
-    )))
+    ))
   } else {
-    Operand::Value(Value::from(format!(
+    Operand::from(format!(
       "function({}) {{ return {}; }}",
       join_to_string(&args, ", ", runtime_globals),
       to_string(&return_value, runtime_globals)
-    )))
+    ))
   }
 }
 
@@ -278,17 +294,17 @@ fn dojang_expression_function(
     .environment
     .supports_arrow_function()
   {
-    Operand::Value(Value::from(format!(
+    Operand::from(format!(
       "({}) => ({})",
       join_to_string(&args, ", ", runtime_globals),
       to_string(&expression, runtime_globals)
-    )))
+    ))
   } else {
-    Operand::Value(Value::from(format!(
+    Operand::from(format!(
       "function({}) {{ {}; }}",
       join_to_string(&args, ", ", runtime_globals),
       to_string(&expression, runtime_globals)
-    )))
+    ))
   }
 }
 
@@ -298,9 +314,9 @@ fn dojang_empty_function(compiler_options: &Arc<CompilerOptions>) -> Operand {
     .environment
     .supports_arrow_function()
   {
-    Operand::Value(Value::from("() => {}"))
+    Operand::from("() => {}".to_string())
   } else {
-    Operand::Value(Value::from("function() {}"))
+    Operand::from("function() {}".to_string())
   }
 }
 
@@ -311,11 +327,11 @@ fn dojang_array_destructure(
   compiler_options: &Arc<CompilerOptions>,
 ) -> Operand {
   if compiler_options.output.environment.supports_destructuring() {
-    Operand::Value(Value::from(format!(
+    Operand::from(format!(
       "var [{}] = {};",
       join_to_string(&items, ", ", runtime_globals),
       to_string(&value, runtime_globals)
-    )))
+    ))
   } else {
     let value_name = to_string(&value, runtime_globals);
     let items = match items {
@@ -347,7 +363,7 @@ fn dojang_array_destructure(
         .join("\n"),
       _ => String::default(),
     };
-    Operand::Value(Value::from(items))
+    Operand::from(items)
   }
 }
 
@@ -1508,24 +1524,20 @@ impl<'a> RuntimeCodeTemplate<'a> {
   }
 
   pub fn render(&self, key: &str, params: Option<simd_json::OwnedValue>) -> Result<String, Error> {
-    let mut render_params: Value = Map::default().into();
-
-    let render_params_object = render_params
-      .as_object_mut()
-      .unwrap_or_else(|| unreachable!());
-    for (k, v) in self.runtime_globals.iter() {
-      render_params_object.insert(k.clone(), v.clone());
-    }
+    let mut render_params = self
+      .runtime_globals
+      .iter()
+      .map(|(key, value)| (key.clone(), simd_value_to_dojang_operand(value)))
+      .collect::<Vec<_>>();
 
     if let Some(params) = params {
       match params {
         Value::Object(params) => {
-          let render_params_object = render_params
-            .as_object_mut()
-            .unwrap_or_else(|| unreachable!());
-          for (k, v) in *params {
-            render_params_object.insert(k, v);
-          }
+          render_params.extend(
+            params
+              .iter()
+              .map(|(key, value)| (key.clone(), simd_value_to_dojang_operand(value))),
+          );
         }
         _ => panic!("Should receive a map value"),
       }
@@ -1534,7 +1546,7 @@ impl<'a> RuntimeCodeTemplate<'a> {
     if let Some((executer, file_content)) = self.dojang.templates.get(key) {
       executer
         .render(
-          &mut Context::new(render_params),
+          &mut Context::new(render_params.into_iter().collect()),
           &self.dojang.templates,
           &self.dojang.functions,
           file_content,

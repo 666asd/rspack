@@ -6,10 +6,7 @@ use rspack_core::{Compilation, Mode};
 use rspack_dojang::{Dojang, Operand, dojang::DojangOptions};
 use rspack_error::{AnyhowResultToRspackResultExt, Result, ToStringResultToRspackResultExt, error};
 use rspack_paths::AssertUtf8;
-use simd_json::{
-  OwnedValue as Value,
-  prelude::{ValueAsMutObject, ValueAsScalar},
-};
+use simd_json::{OwnedValue as Value, StaticNode, prelude::ValueAsMutObject};
 
 use crate::{
   asset::HtmlPluginAssets,
@@ -214,7 +211,7 @@ impl HtmlTemplate {
         dj.add_with_option(self.url.clone(), content.clone())
           .expect("failed to add template");
 
-        dj.render(&self.url, parameters)
+        dj.render(&self.url, simd_value_to_dojang_operand(&parameters).into())
           .to_rspack_result_with_message(|e| {
             format!("HtmlRspackPlugin: failed to render template from string: {e}")
           })
@@ -260,13 +257,36 @@ pub fn merge_json(a: &mut Value, b: Value) {
   }
 }
 
+fn simd_value_to_dojang_operand(value: &Value) -> Operand {
+  match value {
+    Value::Static(StaticNode::Null) => Operand::Value(().into()),
+    Value::Static(StaticNode::Bool(value)) => Operand::Value((*value).into()),
+    Value::Static(StaticNode::I64(value)) => Operand::Value((*value).into()),
+    Value::Static(StaticNode::U64(value)) => Operand::Value((*value).into()),
+    Value::Static(StaticNode::F64(value)) => Operand::Value((*value).into()),
+    Value::String(value) => Operand::Value(value.clone().into()),
+    Value::Array(values) => {
+      Operand::Value(values.iter().map(simd_value_to_dojang_operand).collect())
+    }
+    Value::Object(values) => Operand::Value(
+      values
+        .iter()
+        .map(|(key, value)| (key.clone(), simd_value_to_dojang_operand(value)))
+        .collect(),
+    ),
+  }
+}
+
 pub fn render_tag(op: Operand) -> Operand {
   match op {
-    Operand::Value(obj) => match simd_json::serde::from_owned_value::<HtmlPluginTag>(obj) {
-      Ok(tag) => Operand::Value(Value::from(tag.to_string())),
-      Err(_) => Operand::Value(Value::from("")),
-    },
-    Operand::Array(obj) => Operand::Value(Value::from(
+    Operand::Value(obj) => {
+      let mut bytes = obj.to_string().into_bytes();
+      match simd_json::from_slice::<HtmlPluginTag>(&mut bytes) {
+        Ok(tag) => Operand::from(tag.to_string()),
+        Err(_) => Operand::from(String::new()),
+      }
+    }
+    Operand::Array(obj) => Operand::from(
       obj
         .iter()
         .map(|val| match render_tag(val.to_owned()) {
@@ -274,7 +294,7 @@ pub fn render_tag(op: Operand) -> Operand {
           _ => String::new(),
         })
         .join(""),
-    )),
-    _ => Operand::Value(Value::from("")),
+    ),
+    _ => Operand::from(String::new()),
   }
 }
