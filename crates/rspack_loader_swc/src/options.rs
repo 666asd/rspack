@@ -5,7 +5,7 @@ use rspack_cacheable::{
 use rspack_paths::Utf8Path;
 use rspack_swc_plugin_import::{ImportOptions, RawImportOptions};
 use serde::{Deserialize, Deserializer};
-use simd_json::{OwnedValue as Value, value::owned::Object as Map};
+use simd_json::{OwnedValue as Value, StaticNode, value::owned::Object as Map};
 use swc_config::{file_pattern::FilePattern, types::BoolConfig};
 use swc_core::base::config::{
   Config, ErrorConfig, FileMatcher, InputSourceMap, IsModule, JscConfig, ModuleConfig, Options,
@@ -126,24 +126,17 @@ impl<'de> Deserialize<'de> for DetectSyntax {
   where
     D: Deserializer<'de>,
   {
-    fn invalid_detect_syntax<E: serde::de::Error>(received: impl std::fmt::Debug) -> E {
+    fn invalid_detect_syntax<E: serde::de::Error>(received: Value) -> E {
+      let received = simd_json::to_string(&received).unwrap_or_else(|_| format!("{received:?}"));
       E::custom(format!(
-        "`detectSyntax` only supports `false` or \"auto\", but received {received:?}"
+        "`detectSyntax` only supports `false` or \"auto\", but received {received}"
       ))
     }
 
-    #[derive(Deserialize)]
-    #[serde(untagged)]
-    enum RawDetectSyntax {
-      Bool(bool),
-      String(String),
-    }
-
-    match RawDetectSyntax::deserialize(deserializer)? {
-      RawDetectSyntax::Bool(false) => Ok(DetectSyntax::Disabled),
-      RawDetectSyntax::String(value) if value == "auto" => Ok(DetectSyntax::Auto),
-      RawDetectSyntax::Bool(value) => Err(invalid_detect_syntax(value)),
-      RawDetectSyntax::String(value) => Err(invalid_detect_syntax(value)),
+    match Value::deserialize(deserializer)? {
+      Value::Static(StaticNode::Bool(false)) => Ok(DetectSyntax::Disabled),
+      Value::String(value) if value == "auto" => Ok(DetectSyntax::Auto),
+      value => Err(invalid_detect_syntax(value)),
     }
   }
 }
@@ -646,10 +639,13 @@ mod tests {
     let err = SwcCompilerOptionsWithAdditional::try_from(r#"{ "detectSyntax": "foo" }"#)
       .expect_err("detectSyntax=\"foo\" should be rejected");
 
+    let err = err.to_string();
+    let expected = r#"`detectSyntax` only supports `false` or "auto", but received "foo""#;
+    let escaped_expected =
+      r#"`detectSyntax` only supports `false` or \"auto\", but received \"foo\""#;
     assert!(
-      err
-        .to_string()
-        .contains("`detectSyntax` only supports `false` or \"auto\", but received \"foo\"")
+      err.contains(expected) || err.contains(escaped_expected),
+      "{err}"
     );
   }
 
