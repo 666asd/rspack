@@ -40,9 +40,9 @@ impl CssSourceBuilder {
     };
 
     let mut depth = 0;
-    // TODO: use PrefixSource to create indent
     for conditions in conditions {
       if let Some(media) = &conditions.media {
+        self.add_indent(depth);
         self.add(RawStringSource::from_static("@media "));
         self.add(RawStringSource::from(media.to_string()));
         self.add(RawStringSource::from_static("{\n"));
@@ -50,6 +50,7 @@ impl CssSourceBuilder {
       }
 
       if let Some(supports) = &conditions.supports {
+        self.add_indent(depth);
         self.add(RawStringSource::from_static("@supports ("));
         self.add(RawStringSource::from(supports.to_string()));
         self.add(RawStringSource::from_static(") {\n"));
@@ -57,6 +58,7 @@ impl CssSourceBuilder {
       }
 
       if let Some(layer) = &conditions.layer {
+        self.add_indent(depth);
         match layer {
           CssLayer::Named(layer) => {
             self.add(RawStringSource::from_static("@layer "));
@@ -71,10 +73,11 @@ impl CssSourceBuilder {
       }
     }
 
-    self.add(source);
+    self.add_wrapped_source(source, depth);
     while depth > 0 {
       depth -= 1;
       self.add(RawStringSource::from_static("\n"));
+      self.add_indent(depth);
       self.add(RawStringSource::from_static("}"));
     }
     true
@@ -82,6 +85,10 @@ impl CssSourceBuilder {
 
   pub(crate) fn push_line(&mut self) {
     self.add(RawStringSource::from_static("\n"));
+  }
+
+  pub(crate) fn set_has_charset(&mut self) {
+    self.has_charset = true;
   }
 
   pub(crate) fn into_source(self) -> BoxSource {
@@ -122,6 +129,13 @@ impl CssSourceBuilder {
     self.source.add(source);
   }
 
+  fn add_indent(&mut self, depth: usize) {
+    if depth == 0 {
+      return;
+    }
+    self.add(RawStringSource::from("  ".repeat(depth)));
+  }
+
   fn prepare_source(source: BoxSource, trim_source_start: bool) -> Option<BoxSource> {
     if !trim_source_start {
       return Some(source);
@@ -149,8 +163,29 @@ impl CssSourceBuilder {
     Some(source.boxed())
   }
 
-  fn add_indented_source(&mut self, source: BoxSource, _depth: usize) {
-    // TODO: use PrefixSource to create indent
+  fn add_wrapped_source(&mut self, source: BoxSource, depth: usize) {
+    if depth == 0 {
+      self.add(source);
+      return;
+    }
+
+    let source_text = source.source().into_string_lossy();
+    let source_len = source_text.chars().map(char::len_utf16).sum::<usize>() as u32;
+    let mut line_starts = vec![0];
+    let mut offset = 0;
+    for ch in source_text.chars() {
+      offset += ch.len_utf16() as u32;
+      if ch == '\n' && offset < source_len {
+        line_starts.push(offset);
+      }
+    }
+    drop(source_text);
+
+    let indent = "  ".repeat(depth);
+    let mut source = ReplaceSource::new(source);
+    for start in line_starts {
+      source.insert(start, indent.clone(), None);
+    }
     self.add(source);
   }
 }
@@ -234,11 +269,11 @@ mod tests {
     assert_eq!(
       source_text(builder.into_source()),
       r#"@media screen{
-@supports (display: grid) {
-@layer theme {
-.a{}
-}
-}
+  @supports (display: grid) {
+    @layer theme {
+      .a{}
+    }
+  }
 }"#
     );
   }
@@ -292,11 +327,11 @@ mod tests {
     assert_eq!(
       source_text(builder.into_source()),
       r#"@media screen and (min-width: 768px){
-@supports (display: grid) {
-@layer theme {
-.a{}
-}
-}
+  @supports (display: grid) {
+    @layer theme {
+      .a{}
+    }
+  }
 }"#
     );
   }
