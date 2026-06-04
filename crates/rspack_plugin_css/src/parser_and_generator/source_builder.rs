@@ -1,6 +1,6 @@
 use cow_utils::CowUtils;
 use rspack_core::{
-  CssModuleRenderCondition, CssModuleRenderLayer,
+  CssLayer, CssModuleRenderCondition,
   rspack_sources::{
     BoxSource, ConcatSource, MapOptions, ObjectPool, RawStringSource, ReplaceSource, Source,
     SourceExt,
@@ -9,7 +9,6 @@ use rspack_core::{
 use rspack_util::base64::encode_to_string;
 
 const CSS_UTF8_CHARSET: &str = r#"@charset "UTF-8";"#;
-const CSS_INDENT: &str = "  ";
 
 pub(crate) struct CssSourceBuilder {
   source: ConcatSource,
@@ -30,14 +29,10 @@ impl CssSourceBuilder {
     }
   }
 
-  pub(crate) fn set_has_charset(&mut self) {
-    self.has_charset = true;
-  }
-
-  pub(crate) fn push_css_source(
+  pub(crate) fn push_css_source<'a>(
     &mut self,
     source: BoxSource,
-    conditions: &[CssModuleRenderCondition],
+    conditions: impl IntoIterator<Item = &'a CssModuleRenderCondition>,
     trim_source_start: bool,
   ) -> bool {
     let Some(source) = Self::prepare_source(source, trim_source_start) else {
@@ -45,9 +40,9 @@ impl CssSourceBuilder {
     };
 
     let mut depth = 0;
+    // TODO: use PrefixSource to create indent
     for conditions in conditions {
       if let Some(media) = &conditions.media {
-        self.add_indent(depth);
         self.add(RawStringSource::from_static("@media "));
         self.add(RawStringSource::from(media.to_string()));
         self.add(RawStringSource::from_static("{\n"));
@@ -55,7 +50,6 @@ impl CssSourceBuilder {
       }
 
       if let Some(supports) = &conditions.supports {
-        self.add_indent(depth);
         self.add(RawStringSource::from_static("@supports ("));
         self.add(RawStringSource::from(supports.to_string()));
         self.add(RawStringSource::from_static(") {\n"));
@@ -63,14 +57,13 @@ impl CssSourceBuilder {
       }
 
       if let Some(layer) = &conditions.layer {
-        self.add_indent(depth);
         match layer {
-          CssModuleRenderLayer::Named(layer) => {
+          CssLayer::Named(layer) => {
             self.add(RawStringSource::from_static("@layer "));
             self.add(RawStringSource::from(layer.to_string()));
             self.add(RawStringSource::from_static(" {\n"));
           }
-          CssModuleRenderLayer::Anonymous => {
+          CssLayer::Anonymous => {
             self.add(RawStringSource::from_static("@layer {\n"));
           }
         }
@@ -78,11 +71,10 @@ impl CssSourceBuilder {
       }
     }
 
-    self.add_indented_source(source, depth);
+    self.add(source);
     while depth > 0 {
       depth -= 1;
       self.add(RawStringSource::from_static("\n"));
-      self.add_indent(depth);
       self.add(RawStringSource::from_static("}"));
     }
     true
@@ -130,12 +122,6 @@ impl CssSourceBuilder {
     self.source.add(source);
   }
 
-  fn add_indent(&mut self, depth: usize) {
-    for _ in 0..depth {
-      self.add(RawStringSource::from_static(CSS_INDENT));
-    }
-  }
-
   fn prepare_source(source: BoxSource, trim_source_start: bool) -> Option<BoxSource> {
     if !trim_source_start {
       return Some(source);
@@ -163,26 +149,8 @@ impl CssSourceBuilder {
     Some(source.boxed())
   }
 
-  fn add_indented_source(&mut self, source: BoxSource, depth: usize) {
-    if depth == 0 {
-      self.add(source);
-      return;
-    }
-
-    let indent = CSS_INDENT.repeat(depth);
-    let source_text = source.source().into_string_lossy().into_owned();
-    let source_len = source_text.chars().map(char::len_utf16).sum::<usize>() as u32;
-    let mut source = ReplaceSource::new(source);
-    source.insert(0, indent.clone(), None);
-
-    let mut offset = 0;
-    for ch in source_text.chars() {
-      offset += ch.len_utf16() as u32;
-      if ch == '\n' && offset < source_len {
-        source.insert(offset, indent.clone(), None);
-      }
-    }
-
+  fn add_indented_source(&mut self, source: BoxSource, _depth: usize) {
+    // TODO: use PrefixSource to create indent
     self.add(source);
   }
 }
@@ -221,9 +189,9 @@ mod tests {
           layer.map(|layer| {
             let layer = layer.trim();
             if layer.is_empty() {
-              CssModuleRenderLayer::Anonymous
+              CssLayer::Anonymous
             } else {
-              CssModuleRenderLayer::Named(layer.into())
+              CssLayer::Named(layer.into())
             }
           }),
         )),
@@ -266,11 +234,11 @@ mod tests {
     assert_eq!(
       source_text(builder.into_source()),
       r#"@media screen{
-  @supports (display: grid) {
-    @layer theme {
-      .a{}
-    }
-  }
+@supports (display: grid) {
+@layer theme {
+.a{}
+}
+}
 }"#
     );
   }
@@ -307,7 +275,7 @@ mod tests {
   }
 
   #[test]
-  fn css_source_builder_wraps_multiple_import_conditions_in_order() {
+  fn css_source_builder_wraps_multiple_import_conditions_in_rspack_order() {
     let outer_import =
       css_import_conditions(r#"@import url("./nested.css") screen and (min-width: 768px);"#);
     let inner_import =
@@ -324,11 +292,11 @@ mod tests {
     assert_eq!(
       source_text(builder.into_source()),
       r#"@media screen and (min-width: 768px){
-  @supports (display: grid) {
-    @layer theme {
-      .a{}
-    }
-  }
+@supports (display: grid) {
+@layer theme {
+.a{}
+}
+}
 }"#
     );
   }

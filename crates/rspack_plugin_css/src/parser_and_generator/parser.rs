@@ -3,10 +3,10 @@ use std::{path::Path, sync::Arc};
 use once_cell::sync::OnceCell;
 use rspack_core::{
   BoxDependencyTemplate, BoxModuleDependency, ConstDependency, CssAutoOrModuleParserOptions,
-  CssBuildInfo, CssExport, CssExportType, CssExports, CssExportsConvention, CssLayer, CssLocalNames,
-  CssModuleGeneratorOptions, CssModuleRenderCondition, CssModuleRenderLayer, CssParserImport,
-  CssParserImportContext, Dependency, DependencyId, DependencyRange, ModuleType, ParseContext,
-  ParseResult, ResourceData, StaticExportsDependency, StaticExportsSpec,
+  CssBuildInfo, CssExport, CssExportType, CssExports, CssExportsConvention, CssLayer,
+  CssLocalNames, CssModuleGeneratorOptions, CssModuleRenderCondition, CssModuleRenderLayer,
+  CssParserImport, CssParserImportContext, Dependency, DependencyId, DependencyRange, ModuleType,
+  ParseContext, ParseResult, ResourceData, StaticExportsDependency, StaticExportsSpec,
   diagnostics::map_box_diagnostics_to_module_parse_diagnostics, remove_bom, rspack_sources::Source,
   topological_sort,
 };
@@ -42,6 +42,8 @@ pub(super) struct CssModuleParser<'context> {
   code_generation_dependencies: Vec<BoxModuleDependency>,
   css_exports: CssExports,
   css_local_names: CssLocalNames,
+  inherited_render_conditions: &'context [CssModuleRenderCondition],
+  render_condition: &'context CssModuleRenderCondition,
   icss_definitions: FxHashMap<String, IcssDefinition>,
   current_icss_import_from: Option<String>,
   composes_order: ComposesOrderState,
@@ -183,6 +185,17 @@ impl<'context> CssModuleParser<'context> {
   ) -> Self {
     let source = remove_bom(parse_context.source.clone());
     let source_code: Arc<str> = source.source().into_string_lossy().into();
+    let (inherited_render_conditions, render_condition) = parse_context
+      .build_info
+      .css
+      .as_deref()
+      .map(|css| {
+        (
+          css.inherited_render_conditions.as_slice(),
+          &css.render_condition,
+        )
+      })
+      .unwrap_or_default();
 
     Self {
       generator_options,
@@ -197,6 +210,8 @@ impl<'context> CssModuleParser<'context> {
       code_generation_dependencies: vec![],
       css_exports: Default::default(),
       css_local_names: Default::default(),
+      inherited_render_conditions,
+      render_condition,
       icss_definitions: Default::default(),
       current_icss_import_from: None,
       composes_order: Default::default(),
@@ -791,28 +806,16 @@ impl<'context> CssModuleParser<'context> {
     Ok(())
   }
 
-  fn css_import_render_conditions(
-    &self,
-    media: Option<&str>,
-    supports: Option<&str>,
-    layer: Option<&CssLayer>,
-  ) -> Vec<CssModuleRenderCondition> {
-    let mut render_conditions = self
-      .css_build_info()
-      .map(|css_build_info| css_build_info.render_conditions.clone())
-      .unwrap_or_default();
-    let condition = CssModuleRenderCondition::new(
-      media.map(|media| SmolStr::from(media.trim())),
-      supports.map(|supports| SmolStr::from(supports.trim())),
-      layer.map(|layer| match layer {
-        CssLayer::Anonymous => CssModuleRenderLayer::Anonymous,
-        CssLayer::Named(layer) => CssModuleRenderLayer::Named(layer.as_str().into()),
-      }),
-    );
-    if !condition.is_empty() {
-      render_conditions.push(condition);
+  fn css_import_inherited_render_conditions(&self) -> Vec<CssModuleRenderCondition> {
+    if self.render_condition.is_empty() {
+      return self.inherited_render_conditions.to_vec();
     }
-    render_conditions
+
+    let mut inherited_render_conditions =
+      Vec::with_capacity(self.inherited_render_conditions.len() + 1);
+    inherited_render_conditions.extend(self.inherited_render_conditions.iter().cloned());
+    inherited_render_conditions.push(self.render_condition.clone());
+    inherited_render_conditions
   }
 
   async fn should_import(

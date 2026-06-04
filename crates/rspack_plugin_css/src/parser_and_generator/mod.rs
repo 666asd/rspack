@@ -47,16 +47,14 @@ pub type CssExportsRef<'a> = FxIndexMap<&'a str, &'a FxIndexSet<CssExport>>;
 #[cacheable]
 #[derive(Debug)]
 pub struct CssParserAndGenerator {
-  pub generator_options: CssModuleGeneratorOptions,
-  pub parser_options: CssAutoOrModuleParserOptions,
   pub exports_only: bool,
   pub hot: bool,
 }
 
 impl CssParserAndGenerator {
   pub fn new(
-    generator_options: CssModuleGeneratorOptions,
-    parser_options: CssAutoOrModuleParserOptions,
+    generator_options: &CssModuleGeneratorOptions,
+    parser_options: &CssAutoOrModuleParserOptions,
   ) -> Self {
     let exports_only = generator_options
       .exports_only
