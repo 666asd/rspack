@@ -4,17 +4,15 @@ import * as moduleTextNoEsm from "./module-text-no-esm.css";
 import autoTextNoEsm from "./auto-text-no-esm.css";
 import moduleWithImports from "./module-with-imports.css";
 import parentModuleWithImports from "./parent-module-with-imports.css";
-import textWithStylesheetImport from "./text-with-stylesheet-import.css";
 import stylesheet from "./stylesheet.css";
 import moduleStylesheet, { secondary as moduleStylesheetSecondary } from "./module-stylesheet.css";
 import icssText, { button as icssTextButton } from "./icss-text.modules.css";
 import icssStylesheet, { "sheet-button" as icssStylesheetButton } from "./icss-stylesheet.modules.css";
-// TODO fixme
-// import fooStylesheet from "./foo.css" with { type: "css" };
+import fooStylesheet from "./foo.css" with { type: "css" };
 
 it("should export CSS text as default when exportType is text (css/module)", () => {
 	expect(typeof moduleText).toBe("string");
-	expect(moduleText).toMatchFileSnapshotSync(`${__SNAPSHOT__}/module-text.txt`);
+	expect(moduleText).toMatchSnapshot();
 
 	expect(moduleTextClass).toBeTruthy();
 });
@@ -31,7 +29,7 @@ it("should export CSS text when exportType is text and esModule is false (css/mo
 	// Named export, warn
 	expect(moduleTextNoEsm["no-esm-text"]).toBeTruthy();
 	expect(moduleTextNoEsm.default["no-esm-text"]).toBeTruthy();
-	expect(moduleTextNoEsm).toMatchFileSnapshotSync(`${__SNAPSHOT__}/module-text-no-esm.txt`);
+	expect(moduleTextNoEsm).toMatchSnapshot();
 });
 
 
@@ -44,22 +42,15 @@ it("should export CSS text when exportType is text and esModule is false (css/au
 it("should handle @import with layer, supports, and media queries", () => {
 	expect(typeof moduleWithImports).toBe("string");
 	expect(typeof parentModuleWithImports).toBe("string");
-	expect(parentModuleWithImports).toMatchFileSnapshotSync(`${__SNAPSHOT__}/parent-module-with-imports.txt`);
-});
-
-it("should stringify css-style-sheet imports in text fallback", () => {
-	expect(typeof textWithStylesheetImport).toBe("string");
-	expect(textWithStylesheetImport).toContain(".stylesheet-with-url");
-	expect(textWithStylesheetImport).toContain("background-image:");
-	expect(textWithStylesheetImport).toContain(".text-with-stylesheet-import");
+	expect(parentModuleWithImports).toMatchSnapshot();
 });
 
 it("should handle ICSS :import with exportType text", () => {
 	expect(typeof icssText).toBe("string");
 	expect(typeof icssTextButton).toBe("string");
-	expect(icssText).toContain("background-color: i-primary");
-	expect(icssText).toContain("border-color: i-secondary");
-	expect(icssText).toContain("padding: i-spacing");
+	expect(icssText).toContain("background-color: #007bff");
+	expect(icssText).toContain("border-color: #6c757d");
+	expect(icssText).toContain("padding: 16px");
 });
 
 it("should handle ICSS :import with exportType css-style-sheet", () => {
@@ -70,12 +61,12 @@ it("should handle ICSS :import with exportType css-style-sheet", () => {
 	const rules = Array.from(icssStylesheet.cssRules);
 	const buttonRule = rules.find(rule => rule.selectorText && rule.selectorText.includes("sheet-button"));
 	expect(buttonRule).toBeDefined();
-	expect(buttonRule.style["background-color"]).toBe("imported-primary");
+	expect(buttonRule.style["background-color"]).toBe("#007bff");
 	expect(buttonRule.style.color).toBe("white");
 	
 	const badgeRule = rules.find(rule => rule.selectorText && rule.selectorText.includes("sheet-badge"));
 	expect(badgeRule).toBeDefined();
-	expect(badgeRule.style["background-color"]).toBe("imported-secondary");
+	expect(badgeRule.style["background-color"]).toBe("#6c757d");
 	expect(badgeRule.style["border-radius"]).toBe("4px");
 });
 
@@ -102,7 +93,7 @@ it("should export CSSStyleSheet when exportType is css-style-sheet (css/module)"
 	expect(moduleRule.style.padding).toBe("20px");
 });
 
-// TODO fixme
-// it("should export CSSStyleSheet when imported with { type: 'css' } even with existing exportType text instance", () => {
-// 	expect(fooStylesheet).toBeInstanceOf(CSSStyleSheet);
-// });
+
+it("should export CSSStyleSheet when imported with { type: 'css' } even with existing exportType text instance", () => {
+	expect(fooStylesheet).toBeInstanceOf(CSSStyleSheet);
+});

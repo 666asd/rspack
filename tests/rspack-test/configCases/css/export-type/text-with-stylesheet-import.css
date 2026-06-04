@@ -1,5 +1,0 @@
-@import "./stylesheet-with-url.css";
-
-.text-with-stylesheet-import {
-	color: teal;
-}

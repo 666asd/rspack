@@ -144,6 +144,14 @@ const validateMap = (map) => {
 	for (const source of map.sources) {
 		expect(typeof source).toBe("string");
 		expect(source.length).toBeGreaterThan(0);
+		// Sources must be relative to the compilation context — never an
+		// absolute filesystem path. The CSS module identifier embeds an
+		// absolute path by default, so this guards against accidentally
+		// passing it raw to OriginalSource instead of going through
+		// requestShortener / readableIdentifier.
+		const stripped = source.replace(/^webpack:\/+/, "");
+		expect(stripped.startsWith("/")).toBe(false);
+		expect(/^[A-Za-z]:[\\/]/.test(stripped)).toBe(false);
 	}
 	expect(typeof map.mappings).toBe("string");
 	expect(map.mappings.length).toBeGreaterThan(0);
@@ -246,8 +254,10 @@ it(`should generate a valid source map for ${label}`, () => {
 	expect(cssModuleSourcesContent.startsWith('"')).toBe(false);
 	if (exportType === "text") {
 		expect(cssModuleSourcesContent).toContain("module.exports");
+		expect(cssModuleSourcesContent).toContain('"default":');
 	} else if (exportType === "css-style-sheet") {
-		expect(cssModuleSourcesContent).toContain("__webpack_require__.css");
+		expect(cssModuleSourcesContent).toContain("new CSSStyleSheet()");
+		expect(cssModuleSourcesContent).toContain("replaceSync");
 	}
 	// CSS payload still has to be reachable from sourcesContent so DevTools
 	// can search across module sources.

@@ -1,5 +1,0 @@
-@import url("./text-child.css") layer(theme) supports(display: grid) print;
-
-.link-parent-with-same-child-conditions {
-	color: teal;
-}

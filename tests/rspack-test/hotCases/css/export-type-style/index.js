@@ -1,6 +1,6 @@
 import "./style.css";
 
-it("should handle HMR for exportType style", async () => {
+it("should handle HMR for exportType style", function (done) {
 	const styles = window.document.getElementsByTagName("style");
 	expect(styles.length).toBeGreaterThan(0);
 	const styleElement = styles[styles.length - 1];
@@ -14,17 +14,18 @@ it("should handle HMR for exportType style", async () => {
 
 	const originalTextContent = styleElement.textContent;
 
-	await NEXT_HMR();
+	NEXT(require("../../update")(done, true, () => {
+		const styles = window.document.getElementsByTagName("style");
+		const updatedStyleElement = styles[styles.length - 1];
+		expect(updatedStyleElement.textContent).toContain("color: green");
+		expect(updatedStyleElement.textContent).toContain("background-color: yellow");
+		expect(updatedStyleElement.textContent).toContain("padding: 20px");
+		expect(updatedStyleElement.textContent).not.toBe(originalTextContent);
 
-	const updatedStyles = window.document.getElementsByTagName("style");
-	const updatedStyleElement = updatedStyles[updatedStyles.length - 1];
-	expect(updatedStyleElement.textContent).toContain("color: green");
-	expect(updatedStyleElement.textContent).toContain("background-color: yellow");
-	expect(updatedStyleElement.textContent).toContain("padding: 20px");
-	expect(updatedStyleElement.textContent).not.toBe(originalTextContent);
-
-	const updatedStyleElement2 = updatedStyles[updatedStyles.length - 2];
-	expect(updatedStyleElement2).toBeUndefined();
+		const updatedStyleElement2 = styles[styles.length - 2];
+		expect(updatedStyleElement2).toBeUndefined();
+		done();
+	}));
 });
 
 module.hot.accept();

@@ -590,6 +590,7 @@ mod tests {
       &module_rules,
       &ModuleType::Css,
       Some(&ParserOptions::Css(CssParserOptions {
+        export_type: None,
         named_exports: Some(true),
         url: None,
         r#import: None,

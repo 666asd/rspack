@@ -23,13 +23,6 @@ const expectNoSourcesContent = (map) => {
 	}
 };
 
-const expectValidMap = (map) => {
-	expect(map.version).toBe(3);
-	expect(Array.isArray(map.sources)).toBe(true);
-	expect(map.sources.length).toBeGreaterThan(0);
-	expect(typeof map.mappings).toBe("string");
-};
-
 const SOURCE_MAPPING_DATA_URI =
 	/sourceMappingURL=data:application\/json(?:;charset=[^;,]+)?;base64,([A-Za-z0-9+/=]+)/;
 
@@ -44,14 +37,18 @@ it(`should not embed sourcesContent for nosources-source-map (exportType="${expo
 		return;
 	}
 
-	// JS source map should be emitted and parseable for JS-backed export types.
+	// JS source map should also strip sourcesContent.
 	const jsMapFile = path.resolve(outputPath, `bundle${__STATS_I__}.js.map`);
 	expect(fs.existsSync(jsMapFile)).toBe(true);
 	const jsMapRaw = fs.readFileSync(jsMapFile, "utf-8");
-	expectValidMap(JSON.parse(jsMapRaw));
+	expectNoSourcesContent(JSON.parse(jsMapRaw));
+	// The CSS module's emitted JS wrapper would normally land in
+	// sourcesContent (and that wrapper embeds the CSS body) — under
+	// `nosources` it must be gone.
+	expect(jsMapRaw).not.toContain(".nosources-test-class");
 
-	// The inline data URI map embedded in the CSS string should also be
-	// parseable for text/style/css-style-sheet export types.
+	// And — the actual regression — the inline data URI map embedded in
+	// the CSS string must also have its sourcesContent stripped.
 	const bundle = fs.readFileSync(
 		path.resolve(outputPath, `bundle${__STATS_I__}.js`),
 		"utf-8"
@@ -59,5 +56,6 @@ it(`should not embed sourcesContent for nosources-source-map (exportType="${expo
 	const match = bundle.match(SOURCE_MAPPING_DATA_URI);
 	expect(match).not.toBeNull();
 	const decoded = NodeBuffer.from(match[1], "base64").toString("utf-8");
-	expectValidMap(JSON.parse(decoded));
+	expectNoSourcesContent(JSON.parse(decoded));
+	expect(decoded).not.toContain(".nosources-test-class");
 });

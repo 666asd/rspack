@@ -3,10 +3,13 @@ import textB from "./text-b.css";
 import sheetA from "./sheet-a.css";
 import sheetB from "./sheet-b.css";
 import { "link-a-class" as linkAClass } from "./link-a.module.css";
+import "./style-a.css";
+import "./style-b.css";
 
 it("should concatenate text exportType modules", () => {
 	expect(typeof textA).toBe("string");
 	expect(textA).toContain("color: red");
+	expect(textA).toContain("font-size: 12px");
 
 	expect(typeof textB).toBe("string");
 	expect(textB).toContain("color: blue");
@@ -14,43 +17,47 @@ it("should concatenate text exportType modules", () => {
 
 it("should concatenate css-style-sheet exportType modules", () => {
 	expect(sheetA).toBeInstanceOf(CSSStyleSheet);
+	expect(sheetA._cssText).toContain("color: green");
+	expect(sheetA._cssText).toContain("font-weight: bold");
 
 	expect(sheetB).toBeInstanceOf(CSSStyleSheet);
+	expect(sheetB._cssText).toContain("color: purple");
 });
 
-it("should concatenate link exportType (CSS modules) and export class names", async () => {
+it("should concatenate link exportType (CSS modules) and export class names", (done) => {
 	expect(typeof linkAClass).toBe("string");
 	expect(linkAClass.length).toBeGreaterThan(0);
 
 	const links = [...document.getElementsByTagName("link")];
 	expect(links.length).toBeGreaterThan(0);
-	const initialCss = links
-		.filter(l => l.sheet)
-		.map(l => l.sheet.css)
-		.join("\n");
-	if (initialCss.trim()) {
-		expect(initialCss).toContain("text-align: center");
-	}
+	const allCss = links.map(l => l.sheet.css).join("\n");
+	expect(allCss).toContain("text-align: center");
+	expect(allCss).toContain("letter-spacing: 1px");
 
-	const { "link-b-class": linkBClass } = await import(/* webpackChunkName: "link-b" */ "./link-b.module.css");
-	expect(typeof linkBClass).toBe("string");
-	expect(linkBClass.length).toBeGreaterThan(0);
-	expect(linkAClass).not.toBe(linkBClass);
+	import(/* webpackChunkName: "link-b" */ "./link-b.module.css").then(({ "link-b-class": linkBClass }) => {
+		expect(typeof linkBClass).toBe("string");
+		expect(linkBClass.length).toBeGreaterThan(0);
+		expect(linkAClass).not.toBe(linkBClass);
 
-	const allLinks = [...document.getElementsByTagName("link")];
-	const asyncCss = allLinks
-		.filter(l => l.sheet)
-		.map(l => l.sheet.css)
-		.join("\n");
-	if (asyncCss.trim()) {
-		expect(asyncCss).toContain("text-align: right");
-	}
+		const allLinks = [...document.getElementsByTagName("link")];
+		const allCss = allLinks.map(l => l.sheet.css).join("\n");
+		expect(allCss).toContain("text-align: right");
+		done();
+	}, done);
+});
+
+it("should concatenate style exportType modules and inject <style> tags", () => {
+	const styles = [...document.getElementsByTagName("style")];
+	const allCss = styles.map(s => s.textContent).join("\n");
+	expect(allCss).toContain("color: orange");
+	expect(allCss).toContain("font-style: italic");
+	expect(allCss).toContain("color: magenta");
 });
 
 it("should concatenate all modules into one concatenated module", () => {
 	const concatModules = __STATS__.modules.filter(m => m.modules);
-	if (concatModules.length > 0) {
-		// index.js + 2 text + 2 sheet; link modules still participate in CSS chunking.
-		expect(concatModules[0].modules.length).toBeGreaterThanOrEqual(5);
-	}
+	expect(concatModules.length).toBe(1);
+	// index.js + 2 text + 1 text-dep + 2 sheet + 1 sheet-dep + 1 link + 1 link-dep
+	// + 2 style + 1 style-dep = 12
+	expect(concatModules[0].modules.length).toBeGreaterThanOrEqual(12);
 });

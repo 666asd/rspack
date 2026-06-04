@@ -1,41 +1,58 @@
 import sheet from "./basic.css" with { type: "css" };
 import sheetAssert from "./basic.css" assert { type: "css" };
 
-const getBundleSource = () =>
-	__non_webpack_require__("fs").readFileSync(
-		__non_webpack_require__("path").join(__STATS__.outputPath, "bundle0.js"),
-		"utf-8"
-	);
-
 it("should import CSS as CSSStyleSheet with 'with' syntax", () => {
 	expect(sheet).toBeInstanceOf(CSSStyleSheet);
+	expect(sheet.cssRules.length).toBeGreaterThan(0);
+
+	// Check that the CSS content is correct
+	const rules = Array.from(sheet.cssRules);
+	const testRule = rules.find(rule => rule.selectorText === ".test");
+	expect(testRule).toBeDefined();
+	expect(testRule.style.color).toBe("red");
+	expect(testRule.style.background).toBe("blue");
 });
 
 it("should import CSS as CSSStyleSheet with 'assert' syntax", () => {
 	expect(sheetAssert).toBeInstanceOf(CSSStyleSheet);
+	expect(sheetAssert.cssRules.length).toBeGreaterThan(0);
+
+	// Check that the CSS content is correct
+	const rules = Array.from(sheetAssert.cssRules);
+	const testRule = rules.find(rule => rule.selectorText === ".test");
+	expect(testRule).toBeDefined();
 });
 
 it("should be able to adopt the stylesheet", () => {
 	// Test that the stylesheet can be adopted (basic API check)
-	expect(sheet).toBeInstanceOf(CSSStyleSheet);
+	expect(typeof sheet.replaceSync).toBe("function");
 });
 
-it("should include CSS content in the CSSStyleSheet runtime call", () => {
-	const source = getBundleSource();
-	expect(source).toContain(".test");
-	expect(source).toContain("color: red");
-	expect(source).toContain("background: blue");
+it("should handle @import in CSSStyleSheet", () => {
+	const rules = Array.from(sheet.cssRules);
+
+	// Check that imported styles are included
+	const importedRule = rules.find(rule => rule.selectorText === ".imported");
+	expect(importedRule).toBeDefined();
+	expect(importedRule.style.color).toBe("green");
+	expect(importedRule.style["font-style"]).toBe("italic");
 });
 
 it("should handle url() for images in CSSStyleSheet", () => {
-	const source = getBundleSource();
-	expect(source).toContain(".with-image");
-	expect(source).toContain("background-image: url(");
-	expect(source).toContain("width: 100px");
-	expect(source).toContain("height: 100px");
+	const rules = Array.from(sheet.cssRules);
+
+	// Check that the rule with background-image exists
+	const imageRule = rules.find(rule => rule.selectorText === ".with-image");
+	expect(imageRule).toBeDefined();
+	expect(imageRule.style["background-image"]).toContain("url(");
+	expect(imageRule.style.width).toBe("100px");
+	expect(imageRule.style.height).toBe("100px");
 });
 
 it("should handle CSS nesting in CSSStyleSheet", () => {
+	const rules = Array.from(sheet.cssRules);
 	// CSS nesting syntax (& .child) should be preserved in cssText
-	expect(getBundleSource()).toContain("& .child");
+	const nestedRule = rules.find(rule => rule.cssText.includes("& .child"));
+	expect(nestedRule).toBeDefined();
+	expect(nestedRule.cssText).toContain("color: green");
 });
