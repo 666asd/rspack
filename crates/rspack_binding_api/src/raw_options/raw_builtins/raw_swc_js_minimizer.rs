@@ -34,9 +34,13 @@ pub struct RawSwcJsMinimizerRspackPluginOptions {
 #[derive(Debug)]
 #[napi(object, object_to_js = false)]
 pub struct RawSwcJsMinimizerOptions {
+  #[napi(ts_type = "any")]
   pub ecma: JsonValue,
+  #[napi(ts_type = "any")]
   pub compress: JsonValue,
+  #[napi(ts_type = "any")]
   pub mangle: JsonValue,
+  #[napi(ts_type = "any")]
   pub format: JsonValue,
   pub module: Option<bool>,
   pub minify: Option<bool>,

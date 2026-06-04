@@ -131,6 +131,7 @@ pub struct JsResourceData {
   pub query: Option<String>,
   /// Resource fragment with `#` prefix
   pub fragment: Option<String>,
+  #[napi(ts_type = "any")]
   pub description_file_data: Option<JsonValue>,
   pub description_file_path: Option<String>,
 }

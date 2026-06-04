@@ -17,6 +17,7 @@ pub struct JsLoaderItem {
   pub r#type: String,
 
   // data
+  #[napi(ts_type = "any")]
   pub data: JsonValue,
 
   // status
