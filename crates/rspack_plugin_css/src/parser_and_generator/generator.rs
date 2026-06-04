@@ -21,10 +21,8 @@ use rustc_hash::FxHashSet as HashSet;
 
 use crate::{
   dependency::CssImportDependency,
-  parser_and_generator::{
-    CssSourceBuilder, css_module_export_type, get_unused_local_ident, get_used_exports,
-  },
-  utils::{replace_css_module_id_placeholder, unescape},
+  parser_and_generator::{CssSourceBuilder, get_unused_local_ident, get_used_exports},
+  utils::{css_module_export_type, replace_css_module_id_placeholder, unescape},
 };
 
 pub fn update_css_exports(exports: &mut CssExports, name: &str, css_export: CssExport) -> bool {
@@ -389,7 +387,8 @@ impl<'a, 'g> CssModuleGenerator<'a, 'g> {
       let Some(source) = imported_module.source() else {
         continue;
       };
-      let render_conditions_key = css_render_conditions_key(&render_conditions);
+      let render_conditions_key =
+        css_module_render_conditions_identifier(&render_conditions).unwrap_or_default();
       let inlined_module_key = concat_string!(
         imported_module.identifier().as_str(),
         "|",
@@ -1231,10 +1230,6 @@ fn push_joined(target: &mut String, value: &str, separator: &str) {
     target.push_str(separator);
   }
   target.push_str(value);
-}
-
-fn css_render_conditions_key(conditions: &[CssModuleRenderCondition]) -> String {
-  css_module_render_conditions_identifier(conditions).unwrap_or_default()
 }
 
 fn is_style_export_css_module(module: &dyn Module) -> bool {

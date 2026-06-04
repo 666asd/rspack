@@ -787,7 +787,11 @@ impl<'context> CssModuleParser<'context> {
       }
     });
     let inherited_render_conditions = self.css_import_inherited_render_conditions();
-    let render_condition = self.css_import_render_condition(media, supports, layer);
+    let render_condition = CssModuleRenderCondition::new(
+      media.map(|media| media.trim().into()),
+      supports.map(|supports| supports.trim().into()),
+      layer,
+    );
     self.dependencies.push(Box::new(CssImportDependency::new(
       request,
       DependencyRange::new(range.start, range.end),
@@ -808,19 +812,6 @@ impl<'context> CssModuleParser<'context> {
     inherited_render_conditions.extend(self.inherited_render_conditions.iter().cloned());
     inherited_render_conditions.push(self.render_condition.clone());
     inherited_render_conditions
-  }
-
-  fn css_import_render_condition(
-    &self,
-    media: Option<&str>,
-    supports: Option<&str>,
-    layer: Option<CssLayer>,
-  ) -> CssModuleRenderCondition {
-    CssModuleRenderCondition::new(
-      media.map(|media| media.trim().into()),
-      supports.map(|supports| supports.trim().into()),
-      layer,
-    )
   }
 
   async fn should_import(

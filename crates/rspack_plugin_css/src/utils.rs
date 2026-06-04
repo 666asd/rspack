@@ -10,18 +10,115 @@ use heck::{ToKebabCase, ToLowerCamelCase};
 use once_cell::sync::OnceCell;
 use regex::{Captures, Regex};
 use rspack_core::{
-  ChunkGraph, Compilation, CompilerOptions, CssExportsConvention, CssModuleGeneratorOptions,
-  LocalIdentName, Module, ModuleType, PathData, ReplaceAllPlaceholder, ResourceData,
+  BoxDependency, ChunkGraph, Compilation, CompilerOptions, CssAutoOrModuleParserOptions,
+  CssExportType, CssExportsConvention, CssModuleGeneratorOptions, CssModuleRenderCondition,
+  GeneratorOptions, LocalIdentName, Module, ModuleType, NormalModuleCreateData, ParserOptions,
+  PathData, ReplaceAllPlaceholder, ResourceData,
 };
 use rspack_error::{Diagnostic, Error, Result, Severity};
 use rspack_hash::{HashDigest, HashFunction, HashSalt, RspackHash};
 use rspack_util::{base64, identifier::make_paths_relative, itoa, json_stringify_str};
 use rustc_hash::{FxHashSet, FxHasher};
 
+use crate::{
+  dependency::{CssComposeDependency, CssImportDependency},
+  parser_and_generator::CssParserAndGenerator,
+};
+
 pub const AUTO_PUBLIC_PATH_PLACEHOLDER: &str = "__RSPACK_PLUGIN_CSS_AUTO_PUBLIC_PATH__";
 pub const CSS_MODULE_ID_PLACEHOLDER: &str = "__RSPACK_PLUGIN_CSS_MODULE_ID__";
 pub static LEADING_DIGIT_REGEX: LazyLock<Regex> =
   LazyLock::new(|| Regex::new(r"^((-?[0-9])|--)").expect("Invalid regexp"));
+
+pub(crate) fn css_generator_options(
+  generator_options: Option<&GeneratorOptions>,
+) -> &CssModuleGeneratorOptions {
+  generator_options
+    .and_then(GeneratorOptions::get_css_module)
+    .expect("should have CssModuleGeneratorOptions")
+}
+
+pub(crate) fn css_parser_options(
+  parser_options: Option<&ParserOptions>,
+) -> CssAutoOrModuleParserOptions {
+  match parser_options.expect("should have CssParserOptions") {
+    ParserOptions::CssAutoOrModule(options) => options.clone(),
+    ParserOptions::CssModule(options) => options.clone().into(),
+    ParserOptions::Css(options) => options.into(),
+    _ => panic!("should have CssParserOptions"),
+  }
+}
+
+pub(crate) fn css_module_export_type(module: &dyn Module) -> Option<CssExportType> {
+  module
+    .build_info()
+    .css
+    .as_deref()
+    .and_then(|css| css.export_type)
+    .or_else(|| {
+      module
+        .as_normal_module()
+        .and_then(|module| {
+          module
+            .parser_and_generator()
+            .downcast_ref::<CssParserAndGenerator>()?;
+          Some(css_parser_options(module.get_parser_options()).export_type)
+        })
+        .flatten()
+    })
+}
+
+pub(crate) fn css_render_conditions_from_module(
+  module: &dyn Module,
+) -> Vec<CssModuleRenderCondition> {
+  module
+    .build_info()
+    .css
+    .as_deref()
+    .map(|css| css.render_conditions().cloned().collect())
+    .unwrap_or_default()
+}
+
+pub(crate) fn css_module_has_charset(module: &dyn Module) -> bool {
+  module
+    .build_info()
+    .css
+    .as_deref()
+    .is_some_and(|css| css.has_charset)
+}
+
+pub(crate) fn css_module_is_import_dependency(module: &dyn Module) -> bool {
+  module
+    .build_info()
+    .css
+    .as_deref()
+    .is_some_and(|css| css.css_import_dependency)
+}
+
+pub(crate) fn css_module_resource(module: &dyn Module) -> Option<&str> {
+  module
+    .as_normal_module()
+    .map(|module| module.resource_resolved_data().resource())
+}
+
+pub(crate) fn append_css_export_type_key(
+  create_data: &mut NormalModuleCreateData,
+  export_type: CssExportType,
+) {
+  create_data.request.push_str("|css-export-type|");
+  create_data.request.push_str(&export_type.to_string());
+}
+
+pub(crate) fn css_dependency_export_type(dependency: &BoxDependency) -> Option<CssExportType> {
+  dependency
+    .downcast_ref::<CssImportDependency>()
+    .and_then(|dep| dep.export_type())
+    .or_else(|| {
+      dependency
+        .downcast_ref::<CssComposeDependency>()
+        .and_then(|dep| dep.export_type())
+    })
+}
 
 #[derive(Debug, Clone)]
 pub struct PresentationalDependencyHashUpdate<'a> {
