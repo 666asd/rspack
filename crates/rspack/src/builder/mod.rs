@@ -63,7 +63,6 @@ use rspack_paths::{AssertUtf8, Utf8PathBuf};
 use rspack_regex::RspackRegex;
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use simd_json::{
-  json,
   prelude::{ValueAsScalar, ValueObjectAccess},
   value::owned::Object as JsonObject,
 };
@@ -3392,7 +3391,8 @@ impl OptimizationOptionsBuilder {
   where
     V: Into<String>,
   {
-    self.node_env = Some(simd_json::json!(value.into()).to_string());
+    self.node_env =
+      Some(simd_json::to_string(&value.into()).expect("should stringify node env value"));
     self
   }
 
@@ -3650,7 +3650,9 @@ impl OptimizationOptionsBuilder {
         .push(BuiltinPluginOptions::DefinePlugin(JsonObject::from_iter([
           (
             "process.env.NODE_ENV".to_string(),
-            format!("{}", json!(node_env)).into(),
+            simd_json::to_string(&node_env)
+              .expect("should stringify node env value")
+              .into(),
           ),
         ])));
     }

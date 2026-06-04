@@ -36,8 +36,8 @@ rspack_util                    = { workspace = true }
 rspack_workspace               = { workspace = true }
 rustc-hash                     = { workspace = true }
 serde                          = { workspace = true, features = ["derive"] }
-simd-json                     = { workspace = true }
 sha2                           = { workspace = true }
+simd-json                      = { workspace = true }
 sugar_path                     = { workspace = true }
 swc                            = { workspace = true, features = ["manual-tokio-runtime"] }
 swc_config                     = { workspace = true }

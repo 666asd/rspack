@@ -20,7 +20,7 @@ rspack_util              = { workspace = true }
 
 async-trait = { workspace = true }
 rustc-hash  = { workspace = true }
-simd-json  = { workspace = true }
+simd-json   = { workspace = true }
 tokio       = { workspace = true }
 tracing     = { workspace = true }
 

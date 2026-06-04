@@ -31,7 +31,7 @@ futures                        = { workspace = true }
 rayon                          = { workspace = true }
 regex                          = { workspace = true }
 serde                          = { workspace = true }
-simd-json                     = { workspace = true }
+simd-json                      = { workspace = true }
 sugar_path                     = { workspace = true }
 swc_core                       = { workspace = true, features = ["swc_ecma_transforms_base"] }
 swc_experimental_ecma_ast      = { workspace = true }

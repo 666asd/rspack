@@ -8,7 +8,7 @@ use regex::Regex;
 use rspack_error::Diagnostic;
 use rustc_hash::FxHashMap;
 use simd_json::{
-  OwnedValue as Value, json,
+  OwnedValue as Value,
   prelude::{ValueAsArray, ValueAsObject},
   value::owned::Object as Map,
 };
@@ -318,7 +318,9 @@ impl WalkData {
               debug_assert!(!parser.in_short_hand);
               for dep in gen_const_dep(
                 parser,
-                Cow::Owned(format!("{}", json!(evaluated.string()))),
+                Cow::Owned(
+                  simd_json::to_string(evaluated.string()).expect("should stringify typeof value"),
+                ),
                 "",
                 start,
                 end,
