@@ -170,8 +170,7 @@ impl BuildModuleGraphArtifact {
         self
           .missing_dependencies
           .remove_files(&resource_id, factorize_info.missing_dependencies());
-        // related_dep_ids will contain dep_id it self
-        factorize_info.related_dep_ids().to_vec()
+        factorize_info.related_dep_ids_for_revoke(*dep_id)
       } else {
         vec![*dep_id]
       };
