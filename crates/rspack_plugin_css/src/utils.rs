@@ -56,16 +56,25 @@ pub(crate) fn css_module_export_type(module: &dyn Module) -> Option<CssExportTyp
     .as_deref()
     .and_then(|css| css.export_type)
     .or_else(|| {
-      module
-        .as_normal_module()
-        .and_then(|module| {
-          module
-            .parser_and_generator()
-            .downcast_ref::<CssParserAndGenerator>()?;
-          Some(css_parser_options(module.get_parser_options()).export_type)
-        })
-        .flatten()
+      module.as_normal_module().and_then(|module| {
+        module
+          .parser_and_generator()
+          .downcast_ref::<CssParserAndGenerator>()?;
+        css_parser_options(module.get_parser_options()).export_type
+      })
     })
+}
+
+pub(crate) fn effective_css_export_type(
+  module: &dyn Module,
+  parser_options: Option<&ParserOptions>,
+) -> Option<CssExportType> {
+  module
+    .build_info()
+    .css
+    .as_deref()
+    .and_then(|css| css.export_type)
+    .or_else(|| css_parser_options(parser_options).export_type)
 }
 
 pub(crate) fn css_render_conditions_from_module(

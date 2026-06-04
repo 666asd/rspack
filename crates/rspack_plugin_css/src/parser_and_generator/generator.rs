@@ -22,7 +22,9 @@ use rustc_hash::FxHashSet as HashSet;
 use crate::{
   dependency::CssImportDependency,
   parser_and_generator::{CssSourceBuilder, get_unused_local_ident, get_used_exports},
-  utils::{css_module_export_type, replace_css_module_id_placeholder, unescape},
+  utils::{
+    css_generator_options, css_module_export_type, replace_css_module_id_placeholder, unescape,
+  },
 };
 
 pub fn update_css_exports(exports: &mut CssExports, name: &str, css_export: CssExport) -> bool {
@@ -54,15 +56,13 @@ impl<'a, 'g> CssModuleGenerator<'a, 'g> {
     module: &'a dyn Module,
     generate_context: &'a mut GenerateContext<'g>,
     with_hmr: bool,
-    export_type: Option<CssExportType>,
-    exports_only: bool,
-    es_module: bool,
   ) -> Self {
     let css_build_info = module
       .build_info()
       .css
       .as_deref()
       .expect("CssParserAndGenerator should populate BuildInfo.css during parse");
+    let generator_options = css_generator_options(generate_context.module_generator_options);
 
     Self {
       source,
@@ -70,9 +70,11 @@ impl<'a, 'g> CssModuleGenerator<'a, 'g> {
       css_build_info,
       generate_context,
       with_hmr,
-      export_type,
-      exports_only,
-      es_module,
+      export_type: css_module_export_type(module),
+      exports_only: generator_options
+        .exports_only
+        .expect("should have exports_only"),
+      es_module: generator_options.es_module.expect("should have es_module"),
       module_argument: None,
       concat_source: Default::default(),
     }
@@ -125,15 +127,7 @@ impl<'a, 'g> CssModuleGenerator<'a, 'g> {
     source: &'b BoxSource,
     module: &'b dyn Module,
   ) -> CssModuleGenerator<'b, 'g> {
-    CssModuleGenerator::new(
-      source,
-      module,
-      self.generate_context,
-      self.with_hmr,
-      css_module_export_type(module),
-      self.exports_only,
-      self.es_module,
-    )
+    CssModuleGenerator::new(source, module, self.generate_context, self.with_hmr)
   }
 
   pub(crate) fn render_css_module_source(&mut self) -> BoxSource {

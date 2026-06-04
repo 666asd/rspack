@@ -2,13 +2,13 @@ use std::{path::Path, sync::Arc};
 
 use once_cell::sync::OnceCell;
 use rspack_core::{
-  BoxDependencyTemplate, BoxModuleDependency, ConstDependency, CssAutoOrModuleParserOptions,
-  CssExport, CssExportType, CssExports, CssExportsConvention, CssLayer, CssLocalNames,
-  CssModuleGeneratorOptions, CssModuleRenderCondition, CssParserImport, CssParserImportContext,
-  Dependency, DependencyId, DependencyRange, ModuleType, ParseContext, ParseResult, ResourceData,
-  StaticExportsDependency, StaticExportsSpec,
-  diagnostics::map_box_diagnostics_to_module_parse_diagnostics, remove_bom, rspack_sources::Source,
-  topological_sort,
+  BoxDependencyTemplate, BoxModuleDependency, BuildMetaDefaultObject, BuildMetaExportsType,
+  ConstDependency, CssAutoOrModuleParserOptions, CssExport, CssExportType, CssExports,
+  CssExportsConvention, CssLayer, CssLocalNames, CssModuleGeneratorOptions,
+  CssModuleRenderCondition, CssParserImport, CssParserImportContext, Dependency, DependencyId,
+  DependencyRange, ModuleType, ParseContext, ParseResult, ResourceData, StaticExportsDependency,
+  StaticExportsSpec, diagnostics::map_box_diagnostics_to_module_parse_diagnostics, remove_bom,
+  rspack_sources::Source, topological_sort,
 };
 use rspack_error::{Diagnostic, IntoTWithDiagnosticArray, Result, Severity, TWithDiagnosticArray};
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -23,13 +23,13 @@ use crate::{
   parser_and_generator::generator::update_css_exports,
   utils::{
     LocalIdentModuleHashOptions, LocalIdentOptions, PresentationalDependencyHashUpdate,
-    css_parsing_traceable_error, export_locals_convention, normalize_url,
-    replace_module_request_prefix, unescape,
+    css_generator_options, css_parser_options, css_parsing_traceable_error,
+    export_locals_convention, normalize_url, replace_module_request_prefix, unescape,
   },
 };
 
 pub(super) struct CssModuleParser<'context> {
-  parser_options: &'context CssAutoOrModuleParserOptions,
+  parser_options: CssAutoOrModuleParserOptions,
   generator_options: &'context CssModuleGeneratorOptions,
   exports_only: bool,
   export_type: Option<CssExportType>,
@@ -174,12 +174,9 @@ fn is_custom_property_name(value: &str) -> bool {
 }
 
 impl<'context> CssModuleParser<'context> {
-  pub fn new(
-    parser_options: &'context CssAutoOrModuleParserOptions,
-    generator_options: &'context CssModuleGeneratorOptions,
-    exports_only: bool,
-    parse_context: ParseContext<'context>,
-  ) -> Self {
+  pub fn new(parse_context: ParseContext<'context>) -> Self {
+    let parser_options = css_parser_options(parse_context.module_parser_options);
+    let generator_options = css_generator_options(parse_context.module_generator_options);
     let source = remove_bom(parse_context.source.clone());
     let source_code: Arc<str> = source.source().into_string_lossy().into();
     let (inherited_render_conditions, render_condition) = parse_context
@@ -199,6 +196,9 @@ impl<'context> CssModuleParser<'context> {
       .as_deref()
       .and_then(|css_build_info| css_build_info.export_type)
       .or(parser_options.export_type);
+    let exports_only = generator_options
+      .exports_only
+      .expect("should have exports_only");
 
     Self {
       parser_options,
@@ -225,6 +225,22 @@ impl<'context> CssModuleParser<'context> {
   }
 
   pub async fn parse(mut self) -> Result<TWithDiagnosticArray<ParseResult>> {
+    let named_exports = self
+      .parser_options
+      .named_exports
+      .expect("should have named_exports");
+    self.parse_context.build_info.strict = true;
+    self.parse_context.build_meta.exports_type = if named_exports {
+      BuildMetaExportsType::Namespace
+    } else {
+      BuildMetaExportsType::Default
+    };
+    self.parse_context.build_meta.default_object = if named_exports {
+      BuildMetaDefaultObject::False
+    } else {
+      BuildMetaDefaultObject::Redirect
+    };
+
     let mode = self.mode();
     let deps_source_code = self.source_code.clone();
     let (deps, warnings) = css_module_lexer::collect_dependencies(&deps_source_code, mode);
