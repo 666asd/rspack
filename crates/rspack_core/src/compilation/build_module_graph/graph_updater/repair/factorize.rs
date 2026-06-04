@@ -168,15 +168,21 @@ impl Task<TaskContext> for FactorizeResultTask {
         .insert(*dependencies[0].id());
     }
     let resource_id = ResourceId::from(*dependencies[0].id());
-    artifact
-      .file_dependencies
-      .add_files(&resource_id, factorize_info.file_dependencies());
-    artifact
-      .context_dependencies
-      .add_files(&resource_id, factorize_info.context_dependencies());
-    artifact
-      .missing_dependencies
-      .add_files(&resource_id, factorize_info.missing_dependencies());
+    if let Some(file_dependencies) = factorize_info.file_dependencies() {
+      artifact
+        .file_dependencies
+        .add_files(&resource_id, file_dependencies);
+    }
+    if let Some(context_dependencies) = factorize_info.context_dependencies() {
+      artifact
+        .context_dependencies
+        .add_files(&resource_id, context_dependencies);
+    }
+    if let Some(missing_dependencies) = factorize_info.missing_dependencies() {
+      artifact
+        .missing_dependencies
+        .add_files(&resource_id, missing_dependencies);
+    }
 
     for dep in &mut dependencies {
       // Some dependencies do not come from the process_dependencies task,

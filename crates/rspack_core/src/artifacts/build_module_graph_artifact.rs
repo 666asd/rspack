@@ -132,15 +132,21 @@ impl BuildModuleGraphArtifact {
       let dep = mg.dependency_by_id_mut(&dep_id);
       if let Some(info) = FactorizeInfo::revoke(dep) {
         let resource_id = ResourceId::from(dep_id);
-        self
-          .file_dependencies
-          .remove_files(&resource_id, info.file_dependencies());
-        self
-          .context_dependencies
-          .remove_files(&resource_id, info.context_dependencies());
-        self
-          .missing_dependencies
-          .remove_files(&resource_id, info.missing_dependencies());
+        if let Some(file_dependencies) = info.file_dependencies() {
+          self
+            .file_dependencies
+            .remove_files(&resource_id, file_dependencies);
+        }
+        if let Some(context_dependencies) = info.context_dependencies() {
+          self
+            .context_dependencies
+            .remove_files(&resource_id, context_dependencies);
+        }
+        if let Some(missing_dependencies) = info.missing_dependencies() {
+          self
+            .missing_dependencies
+            .remove_files(&resource_id, missing_dependencies);
+        }
       }
       self.affected_dependencies.mark_as_remove(&dep_id);
     }
@@ -161,15 +167,21 @@ impl BuildModuleGraphArtifact {
     let revoke_dep_ids =
       if let Some(factorize_info) = FactorizeInfo::revoke(mg.dependency_by_id_mut(dep_id)) {
         let resource_id = ResourceId::from(dep_id);
-        self
-          .file_dependencies
-          .remove_files(&resource_id, factorize_info.file_dependencies());
-        self
-          .context_dependencies
-          .remove_files(&resource_id, factorize_info.context_dependencies());
-        self
-          .missing_dependencies
-          .remove_files(&resource_id, factorize_info.missing_dependencies());
+        if let Some(file_dependencies) = factorize_info.file_dependencies() {
+          self
+            .file_dependencies
+            .remove_files(&resource_id, file_dependencies);
+        }
+        if let Some(context_dependencies) = factorize_info.context_dependencies() {
+          self
+            .context_dependencies
+            .remove_files(&resource_id, context_dependencies);
+        }
+        if let Some(missing_dependencies) = factorize_info.missing_dependencies() {
+          self
+            .missing_dependencies
+            .remove_files(&resource_id, missing_dependencies);
+        }
         factorize_info.related_dep_ids_for_revoke(*dep_id)
       } else {
         vec![*dep_id]
