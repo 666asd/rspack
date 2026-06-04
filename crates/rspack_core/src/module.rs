@@ -140,8 +140,6 @@ pub enum CssLayer {
   Named(#[cacheable(with=AsPreset)] SmolStr),
 }
 
-pub type CssModuleRenderLayer = CssLayer;
-
 #[cacheable]
 #[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
 pub struct CssModuleRenderCondition {
