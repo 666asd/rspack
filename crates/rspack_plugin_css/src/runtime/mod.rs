@@ -268,27 +268,29 @@ installedChunks[chunkId] = 0;
         ),
       );
       let load_initial_chunk_data = if initial_chunk_ids.len() > 2 {
-        let mut chunk_ids = String::new();
-        for id in &initial_chunk_ids {
-          if !chunk_ids.is_empty() {
-            chunk_ids.push(',');
-          }
-          chunk_ids.push_str(&rspack_util::json_stringify(id));
-        }
         Cow::Owned(format!(
-          "[{chunk_ids}].forEach(loadCssChunkData.bind(null, {}, 0));",
+          "[{}].forEach(loadCssChunkData.bind(null, {}, 0));",
+          initial_chunk_ids
+            .iter()
+            .map(rspack_util::json_stringify)
+            .collect::<Vec<_>>()
+            .join(","),
           runtime_template.render_runtime_globals(&RuntimeGlobals::MODULE_FACTORIES)
         ))
       } else if !initial_chunk_ids.is_empty() {
-        let mut chunk_data = String::new();
-        for id in &initial_chunk_ids {
-          chunk_data.push_str(&format!(
-            "loadCssChunkData({}, 0, {});",
-            runtime_template.render_runtime_globals(&RuntimeGlobals::MODULE_FACTORIES),
-            rspack_util::json_stringify(id)
-          ));
-        }
-        Cow::Owned(chunk_data)
+        Cow::Owned(
+          initial_chunk_ids
+            .iter()
+            .map(|id| {
+              let id = rspack_util::json_stringify(id);
+              format!(
+                "loadCssChunkData({}, 0, {});",
+                runtime_template.render_runtime_globals(&RuntimeGlobals::MODULE_FACTORIES),
+                id
+              )
+            })
+            .collect::<String>(),
+        )
       } else {
         Cow::Borrowed("// no initial css")
       };

@@ -428,15 +428,6 @@ impl Default for CssParserOptions {
   }
 }
 
-impl CssParserOptions {
-  pub fn new(export_type: Option<CssExportType>) -> Self {
-    Self {
-      export_type,
-      ..Default::default()
-    }
-  }
-}
-
 #[cacheable]
 #[derive(Debug, Clone, MergeFrom)]
 pub struct CssModuleParserOptions {
@@ -486,15 +477,6 @@ pub struct CssAutoOrModuleParserOptions {
   pub r#function: Option<bool>,
   pub grid: Option<bool>,
   pub pure: Option<bool>,
-}
-
-impl CssModuleParserOptions {
-  pub fn new(export_type: Option<CssExportType>) -> Self {
-    Self {
-      export_type,
-      ..Default::default()
-    }
-  }
 }
 
 impl From<&CssParserOptions> for CssModuleParserOptions {

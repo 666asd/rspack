@@ -406,45 +406,6 @@ impl<'context> CssModuleParser<'context> {
             );
           }
         }
-        css_module_lexer::Dependency::LocalContainer { name, .. }
-        | css_module_lexer::Dependency::LocalContainerDecl { name, .. }
-          if self.container() =>
-        {
-          if let Some(convention) = convention {
-            self.collect_export_dependency_name(
-              unescape(name).into_owned(),
-              convention,
-              &mut export_dependency_names,
-              &mut graph_export_name_set,
-            );
-          }
-        }
-        css_module_lexer::Dependency::LocalFunction { name, .. }
-        | css_module_lexer::Dependency::LocalFunctionDecl { name, .. }
-          if self.function() =>
-        {
-          if let Some(convention) = convention {
-            self.collect_export_dependency_name(
-              unescape(name).into_owned(),
-              convention,
-              &mut export_dependency_names,
-              &mut graph_export_name_set,
-            );
-          }
-        }
-        css_module_lexer::Dependency::LocalGrid { name, .. }
-        | css_module_lexer::Dependency::LocalGridDecl { name, .. }
-          if self.grid() =>
-        {
-          if let Some(convention) = convention {
-            self.collect_export_dependency_name(
-              unescape(name).into_owned(),
-              convention,
-              &mut export_dependency_names,
-              &mut graph_export_name_set,
-            );
-          }
-        }
         css_module_lexer::Dependency::LocalVar { name, .. }
         | css_module_lexer::Dependency::LocalVarDecl { name, .. }
         | css_module_lexer::Dependency::LocalPropertyDecl { name, .. }
