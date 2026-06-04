@@ -239,7 +239,6 @@ pub fn generate_javascript_hmr_runtime(
     Some(serde_json::json!({
       "_loading_method": method,
       "_is_hot_test": is_hot_test(),
-      "RUNTIME_REQUIRE": runtime_template.render_runtime_argument(),
     })),
   )
 }

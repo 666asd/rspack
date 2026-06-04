@@ -526,22 +526,6 @@ impl RuntimeGlobals {
     self
       .intersection(*REQUIRE_SCOPE_GLOBALS)
       .difference(RuntimeGlobals::REQUIRE_SCOPE)
-      .difference(RuntimeGlobals::HMR_RUNTIME_STATE_PREFIX)
-  }
-
-  pub fn runtime_context_additional_requirements(self) -> Self {
-    let mut requirements = RuntimeGlobals::default();
-    if self.intersects(RuntimeGlobals::HMR_DOWNLOAD_UPDATE_HANDLERS) {
-      requirements.insert(RuntimeGlobals::ENSURE_CHUNK_HANDLERS);
-    }
-    if self.intersects(
-      RuntimeGlobals::ENSURE_CHUNK_HANDLERS
-        | RuntimeGlobals::LOAD_SCRIPT
-        | RuntimeGlobals::CREATE_SCRIPT,
-    ) {
-      requirements.insert(RuntimeGlobals::SCRIPT_NONCE);
-    }
-    requirements
   }
 
   pub fn to_lexical_name(&self) -> Option<&str> {

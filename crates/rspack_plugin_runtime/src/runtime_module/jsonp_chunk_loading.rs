@@ -417,7 +417,6 @@ impl RuntimeModule for JsonpChunkLoadingRuntimeModule {
         Some(serde_json::json!({
           "_chunk_loading_global_expr": &chunk_loading_global_expr,
           "_with_on_chunk_load": with_on_chunk_load,
-          "RUNTIME_REQUIRE": runtime_template.render_runtime_argument(),
         })),
       )?;
 

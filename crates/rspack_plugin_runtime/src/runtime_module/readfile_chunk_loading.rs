@@ -256,7 +256,6 @@ impl RuntimeModule for ReadFileChunkLoadingRuntimeModule {
             true => format!("{}();", runtime_template.render_runtime_globals(&RuntimeGlobals::ON_CHUNKS_LOADED)),
             false => String::new(),
           },
-          "RUNTIME_REQUIRE": runtime_template.render_runtime_argument(),
         })),
       )?;
 
@@ -295,9 +294,7 @@ impl RuntimeModule for ReadFileChunkLoadingRuntimeModule {
     if with_external_install_chunk {
       let source_with_external_install_chunk = runtime_template.render(
         &self.template_id(TemplateId::WithExternalInstallChunk),
-        Some(serde_json::json!({
-          "RUNTIME_REQUIRE": runtime_template.render_runtime_argument(),
-        })),
+        None,
       )?;
 
       source.push_str(&source_with_external_install_chunk);

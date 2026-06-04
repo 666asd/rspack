@@ -1,10 +1,9 @@
 use std::{borrow::Cow, ptr::NonNull, sync::LazyLock};
 
 use rspack_core::{
-  BooleanMatcher, ChunkGroupOrderKey, Compilation, CrossOriginLoading, RuntimeGlobals,
-  RuntimeModule, RuntimeModuleGenerateContext, RuntimeModuleStage, RuntimeTemplate,
-  chunk_graph_chunk::ChunkIdSet, compile_boolean_matcher, impl_runtime_module,
-  runtime_mode::RuntimeMode,
+  BooleanMatcher, ChunkGroupOrderKey, CrossOriginLoading, RuntimeGlobals, RuntimeModule,
+  RuntimeModuleGenerateContext, RuntimeModuleStage, RuntimeTemplate, chunk_graph_chunk::ChunkIdSet,
+  compile_boolean_matcher, impl_runtime_module,
 };
 use rspack_plugin_runtime::{
   CreateLinkData, LinkPrefetchData, LinkPreloadData, RuntimeModuleChunkWrapper, RuntimePlugin,
@@ -96,42 +95,6 @@ enum TemplateId {
 
 #[async_trait::async_trait]
 impl RuntimeModule for CssLoadingRuntimeModule {
-  fn additional_runtime_requirements(&self, compilation: &Compilation) -> RuntimeGlobals {
-    if compilation.options.experiments.runtime_mode != RuntimeMode::Rspack {
-      return RuntimeGlobals::default();
-    }
-
-    let Some(chunk_ukey) = self.chunk else {
-      return RuntimeGlobals::default();
-    };
-    let runtime_requirements = get_chunk_runtime_requirements(compilation, &chunk_ukey);
-    let with_loading = runtime_requirements.contains(RuntimeGlobals::ENSURE_CHUNK_HANDLERS);
-    let with_hmr = runtime_requirements.contains(RuntimeGlobals::HMR_DOWNLOAD_UPDATE_HANDLERS);
-    let mut requirements = RuntimeGlobals::default();
-
-    if with_loading || with_hmr {
-      requirements.extend(*CSS_LOADING_BASIC_RUNTIME_REQUIREMENTS);
-      requirements.extend(extract_runtime_globals_from_ejs(
-        CSS_LOADING_CREATE_LINK_TEMPLATE,
-      ));
-      requirements.insert(RuntimeGlobals::SCRIPT_NONCE);
-    }
-    if with_loading {
-      requirements.extend(*CSS_LOADING_WITH_LOADING_RUNTIME_REQUIREMENTS);
-      if runtime_requirements.contains(RuntimeGlobals::PREFETCH_CHUNK_HANDLERS) {
-        requirements.extend(*CSS_LOADING_WITH_PREFETCH_RUNTIME_REQUIREMENTS);
-      }
-      if runtime_requirements.contains(RuntimeGlobals::PRELOAD_CHUNK_HANDLERS) {
-        requirements.extend(*CSS_LOADING_WITH_PRELOAD_RUNTIME_REQUIREMENTS);
-      }
-    }
-    if with_hmr {
-      requirements.extend(*CSS_LOADING_WITH_HMR_RUNTIME_REQUIREMENTS);
-    }
-
-    requirements
-  }
-
   fn template(&self) -> Vec<(String, String)> {
     vec![
       (

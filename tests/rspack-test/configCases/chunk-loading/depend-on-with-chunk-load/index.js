@@ -10,7 +10,7 @@ it("should have runtime __webpack_require__.f.j", async () => {
 	expect(
 		code.includes(
 			isRspackRuntime
-				? "ensureChunkHandlers.j"
+				? "__rspack_context.f.j"
 				: "__webpack_require__.f.j"
 		)
 	).toBe(true);

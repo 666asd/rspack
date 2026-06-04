@@ -4,7 +4,7 @@ use itertools::Itertools;
 use rspack_core::{
   BooleanMatcher, ChunkUkey, Compilation, RuntimeGlobals, RuntimeModule,
   RuntimeModuleGenerateContext, RuntimeModuleStage, RuntimeTemplate, compile_boolean_matcher,
-  impl_runtime_module, runtime_mode::RuntimeMode,
+  impl_runtime_module,
 };
 use rspack_error::Result;
 use rspack_plugin_runtime::{
@@ -138,29 +138,6 @@ enum TemplateId {
 impl RuntimeModule for CssLoadingRuntimeModule {
   fn stage(&self) -> RuntimeModuleStage {
     RuntimeModuleStage::Attach
-  }
-
-  fn additional_runtime_requirements(&self, compilation: &Compilation) -> RuntimeGlobals {
-    if compilation.options.experiments.runtime_mode != RuntimeMode::Rspack {
-      return RuntimeGlobals::default();
-    }
-
-    let Some(chunk_ukey) = self.chunk else {
-      return RuntimeGlobals::default();
-    };
-    let runtime_requirements = get_chunk_runtime_requirements(compilation, &chunk_ukey);
-    let mut requirements = Self::get_runtime_requirements(runtime_requirements);
-
-    if runtime_requirements.contains(RuntimeGlobals::ENSURE_CHUNK_HANDLERS)
-      || runtime_requirements.contains(RuntimeGlobals::HMR_DOWNLOAD_UPDATE_HANDLERS)
-    {
-      requirements.extend(extract_runtime_globals_from_ejs(
-        CSS_LOADING_CREATE_LINK_TEMPLATE,
-      ));
-      requirements.insert(RuntimeGlobals::SCRIPT_NONCE);
-    }
-
-    requirements
   }
 
   fn template(&self) -> Vec<(String, String)> {

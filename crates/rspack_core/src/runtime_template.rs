@@ -286,17 +286,6 @@ fn runtime_globals_to_render_map(render_mode: RuntimeGlobalRenderMode) -> Runtim
       RuntimeGlobalRenderMode::RspackModule => {
         if runtime_globals == RuntimeGlobals::REQUIRE {
           format!("{}.r", runtime_variable_name(&RuntimeVariable::Context))
-        } else if runtime_globals == RuntimeGlobals::HMR_RUNTIME_STATE_PREFIX {
-          format!(
-            "{}.r{}",
-            runtime_variable_name(&RuntimeVariable::Context),
-            property_access(
-              [runtime_globals
-                .property_name()
-                .expect("runtime global should have a property name")],
-              0
-            )
-          )
         } else if runtime_globals.renderable_require_scope() == runtime_globals {
           if let Some(name) = runtime_globals.property_name() {
             format!(
@@ -314,17 +303,8 @@ fn runtime_globals_to_render_map(render_mode: RuntimeGlobalRenderMode) -> Runtim
       RuntimeGlobalRenderMode::RspackRuntimeModule => {
         if runtime_globals == RuntimeGlobals::REQUIRE {
           format!("{}.r", runtime_variable_name(&RuntimeVariable::Context))
-        } else if runtime_globals == RuntimeGlobals::HMR_RUNTIME_STATE_PREFIX {
-          format!(
-            "{}.r{}",
-            runtime_variable_name(&RuntimeVariable::Context),
-            property_access(
-              [runtime_globals
-                .property_name()
-                .expect("runtime global should have a property name")],
-              0
-            )
-          )
+        } else if runtime_global_should_render_as_context_property(runtime_globals) {
+          render_runtime_context_property(runtime_globals)
         } else if runtime_globals.renderable_require_scope() == runtime_globals {
           runtime_globals
             .to_lexical_name()
@@ -339,12 +319,47 @@ fn runtime_globals_to_render_map(render_mode: RuntimeGlobalRenderMode) -> Runtim
     template_values.insert(name.to_string(), Value::String(rendered.clone()));
     runtime_values.insert(runtime_globals, rendered);
   }
+  template_values.insert(
+    "RUNTIME_REQUIRE".to_string(),
+    Value::String(match render_mode {
+      RuntimeGlobalRenderMode::Webpack => runtime_globals_to_string(&RuntimeGlobals::REQUIRE),
+      RuntimeGlobalRenderMode::RspackModule | RuntimeGlobalRenderMode::RspackRuntimeModule => {
+        runtime_variable_name(&RuntimeVariable::Context).to_string()
+      }
+    }),
+  );
 
   runtime_values.shrink_to_fit();
 
   RuntimeGlobalsRenderMap {
     template_values,
     runtime_values,
+  }
+}
+
+fn runtime_global_should_render_as_context_property(runtime_globals: RuntimeGlobals) -> bool {
+  matches!(
+    runtime_globals,
+    RuntimeGlobals::ENSURE_CHUNK_HANDLERS
+      | RuntimeGlobals::PREFETCH_CHUNK_HANDLERS
+      | RuntimeGlobals::PRELOAD_CHUNK_HANDLERS
+      | RuntimeGlobals::ON_CHUNKS_LOADED
+      | RuntimeGlobals::HMR_DOWNLOAD_UPDATE_HANDLERS
+      | RuntimeGlobals::HMR_INVALIDATE_MODULE_HANDLERS
+      | RuntimeGlobals::HMR_RUNTIME_STATE_PREFIX
+      | RuntimeGlobals::SCRIPT_NONCE
+  )
+}
+
+fn render_runtime_context_property(runtime_globals: RuntimeGlobals) -> String {
+  if let Some(name) = runtime_globals.property_name() {
+    format!(
+      "{}{}",
+      runtime_variable_name(&RuntimeVariable::Context),
+      property_access([name], 0)
+    )
+  } else {
+    runtime_globals_to_string(&runtime_globals)
   }
 }
 

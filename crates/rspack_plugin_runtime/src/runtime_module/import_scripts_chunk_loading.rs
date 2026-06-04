@@ -217,7 +217,6 @@ impl RuntimeModule for ImportScriptsChunkLoadingRuntimeModule {
             "{}[\"{}\"]",
             &compilation.options.output.global_object, &compilation.options.output.chunk_loading_global
           ),
-          "RUNTIME_REQUIRE": runtime_template.render_runtime_argument(),
         })),
       )?;
 

@@ -577,14 +577,6 @@ pub async fn process_chunks_runtime_requirements(
             .renderable_require_scope(),
         );
       }
-
-      let chunk_runtime_requirements =
-        ChunkGraph::get_chunk_runtime_requirements(compilation, chunk_ukey);
-      metadata.runtime_module_requirements.insert(
-        chunk_runtime_requirements
-          .runtime_context_additional_requirements()
-          .renderable_require_scope(),
-      );
     }
 
     metadata.hook_exposed_requirements.insert(
