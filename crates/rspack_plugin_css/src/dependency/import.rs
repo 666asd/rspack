@@ -1,6 +1,6 @@
 use rspack_cacheable::{cacheable, cacheable_dyn};
 use rspack_core::{
-  AsContextDependency, CssModuleRenderCondition, Dependency, DependencyCategory,
+  AsContextDependency, CssExportType, CssModuleRenderCondition, Dependency, DependencyCategory,
   DependencyCodeGeneration, DependencyId, DependencyRange, DependencyTemplate,
   DependencyTemplateType, DependencyType, FactorizeInfo, ModuleDependency, ResourceIdentifier,
   TemplateContext, TemplateReplaceSource, css_module_render_conditions_identifier,
@@ -16,6 +16,7 @@ pub struct CssImportDependency {
   source_order: i32,
   inherited_render_conditions: Vec<CssModuleRenderCondition>,
   render_condition: CssModuleRenderCondition,
+  export_type: Option<CssExportType>,
   resource_identifier: ResourceIdentifier,
   factorize_info: FactorizeInfo,
 }
@@ -26,9 +27,14 @@ impl CssImportDependency {
     range: DependencyRange,
     inherited_render_conditions: Vec<CssModuleRenderCondition>,
     render_condition: CssModuleRenderCondition,
+    export_type: Option<CssExportType>,
   ) -> Self {
-    let resource_identifier =
-      create_resource_identifier(&request, &inherited_render_conditions, &render_condition);
+    let resource_identifier = create_resource_identifier(
+      &request,
+      &inherited_render_conditions,
+      &render_condition,
+      export_type,
+    );
     Self {
       id: DependencyId::new(),
       request,
@@ -36,6 +42,7 @@ impl CssImportDependency {
       source_order: source_order_to_i32(range.start),
       inherited_render_conditions,
       render_condition,
+      export_type,
       resource_identifier,
       factorize_info: Default::default(),
     }
@@ -51,6 +58,10 @@ impl CssImportDependency {
 
   pub fn render_conditions(&self) -> impl Iterator<Item = &CssModuleRenderCondition> {
     iter_css_module_render_conditions(&self.inherited_render_conditions, &self.render_condition)
+  }
+
+  pub fn export_type(&self) -> Option<CssExportType> {
+    self.export_type
   }
 
   pub fn has_render_conditions(&self) -> bool {
@@ -125,6 +136,7 @@ fn create_resource_identifier(
   request: &str,
   inherited_render_conditions: &[CssModuleRenderCondition],
   render_condition: &CssModuleRenderCondition,
+  export_type: Option<CssExportType>,
 ) -> ResourceIdentifier {
   let category = DependencyCategory::CssImport.as_str();
   let mut identifier = String::with_capacity(category.len() + request.len() + 16);
@@ -136,6 +148,12 @@ fn create_resource_identifier(
   ) {
     identifier.push('|');
     identifier.push_str(&conditions_identifier);
+  }
+
+  if let Some(export_type) = export_type {
+    identifier.push('|');
+    identifier.push_str("exportType=");
+    identifier.push_str(&export_type.to_string());
   }
 
   identifier.into()
@@ -182,6 +200,7 @@ mod tests {
         Some("display: grid".into()),
         Some(CssLayer::Named("theme".into())),
       ),
+      None,
     );
     let second = create_resource_identifier(
       "./style.css",
@@ -191,6 +210,7 @@ mod tests {
         Some("display: grid".into()),
         Some(CssLayer::Named("theme".into())),
       ),
+      None,
     );
 
     assert_ne!(first, second);
@@ -202,11 +222,13 @@ mod tests {
       "a|1:b",
       &[],
       &CssModuleRenderCondition::new(None, Some("x|1:y".into()), None),
+      None,
     );
     let second = create_resource_identifier(
       "a",
       &[],
       &CssModuleRenderCondition::new(None, Some("1:b|x|1:y".into()), None),
+      None,
     );
 
     assert_ne!(first, second);
