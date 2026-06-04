@@ -110,13 +110,18 @@ impl Task<TaskContext> for FactorizeTask {
       }
     };
 
-    let factorize_info = FactorizeInfo::new(
-      create_data.diagnostics,
+    let related_dep_ids = if create_data.dependencies.len() > 1 {
       create_data
         .dependencies
         .iter()
         .map(|dep| *dep.id())
-        .collect(),
+        .collect()
+    } else {
+      Vec::new()
+    };
+    let factorize_info = FactorizeInfo::new(
+      create_data.diagnostics,
+      related_dep_ids,
       create_data.file_dependencies,
       create_data.context_dependencies,
       create_data.missing_dependencies,

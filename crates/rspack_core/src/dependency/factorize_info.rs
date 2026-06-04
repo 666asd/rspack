@@ -11,18 +11,12 @@ static EMPTY_ARC_PATH_SET: LazyLock<ArcPathSet> = LazyLock::new(ArcPathSet::defa
 #[cacheable]
 #[derive(Debug, Clone, Default)]
 pub struct FactorizeInfo {
-  /// Whether this value came from a factorization result.
-  ///
-  /// A default value is also stored on secondary dependencies after their
-  /// factorization group's info has been moved to the first dependency; keep
-  /// this flag so revocation can preserve the previous "no related ids"
-  /// behavior for those defaults.
-  has_info: bool,
   /// Dependencies resolved by the same factorization task.
   ///
-  /// `None` represents the overwhelmingly common "only this dependency" case.
-  /// Callers that revoke a dependency already know the owner dependency id and
-  /// can use that id when this field is absent.
+  /// `None` represents a default placeholder, while `Some([])` represents the
+  /// overwhelmingly common "only this dependency" case. Callers that revoke a
+  /// dependency already know the owner dependency id and can use that id for
+  /// this single-dependency case without storing it in every hot dependency.
   related_dep_ids: Option<Box<[DependencyId]>>,
   file_dependencies: Option<Box<ArcPathSet>>,
   context_dependencies: Option<Box<ArcPathSet>>,
@@ -38,9 +32,14 @@ impl FactorizeInfo {
     context_dependencies: ArcPathSet,
     missing_dependencies: ArcPathSet,
   ) -> Self {
+    let related_dep_ids = Some(if related_dep_ids.len() > 1 {
+      related_dep_ids.into_boxed_slice()
+    } else {
+      Box::default()
+    });
+
     Self {
-      has_info: true,
-      related_dep_ids: (related_dep_ids.len() > 1).then_some(related_dep_ids.into_boxed_slice()),
+      related_dep_ids,
       file_dependencies: (!file_dependencies.is_empty()).then_some(Box::new(file_dependencies)),
       context_dependencies: (!context_dependencies.is_empty())
         .then_some(Box::new(context_dependencies)),
@@ -82,13 +81,10 @@ impl FactorizeInfo {
   }
 
   pub fn related_dep_ids_for_revoke(&self, dep_id: DependencyId) -> Vec<DependencyId> {
-    let related_dep_ids = self.related_dep_ids();
-    if !related_dep_ids.is_empty() {
-      related_dep_ids.to_vec()
-    } else if self.has_info {
-      vec![dep_id]
-    } else {
-      vec![]
+    match &self.related_dep_ids {
+      Some(related_dep_ids) if !related_dep_ids.is_empty() => related_dep_ids.to_vec(),
+      Some(_) => vec![dep_id],
+      None => vec![],
     }
   }
 
