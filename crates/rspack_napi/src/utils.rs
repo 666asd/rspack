@@ -96,7 +96,7 @@ impl ValidateNapiValue for JsonValue {}
 impl FromNapiValue for JsonValue {
   unsafe fn from_napi_value(env: sys::napi_env, napi_val: sys::napi_value) -> napi::Result<Self> {
     let unknown = unsafe { Unknown::from_napi_value(env, napi_val)? };
-    unknown_to_json_value(unknown)?
+    unknown_to_json_value_with_mode(unknown, JsonConversionMode::Strict)?
       .map(Self)
       .ok_or_else(|| napi::Error::from_reason("Unsupported value for JSON conversion"))
   }
@@ -196,14 +196,27 @@ pub unsafe fn json_value_to_napi_value(
   }
 }
 
+#[derive(Clone, Copy)]
+enum JsonConversionMode {
+  Lenient,
+  Strict,
+}
+
 pub fn unknown_to_json_value(value: Unknown) -> napi::Result<Option<simd_json::OwnedValue>> {
+  unknown_to_json_value_with_mode(value, JsonConversionMode::Lenient)
+}
+
+fn unknown_to_json_value_with_mode(
+  value: Unknown,
+  mode: JsonConversionMode,
+) -> napi::Result<Option<simd_json::OwnedValue>> {
   if value.is_array()? {
     let js_array = Array::from_unknown(value)?;
     let mut array = Vec::with_capacity(js_array.len() as usize);
 
     for index in 0..js_array.len() {
       if let Some(item) = js_array.get::<Unknown>(index)? {
-        if let Some(json_val) = unknown_to_json_value(item)? {
+        if let Some(json_val) = unknown_to_json_value_with_mode(item, mode)? {
           array.push(json_val);
         } else {
           array.push(().into());
@@ -241,8 +254,12 @@ pub fn unknown_to_json_value(value: Unknown) -> napi::Result<Option<simd_json::O
           if matches!(prop_val.get_type()?, napi::ValueType::Undefined) {
             continue;
           }
-          if let Some(json_val) = unknown_to_json_value(prop_val)? {
+          if let Some(json_val) = unknown_to_json_value_with_mode(prop_val, mode)? {
             map.insert(name, json_val);
+          } else if matches!(mode, JsonConversionMode::Strict) {
+            return Err(napi::Error::from_reason(format!(
+              "Unsupported value for JSON conversion at property `{name}`"
+            )));
           }
         }
       }
