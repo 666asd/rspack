@@ -81,7 +81,7 @@ impl JavaScriptCompiler {
     } = options;
     let mut src_map_buf = vec![];
 
-    if source_map_config.source_map_kind.enabled() {
+    if source_map_config.source_map_kind.source_map() {
       let mut v = IdentCollector {
         names: Default::default(),
       };
@@ -100,7 +100,7 @@ impl JavaScriptCompiler {
           &mut buf,
           source_map_config
             .source_map_kind
-            .enabled()
+            .source_map()
             .then_some(&mut src_map_buf),
         );
 
@@ -127,7 +127,7 @@ impl JavaScriptCompiler {
       unsafe { String::from_utf8_unchecked(buf) }
     };
 
-    let map = if source_map_config.source_map_kind.enabled() {
+    let map = if source_map_config.source_map_kind.source_map() {
       let combined_source_map =
         source_map.build_source_map(&src_map_buf, input_source_map.cloned(), source_map_config);
 
