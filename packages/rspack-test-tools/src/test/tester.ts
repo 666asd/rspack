@@ -94,7 +94,7 @@ export class Tester implements ITester {
       await this.context.closeCompiler();
     } catch (e: any) {
       console.warn(
-        `Error occured while closing compilers of '${this.config.name}':\n${e.stack}`,
+        `Error occurred while closing compilers of '${this.config.name}':\n${e.stack}`,
       );
     }
     if (__DEBUG__) {
