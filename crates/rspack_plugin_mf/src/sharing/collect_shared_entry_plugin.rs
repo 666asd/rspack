@@ -84,8 +84,8 @@ impl CollectSharedEntryPlugin {
         }
         package_json_path.push("package.json");
         if package_json_path.exists()
-          && let Ok(content) = std::fs::read_to_string(&package_json_path)
-          && let Ok(json) = simd_json::from_reader::<_, simd_json::OwnedValue>(content.as_bytes())
+          && let Ok(mut content) = std::fs::read(&package_json_path)
+          && let Ok(json) = simd_json::to_borrowed_value(&mut content)
           && let Some(version) = json.get("version").and_then(|v| v.as_str())
         {
           return Some(version.to_string());

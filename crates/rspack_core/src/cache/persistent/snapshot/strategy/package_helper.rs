@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use rspack_fs::ReadableFileSystem;
 use rspack_paths::{ArcPath, ArcPathDashMap, AssertUtf8};
+use simd_json::prelude::{ValueAsScalar, ValueObjectAccess};
 
 /// A helper for finding package.json versions in directory hierarchies.
 #[derive(Debug)]
@@ -28,11 +29,10 @@ impl PackageHelper {
 
     let mut res = None;
     if let Ok(mut content) = self.fs.read(&path.join("package.json").assert_utf8()).await
-      && let Ok(mut package_json) =
-        simd_json::from_slice::<simd_json::value::owned::Object>(&mut content)
-      && let Some(simd_json::OwnedValue::String(version)) = package_json.remove("version")
+      && let Ok(package_json) = simd_json::to_borrowed_value(&mut content)
+      && let Some(version) = package_json.get("version").and_then(|v| v.as_str())
     {
-      res = Some(version);
+      res = Some(version.to_string());
     }
 
     if res.is_none()

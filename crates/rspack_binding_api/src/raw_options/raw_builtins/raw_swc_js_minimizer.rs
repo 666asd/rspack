@@ -55,9 +55,9 @@ where
     Ok(value) => Ok(value),
     Err(error) => {
       if let simd_json::OwnedValue::String(raw) = value
-        && let Ok(parsed) = simd_json::from_reader::<_, simd_json::OwnedValue>(raw.as_bytes())
+        && let Ok(parsed) = simd_json::to_borrowed_value(&mut raw.into_bytes())
       {
-        return simd_json::serde::from_owned_value(parsed).to_rspack_result();
+        return simd_json::serde::from_borrowed_value(parsed).to_rspack_result();
       }
 
       Err::<T, _>(error).to_rspack_result()

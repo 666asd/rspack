@@ -52,11 +52,11 @@ fn collect_description_file_paths(mut dir: &Path) -> Vec<PathBuf> {
 
 fn find_ancestor_description_data<T>(
   start_dir: &Path,
-  mut matcher: impl FnMut(&Path, &simd_json::OwnedValue) -> Option<T>,
+  mut matcher: impl FnMut(&Path, &simd_json::BorrowedValue) -> Option<T>,
 ) -> Option<T> {
   for description_file in collect_description_file_paths(start_dir) {
     if let Ok(mut data) = std::fs::read(&description_file)
-      && let Ok(data) = simd_json::from_slice::<simd_json::OwnedValue>(&mut data)
+      && let Ok(data) = simd_json::to_borrowed_value(&mut data)
       && let Some(dir) = description_file.parent()
       && let Some(value) = matcher(dir, &data)
     {

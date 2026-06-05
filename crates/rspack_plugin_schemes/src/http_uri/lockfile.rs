@@ -35,9 +35,8 @@ impl Lockfile {
     }
   }
 
-  pub fn parse(content: &str) -> Result<Self, String> {
-    let data: simd_json::OwnedValue =
-      simd_json::from_reader(content.as_bytes()).map_err(|e| e.to_string())?;
+  pub fn parse(content: &mut [u8]) -> Result<Self, String> {
+    let data = simd_json::to_borrowed_value(content).map_err(|e| e.to_string())?;
 
     let version = data.get("version").and_then(|v| v.as_u64()).unwrap_or(1);
 
@@ -51,7 +50,7 @@ impl Lockfile {
       for (key, value) in entries {
         let entry = if let Some(integrity) = value.as_str() {
           LockfileEntry {
-            resolved: key.clone(),
+            resolved: key.to_string(),
             integrity: integrity.to_string(),
             content_type: String::new(),
             valid_until: 0,
@@ -59,7 +58,7 @@ impl Lockfile {
           }
         } else {
           LockfileEntry {
-            resolved: key.clone(),
+            resolved: key.to_string(),
             integrity: value
               .get("integrity")
               .and_then(|v| v.as_str())
@@ -77,7 +76,7 @@ impl Lockfile {
             etag: value.get("etag").and_then(|v| v.as_str()).map(String::from),
           }
         };
-        lockfile.entries.insert(key.clone(), entry);
+        lockfile.entries.insert(key.to_string(), entry);
       }
     }
 
@@ -132,13 +131,11 @@ impl LockfileAsync for Lockfile {
   ) -> io::Result<Lockfile> {
     let utf8_path = Utf8Path::from_path(path.as_ref())
       .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput, "Invalid UTF-8 path"))?;
-    let content = filesystem
+    let mut content = filesystem
       .read_file(utf8_path)
       .await
       .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, format!("{e:?}")))?;
-    let content_str =
-      String::from_utf8(content).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
-    Lockfile::parse(&content_str).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
+    Lockfile::parse(&mut content).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
   }
 
   async fn write_to_file_async<P: AsRef<Path> + Send, F: WritableFileSystem + ?Sized>(
