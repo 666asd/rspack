@@ -43,14 +43,32 @@ pub struct RuntimeTemplate {
 static RUNTIME_GLOBALS_PATTERN: LazyLock<Regex> =
   LazyLock::new(|| Regex::new(r"\$\$RUNTIME_GLOBAL_(.*?)\$\$").expect("failed to create regex"));
 
-static WEBPACK_RUNTIME_GLOBALS: LazyLock<Arc<RuntimeGlobalsRenderMap>> =
-  LazyLock::new(|| Arc::new(runtime_globals_to_render_map(false, false)));
+static WEBPACK_RUNTIME_GLOBALS: LazyLock<Arc<RuntimeGlobalsRenderMap>> = LazyLock::new(|| {
+  Arc::new(runtime_globals_to_render_map(
+    RuntimeGlobalRenderMode::Webpack,
+  ))
+});
 
 static RSPACK_MODULE_RUNTIME_GLOBALS: LazyLock<Arc<RuntimeGlobalsRenderMap>> =
-  LazyLock::new(|| Arc::new(runtime_globals_to_render_map(true, false)));
+  LazyLock::new(|| {
+    Arc::new(runtime_globals_to_render_map(
+      RuntimeGlobalRenderMode::RspackModule,
+    ))
+  });
 
-static RSPACK_RUNTIME_GLOBALS: LazyLock<Arc<RuntimeGlobalsRenderMap>> =
-  LazyLock::new(|| Arc::new(runtime_globals_to_render_map(true, true)));
+static RSPACK_RUNTIME_GLOBALS: LazyLock<Arc<RuntimeGlobalsRenderMap>> = LazyLock::new(|| {
+  Arc::new(runtime_globals_to_render_map(
+    RuntimeGlobalRenderMode::RspackRuntimeModule,
+  ))
+});
+
+#[derive(Debug, Clone, Copy, Default, Eq, PartialEq)]
+pub enum RuntimeGlobalRenderMode {
+  #[default]
+  Webpack,
+  RspackModule,
+  RspackRuntimeModule,
+}
 
 #[derive(Debug)]
 struct RuntimeGlobalsRenderMap {
@@ -92,8 +110,8 @@ impl Debug for RuntimeTemplate {
 impl RuntimeTemplate {
   pub fn new(compiler_options: Arc<CompilerOptions>) -> Self {
     let runtime_mode = compiler_options.experiments.runtime_mode;
-    let runtime_globals = runtime_mode.runtime_globals_render_map();
-    let module_runtime_globals = runtime_mode.module_runtime_globals_render_map();
+    let runtime_globals = get_runtime_globals_render_map(runtime_mode.runtime_render_mode());
+    let module_runtime_globals = get_runtime_globals_render_map(runtime_mode.module_render_mode());
     let mut dojang = Dojang::new();
 
     let runtime_globals_cloned = runtime_globals.clone();
@@ -217,8 +235,7 @@ impl RuntimeTemplate {
       self.compiler_options.clone(),
       self.runtime_globals.clone(),
       self.dojang.as_ref().expect("dojang should be initialized"),
-      self.runtime_mode.uses_runtime_context(),
-      self.runtime_mode == RuntimeMode::Rspack,
+      self.runtime_mode.runtime_render_mode(),
     )
   }
 
@@ -227,67 +244,94 @@ impl RuntimeTemplate {
       self.compiler_options.clone(),
       self.module_runtime_globals.clone(),
       self.dojang.as_ref().expect("dojang should be initialized"),
-      self.runtime_mode.uses_runtime_context(),
-      false,
+      self.runtime_mode.module_render_mode(),
     )
   }
 }
 
 impl RuntimeMode {
-  fn module_runtime_globals_render_map(self) -> Arc<RuntimeGlobalsRenderMap> {
+  fn module_render_mode(self) -> RuntimeGlobalRenderMode {
     match self {
-      RuntimeMode::Webpack => WEBPACK_RUNTIME_GLOBALS.clone(),
-      RuntimeMode::Rspack => RSPACK_MODULE_RUNTIME_GLOBALS.clone(),
+      RuntimeMode::Webpack => RuntimeGlobalRenderMode::Webpack,
+      RuntimeMode::Rspack => RuntimeGlobalRenderMode::RspackModule,
     }
   }
 
-  fn runtime_globals_render_map(self) -> Arc<RuntimeGlobalsRenderMap> {
+  fn runtime_render_mode(self) -> RuntimeGlobalRenderMode {
     match self {
-      RuntimeMode::Webpack => WEBPACK_RUNTIME_GLOBALS.clone(),
-      RuntimeMode::Rspack => RSPACK_RUNTIME_GLOBALS.clone(),
+      RuntimeMode::Webpack => RuntimeGlobalRenderMode::Webpack,
+      RuntimeMode::Rspack => RuntimeGlobalRenderMode::RspackRuntimeModule,
     }
   }
 }
 
-fn runtime_globals_to_render_map(
-  uses_runtime_context: bool,
-  uses_lexical_runtime_globals: bool,
-) -> RuntimeGlobalsRenderMap {
+fn get_runtime_globals_render_map(
+  render_mode: RuntimeGlobalRenderMode,
+) -> Arc<RuntimeGlobalsRenderMap> {
+  match render_mode {
+    RuntimeGlobalRenderMode::Webpack => WEBPACK_RUNTIME_GLOBALS.clone(),
+    RuntimeGlobalRenderMode::RspackModule => RSPACK_MODULE_RUNTIME_GLOBALS.clone(),
+    RuntimeGlobalRenderMode::RspackRuntimeModule => RSPACK_RUNTIME_GLOBALS.clone(),
+  }
+}
+
+fn runtime_globals_to_render_map(render_mode: RuntimeGlobalRenderMode) -> RuntimeGlobalsRenderMap {
   let mut runtime_values = FxHashMap::default();
 
   for (_, runtime_globals) in RuntimeGlobals::all().iter_names() {
-    let rendered = if runtime_globals == RuntimeGlobals::REQUIRE_SCOPE {
-      runtime_variable_name(if uses_runtime_context {
-        &RuntimeVariable::Context
-      } else {
-        &RuntimeVariable::Require
-      })
-      .to_string()
-    } else if uses_runtime_context && runtime_globals == RuntimeGlobals::REQUIRE {
-      format!("{}.r", runtime_variable_name(&RuntimeVariable::Context))
-    } else if uses_runtime_context
-      && (!uses_lexical_runtime_globals
-        || runtime_globals.should_render_as_runtime_context_reference())
-      && runtime_globals.renderable_require_scope() == runtime_globals
-    {
-      if let Some(name) = runtime_globals.property_name() {
-        format!(
-          "{}{}",
-          runtime_variable_name(&RuntimeVariable::Context),
-          property_access([name], 0)
-        )
-      } else {
-        runtime_globals_to_string(&runtime_globals)
+    let rendered = match render_mode {
+      RuntimeGlobalRenderMode::Webpack => {
+        if runtime_globals == RuntimeGlobals::REQUIRE_SCOPE {
+          runtime_variable_name(&RuntimeVariable::Require).to_string()
+        } else {
+          runtime_globals_to_string(&runtime_globals)
+        }
       }
-    } else if uses_lexical_runtime_globals
-      && runtime_globals.renderable_require_scope() == runtime_globals
-    {
-      runtime_globals.to_lexical_name().map_or_else(
-        || runtime_globals_to_string(&runtime_globals),
-        str::to_string,
-      )
-    } else {
-      runtime_globals_to_string(&runtime_globals)
+      RuntimeGlobalRenderMode::RspackModule => {
+        if runtime_globals == RuntimeGlobals::REQUIRE_SCOPE {
+          runtime_variable_name(&RuntimeVariable::Context).to_string()
+        } else if runtime_globals == RuntimeGlobals::REQUIRE {
+          format!("{}.r", runtime_variable_name(&RuntimeVariable::Context))
+        } else if runtime_globals.renderable_require_scope() == runtime_globals {
+          if let Some(name) = runtime_globals.property_name() {
+            format!(
+              "{}{}",
+              runtime_variable_name(&RuntimeVariable::Context),
+              property_access([name], 0)
+            )
+          } else {
+            runtime_globals_to_string(&runtime_globals)
+          }
+        } else {
+          runtime_globals_to_string(&runtime_globals)
+        }
+      }
+      RuntimeGlobalRenderMode::RspackRuntimeModule => {
+        if runtime_globals == RuntimeGlobals::REQUIRE_SCOPE {
+          runtime_variable_name(&RuntimeVariable::Context).to_string()
+        } else if runtime_globals == RuntimeGlobals::REQUIRE {
+          format!("{}.r", runtime_variable_name(&RuntimeVariable::Context))
+        } else if runtime_globals.should_render_as_runtime_context_reference()
+          && runtime_globals.renderable_require_scope() == runtime_globals
+        {
+          if let Some(name) = runtime_globals.property_name() {
+            format!(
+              "{}{}",
+              runtime_variable_name(&RuntimeVariable::Context),
+              property_access([name], 0)
+            )
+          } else {
+            runtime_globals_to_string(&runtime_globals)
+          }
+        } else if runtime_globals.renderable_require_scope() == runtime_globals {
+          runtime_globals.to_lexical_name().map_or_else(
+            || runtime_globals_to_string(&runtime_globals),
+            str::to_string,
+          )
+        } else {
+          runtime_globals_to_string(&runtime_globals)
+        }
+      }
     };
 
     runtime_values.insert(runtime_globals, rendered);
@@ -1581,8 +1625,7 @@ pub struct RuntimeCodeTemplate<'a> {
   compiler_options: Arc<CompilerOptions>,
   runtime_globals: Arc<RuntimeGlobalsRenderMap>,
   dojang: &'a Dojang,
-  uses_runtime_context: bool,
-  uses_lexical_runtime_globals: bool,
+  render_mode: RuntimeGlobalRenderMode,
 }
 
 impl<'a> RuntimeCodeTemplate<'a> {
@@ -1590,15 +1633,13 @@ impl<'a> RuntimeCodeTemplate<'a> {
     compiler_options: Arc<CompilerOptions>,
     runtime_globals: Arc<RuntimeGlobalsRenderMap>,
     dojang: &'a Dojang,
-    uses_runtime_context: bool,
-    uses_lexical_runtime_globals: bool,
+    render_mode: RuntimeGlobalRenderMode,
   ) -> Self {
     Self {
       compiler_options,
       runtime_globals,
       dojang,
-      uses_runtime_context,
-      uses_lexical_runtime_globals,
+      render_mode,
     }
   }
 
@@ -1611,7 +1652,7 @@ impl<'a> RuntimeCodeTemplate<'a> {
   }
 
   pub fn uses_runtime_context(&self) -> bool {
-    self.uses_runtime_context
+    self.render_mode != RuntimeGlobalRenderMode::Webpack
   }
 
   pub fn render_runtime_argument(&self) -> String {
@@ -1623,7 +1664,7 @@ impl<'a> RuntimeCodeTemplate<'a> {
   }
 
   pub fn uses_lexical_runtime_globals(&self) -> bool {
-    self.uses_lexical_runtime_globals
+    self.render_mode == RuntimeGlobalRenderMode::RspackRuntimeModule
   }
 
   pub fn render_exports_argument(&self, exports_argument: ExportsArgument) -> String {
