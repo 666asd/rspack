@@ -546,7 +546,7 @@ mod tests {
     );
     assert_eq!(swc_options_from_rspack.cwd, swc_options_from_native_lib.cwd);
 
-    // We dont't want swc-loader in rspack to respect swcrc
+    // We don't want swc-loader in rspack to respect swcrc
     assert!(!swc_options_from_rspack.swcrc);
   }
 
