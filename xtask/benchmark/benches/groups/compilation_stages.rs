@@ -24,7 +24,6 @@ use rspack_core::{
   incremental::IncrementalOptions,
   pass::PassExt,
   rspack_sources::{RawStringSource, SourceExt},
-  runtime_mode::RuntimeMode,
 };
 use rspack_error::{Diagnostic, Result};
 use rspack_fs::{MemoryFileSystem, WritableFileSystem};
@@ -1734,7 +1733,6 @@ async fn compute_concatenated_module_codegen(
           CodeGenerationJob {
             module: module_identifier,
             hash,
-            runtime_mode: RuntimeMode::Webpack,
             runtime: runtime.clone(),
             runtimes: vec![runtime.clone()],
             scope,

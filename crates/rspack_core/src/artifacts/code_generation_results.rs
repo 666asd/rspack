@@ -16,7 +16,6 @@ use serde::Serialize;
 use crate::{
   ArtifactExt, AssetInfo, BindingCell, ChunkInitFragments, ConcatenationScope, ModuleIdentifier,
   RuntimeGlobals, RuntimeSpec, RuntimeSpecMap, SourceType, incremental::IncrementalPasses,
-  runtime_mode::RuntimeMode,
 };
 
 #[derive(Clone, Debug)]
@@ -412,7 +411,6 @@ impl CodeGenerationResults {
 pub struct CodeGenerationJob {
   pub module: ModuleIdentifier,
   pub hash: RspackHashDigest,
-  pub runtime_mode: RuntimeMode,
   pub runtime: RuntimeSpec,
   pub runtimes: Vec<RuntimeSpec>,
   pub scope: Option<ConcatenationScope>,

@@ -154,7 +154,6 @@ pub(crate) async fn code_generation_modules(
           CodeGenerationJob {
             module,
             hash: hash.clone(),
-            runtime_mode: compilation.options.experiments.runtime_mode,
             runtime: runtime.clone(),
             runtimes: vec![runtime.clone()],
             scope,

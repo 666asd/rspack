@@ -6,11 +6,13 @@ use crate::{
   ArtifactExt, CacheOptions, CodeGenerationJob, CodeGenerationResult, CompilerOptions,
   MemoryGCStorage,
   incremental::{Incremental, IncrementalPasses},
+  runtime_mode::RuntimeMode,
 };
 
 #[derive(Debug, Default)]
 pub struct CodeGenerateCacheArtifact {
   storage: Option<MemoryGCStorage<CodeGenerationResult>>,
+  runtime_mode: RuntimeMode,
 }
 
 impl ArtifactExt for CodeGenerateCacheArtifact {
@@ -30,6 +32,7 @@ impl CodeGenerateCacheArtifact {
         CacheOptions::Persistent(_) => Some(MemoryGCStorage::new(1)),
         CacheOptions::Disabled => None,
       },
+      runtime_mode: options.experiments.runtime_mode,
     }
   }
 
@@ -57,7 +60,7 @@ impl CodeGenerateCacheArtifact {
       "{}|{}|{}",
       job.module,
       job.hash.encoded(),
-      job.runtime_mode
+      self.runtime_mode
     ));
     if let Some(value) = storage.get(&cache_key) {
       (Ok(value), true)

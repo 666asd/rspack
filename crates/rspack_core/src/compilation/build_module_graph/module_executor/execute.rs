@@ -4,7 +4,6 @@ use itertools::Itertools;
 use rspack_collections::{Identifier, IdentifierSet};
 use rspack_error::Error;
 use rspack_paths::ArcPathSet;
-use rspack_sources::{OriginalSource, RawStringSource, SourceExt};
 use rustc_hash::{FxHashMap as HashMap, FxHashSet};
 use tokio::sync::oneshot::Sender;
 
@@ -12,7 +11,7 @@ use super::context::{ExecutorTaskContext, ImportModuleMeta};
 use crate::{
   Chunk, ChunkGraph, ChunkKind, CodeGenerationDataAssetInfo, CodeGenerationDataFilename,
   CodeGenerationResult, CompilationAsset, CompilationAssets, EntryOptions, Entrypoint,
-  FactorizeInfo, ModuleType, PublicPath, RuntimeModuleGenerateContext, RuntimeSpec, SourceType,
+  FactorizeInfo, ModuleCodeGenerationContext, ModuleType, PublicPath, RuntimeSpec, SourceType,
   compilation::{
     code_generation::code_generation_modules,
     create_module_hashes::create_module_hashes,
@@ -326,21 +325,20 @@ impl Task<ExecutorTaskContext> for ExecuteTask {
         .get(runtime_id)
         .expect("runtime module exist");
 
-      let runtime_template = compilation
+      let mut runtime_template = compilation
         .runtime_template
-        .create_module_runtime_code_template();
-      let runtime_module_generate_context = RuntimeModuleGenerateContext {
+        .create_runtime_module_code_template();
+      let mut code_generation_context = ModuleCodeGenerationContext {
         compilation: &compilation,
-        runtime_template: &runtime_template,
+        runtime: None,
+        concatenation_scope: None,
+        runtime_template: &mut runtime_template,
       };
-      let source_str = runtime_module
-        .generate_with_custom(&runtime_module_generate_context)
+      let result = runtime_module
+        .code_generation(&mut code_generation_context)
         .await?;
-      let runtime_module_source = if runtime_module.get_source_map_kind().enabled() {
-        OriginalSource::new(source_str, runtime_module.identifier().as_str()).boxed()
-      } else {
-        RawStringSource::from(source_str).boxed()
-      };
+      #[allow(clippy::unwrap_used)]
+      let runtime_module_source = result.get(&SourceType::Runtime).unwrap();
       runtime_module_size.insert(
         runtime_module.identifier(),
         runtime_module_source.size() as f64,

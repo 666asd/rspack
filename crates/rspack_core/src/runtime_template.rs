@@ -81,7 +81,7 @@ impl RuntimeGlobalsRenderMap {
       .runtime_values
       .get(runtime_globals)
       .expect("runtime global should be a single known flag")
-      .to_string()
+      .clone()
   }
 }
 
@@ -306,10 +306,10 @@ fn runtime_globals_to_render_map(render_mode: RuntimeGlobalRenderMode) -> Runtim
         } else if runtime_global_should_render_as_context_property(runtime_globals) {
           render_runtime_context_property(runtime_globals)
         } else if runtime_globals.renderable_require_scope() == runtime_globals {
-          runtime_globals
-            .to_lexical_name()
-            .map(str::to_string)
-            .unwrap_or_else(|| runtime_globals_to_string(&runtime_globals))
+          runtime_globals.to_lexical_name().map_or_else(
+            || runtime_globals_to_string(&runtime_globals),
+            str::to_string,
+          )
         } else {
           runtime_globals_to_string(&runtime_globals)
         }

@@ -167,9 +167,8 @@ impl JsPlugin {
     sources.push(
       format!(
         r#"// Check if module is in cache
-var cachedModule = {}[moduleId];
+var cachedModule = {module_cache}[moduleId];
 if (cachedModule !== undefined) {{"#,
-        module_cache
       )
       .into(),
     );
@@ -183,8 +182,7 @@ if (cachedModule !== undefined) {{"#,
         r#"return cachedModule.exports;
 }}
 // Create a new module (and put it into the cache)
-var module = ({}[moduleId] = {{"#,
-        module_cache
+var module = ({module_cache}[moduleId] = {{"#,
       )
       .into(),
     );
@@ -204,11 +202,12 @@ var module = ({}[moduleId] = {{"#,
     }
     sources.push("});\n// Execute the module function".into());
 
-    let module_execution =
-      if runtime_requirements.contains(RuntimeGlobals::INTERCEPT_MODULE_EXECUTION) {
-        if uses_runtime_context {
-          format!(
-            r#"
+    let module_execution = if runtime_requirements
+      .contains(RuntimeGlobals::INTERCEPT_MODULE_EXECUTION)
+    {
+      if uses_runtime_context {
+        format!(
+          r#"
         var execOptions = {{ id: moduleId, module: module, factory: {}[moduleId], require: {} }};
         {}.forEach(function(handler) {{ handler(execOptions); }});
         module = execOptions.module;
@@ -220,15 +219,15 @@ var module = ({}[moduleId] = {{"#,
         rspackModuleContext.r = execOptions.require;
         execOptions.factory.call(module.exports, module, module.exports, rspackModuleContext);
       "#,
-            module_factories,
-            callable_require,
-            runtime_template.render_runtime_globals(&RuntimeGlobals::INTERCEPT_MODULE_EXECUTION),
-            runtime_context
-          )
-          .into()
-        } else {
-          format!(
-            r#"
+          module_factories,
+          callable_require,
+          runtime_template.render_runtime_globals(&RuntimeGlobals::INTERCEPT_MODULE_EXECUTION),
+          runtime_context
+        )
+        .into()
+      } else {
+        format!(
+          r#"
         var execOptions = {{ id: moduleId, module: module, factory: {}[moduleId], require: {} }};
         {}.forEach(function(handler) {{ handler(execOptions); }});
         module = execOptions.module;
@@ -238,25 +237,20 @@ var module = ({}[moduleId] = {{"#,
         }}
         execOptions.factory.call(module.exports, module, module.exports, execOptions.require);
       "#,
-            module_factories,
-            callable_require,
-            runtime_template.render_runtime_globals(&RuntimeGlobals::INTERCEPT_MODULE_EXECUTION)
-          )
-          .into()
-        }
-      } else if runtime_requirements.contains(RuntimeGlobals::THIS_AS_EXPORTS) {
-        format!(
-          "{}[moduleId].call(module.exports, module, module.exports, {});\n",
-          module_factories, require_argument
+          module_factories,
+          callable_require,
+          runtime_template.render_runtime_globals(&RuntimeGlobals::INTERCEPT_MODULE_EXECUTION)
         )
         .into()
-      } else {
-        format!(
-          "{}[moduleId](module, module.exports, {});\n",
-          module_factories, require_argument
+      }
+    } else if runtime_requirements.contains(RuntimeGlobals::THIS_AS_EXPORTS) {
+      format!(
+          "{module_factories}[moduleId].call(module.exports, module, module.exports, {require_argument});\n"
         )
         .into()
-      };
+    } else {
+      format!("{module_factories}[moduleId](module, module.exports, {require_argument});\n").into()
+    };
 
     if strict_module_error_handling {
       sources.push("try {\n".into());
@@ -485,9 +479,8 @@ var {} = {{}};
       header.push(
         format!(
           r#"// expose the module execution interceptor
-{} = [];
+{intercept_module_execution} = [];
 "#,
-          intercept_module_execution
         )
         .into(),
       );
