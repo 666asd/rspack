@@ -1,9 +1,10 @@
-use std::fmt::Debug;
+use std::{fmt::Debug, sync::Arc};
 
 use dyn_clone::{DynClone, clone_trait_object};
 use rspack_cacheable::cacheable_dyn;
 use rspack_sources::ReplaceSource;
 use rspack_util::ext::AsAny;
+use rustc_hash::FxHashMap as HashMap;
 
 use crate::{
   ChunkInitFragments, CodeGenerationData, Compilation, ConcatenationScope, DependencyType, Module,
@@ -76,6 +77,41 @@ impl<T: DependencyCodeGeneration> AsDependencyCodeGeneration for T {
 pub enum DependencyTemplateType {
   Dependency(DependencyType),
   Custom(&'static str),
+}
+
+#[derive(Debug, Default, Clone)]
+pub struct DependencyTemplateStorage {
+  dependency_templates: HashMap<DependencyType, Arc<dyn DependencyTemplate>>,
+  custom_templates: HashMap<&'static str, Arc<dyn DependencyTemplate>>,
+}
+
+impl DependencyTemplateStorage {
+  #[inline]
+  pub fn insert(
+    &mut self,
+    template_type: DependencyTemplateType,
+    template: Arc<dyn DependencyTemplate>,
+  ) -> Option<Arc<dyn DependencyTemplate>> {
+    match template_type {
+      DependencyTemplateType::Dependency(dependency_type) => {
+        self.dependency_templates.insert(dependency_type, template)
+      }
+      DependencyTemplateType::Custom(name) => self.custom_templates.insert(name, template),
+    }
+  }
+
+  #[inline]
+  pub fn get(
+    &self,
+    template_type: &DependencyTemplateType,
+  ) -> Option<&Arc<dyn DependencyTemplate>> {
+    match template_type {
+      DependencyTemplateType::Dependency(dependency_type) => {
+        self.dependency_templates.get(dependency_type)
+      }
+      DependencyTemplateType::Custom(name) => self.custom_templates.get(name),
+    }
+  }
 }
 
 pub trait DependencyTemplate: Debug + Sync + Send {
