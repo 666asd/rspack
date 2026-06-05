@@ -91,15 +91,14 @@ impl RuntimeGlobalsRenderMap {
   }
 }
 
-fn replace_runtime_globals(template: String, runtime_globals: &RuntimeGlobalsRenderMap) -> String {
-  let replaced = RUNTIME_GLOBALS_PATTERN.replace_all(&template, |caps: &Captures| {
+fn replace_runtime_globals<'a>(
+  template: &'a str,
+  runtime_globals: &RuntimeGlobalsRenderMap,
+) -> Cow<'a, str> {
+  RUNTIME_GLOBALS_PATTERN.replace_all(template, |caps: &Captures| {
     let name = caps.get(1).expect("name should be a string").as_str();
     runtime_globals.render_template_placeholder(name)
-  });
-  match replaced {
-    Cow::Borrowed(_) => template,
-    Cow::Owned(replaced) => replaced,
-  }
+  })
 }
 
 impl Debug for RuntimeTemplate {
@@ -361,27 +360,23 @@ fn render_runtime_context_property(runtime_globals: RuntimeGlobals) -> String {
   }
 }
 
-fn to_string(val: &Operand, runtime_globals: &RuntimeGlobalsRenderMap) -> String {
-  replace_runtime_globals(
-    match val {
-      Operand::Value(val) => val.as_str().unwrap_or_default().to_string(),
-      _ => String::default(),
-    },
-    runtime_globals,
-  )
+fn to_cow<'a>(val: &'a Operand, runtime_globals: &RuntimeGlobalsRenderMap) -> Cow<'a, str> {
+  match val {
+    Operand::Value(val) => {
+      replace_runtime_globals(val.as_str().unwrap_or_default(), runtime_globals)
+    }
+    _ => Cow::Borrowed(""),
+  }
 }
 
 fn join_to_string(val: &Operand, sep: &str, runtime_globals: &RuntimeGlobalsRenderMap) -> String {
-  replace_runtime_globals(
-    match val {
-      Operand::Array(items) => items
-        .iter()
-        .map(|item| to_string(item, runtime_globals))
-        .join(sep),
-      _ => to_string(val, runtime_globals),
-    },
-    runtime_globals,
-  )
+  match val {
+    Operand::Array(items) => items
+      .iter()
+      .map(|item| to_cow(item, runtime_globals))
+      .join(sep),
+    _ => to_cow(val, runtime_globals).into_owned(),
+  }
 }
 
 fn dojang_basic_function(
@@ -420,13 +415,13 @@ fn dojang_returning_function(
     Operand::Value(Value::from(format!(
       "({}) => ({})",
       join_to_string(&args, ", ", runtime_globals),
-      to_string(&return_value, runtime_globals)
+      to_cow(&return_value, runtime_globals)
     )))
   } else {
     Operand::Value(Value::from(format!(
       "function({}) {{ return {}; }}",
       join_to_string(&args, ", ", runtime_globals),
-      to_string(&return_value, runtime_globals)
+      to_cow(&return_value, runtime_globals)
     )))
   }
 }
@@ -445,13 +440,13 @@ fn dojang_expression_function(
     Operand::Value(Value::from(format!(
       "({}) => ({})",
       join_to_string(&args, ", ", runtime_globals),
-      to_string(&expression, runtime_globals)
+      to_cow(&expression, runtime_globals)
     )))
   } else {
     Operand::Value(Value::from(format!(
       "function({}) {{ {}; }}",
       join_to_string(&args, ", ", runtime_globals),
-      to_string(&expression, runtime_globals)
+      to_cow(&expression, runtime_globals)
     )))
   }
 }
@@ -478,16 +473,16 @@ fn dojang_array_destructure(
     Operand::Value(Value::from(format!(
       "var [{}] = {};",
       join_to_string(&items, ", ", runtime_globals),
-      to_string(&value, runtime_globals)
+      to_cow(&value, runtime_globals)
     )))
   } else {
-    let value_name = to_string(&value, runtime_globals);
+    let value_name = to_cow(&value, runtime_globals).into_owned();
     let items = match items {
       Operand::Array(items) => items
         .iter()
         .enumerate()
         .map(|(idx, item)| {
-          let item_name = to_string(item, runtime_globals);
+          let item_name = to_cow(item, runtime_globals);
           if item_name.is_empty() {
             String::default()
           } else {
