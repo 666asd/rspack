@@ -184,7 +184,7 @@ struct IdentCollector {
   pub names: FxHashMap<BytePos, Atom>,
 }
 
-impl Vist for IdentCollector {
+impl Visit for IdentCollector {
   noop_visit_type!();
 
   fn visit_ident(&mut self, ident: &Ident) {
