@@ -528,19 +528,6 @@ impl RuntimeGlobals {
       .difference(RuntimeGlobals::REQUIRE_SCOPE)
   }
 
-  pub fn should_render_as_runtime_context_reference(self) -> bool {
-    matches!(
-      self,
-      RuntimeGlobals::ENSURE_CHUNK_HANDLERS
-        | RuntimeGlobals::PREFETCH_CHUNK_HANDLERS
-        | RuntimeGlobals::PRELOAD_CHUNK_HANDLERS
-        | RuntimeGlobals::ON_CHUNKS_LOADED
-        | RuntimeGlobals::HMR_DOWNLOAD_UPDATE_HANDLERS
-        | RuntimeGlobals::HMR_INVALIDATE_MODULE_HANDLERS
-        | RuntimeGlobals::HMR_RUNTIME_STATE_PREFIX
-    )
-  }
-
   pub fn to_lexical_name(&self) -> Option<&str> {
     RUNTIME_GLOBAL_MAP.3.get(self).map(String::as_str)
   }

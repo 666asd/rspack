@@ -311,18 +311,6 @@ fn runtime_globals_to_render_map(render_mode: RuntimeGlobalRenderMode) -> Runtim
           runtime_variable_name(&RuntimeVariable::Context).to_string()
         } else if runtime_globals == RuntimeGlobals::REQUIRE {
           format!("{}.r", runtime_variable_name(&RuntimeVariable::Context))
-        } else if runtime_globals.should_render_as_runtime_context_reference()
-          && runtime_globals.renderable_require_scope() == runtime_globals
-        {
-          if let Some(name) = runtime_globals.property_name() {
-            format!(
-              "{}{}",
-              runtime_variable_name(&RuntimeVariable::Context),
-              property_access([name], 0)
-            )
-          } else {
-            runtime_globals_to_string(&runtime_globals)
-          }
         } else if runtime_globals.renderable_require_scope() == runtime_globals {
           runtime_globals.to_lexical_name().map_or_else(
             || runtime_globals_to_string(&runtime_globals),
