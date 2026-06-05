@@ -313,8 +313,26 @@ fn runtime_globals_to_render_map(render_mode: RuntimeGlobalRenderMode) -> Runtim
           runtime_variable_name(&RuntimeVariable::Context).to_string()
         } else if runtime_globals == RuntimeGlobals::REQUIRE {
           format!("{}.r", runtime_variable_name(&RuntimeVariable::Context))
-        } else if runtime_global_should_render_as_context_property(runtime_globals) {
-          render_runtime_context_property(runtime_globals)
+        } else if matches!(
+          runtime_globals,
+          RuntimeGlobals::ENSURE_CHUNK_HANDLERS
+            | RuntimeGlobals::PREFETCH_CHUNK_HANDLERS
+            | RuntimeGlobals::PRELOAD_CHUNK_HANDLERS
+            | RuntimeGlobals::ON_CHUNKS_LOADED
+            | RuntimeGlobals::HMR_DOWNLOAD_UPDATE_HANDLERS
+            | RuntimeGlobals::HMR_INVALIDATE_MODULE_HANDLERS
+            | RuntimeGlobals::HMR_RUNTIME_STATE_PREFIX
+            | RuntimeGlobals::SCRIPT_NONCE
+        ) {
+          if let Some(name) = runtime_globals.property_name() {
+            format!(
+              "{}{}",
+              runtime_variable_name(&RuntimeVariable::Context),
+              property_access([name], 0)
+            )
+          } else {
+            runtime_globals_to_string(&runtime_globals)
+          }
         } else if runtime_globals.renderable_require_scope() == runtime_globals {
           runtime_globals.to_lexical_name().map_or_else(
             || runtime_globals_to_string(&runtime_globals),
@@ -332,32 +350,6 @@ fn runtime_globals_to_render_map(render_mode: RuntimeGlobalRenderMode) -> Runtim
   runtime_values.shrink_to_fit();
 
   RuntimeGlobalsRenderMap { runtime_values }
-}
-
-fn runtime_global_should_render_as_context_property(runtime_globals: RuntimeGlobals) -> bool {
-  matches!(
-    runtime_globals,
-    RuntimeGlobals::ENSURE_CHUNK_HANDLERS
-      | RuntimeGlobals::PREFETCH_CHUNK_HANDLERS
-      | RuntimeGlobals::PRELOAD_CHUNK_HANDLERS
-      | RuntimeGlobals::ON_CHUNKS_LOADED
-      | RuntimeGlobals::HMR_DOWNLOAD_UPDATE_HANDLERS
-      | RuntimeGlobals::HMR_INVALIDATE_MODULE_HANDLERS
-      | RuntimeGlobals::HMR_RUNTIME_STATE_PREFIX
-      | RuntimeGlobals::SCRIPT_NONCE
-  )
-}
-
-fn render_runtime_context_property(runtime_globals: RuntimeGlobals) -> String {
-  if let Some(name) = runtime_globals.property_name() {
-    format!(
-      "{}{}",
-      runtime_variable_name(&RuntimeVariable::Context),
-      property_access([name], 0)
-    )
-  } else {
-    runtime_globals_to_string(&runtime_globals)
-  }
 }
 
 fn to_cow<'a>(val: &'a Operand, runtime_globals: &RuntimeGlobalsRenderMap) -> Cow<'a, str> {
