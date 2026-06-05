@@ -14,7 +14,7 @@ use rspack_core::{
   chunk_graph_chunk::{ChunkId, ChunkIdSet},
   rspack_sources::{RawStringSource, SourceExt},
 };
-use rspack_error::{Diagnostic, Result};
+use rspack_error::{Diagnostic, Result, ToStringResultToRspackResultExt};
 use rspack_hook::{plugin, plugin_hook};
 use rspack_plugin_css::parser_and_generator::CssParserAndGenerator;
 use rspack_plugin_javascript::{
@@ -397,12 +397,12 @@ To fix this, make sure to include [runtime] in the output.hotUpdateMainFilename 
       m.into_iter().collect()
     };
 
-    let manifest_content = simd_json::json!({
+    let manifest_content = simd_json::to_string(&simd_json::json!({
       "c": c,
       "r": r,
       "m": m,
-    })
-    .to_string();
+    }))
+    .to_rspack_result()?;
 
     compilation.emit_asset(
       filename,
