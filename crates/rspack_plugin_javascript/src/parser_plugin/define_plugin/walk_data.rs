@@ -6,6 +6,7 @@ use std::{
 use itertools::Itertools as _;
 use regex::Regex;
 use rspack_error::Diagnostic;
+use rspack_util::json_stringify_str;
 use rustc_hash::FxHashMap;
 use simd_json::{
   OwnedValue as Value,
@@ -212,7 +213,7 @@ impl WalkData {
   ) {
     definitions.for_each(|(key, value)| {
       let name = format!("{prefix}{key}");
-      let value_str = value.to_string();
+      let value_str = simd_json::to_string(value).expect("define value should serialize");
       if let Some(prev) = self.tiling_definitions.get(&name)
         && !prev.eq(&value_str)
       {
@@ -318,9 +319,7 @@ impl WalkData {
               debug_assert!(!parser.in_short_hand);
               for dep in gen_const_dep(
                 parser,
-                Cow::Owned(
-                  simd_json::to_string(evaluated.string()).expect("should stringify typeof value"),
-                ),
+                Cow::Owned(json_stringify_str(evaluated.string())),
                 "",
                 start,
                 end,

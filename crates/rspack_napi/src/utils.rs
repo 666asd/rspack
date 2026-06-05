@@ -238,9 +238,15 @@ pub fn unknown_to_json_value(value: Unknown) -> napi::Result<Option<simd_json::O
       for index in 0..names.len() {
         if let Some(name) = names.get::<String>(index)? {
           let prop_val = object.get_named_property::<Unknown>(&name)?;
-          if let Some(json_val) = unknown_to_json_value(prop_val)? {
-            map.insert(name, json_val);
+          if matches!(prop_val.get_type()?, napi::ValueType::Undefined) {
+            continue;
           }
+          let json_val = unknown_to_json_value(prop_val)?.ok_or_else(|| {
+            napi::Error::from_reason(format!(
+              "Unsupported value for JSON conversion at property {name}"
+            ))
+          })?;
+          map.insert(name, json_val);
         }
       }
 

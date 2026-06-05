@@ -107,16 +107,18 @@ export class ExternalsPlugin extends RspackBuiltinPlugin {
                     });
                   } else {
                     return new Promise((promiseResolve, promiseReject) => {
-                      resolve(context, request, (error, text) => {
-                        if (error) {
-                          promiseReject(error);
-                        } else {
-                          const req = processResolveResult(text);
-                          promiseResolve(
-                            req ? this.#processRequest(req) : undefined,
-                          );
-                        }
-                      });
+                      resolve(
+                        context,
+                        request,
+                        (error, text) => {
+                          if (error) {
+                            promiseReject(error);
+                          } else {
+                            promiseResolve(text);
+                          }
+                        },
+                        false,
+                      );
                     });
                   }
                 };

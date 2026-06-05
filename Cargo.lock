@@ -4012,6 +4012,7 @@ dependencies = [
  "rspack_error",
  "rspack_hook",
  "rspack_loader_runner",
+ "rspack_util",
  "serde",
  "simd-json",
  "tokio",
@@ -4111,7 +4112,7 @@ dependencies = [
  "rspack_core",
  "rspack_error",
  "rspack_loader_runner",
- "simd-json",
+ "rspack_util",
 ]
 
 [[package]]
@@ -4351,7 +4352,6 @@ dependencies = [
  "rspack_plugin_javascript",
  "rspack_util",
  "rustc-hash",
- "simd-json",
  "sugar_path",
  "thread_local",
  "tracing",
@@ -4620,7 +4620,6 @@ dependencies = [
  "rspack_plugin_javascript",
  "rspack_regex",
  "rspack_util",
- "simd-json",
  "tokio",
  "tracing",
 ]

@@ -16,7 +16,7 @@ use rspack_hash::{RspackHash, RspackHashDigest};
 use rspack_plugin_javascript::dependency::CommonJsRequireDependency;
 use rspack_util::{
   ext::DynHash,
-  json_stringify,
+  json_stringify, json_stringify_str,
   source_map::{ModuleSourceMapConfig, SourceMapKind},
 };
 
@@ -264,7 +264,7 @@ impl Module for LazyCompilationProxyModule {
       runtime_template.render_runtime_globals(&RuntimeGlobals::REQUIRE),
       ChunkGraph::get_module_id(&compilation.module_ids_artifact, *client_module)
         .expect("should have module id"),
-      simd_json::to_string(&self.identifier).expect("should serialize identifier")
+      json_stringify_str(self.identifier.as_str())
     );
 
     let module_argument = runtime_template.render_module_argument(ModuleArgument::Module);

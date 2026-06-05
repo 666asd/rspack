@@ -1,6 +1,7 @@
 use rspack_core::{
   RuntimeGlobals, RuntimeModule, RuntimeModuleGenerateContext, RuntimeTemplate, impl_runtime_module,
 };
+use rspack_util::json_stringify_str;
 
 #[impl_runtime_module]
 #[derive(Debug)]
@@ -29,7 +30,9 @@ impl RuntimeModule for ChunkNameRuntimeModule {
         context
           .runtime_template
           .render_runtime_globals(&RuntimeGlobals::CHUNK_NAME),
-        simd_json::to_string(&chunk.name()).expect("Invalid json string")
+        chunk
+          .name()
+          .map_or_else(|| "null".to_string(), json_stringify_str)
       ))
     } else {
       unreachable!("should attach chunk for css_loading")

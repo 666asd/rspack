@@ -3,7 +3,7 @@ use rspack_cacheable::{cacheable, cacheable_dyn};
 use rspack_core::{Loader, LoaderContext, RunnerContext};
 use rspack_error::Result;
 use rspack_loader_runner::{DisplayWithSuffix, Identifier};
-use simd_json::json;
+use rspack_util::json_stringify_str;
 
 #[cacheable]
 pub struct SimpleLoader;
@@ -19,7 +19,7 @@ impl Loader<RunnerContext> for SimpleLoader {
       return Ok(());
     };
     let export = format!("{}-simple", content.try_into_string()?);
-    loader_context.finish_with(format!("module.exports = {}", json!(export)));
+    loader_context.finish_with(format!("module.exports = {}", json_stringify_str(&export)));
     Ok(())
   }
 }

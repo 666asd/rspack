@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use rspack_error::{Error, Severity};
-use rspack_util::SpanExt;
+use rspack_util::{SpanExt, json_stringify_str};
 use swc_core::{
   common::{FileName, Spanned},
   ecma::{
@@ -37,10 +37,7 @@ pub fn eval_source(
         err.span().real_lo() as usize,
         err.span().real_hi() as usize,
         format!("{error_title} warning"),
-        format!(
-          "failed to parse {}",
-          simd_json::to_string(fm.src.as_str()).expect("source should serialize")
-        ),
+        format!("failed to parse {}", json_stringify_str(fm.src.as_str())),
       );
       error.severity = Severity::Warning;
       parser.add_warning(error.into());
