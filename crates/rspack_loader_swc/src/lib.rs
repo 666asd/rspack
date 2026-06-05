@@ -44,7 +44,7 @@ pub struct SwcLoader {
 }
 
 impl SwcLoader {
-  pub fn new(raw_options: &str) -> Result<Self, simd_json::Error> {
+  pub fn new(raw_options: &str) -> Result<Self, serde_json::Error> {
     Ok(Self {
       identifier: SWC_LOADER_IDENTIFIER.into(),
       options_with_additional: raw_options.try_into()?,
