@@ -22,10 +22,6 @@ impl Default for SourceMapKind {
 }
 
 impl SourceMapKind {
-  pub fn new_inline() -> Self {
-    SourceMapKind::SourceMap.with_inline(true)
-  }
-
   pub fn from_enabled(enabled: bool) -> Self {
     if enabled {
       SourceMapKind::SourceMap
