@@ -29,6 +29,12 @@ pub struct SourceMapConfig {
   pub names: FxHashMap<BytePos, Atom>,
 }
 
+impl SourceMapConfig {
+  pub fn enabled(&self) -> bool {
+    self.source_map_kind.source_map()
+  }
+}
+
 impl SourceMapGenConfig for SourceMapConfig {
   fn file_name_to_source(&self, f: &FileName) -> String {
     let f = f.to_string();
@@ -81,7 +87,7 @@ impl JavaScriptCompiler {
     } = options;
     let mut src_map_buf = vec![];
 
-    if source_map_config.source_map_kind.source_map() {
+    if source_map_config.enabled() {
       let mut v = IdentCollector {
         names: Default::default(),
       };
@@ -98,10 +104,7 @@ impl JavaScriptCompiler {
           source_map.clone(),
           "\n",
           &mut buf,
-          source_map_config
-            .source_map_kind
-            .source_map()
-            .then_some(&mut src_map_buf),
+          source_map_config.enabled().then_some(&mut src_map_buf),
         );
 
         w.preamble(preamble)?;
@@ -127,7 +130,7 @@ impl JavaScriptCompiler {
       unsafe { String::from_utf8_unchecked(buf) }
     };
 
-    let map = if source_map_config.source_map_kind.source_map() {
+    let map = if source_map_config.enabled() {
       let combined_source_map =
         source_map.build_source_map(&src_map_buf, input_source_map.cloned(), source_map_config);
 
