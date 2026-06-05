@@ -329,6 +329,17 @@ pub static REQUIRE_SCOPE_GLOBALS: LazyLock<RuntimeGlobals> = LazyLock::new(|| {
 pub static MODULE_GLOBALS: LazyLock<RuntimeGlobals> =
   LazyLock::new(|| RuntimeGlobals::MODULE_ID | RuntimeGlobals::MODULE_LOADED);
 
+pub static RUNTIME_CONTEXT_PROPERTY_GLOBALS: LazyLock<RuntimeGlobals> = LazyLock::new(|| {
+  RuntimeGlobals::ENSURE_CHUNK_HANDLERS
+    | RuntimeGlobals::PREFETCH_CHUNK_HANDLERS
+    | RuntimeGlobals::PRELOAD_CHUNK_HANDLERS
+    | RuntimeGlobals::ON_CHUNKS_LOADED
+    | RuntimeGlobals::HMR_DOWNLOAD_UPDATE_HANDLERS
+    | RuntimeGlobals::HMR_INVALIDATE_MODULE_HANDLERS
+    | RuntimeGlobals::HMR_RUNTIME_STATE_PREFIX
+    | RuntimeGlobals::SCRIPT_NONCE
+});
+
 pub fn runtime_globals_property_name(runtime_globals: &RuntimeGlobals) -> Option<&'static str> {
   Some(match *runtime_globals {
     RuntimeGlobals::REQUIRE_SCOPE => "*",
@@ -526,6 +537,10 @@ impl RuntimeGlobals {
     self
       .intersection(*REQUIRE_SCOPE_GLOBALS)
       .difference(RuntimeGlobals::REQUIRE_SCOPE)
+  }
+
+  pub fn should_render_as_runtime_context_property(self) -> bool {
+    RUNTIME_CONTEXT_PROPERTY_GLOBALS.contains(self)
   }
 
   pub fn to_lexical_name(&self) -> Option<&str> {

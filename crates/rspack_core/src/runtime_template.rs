@@ -267,17 +267,7 @@ fn runtime_globals_to_render_map(
       format!("{}.r", runtime_variable_name(&RuntimeVariable::Context))
     } else if uses_runtime_context
       && (!uses_lexical_runtime_globals
-        || matches!(
-          runtime_globals,
-          RuntimeGlobals::ENSURE_CHUNK_HANDLERS
-            | RuntimeGlobals::PREFETCH_CHUNK_HANDLERS
-            | RuntimeGlobals::PRELOAD_CHUNK_HANDLERS
-            | RuntimeGlobals::ON_CHUNKS_LOADED
-            | RuntimeGlobals::HMR_DOWNLOAD_UPDATE_HANDLERS
-            | RuntimeGlobals::HMR_INVALIDATE_MODULE_HANDLERS
-            | RuntimeGlobals::HMR_RUNTIME_STATE_PREFIX
-            | RuntimeGlobals::SCRIPT_NONCE
-        ))
+        || runtime_globals.should_render_as_runtime_context_property())
       && runtime_globals.renderable_require_scope() == runtime_globals
     {
       if let Some(name) = runtime_globals.property_name() {
