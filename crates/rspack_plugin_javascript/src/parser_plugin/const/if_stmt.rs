@@ -81,7 +81,9 @@ pub fn get_hoisted_declarations<'ast>(
       }
       Statement::ForIn(ForInStmt { left, body, .. })
       | Statement::ForOf(ForOfStmt { left, body, .. }) => {
-        if let ForHead::VarDecl(var_decl) = left {
+        if let ForHead::VarDecl(var_decl) = left
+          && matches!(var_decl.kind, VarDeclKind::Var)
+        {
           for decl in &var_decl.decls {
             collect_declaration_from_pat(&decl.name, &mut declarations);
           }
