@@ -112,7 +112,7 @@ pub(crate) struct ModuleGraphData {
     rollback::RollbackMap<ModuleIdentifier, BoxModule, BuildHasherDefault<IdentifierHasher>>,
 
   /// Dependencies indexed by `DependencyId`.
-  dependencies: rollback::DenseDependencyIdMap<BoxDependency>,
+  dependencies: rollback::DependencyStorage,
   /// AsyncDependenciesBlocks indexed by `AsyncDependenciesBlockIdentifier`.
   blocks: AsyncDependenciesBlockIdentifierMap<Box<AsyncDependenciesBlock>>,
 
@@ -732,8 +732,7 @@ impl ModuleGraph {
     module_identifier: ModuleIdentifier,
   ) -> Result<()> {
     let dependency = self.dependency_by_id(&dependency_id);
-    let is_module_dependency =
-      dependency.as_module_dependency().is_some() || dependency.as_context_dependency().is_some();
+    let is_module_dependency = self.inner.dependencies.is_module_dependency(&dependency_id);
     let condition = dependency
       .as_module_dependency()
       .and_then(|dep| dep.get_condition());
