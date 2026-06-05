@@ -27,6 +27,7 @@ use rspack_util::{
   fx_hash::FxIndexMap,
   identifier::make_paths_absolute,
   node_path::NodePath,
+  source_map::SourceMapKind,
 };
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use sugar_path::SugarPath;
@@ -187,6 +188,23 @@ pub struct SourceMapDevToolPluginOptions {
   pub include: Option<AssetConditions>,
   pub exclude: Option<AssetConditions>,
   pub debug_ids: bool,
+}
+
+impl SourceMapDevToolPluginOptions {
+  pub fn module_source_map_kind(&self) -> SourceMapKind {
+    let mut source_map_kind = if self.module {
+      SourceMapKind::SourceMap
+    } else {
+      SourceMapKind::SimpleSourceMap
+    };
+    if !self.columns {
+      source_map_kind |= SourceMapKind::Cheap;
+    }
+    if self.no_sources {
+      source_map_kind |= SourceMapKind::NoSources;
+    }
+    source_map_kind
+  }
 }
 
 enum SourceMappingUrlComment {

@@ -10,6 +10,7 @@ bitflags! {
       const SourceMap = 1 << 0;
       const SimpleSourceMap = 1 << 1;
       const Cheap = 1 << 2;
+      const NoSources = 1 << 3;
   }
 }
 
@@ -34,6 +35,10 @@ impl SourceMapKind {
 
   pub fn cheap(&self) -> bool {
     self.contains(SourceMapKind::Cheap)
+  }
+
+  pub fn no_sources(&self) -> bool {
+    self.contains(SourceMapKind::NoSources)
   }
 }
 

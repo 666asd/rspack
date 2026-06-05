@@ -613,9 +613,16 @@ impl Plugin for RsdoctorPlugin {
       .after_process_assets
       .tap(after_process_assets::new(self));
 
+    let mut source_map_kind = if self.options.source_map_features.module {
+      rspack_util::source_map::SourceMapKind::SourceMap
+    } else {
+      rspack_util::source_map::SourceMapKind::SimpleSourceMap
+    };
+    if self.options.source_map_features.cheap {
+      source_map_kind |= rspack_util::source_map::SourceMapKind::Cheap;
+    }
     SourceMapDevToolModuleOptionsPlugin::new(SourceMapDevToolModuleOptionsPluginOptions {
-      cheap: self.options.source_map_features.cheap,
-      module: self.options.source_map_features.module,
+      source_map_kind,
     })
     .apply(ctx)?;
 
