@@ -1,4 +1,5 @@
 use std::{
+  borrow::Cow,
   collections::HashMap,
   fmt::{Debug, Write},
   sync::{Arc, LazyLock, Mutex},
@@ -91,12 +92,14 @@ impl RuntimeGlobalsRenderMap {
 }
 
 fn replace_runtime_globals(template: String, runtime_globals: &RuntimeGlobalsRenderMap) -> String {
-  RUNTIME_GLOBALS_PATTERN
-    .replace_all(&template, |caps: &Captures| {
-      let name = caps.get(1).expect("name should be a string").as_str();
-      runtime_globals.render_template_placeholder(name)
-    })
-    .to_string()
+  let replaced = RUNTIME_GLOBALS_PATTERN.replace_all(&template, |caps: &Captures| {
+    let name = caps.get(1).expect("name should be a string").as_str();
+    runtime_globals.render_template_placeholder(name)
+  });
+  match replaced {
+    Cow::Borrowed(_) => template,
+    Cow::Owned(replaced) => replaced,
+  }
 }
 
 impl Debug for RuntimeTemplate {
