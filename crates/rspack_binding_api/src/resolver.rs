@@ -7,10 +7,12 @@ use napi::{
 use napi_derive::napi;
 use rspack_core::Resolver;
 use rspack_util::json_stringify_str;
+use serde::Serialize;
 
 use crate::{error::ErrorCode, utils::callbackify};
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ResolveRequest {
   pub path: String,
   pub query: String,
@@ -35,46 +37,6 @@ impl From<rspack_core::Resource> for ResolveRequest {
       missing_dependencies: vec![],
     }
   }
-}
-
-impl ResolveRequest {
-  pub fn to_json_string(&self) -> Result<String, simd_json::Error> {
-    let mut json = String::new();
-    json.push('{');
-    json.push_str("\"path\":");
-    json.push_str(&json_stringify_str(&self.path));
-    json.push_str(",\"query\":");
-    json.push_str(&json_stringify_str(&self.query));
-    json.push_str(",\"fragment\":");
-    json.push_str(&json_stringify_str(&self.fragment));
-    json.push_str(",\"descriptionFileData\":");
-    match &self.description_file_data {
-      Some(data) => json.push_str(&simd_json::to_string(data)?),
-      None => json.push_str("null"),
-    }
-    json.push_str(",\"descriptionFilePath\":");
-    match &self.description_file_path {
-      Some(path) => json.push_str(&json_stringify_str(path)),
-      None => json.push_str("null"),
-    }
-    json.push_str(",\"fileDependencies\":");
-    push_string_array(&mut json, &self.file_dependencies);
-    json.push_str(",\"missingDependencies\":");
-    push_string_array(&mut json, &self.missing_dependencies);
-    json.push('}');
-    Ok(json)
-  }
-}
-
-fn push_string_array(json: &mut String, items: &[String]) {
-  json.push('[');
-  for (index, item) in items.iter().enumerate() {
-    if index > 0 {
-      json.push(',');
-    }
-    json.push_str(&json_stringify_str(item));
-  }
-  json.push(']');
 }
 
 #[napi]
@@ -131,7 +93,7 @@ impl JsResolver {
               .drain()
               .map(|path| path.to_string_lossy().into_owned())
               .collect();
-            Ok(match resolve_request.to_json_string() {
+            Ok(match simd_json::to_string(&resolve_request) {
               Ok(json) => Either::<String, ()>::A(json),
               Err(_) => Either::B(()),
             })

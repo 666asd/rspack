@@ -29,9 +29,8 @@ pub struct SyncModuleIdsPluginOptions {
   pub mode: SyncModuleIdsPluginMode,
 }
 
-fn parse_module_ids(buffer: &[u8]) -> Result<BTreeMap<String, ModuleId>> {
-  let mut buffer = buffer.to_vec();
-  let json: BTreeMap<String, Value> = simd_json::from_slice(&mut buffer).to_rspack_result()?;
+fn parse_module_ids(buffer: &mut [u8]) -> Result<BTreeMap<String, ModuleId>> {
+  let json: BTreeMap<String, Value> = simd_json::from_slice(buffer).to_rspack_result()?;
   let mut data = BTreeMap::new();
   for (key, value) in json {
     let id = match value {
@@ -113,7 +112,7 @@ async fn revive_modules(
 
   let path = rspack_paths::Utf8Path::new(&self.path);
   let Some(data) = (match compilation.intermediate_filesystem.read_file(path).await {
-    Ok(buffer) => Some(parse_module_ids(&buffer)?),
+    Ok(mut buffer) => Some(parse_module_ids(&mut buffer)?),
     Err(rspack_fs::Error::Io(err)) if err.kind() == std::io::ErrorKind::NotFound => None,
     Err(err) => return Err(err.into()),
   }) else {

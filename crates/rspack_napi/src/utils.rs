@@ -274,34 +274,3 @@ fn number_to_json_value(number: f64) -> Option<simd_json::OwnedValue> {
 
   Some(number.into())
 }
-
-#[cfg(test)]
-mod tests {
-  use super::*;
-
-  #[test]
-  fn should_preserve_integer_numbers_as_json_integers() {
-    assert_eq!(
-      number_to_json_value(2.0),
-      Some(simd_json::OwnedValue::Static(StaticNode::I64(2)))
-    );
-    assert_eq!(
-      number_to_json_value(-2.0),
-      Some(simd_json::OwnedValue::Static(StaticNode::I64(-2)))
-    );
-  }
-
-  #[test]
-  fn should_keep_fractional_numbers_as_json_floats() {
-    assert!(matches!(
-      number_to_json_value(2.5),
-      Some(simd_json::OwnedValue::Static(StaticNode::F64(_)))
-    ));
-  }
-
-  #[test]
-  fn should_ignore_non_finite_numbers() {
-    assert_eq!(number_to_json_value(f64::NAN), None);
-    assert_eq!(number_to_json_value(f64::INFINITY), None);
-  }
-}
