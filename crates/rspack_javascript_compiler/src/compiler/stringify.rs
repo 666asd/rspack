@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use rspack_error::Result;
 use rspack_sources::{Mapping, OriginalLocation, encode_mappings};
+use rspack_util::source_map::SourceMapKind;
 use rustc_hash::FxHashMap;
 use swc_core::{
   base::sourcemap,
@@ -24,9 +25,7 @@ use super::{JavaScriptCompiler, TransformOutput};
 
 #[derive(Default, Clone, Debug)]
 pub struct SourceMapConfig {
-  pub enable: bool,
-  pub inline_sources_content: bool,
-  pub emit_columns: bool,
+  pub source_map_kind: SourceMapKind,
   pub names: FxHashMap<BytePos, Atom>,
 }
 
@@ -41,11 +40,11 @@ impl SourceMapGenConfig for SourceMapConfig {
   }
 
   fn inline_sources_content(&self, _: &FileName) -> bool {
-    self.inline_sources_content
+    self.source_map_kind.inline_sources_content()
   }
 
   fn emit_columns(&self, _f: &FileName) -> bool {
-    self.emit_columns
+    self.source_map_kind.emit_columns()
   }
 
   fn name_for_bytepos(&self, pos: BytePos) -> Option<&str> {
@@ -82,7 +81,7 @@ impl JavaScriptCompiler {
     } = options;
     let mut src_map_buf = vec![];
 
-    if source_map_config.enable {
+    if source_map_config.source_map_kind.enabled() {
       let mut v = IdentCollector {
         names: Default::default(),
       };
@@ -99,7 +98,10 @@ impl JavaScriptCompiler {
           source_map.clone(),
           "\n",
           &mut buf,
-          source_map_config.enable.then_some(&mut src_map_buf),
+          source_map_config
+            .source_map_kind
+            .enabled()
+            .then_some(&mut src_map_buf),
         );
 
         w.preamble(preamble)?;
@@ -125,7 +127,7 @@ impl JavaScriptCompiler {
       unsafe { String::from_utf8_unchecked(buf) }
     };
 
-    let map = if source_map_config.enable {
+    let map = if source_map_config.source_map_kind.enabled() {
       let combined_source_map =
         source_map.build_source_map(&src_map_buf, input_source_map.cloned(), source_map_config);
 
@@ -182,7 +184,7 @@ struct IdentCollector {
   pub names: FxHashMap<BytePos, Atom>,
 }
 
-impl Visit for IdentCollector {
+impl Vist for IdentCollector {
   noop_visit_type!();
 
   fn visit_ident(&mut self, ident: &Ident) {

@@ -192,18 +192,10 @@ pub struct SourceMapDevToolPluginOptions {
 
 impl SourceMapDevToolPluginOptions {
   pub fn module_source_map_kind(&self) -> SourceMapKind {
-    let mut source_map_kind = if self.module {
-      SourceMapKind::SourceMap
-    } else {
-      SourceMapKind::SimpleSourceMap
-    };
-    if !self.columns {
-      source_map_kind |= SourceMapKind::Cheap;
-    }
-    if self.no_sources {
-      source_map_kind |= SourceMapKind::NoSources;
-    }
-    source_map_kind
+    SourceMapKind::from_module(self.module)
+      .with_cheap(!self.columns)
+      .with_no_sources(self.no_sources)
+      .with_inline(self.filename.is_none())
   }
 }
 
