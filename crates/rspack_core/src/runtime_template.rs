@@ -267,7 +267,7 @@ fn runtime_globals_to_render_map(
       format!("{}.r", runtime_variable_name(&RuntimeVariable::Context))
     } else if uses_runtime_context
       && (!uses_lexical_runtime_globals
-        || runtime_globals.should_render_as_runtime_context_property())
+        || runtime_globals.should_render_as_runtime_context_reference())
       && runtime_globals.renderable_require_scope() == runtime_globals
     {
       if let Some(name) = runtime_globals.property_name() {
