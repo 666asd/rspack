@@ -10,7 +10,7 @@ var installChunk = <%- basicFunction("data") %> {
             <%- MODULE_FACTORIES %>[moduleId] = <%- _modules %>[moduleId];
         }
     }
-    if (__rspack_esm_runtime) __rspack_esm_runtime(<%- RUNTIME_REQUIRE %>);
+    if (__rspack_esm_runtime) __rspack_esm_runtime(<%- REQUIRE_SCOPE %>);
     for (; i < __rspack_esm_ids.length; i++) {
         chunkId = __rspack_esm_ids[i];
         if (<%- HAS_OWN_PROPERTY %>(installedChunks, chunkId) && installedChunks[chunkId]) {

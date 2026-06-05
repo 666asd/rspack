@@ -37,11 +37,11 @@ module.exports = {
               expect(assetsInfo).toEqual([
                 {
                   path: 'a.js',
-                  size: 8671,
+                  size: 8672,
                 },
                 {
                   path: 'b.js',
-                  size: 8671,
+                  size: 8672,
                 },
                 {
                   path: 'c_js.js',
@@ -56,11 +56,11 @@ module.exports = {
               expect(assetsInfo).toEqual([
                 {
                   path: 'a.js',
-                  size: 4298,
+                  size: 4299,
                 },
                 {
                   path: 'b.js',
-                  size: 4298,
+                  size: 4299,
                 },
                 {
                   path: 'c_js.js',

@@ -13,7 +13,7 @@ use rspack_dojang::{Context, Dojang, FunctionContainer, Operand};
 use rspack_error::{Error, Result, ToStringResultToRspackResultExt, error};
 use rspack_util::{fx_hash::FxIndexSet, json_stringify};
 use rustc_hash::{FxHashMap, FxHashSet as HashSet};
-use serde_json::{Map, Value, json};
+use serde_json::{Value, json};
 use swc_core::atoms::Atom;
 
 use crate::{
@@ -71,7 +71,6 @@ pub enum RuntimeGlobalRenderMode {
 
 #[derive(Debug)]
 struct RuntimeGlobalsRenderMap {
-  template_values: Map<String, Value>,
   runtime_values: FxHashMap<RuntimeGlobals, String>,
 }
 
@@ -83,19 +82,21 @@ impl RuntimeGlobalsRenderMap {
       .expect("runtime global should be a single known flag")
       .clone()
   }
+
+  fn render_by_name(&self, name: &str) -> String {
+    let (_, runtime_globals) = RuntimeGlobals::all()
+      .iter_names()
+      .find(|(runtime_global_name, _)| *runtime_global_name == name)
+      .expect("runtime global name should be known");
+    self.render(&runtime_globals)
+  }
 }
 
-fn replace_runtime_globals(template: String, runtime_globals: &Map<String, Value>) -> String {
+fn replace_runtime_globals(template: String, runtime_globals: &RuntimeGlobalsRenderMap) -> String {
   RUNTIME_GLOBALS_PATTERN
     .replace_all(&template, |caps: &Captures| {
       let name = caps.get(1).expect("name should be a string").as_str();
-      runtime_globals
-        .get(name)
-        .map(|value| match value {
-          Value::String(value) => value.clone(),
-          _ => unreachable!(),
-        })
-        .expect("value should be a string")
+      runtime_globals.render_by_name(name)
     })
     .to_string()
 }
@@ -277,14 +278,21 @@ fn get_runtime_globals_render_map(
 }
 
 fn runtime_globals_to_render_map(render_mode: RuntimeGlobalRenderMode) -> RuntimeGlobalsRenderMap {
-  let mut template_values = Map::new();
   let mut runtime_values = FxHashMap::default();
 
-  for (name, runtime_globals) in RuntimeGlobals::all().iter_names() {
+  for (_, runtime_globals) in RuntimeGlobals::all().iter_names() {
     let rendered = match render_mode {
-      RuntimeGlobalRenderMode::Webpack => runtime_globals_to_string(&runtime_globals),
+      RuntimeGlobalRenderMode::Webpack => {
+        if runtime_globals == RuntimeGlobals::REQUIRE_SCOPE {
+          runtime_variable_name(&RuntimeVariable::Require).to_string()
+        } else {
+          runtime_globals_to_string(&runtime_globals)
+        }
+      }
       RuntimeGlobalRenderMode::RspackModule => {
-        if runtime_globals == RuntimeGlobals::REQUIRE {
+        if runtime_globals == RuntimeGlobals::REQUIRE_SCOPE {
+          runtime_variable_name(&RuntimeVariable::Context).to_string()
+        } else if runtime_globals == RuntimeGlobals::REQUIRE {
           format!("{}.r", runtime_variable_name(&RuntimeVariable::Context))
         } else if runtime_globals.renderable_require_scope() == runtime_globals {
           if let Some(name) = runtime_globals.property_name() {
@@ -301,7 +309,9 @@ fn runtime_globals_to_render_map(render_mode: RuntimeGlobalRenderMode) -> Runtim
         }
       }
       RuntimeGlobalRenderMode::RspackRuntimeModule => {
-        if runtime_globals == RuntimeGlobals::REQUIRE {
+        if runtime_globals == RuntimeGlobals::REQUIRE_SCOPE {
+          runtime_variable_name(&RuntimeVariable::Context).to_string()
+        } else if runtime_globals == RuntimeGlobals::REQUIRE {
           format!("{}.r", runtime_variable_name(&RuntimeVariable::Context))
         } else if runtime_global_should_render_as_context_property(runtime_globals) {
           render_runtime_context_property(runtime_globals)
@@ -316,25 +326,12 @@ fn runtime_globals_to_render_map(render_mode: RuntimeGlobalRenderMode) -> Runtim
       }
     };
 
-    template_values.insert(name.to_string(), Value::String(rendered.clone()));
     runtime_values.insert(runtime_globals, rendered);
   }
-  template_values.insert(
-    "RUNTIME_REQUIRE".to_string(),
-    Value::String(match render_mode {
-      RuntimeGlobalRenderMode::Webpack => runtime_globals_to_string(&RuntimeGlobals::REQUIRE),
-      RuntimeGlobalRenderMode::RspackModule | RuntimeGlobalRenderMode::RspackRuntimeModule => {
-        runtime_variable_name(&RuntimeVariable::Context).to_string()
-      }
-    }),
-  );
 
   runtime_values.shrink_to_fit();
 
-  RuntimeGlobalsRenderMap {
-    template_values,
-    runtime_values,
-  }
+  RuntimeGlobalsRenderMap { runtime_values }
 }
 
 fn runtime_global_should_render_as_context_property(runtime_globals: RuntimeGlobals) -> bool {
@@ -369,7 +366,7 @@ fn to_string(val: &Operand, runtime_globals: &RuntimeGlobalsRenderMap) -> String
       Operand::Value(val) => val.as_str().unwrap_or_default().to_string(),
       _ => String::default(),
     },
-    &runtime_globals.template_values,
+    runtime_globals,
   )
 }
 
@@ -382,7 +379,7 @@ fn join_to_string(val: &Operand, sep: &str, runtime_globals: &RuntimeGlobalsRend
         .join(sep),
       _ => to_string(val, runtime_globals),
     },
-    &runtime_globals.template_values,
+    runtime_globals,
   )
 }
 
@@ -1710,13 +1707,12 @@ impl<'a> RuntimeCodeTemplate<'a> {
     render_params
       .as_object_mut()
       .unwrap_or_else(|| unreachable!())
-      .extend(
-        self
-          .runtime_globals
-          .template_values
-          .iter()
-          .map(|(k, v)| (k.clone(), v.clone())),
-      );
+      .extend(RuntimeGlobals::all().iter_names().map(|(name, value)| {
+        (
+          name.to_string(),
+          Value::String(self.runtime_globals.render(&value)),
+        )
+      }));
 
     if let Some(params) = params {
       match params {
