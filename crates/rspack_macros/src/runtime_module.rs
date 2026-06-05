@@ -229,8 +229,7 @@ pub fn impl_runtime_module(
         let mut result = ::rspack_core::CodeGenerationResult::default();
         let source = if code_generation_context
           .runtime_template
-          .runtime_module_render_mode()
-          .is_some()
+          .is_runtime_module_render()
         {
           use ::rspack_collections::Identifiable;
           use ::rspack_core::rspack_sources::SourceExt;
