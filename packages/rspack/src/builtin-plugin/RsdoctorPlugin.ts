@@ -12,6 +12,7 @@ import {
   type JsRsdoctorEntrypoint,
   type JsRsdoctorEntrypointAssets,
   type JsRsdoctorExportInfo,
+  type JsRsdoctorExportUsageGraph,
   type JsRsdoctorModule,
   type JsRsdoctorModuleGraph,
   type JsRsdoctorModuleGraphModule,
@@ -42,6 +43,7 @@ export declare namespace RsdoctorPluginData {
     JsRsdoctorModule as RsdoctorModule,
     JsRsdoctorSideEffect as RsdoctorSideEffect,
     JsRsdoctorExportInfo as RsdoctorExportInfo,
+    JsRsdoctorExportUsageGraph as RsdoctorExportUsageGraph,
     JsRsdoctorVariable as RsdoctorVariable,
     JsRsdoctorConnectionsOnlyImport as RsdoctorConnectionsOnlyImport,
     JsRsdoctorConnectionsOnlyImportConnection as RsdoctorConnectionsOnlyImportConnection,
@@ -68,6 +70,7 @@ export type RsdoctorPluginOptions = {
     module?: boolean;
     cheap?: boolean;
   };
+  exportUsageGraph?: boolean;
 };
 
 const RsdoctorPluginImpl = create(
@@ -83,6 +86,7 @@ const RsdoctorPluginImpl = create(
       moduleGraphFeatures: c.moduleGraphFeatures ?? true,
       chunkGraphFeatures: c.chunkGraphFeatures ?? true,
       sourceMapFeatures: c.sourceMapFeatures,
+      exportUsageGraph: c.exportUsageGraph,
     };
   },
 );
@@ -90,6 +94,10 @@ const RsdoctorPluginImpl = create(
 export type RsdoctorPluginHooks = {
   moduleGraph: liteTapable.AsyncSeriesBailHook<
     [JsRsdoctorModuleGraph],
+    false | void
+  >;
+  exportUsageGraph: liteTapable.AsyncSeriesBailHook<
+    [JsRsdoctorExportUsageGraph],
     false | void
   >;
   chunkGraph: liteTapable.AsyncSeriesBailHook<
@@ -124,6 +132,10 @@ RsdoctorPlugin.getCompilationHooks = (compilation: Compilation) => {
         [JsRsdoctorModuleGraph],
         false | void
       >(['moduleGraph']),
+      exportUsageGraph: new liteTapable.AsyncSeriesBailHook<
+        [JsRsdoctorExportUsageGraph],
+        false | void
+      >(['exportUsageGraph']),
       chunkGraph: new liteTapable.AsyncSeriesBailHook<
         [JsRsdoctorChunkGraph],
         false | void
@@ -159,6 +171,19 @@ export const createRsdoctorPluginHooksRegisters: CreatePartialRegisters<
       },
       function (queried) {
         return async function (data: JsRsdoctorModuleGraph) {
+          return queried.promise(data);
+        };
+      },
+    ),
+    registerRsdoctorPluginExportUsageGraphTaps: createTap(
+      RegisterJsTapKind.RsdoctorPluginExportUsageGraph,
+      function () {
+        return RsdoctorPlugin.getCompilationHooks(
+          getCompiler().__internal__get_compilation()!,
+        ).exportUsageGraph;
+      },
+      function (queried) {
+        return async function (data: JsRsdoctorExportUsageGraph) {
           return queried.promise(data);
         };
       },

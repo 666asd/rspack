@@ -70,6 +70,7 @@ pub struct JsHooksAdapterPlugin {
   register_runtime_plugin_link_preload_taps: RegisterRuntimePluginLinkPreloadTaps,
   register_runtime_plugin_link_prefetch_taps: RegisterRuntimePluginLinkPrefetchTaps,
   register_rsdoctor_plugin_module_graph_taps: RegisterRsdoctorPluginModuleGraphTaps,
+  register_rsdoctor_plugin_export_usage_graph_taps: RegisterRsdoctorPluginExportUsageGraphTaps,
   register_rsdoctor_plugin_chunk_graph_taps: RegisterRsdoctorPluginChunkGraphTaps,
   register_rsdoctor_plugin_assets_taps: RegisterRsdoctorPluginAssetsTaps,
   register_rsdoctor_plugin_module_ids_taps: RegisterRsdoctorPluginModuleIdsTaps,
@@ -459,6 +460,11 @@ async fn rsdoctor_hooks_adapter_compilation(
   hooks
     .module_graph
     .intercept(self.register_rsdoctor_plugin_module_graph_taps.clone());
+  hooks.export_usage_graph.intercept(
+    self
+      .register_rsdoctor_plugin_export_usage_graph_taps
+      .clone(),
+  );
   hooks
     .chunk_graph
     .intercept(self.register_rsdoctor_plugin_chunk_graph_taps.clone());
@@ -683,6 +689,11 @@ impl JsHooksAdapterPlugin {
           register_js_taps.register_rsdoctor_plugin_module_graph_taps,
           non_skippable_registers.clone(),
         ),
+        register_rsdoctor_plugin_export_usage_graph_taps:
+          RegisterRsdoctorPluginExportUsageGraphTaps::new(
+            register_js_taps.register_rsdoctor_plugin_export_usage_graph_taps,
+            non_skippable_registers.clone(),
+          ),
         register_rsdoctor_plugin_chunk_graph_taps: RegisterRsdoctorPluginChunkGraphTaps::new(
           register_js_taps.register_rsdoctor_plugin_chunk_graph_taps,
           non_skippable_registers.clone(),

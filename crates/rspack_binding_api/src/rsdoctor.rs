@@ -6,12 +6,12 @@ use rspack_plugin_rsdoctor::{
   RsdoctorAsset, RsdoctorAssetPatch, RsdoctorChunk, RsdoctorChunkAssets, RsdoctorChunkGraph,
   RsdoctorChunkModules, RsdoctorConnection, RsdoctorConnectionsOnlyImport,
   RsdoctorConnectionsOnlyImportConnection, RsdoctorDependency, RsdoctorEntrypoint,
-  RsdoctorEntrypointAssets, RsdoctorExportInfo, RsdoctorModule, RsdoctorModuleGraph,
-  RsdoctorModuleGraphModule, RsdoctorModuleId, RsdoctorModuleIdsPatch,
-  RsdoctorModuleOriginalSource, RsdoctorModuleSourcesPatch, RsdoctorPluginChunkGraphFeature,
-  RsdoctorPluginModuleGraphFeature, RsdoctorPluginOptions, RsdoctorPluginSourceMapFeature,
-  RsdoctorSideEffect, RsdoctorSideEffectLocation, RsdoctorSourcePosition, RsdoctorSourceRange,
-  RsdoctorStatement, RsdoctorVariable,
+  RsdoctorEntrypointAssets, RsdoctorExportInfo, RsdoctorExportUsageEdge, RsdoctorExportUsageGraph,
+  RsdoctorModule, RsdoctorModuleGraph, RsdoctorModuleGraphModule, RsdoctorModuleId,
+  RsdoctorModuleIdsPatch, RsdoctorModuleOriginalSource, RsdoctorModuleSourcesPatch,
+  RsdoctorPluginChunkGraphFeature, RsdoctorPluginModuleGraphFeature, RsdoctorPluginOptions,
+  RsdoctorPluginSourceMapFeature, RsdoctorSideEffect, RsdoctorSideEffectLocation,
+  RsdoctorSourcePosition, RsdoctorSourceRange, RsdoctorStatement, RsdoctorVariable,
 };
 use rustc_hash::FxHashSet;
 
@@ -83,6 +83,60 @@ impl From<RsdoctorDependency> for JsRsdoctorDependency {
       request: value.request,
       module: value.module,
       dependency: value.dependency,
+    }
+  }
+}
+
+#[napi(object)]
+pub struct JsRsdoctorExportUsageEdge {
+  pub dependency_id: String,
+  pub dependency_type: String,
+  pub user_request: String,
+  pub loc: Option<String>,
+  pub origin_module: i32,
+  pub origin_module_identifier: String,
+  pub origin_module_path: String,
+  pub origin_export: Option<Vec<String>>,
+  pub target_module: i32,
+  pub target_module_identifier: String,
+  pub target_module_path: String,
+  pub target_export: Option<Vec<String>>,
+  pub active: bool,
+}
+
+impl From<RsdoctorExportUsageEdge> for JsRsdoctorExportUsageEdge {
+  fn from(value: RsdoctorExportUsageEdge) -> Self {
+    JsRsdoctorExportUsageEdge {
+      dependency_id: value.dependency_id,
+      dependency_type: value.dependency_type,
+      user_request: value.user_request,
+      loc: value.loc,
+      origin_module: value.origin_module,
+      origin_module_identifier: value.origin_module_identifier,
+      origin_module_path: value.origin_module_path,
+      origin_export: value.origin_export,
+      target_module: value.target_module,
+      target_module_identifier: value.target_module_identifier,
+      target_module_path: value.target_module_path,
+      target_export: value.target_export,
+      active: value.active,
+    }
+  }
+}
+
+#[napi(object)]
+pub struct JsRsdoctorExportUsageGraph {
+  pub export_usage_edges: Vec<JsRsdoctorExportUsageEdge>,
+}
+
+impl From<RsdoctorExportUsageGraph> for JsRsdoctorExportUsageGraph {
+  fn from(value: RsdoctorExportUsageGraph) -> Self {
+    JsRsdoctorExportUsageGraph {
+      export_usage_edges: value
+        .export_usage_edges
+        .into_iter()
+        .map(|edge| edge.into())
+        .collect(),
     }
   }
 }
@@ -559,6 +613,7 @@ pub struct RawRsdoctorPluginOptions {
   pub chunk_graph_features: Either<bool, Vec<String>>,
   #[napi(ts_type = "{ module?: boolean; cheap?: boolean } | undefined")]
   pub source_map_features: Option<JsRsdoctorSourceMapFeatures>,
+  pub export_usage_graph: Option<bool>,
 }
 
 #[napi(object)]
@@ -608,6 +663,7 @@ impl From<RawRsdoctorPluginOptions> for RsdoctorPluginOptions {
           .collect::<FxHashSet<_>>(),
       },
       source_map_features,
+      export_usage_graph: value.export_usage_graph.unwrap_or_default(),
     }
   }
 }

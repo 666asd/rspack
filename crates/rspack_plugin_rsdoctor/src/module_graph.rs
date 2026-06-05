@@ -1,22 +1,27 @@
 use std::sync::{Arc, atomic::AtomicI32};
 
 use rayon::iter::{IntoParallelRefIterator, ParallelBridge, ParallelIterator};
-use rspack_collections::{Identifiable, IdentifierMap, IdentifierSet};
+use rspack_collections::{Identifiable, Identifier, IdentifierMap, IdentifierSet};
 use rspack_core::{
-  BoxModule, ChunkGraph, Compilation, Context, DependencyId, DependencyType, ExportsInfoArtifact,
-  Module, ModuleGraph, ModuleGraphCacheArtifact, ModuleIdsArtifact, ModuleType,
-  OptimizationBailoutItem, SideEffectsStateArtifact, UsageState,
+  BoxModule, ChunkGraph, Compilation, Context, Dependency, DependencyId, DependencyType,
+  ExportsInfoArtifact, ExtendedReferencedExport, Module, ModuleGraph, ModuleGraphCacheArtifact,
+  ModuleIdsArtifact, ModuleType, OptimizationBailoutItem, SideEffectsStateArtifact, UsageState,
+  UsedByExports, UsedByExportsCondition,
   rspack_sources::{MapOptions, ObjectPool},
 };
 use rspack_paths::Utf8PathBuf;
+use rspack_plugin_javascript::dependency::{
+  ESMImportSpecifierDependency, PureExpressionDependency, URLDependency,
+};
 use rspack_plugin_json::create_object_for_exports_info;
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use thread_local::ThreadLocal;
 
 use crate::{
   ChunkUkey, ModuleKind, ModuleUkey, RsdoctorConnectionsOnlyImport,
-  RsdoctorConnectionsOnlyImportConnection, RsdoctorDependency, RsdoctorJsonModuleSizes,
-  RsdoctorModule, RsdoctorModuleId, RsdoctorModuleOriginalSource, RsdoctorSideEffectLocation,
+  RsdoctorConnectionsOnlyImportConnection, RsdoctorDependency, RsdoctorExportUsageDependency,
+  RsdoctorExportUsageEdge, RsdoctorJsonModuleSizes, RsdoctorModule, RsdoctorModuleId,
+  RsdoctorModuleOriginalSource, RsdoctorSideEffectLocation,
 };
 
 pub fn collect_json_module_sizes(
@@ -290,6 +295,178 @@ pub fn collect_module_dependencies(
       Some((module_id.to_owned(), dependencies))
     })
     .collect::<IdentifierMap<IdentifierMap<(DependencyId, RsdoctorDependency)>>>()
+}
+
+fn referenced_export_to_names(export: &ExtendedReferencedExport) -> Option<Vec<String>> {
+  let names: Vec<String> = match export {
+    ExtendedReferencedExport::Array(names) => names.iter().map(|name| name.to_string()).collect(),
+    ExtendedReferencedExport::Export(export) => {
+      export.name.iter().map(|name| name.to_string()).collect()
+    }
+  };
+  if names.is_empty() { None } else { Some(names) }
+}
+
+fn get_origin_exports(used_by_exports: Option<&UsedByExports>) -> Vec<Option<Vec<String>>> {
+  match used_by_exports.map(|used_by_exports| &used_by_exports.condition) {
+    None | Some(UsedByExportsCondition::Bool(true)) => vec![None],
+    Some(UsedByExportsCondition::Bool(false)) => vec![],
+    Some(UsedByExportsCondition::Set(exports)) => {
+      let mut exports = exports
+        .iter()
+        .map(|export| Some(vec![export.to_string()]))
+        .collect::<Vec<_>>();
+      exports.sort_unstable();
+      exports
+    }
+  }
+}
+
+fn dependency_used_by_exports(dependency: &dyn Dependency) -> Option<&UsedByExports> {
+  if let Some(dependency) = dependency.downcast_ref::<ESMImportSpecifierDependency>() {
+    return dependency.used_by_exports();
+  }
+  if let Some(dependency) = dependency.downcast_ref::<URLDependency>() {
+    return dependency.used_by_exports();
+  }
+  if let Some(dependency) = dependency.downcast_ref::<PureExpressionDependency>() {
+    return dependency.used_by_exports();
+  }
+  None
+}
+
+pub fn collect_export_usage_dependencies(
+  modules: &IdentifierMap<&BoxModule>,
+  module_graph: &ModuleGraph,
+  module_graph_cache: &ModuleGraphCacheArtifact,
+  exports_info_artifact: &ExportsInfoArtifact,
+) -> Vec<RsdoctorExportUsageDependency> {
+  modules
+    .par_iter()
+    .flat_map(|(module_id, _)| {
+      module_graph
+        .get_outgoing_connections(module_id)
+        .flat_map(|conn| {
+          let dependency = module_graph.dependency_by_id(&conn.dependency_id);
+          let origin_exports = get_origin_exports(dependency_used_by_exports(dependency.as_ref()));
+          if origin_exports.is_empty() {
+            return vec![];
+          }
+
+          let target_exports = dependency
+            .get_referenced_exports(
+              module_graph,
+              module_graph_cache,
+              exports_info_artifact,
+              None,
+            )
+            .iter()
+            .map(referenced_export_to_names)
+            .collect::<Vec<_>>();
+          if target_exports.is_empty() {
+            return vec![];
+          }
+
+          let user_request = dependency
+            .as_module_dependency()
+            .map(|dep| dep.user_request().to_string())
+            .or_else(|| {
+              dependency
+                .as_context_dependency()
+                .map(|dep| dep.request().to_string())
+            })
+            .unwrap_or_default();
+          let dependency_type = dependency.dependency_type().to_string();
+          let dependency_id = conn.dependency_id.as_u32().to_string();
+          let loc = dependency.loc().map(|loc| loc.to_string());
+          let origin_module_identifier = conn.original_module_identifier.unwrap_or(*module_id);
+          let target_module_identifier = *conn.module_identifier();
+
+          origin_exports
+            .into_iter()
+            .flat_map(|origin_export| {
+              target_exports
+                .iter()
+                .cloned()
+                .map(|target_export| RsdoctorExportUsageDependency {
+                  dependency_id: dependency_id.clone(),
+                  dependency_type: dependency_type.clone(),
+                  user_request: user_request.clone(),
+                  loc: loc.clone(),
+                  origin_module_identifier,
+                  target_module_identifier,
+                  origin_export: origin_export.clone(),
+                  target_export,
+                })
+                .collect::<Vec<_>>()
+            })
+            .collect::<Vec<_>>()
+        })
+        .collect::<Vec<_>>()
+    })
+    .collect::<Vec<_>>()
+}
+
+pub fn collect_active_export_usage_dependencies(
+  candidates: &[RsdoctorExportUsageDependency],
+  module_graph: &ModuleGraph,
+  module_graph_cache: &ModuleGraphCacheArtifact,
+  side_effects_state_artifact: &SideEffectsStateArtifact,
+  exports_info_artifact: &ExportsInfoArtifact,
+) -> Vec<RsdoctorExportUsageDependency> {
+  candidates
+    .par_iter()
+    .filter(|candidate| {
+      let Ok(dependency_id) = candidate.dependency_id.parse::<u32>() else {
+        return false;
+      };
+      let dependency_id = DependencyId::from(dependency_id);
+      module_graph
+        .connection_by_dependency_id(&dependency_id)
+        .is_some_and(|connection| {
+          connection.is_active(
+            module_graph,
+            None,
+            module_graph_cache,
+            side_effects_state_artifact,
+            exports_info_artifact,
+          )
+        })
+    })
+    .cloned()
+    .collect::<Vec<_>>()
+}
+
+pub fn collect_export_usage_edges(
+  dependencies: Vec<RsdoctorExportUsageDependency>,
+  module_ukeys: &IdentifierMap<ModuleUkey>,
+  rsd_modules: &HashMap<Identifier, RsdoctorModule>,
+) -> Vec<RsdoctorExportUsageEdge> {
+  dependencies
+    .into_iter()
+    .filter_map(|dependency| {
+      let origin_module = *module_ukeys.get(&dependency.origin_module_identifier)?;
+      let target_module = *module_ukeys.get(&dependency.target_module_identifier)?;
+      let origin_rsd_module = rsd_modules.get(&dependency.origin_module_identifier)?;
+      let target_rsd_module = rsd_modules.get(&dependency.target_module_identifier)?;
+
+      Some(RsdoctorExportUsageEdge {
+        dependency_id: dependency.dependency_id,
+        dependency_type: dependency.dependency_type,
+        user_request: dependency.user_request,
+        loc: dependency.loc,
+        origin_module,
+        origin_module_identifier: dependency.origin_module_identifier.to_string(),
+        origin_module_path: origin_rsd_module.path.clone(),
+        origin_export: dependency.origin_export,
+        target_module,
+        target_module_identifier: dependency.target_module_identifier.to_string(),
+        target_module_path: target_rsd_module.path.clone(),
+        target_export: dependency.target_export,
+        active: true,
+      })
+    })
+    .collect::<Vec<_>>()
 }
 
 pub fn collect_module_ids(

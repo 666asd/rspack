@@ -7,9 +7,12 @@ use atomic_refcell::AtomicRefCell;
 use futures::future::BoxFuture;
 use rspack_collections::IdentifierMap;
 use rspack_core::{
-  ChunkGroupUkey, Compilation, CompilationAfterCodeGeneration, CompilationAfterProcessAssets,
+  AsyncModulesArtifact, BuildModuleGraphArtifact, ChunkGroupUkey, Compilation,
+  CompilationAfterCodeGeneration, CompilationAfterProcessAssets, CompilationFinishModules,
   CompilationId, CompilationModuleIds, CompilationOptimizeChunkModules, CompilationOptimizeChunks,
-  CompilationParams, CompilerCompilation, ModuleIdsArtifact, OptimizationBailoutItem, Plugin,
+  CompilationOptimizeDependencies, CompilationParams, CompilerCompilation, ExportsInfoArtifact,
+  ModuleIdsArtifact, OptimizationBailoutItem, Plugin, SideEffectsOptimizeArtifact,
+  SideEffectsStateArtifact,
 };
 use rspack_error::{Diagnostic, Result};
 use rspack_hook::{plugin, plugin_hook};
@@ -22,7 +25,8 @@ use rspack_util::fx_hash::{FxDashMap, FxHashSet};
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use crate::{
-  EntrypointUkey, ModuleUkey, RsdoctorAssetPatch, RsdoctorChunkGraph, RsdoctorModuleGraph,
+  EntrypointUkey, ModuleUkey, RsdoctorAssetPatch, RsdoctorChunkGraph,
+  RsdoctorExportUsageDependency, RsdoctorExportUsageGraph, RsdoctorModuleGraph,
   RsdoctorModuleIdsPatch, RsdoctorModuleSourcesPatch, RsdoctorPluginHooks,
   RsdoctorStatsModuleIssuer,
   chunk_graph::{
@@ -30,14 +34,18 @@ use crate::{
     collect_chunks, collect_entrypoint_assets, collect_entrypoints,
   },
   module_graph::{
-    collect_concatenated_modules, collect_connections_only_imports, collect_json_module_sizes,
-    collect_module_dependencies, collect_module_ids, collect_module_original_sources,
-    collect_module_side_effects_locations, collect_modules,
+    collect_active_export_usage_dependencies, collect_concatenated_modules,
+    collect_connections_only_imports, collect_export_usage_dependencies,
+    collect_export_usage_edges, collect_json_module_sizes, collect_module_dependencies,
+    collect_module_ids, collect_module_original_sources, collect_module_side_effects_locations,
+    collect_modules,
   },
 };
 
 pub type SendModuleGraph =
   Arc<dyn Fn(RsdoctorModuleGraph) -> BoxFuture<'static, Result<()>> + Send + Sync>;
+pub type SendExportUsageGraph =
+  Arc<dyn Fn(RsdoctorExportUsageGraph) -> BoxFuture<'static, Result<()>> + Send + Sync>;
 pub type SendChunkGraph =
   Arc<dyn Fn(RsdoctorChunkGraph) -> BoxFuture<'static, Result<()>> + Send + Sync>;
 pub type SendAssets =
@@ -66,6 +74,16 @@ static ENTRYPOINT_UKEY_MAP: LazyLock<
 #[cfg_attr(allocative, allocative::root)]
 static JSON_MODULE_SIZE_MAP: LazyLock<FxDashMap<CompilationId, crate::RsdoctorJsonModuleSizes>> =
   LazyLock::new(FxDashMap::default);
+
+#[cfg_attr(allocative, allocative::root)]
+static EXPORT_USAGE_DEPENDENCY_MAP: LazyLock<
+  FxDashMap<CompilationId, Vec<RsdoctorExportUsageDependency>>,
+> = LazyLock::new(FxDashMap::default);
+
+#[cfg_attr(allocative, allocative::root)]
+static ACTIVE_EXPORT_USAGE_DEPENDENCY_MAP: LazyLock<
+  FxDashMap<CompilationId, Vec<RsdoctorExportUsageDependency>>,
+> = LazyLock::new(FxDashMap::default);
 
 #[derive(Debug, Hash, PartialEq, Eq)]
 pub enum RsdoctorPluginModuleGraphFeature {
@@ -131,6 +149,7 @@ pub struct RsdoctorPluginOptions {
   pub module_graph_features: FxHashSet<RsdoctorPluginModuleGraphFeature>,
   pub chunk_graph_features: FxHashSet<RsdoctorPluginChunkGraphFeature>,
   pub source_map_features: RsdoctorPluginSourceMapFeature,
+  pub export_usage_graph: bool,
 }
 
 #[plugin]
@@ -172,6 +191,20 @@ impl RsdoctorPlugin {
     panic!("chunk graph feature \"{feature}\" need \"graph\" to be enabled");
   }
 
+  pub fn has_export_usage_graph_feature(&self) -> bool {
+    if !self.options.export_usage_graph {
+      return false;
+    }
+    if self
+      .options
+      .module_graph_features
+      .contains(&RsdoctorPluginModuleGraphFeature::ModuleGraph)
+    {
+      return true;
+    }
+    panic!("export usage graph feature need module graph \"graph\" to be enabled");
+  }
+
   pub fn get_compilation_hooks(id: CompilationId) -> ArcRsdoctorPluginHooks {
     if !COMPILATION_HOOKS_MAP.contains_key(&id) {
       COMPILATION_HOOKS_MAP.insert(id, Default::default());
@@ -195,7 +228,65 @@ async fn compilation(
 ) -> Result<()> {
   MODULE_UKEY_MAP.insert(compilation.id(), IdentifierMap::default());
   ENTRYPOINT_UKEY_MAP.insert(compilation.id(), HashMap::default());
+  EXPORT_USAGE_DEPENDENCY_MAP.remove(&compilation.id());
+  ACTIVE_EXPORT_USAGE_DEPENDENCY_MAP.remove(&compilation.id());
   Ok(())
+}
+
+#[plugin_hook(CompilationFinishModules for RsdoctorPlugin, stage = 9999)]
+async fn finish_modules(
+  &self,
+  compilation: &Compilation,
+  _async_modules_artifact: &mut AsyncModulesArtifact,
+  exports_info_artifact: &mut ExportsInfoArtifact,
+  _side_effects_state_artifact: &mut SideEffectsStateArtifact,
+) -> Result<()> {
+  if !self.has_export_usage_graph_feature() {
+    return Ok(());
+  }
+
+  let module_graph = compilation.get_module_graph();
+  let modules = module_graph
+    .modules()
+    .map(|(id, module)| (*id, module))
+    .collect::<IdentifierMap<_>>();
+  let dependencies = collect_export_usage_dependencies(
+    &modules,
+    module_graph,
+    &compilation.module_graph_cache_artifact,
+    exports_info_artifact,
+  );
+  EXPORT_USAGE_DEPENDENCY_MAP.insert(compilation.id(), dependencies);
+
+  Ok(())
+}
+
+#[plugin_hook(CompilationOptimizeDependencies for RsdoctorPlugin, stage = 9999)]
+async fn optimize_dependencies(
+  &self,
+  compilation: &Compilation,
+  _side_effects_optimize_artifact: &mut SideEffectsOptimizeArtifact,
+  build_module_graph_artifact: &mut BuildModuleGraphArtifact,
+  exports_info_artifact: &mut ExportsInfoArtifact,
+  _diagnostics: &mut Vec<Diagnostic>,
+) -> Result<Option<bool>> {
+  if !self.has_export_usage_graph_feature() {
+    return Ok(None);
+  }
+
+  let Some((_, dependencies)) = EXPORT_USAGE_DEPENDENCY_MAP.remove(&compilation.id()) else {
+    return Ok(None);
+  };
+  let active_dependencies = collect_active_export_usage_dependencies(
+    &dependencies,
+    build_module_graph_artifact.get_module_graph(),
+    &compilation.module_graph_cache_artifact,
+    &build_module_graph_artifact.side_effects_state_artifact,
+    exports_info_artifact,
+  );
+  ACTIVE_EXPORT_USAGE_DEPENDENCY_MAP.insert(compilation.id(), active_dependencies);
+
+  Ok(None)
 }
 
 #[plugin_hook(CompilationOptimizeChunks for RsdoctorPlugin, stage = 9999)]
@@ -420,6 +511,17 @@ async fn optimize_chunk_modules(&self, compilation: &mut Compilation) -> Result<
   let chunk_modules =
     collect_chunk_modules(chunk_by_ukey, &module_ukey_map, chunk_graph, module_graph);
 
+  let export_usage_edges = if self.has_export_usage_graph_feature() {
+    ACTIVE_EXPORT_USAGE_DEPENDENCY_MAP
+      .remove(&compilation.id())
+      .map(|(_, dependencies)| {
+        collect_export_usage_edges(dependencies, &module_ukey_map, &rsd_modules)
+      })
+      .unwrap_or_default()
+  } else {
+    Vec::new()
+  };
+
   tokio::spawn(async move {
     match hooks
       .borrow()
@@ -436,6 +538,21 @@ async fn optimize_chunk_modules(&self, compilation: &mut Compilation) -> Result<
       Err(e) => panic!("rsdoctor send module graph failed: {e}"),
     };
   });
+
+  if self.has_export_usage_graph_feature() {
+    let hooks = RsdoctorPlugin::get_compilation_hooks(compilation.id());
+    tokio::spawn(async move {
+      match hooks
+        .borrow()
+        .export_usage_graph
+        .call(&mut RsdoctorExportUsageGraph { export_usage_edges })
+        .await
+      {
+        Ok(_) => {}
+        Err(e) => panic!("rsdoctor send export usage graph failed: {e}"),
+      };
+    });
+  }
 
   Ok(None)
 }
@@ -585,6 +702,14 @@ impl Plugin for RsdoctorPlugin {
 
   fn apply(&self, ctx: &mut rspack_core::ApplyContext<'_>) -> Result<()> {
     ctx.compiler_hooks.compilation.tap(compilation::new(self));
+    ctx
+      .compilation_hooks
+      .finish_modules
+      .tap(finish_modules::new(self));
+    ctx
+      .compilation_hooks
+      .optimize_dependencies
+      .tap(optimize_dependencies::new(self));
     // Collect JSON module sizes before concatenation (after tree-shaking)
     ctx
       .compilation_hooks

@@ -1157,6 +1157,26 @@ export interface JsRsdoctorExportInfo {
   identifier?: JsRsdoctorStatement
 }
 
+export interface JsRsdoctorExportUsageEdge {
+  dependencyId: string
+  dependencyType: string
+  userRequest: string
+  loc?: string
+  originModule: number
+  originModuleIdentifier: string
+  originModulePath: string
+  originExport?: Array<string>
+  targetModule: number
+  targetModuleIdentifier: string
+  targetModulePath: string
+  targetExport?: Array<string>
+  active: boolean
+}
+
+export interface JsRsdoctorExportUsageGraph {
+  exportUsageEdges: Array<JsRsdoctorExportUsageEdge>
+}
+
 export interface JsRsdoctorJsonModuleSize {
   identifier: string
   size: number
@@ -2900,6 +2920,7 @@ export interface RawRsdoctorPluginOptions {
   moduleGraphFeatures: boolean | Array<'graph' | 'ids' | 'sources'>
   chunkGraphFeatures: boolean | Array<'graph' | 'assets'>
   sourceMapFeatures?: { module?: boolean; cheap?: boolean } | undefined
+  exportUsageGraph?: boolean
 }
 
 export interface RawRslibPluginOptions {
@@ -3150,10 +3171,11 @@ export declare enum RegisterJsTapKind {
   RuntimePluginLinkPreload = 44,
   RuntimePluginLinkPrefetch = 45,
   RsdoctorPluginModuleGraph = 46,
-  RsdoctorPluginChunkGraph = 47,
-  RsdoctorPluginModuleIds = 48,
-  RsdoctorPluginModuleSources = 49,
-  RsdoctorPluginAssets = 50
+  RsdoctorPluginExportUsageGraph = 47,
+  RsdoctorPluginChunkGraph = 48,
+  RsdoctorPluginModuleIds = 49,
+  RsdoctorPluginModuleSources = 50,
+  RsdoctorPluginAssets = 51
 }
 
 export interface RegisterJsTaps {
@@ -3204,6 +3226,7 @@ export interface RegisterJsTaps {
   registerRuntimePluginLinkPreloadTaps: (stages: Array<number>) => Array<{ function: ((arg: JsCreateLinkData) => String); stage: number; }>
   registerRuntimePluginLinkPrefetchTaps: (stages: Array<number>) => Array<{ function: ((arg: JsLinkPrefetchData) => String); stage: number; }>
   registerRsdoctorPluginModuleGraphTaps: (stages: Array<number>) => Array<{ function: ((arg: JsRsdoctorModuleGraph) => Promise<boolean | undefined>); stage: number; }>
+  registerRsdoctorPluginExportUsageGraphTaps: (stages: Array<number>) => Array<{ function: ((arg: JsRsdoctorExportUsageGraph) => Promise<boolean | undefined>); stage: number; }>
   registerRsdoctorPluginChunkGraphTaps: (stages: Array<number>) => Array<{ function: ((arg: JsRsdoctorChunkGraph) => Promise<boolean | undefined>); stage: number; }>
   registerRsdoctorPluginModuleIdsTaps: (stages: Array<number>) => Array<{ function: ((arg: JsRsdoctorModuleIdsPatch) => Promise<boolean | undefined>); stage: number; }>
   registerRsdoctorPluginModuleSourcesTaps: (stages: Array<number>) => Array<{ function: ((arg: JsRsdoctorModuleSourcesPatch) => Promise<boolean | undefined>); stage: number; }>

@@ -60,9 +60,10 @@ use rspack_plugin_html::{
 };
 use rspack_plugin_javascript::{JavascriptModulesChunkHash, JavascriptModulesChunkHashHook};
 use rspack_plugin_rsdoctor::{
-  RsdoctorAssetPatch, RsdoctorChunkGraph, RsdoctorModuleGraph, RsdoctorModuleIdsPatch,
-  RsdoctorModuleSourcesPatch, RsdoctorPluginAssets, RsdoctorPluginAssetsHook,
-  RsdoctorPluginChunkGraph, RsdoctorPluginChunkGraphHook, RsdoctorPluginModuleGraph,
+  RsdoctorAssetPatch, RsdoctorChunkGraph, RsdoctorExportUsageGraph, RsdoctorModuleGraph,
+  RsdoctorModuleIdsPatch, RsdoctorModuleSourcesPatch, RsdoctorPluginAssets,
+  RsdoctorPluginAssetsHook, RsdoctorPluginChunkGraph, RsdoctorPluginChunkGraphHook,
+  RsdoctorPluginExportUsageGraph, RsdoctorPluginExportUsageGraphHook, RsdoctorPluginModuleGraph,
   RsdoctorPluginModuleGraphHook, RsdoctorPluginModuleIds, RsdoctorPluginModuleIdsHook,
   RsdoctorPluginModuleSources, RsdoctorPluginModuleSourcesHook,
 };
@@ -94,8 +95,8 @@ use crate::{
     JsResolveForSchemeOutput,
   },
   rsdoctor::{
-    JsRsdoctorAssetPatch, JsRsdoctorChunkGraph, JsRsdoctorModuleGraph, JsRsdoctorModuleIdsPatch,
-    JsRsdoctorModuleSourcesPatch,
+    JsRsdoctorAssetPatch, JsRsdoctorChunkGraph, JsRsdoctorExportUsageGraph, JsRsdoctorModuleGraph,
+    JsRsdoctorModuleIdsPatch, JsRsdoctorModuleSourcesPatch,
   },
   runtime::{
     JsAdditionalTreeRuntimeRequirementsArg, JsAdditionalTreeRuntimeRequirementsResult,
@@ -406,6 +407,7 @@ pub enum RegisterJsTapKind {
   RuntimePluginLinkPreload,
   RuntimePluginLinkPrefetch,
   RsdoctorPluginModuleGraph,
+  RsdoctorPluginExportUsageGraph,
   RsdoctorPluginChunkGraph,
   RsdoctorPluginModuleIds,
   RsdoctorPluginModuleSources,
@@ -645,6 +647,11 @@ pub struct RegisterJsTaps {
   )]
   pub register_rsdoctor_plugin_module_graph_taps:
     RegisterFunction<JsRsdoctorModuleGraph, Promise<Option<bool>>>,
+  #[napi(
+    ts_type = "(stages: Array<number>) => Array<{ function: ((arg: JsRsdoctorExportUsageGraph) => Promise<boolean | undefined>); stage: number; }>"
+  )]
+  pub register_rsdoctor_plugin_export_usage_graph_taps:
+    RegisterFunction<JsRsdoctorExportUsageGraph, Promise<Option<bool>>>,
   #[napi(
     ts_type = "(stages: Array<number>) => Array<{ function: ((arg: JsRsdoctorChunkGraph) => Promise<boolean | undefined>); stage: number; }>"
   )]
@@ -1012,6 +1019,14 @@ define_register!(
   tap = RsdoctorPluginModuleGraphTap<JsRsdoctorModuleGraph, Promise<Option<bool>>> @ RsdoctorPluginModuleGraphHook,
   cache = true,
   kind = RegisterJsTapKind::RsdoctorPluginModuleGraph,
+  skip = true,
+);
+
+define_register!(
+  RegisterRsdoctorPluginExportUsageGraphTaps,
+  tap = RsdoctorPluginExportUsageGraphTap<JsRsdoctorExportUsageGraph, Promise<Option<bool>>> @ RsdoctorPluginExportUsageGraphHook,
+  cache = true,
+  kind = RegisterJsTapKind::RsdoctorPluginExportUsageGraph,
   skip = true,
 );
 
@@ -1970,6 +1985,22 @@ impl RsdoctorPluginModuleGraph for RsdoctorPluginModuleGraphTap {
     let bail = self
       .function
       .call_with_promise(JsRsdoctorModuleGraph::from(data))
+      .await?;
+    Ok(bail)
+  }
+
+  fn stage(&self) -> i32 {
+    self.stage
+  }
+}
+
+#[async_trait]
+impl RsdoctorPluginExportUsageGraph for RsdoctorPluginExportUsageGraphTap {
+  async fn run(&self, data: &mut RsdoctorExportUsageGraph) -> rspack_error::Result<Option<bool>> {
+    let data = std::mem::take(data);
+    let bail = self
+      .function
+      .call_with_promise(JsRsdoctorExportUsageGraph::from(data))
       .await?;
     Ok(bail)
   }

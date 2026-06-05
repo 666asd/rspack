@@ -173,6 +173,10 @@ impl ESMImportSpecifierDependency {
     self.used_by_exports = used_by_exports;
   }
 
+  pub fn used_by_exports(&self) -> Option<&UsedByExports> {
+    self.used_by_exports.as_ref()
+  }
+
   pub fn add_branch_guards(&mut self, guards: impl IntoIterator<Item = DependencyBranchGuard>) {
     self.branch_guards.get_or_insert_default().extend(guards);
   }

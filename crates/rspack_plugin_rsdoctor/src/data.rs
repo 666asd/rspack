@@ -72,6 +72,40 @@ pub struct RsdoctorDependency {
   pub dependency: ModuleUkey,
 }
 
+#[derive(Debug, Default, Clone)]
+pub struct RsdoctorExportUsageDependency {
+  pub dependency_id: String,
+  pub dependency_type: String,
+  pub user_request: String,
+  pub loc: Option<String>,
+  pub origin_module_identifier: Identifier,
+  pub target_module_identifier: Identifier,
+  pub origin_export: Option<Vec<String>>,
+  pub target_export: Option<Vec<String>>,
+}
+
+#[derive(Debug, Default)]
+pub struct RsdoctorExportUsageEdge {
+  pub dependency_id: String,
+  pub dependency_type: String,
+  pub user_request: String,
+  pub loc: Option<String>,
+  pub origin_module: ModuleUkey,
+  pub origin_module_identifier: String,
+  pub origin_module_path: String,
+  pub origin_export: Option<Vec<String>>,
+  pub target_module: ModuleUkey,
+  pub target_module_identifier: String,
+  pub target_module_path: String,
+  pub target_export: Option<Vec<String>>,
+  pub active: bool,
+}
+
+#[derive(Debug, Default)]
+pub struct RsdoctorExportUsageGraph {
+  pub export_usage_edges: Vec<RsdoctorExportUsageEdge>,
+}
+
 #[derive(Debug, Default)]
 pub struct RsdoctorConnection {
   pub ukey: ConnectionUkey,
