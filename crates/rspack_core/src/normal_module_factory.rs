@@ -826,7 +826,7 @@ impl NormalModuleFactory {
                 .options
                 .__references
                 .get(ident)
-                .and_then(|object| simd_json::to_string_pretty(object).ok())
+                .and_then(|object| simd_json::to_string(object).ok())
             }),
           }
         }));
