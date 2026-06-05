@@ -99,7 +99,8 @@ jobs:
       target: x86_64-unknown-linux-gnu
       measurement: walltime
       bench_target: walltime
-      runner: '"physical-1-exclusive"'
+      # Walltime measurements should run on CodSpeed-managed macro runners.
+      runner: '"codspeed-macro"'
 
   test-windows:
     name: Test Windows
