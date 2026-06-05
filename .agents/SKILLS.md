@@ -111,7 +111,7 @@ Used for JavaScript API layer, CLI tools, and test infrastructure.
 **Resources:**
 
 - [Rust Testing](https://doc.rust-lang.org/book/ch11-00-testing.html)
-- [Testing Guide](./website/docs/en/contribute/development/testing.mdx)
+- [Testing Guide](../website/docs/en/contribute/development/testing.mdx)
 
 ### Code Quality (Essential)
 
@@ -144,7 +144,7 @@ Used for JavaScript API layer, CLI tools, and test infrastructure.
 
 **Resources:**
 
-- [Debugging Guide](./website/docs/en/contribute/development/debugging.mdx)
+- [Debugging Guide](../website/docs/en/contribute/development/debugging.mdx)
 
 ### Performance Optimization (Important)
 
@@ -165,7 +165,7 @@ Used for JavaScript API layer, CLI tools, and test infrastructure.
 **Resources:**
 
 - [Rust Performance Book](https://nnethercote.github.io/perf-book/)
-- [Performance Tracing](./crates/rspack_tracing/)
+- [Performance Tracing](../crates/rspack_tracing/)
 
 ## System Design & Architecture
 
