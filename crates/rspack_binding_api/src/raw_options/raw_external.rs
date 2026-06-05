@@ -46,8 +46,7 @@ type RawExternalItem = Either4<
   ThreadsafeFunction<RawExternalItemFnCtx, Promise<RawExternalItemFnResult>>,
 >;
 type RawExternalItemValue = Either4<String, bool, Vec<String>, HashMap<String, Vec<String>>>;
-type RawExternalResolveFunction<'a> =
-  Function<'a, (String, String, Function<'static>, Option<bool>), ()>;
+type RawExternalResolveFunction<'a> = Function<'a, (String, String, Function<'static>), ()>;
 pub(crate) struct RawExternalItemWrapper(pub(crate) RawExternalItem);
 struct RawExternalItemValueWrapper(RawExternalItemValue);
 
@@ -127,7 +126,7 @@ impl RawExternalItemFnCtx {
   }
 
   #[napi(
-    ts_return_type = "(context: string, path: string, callback: (error?: Error, text?: string) => void, needsDetails?: boolean) => void"
+    ts_return_type = "(context: string, path: string, callback: (error?: Error, text?: string) => void) => void"
   )]
   pub fn get_resolve<'a>(
     &self,
@@ -148,11 +147,6 @@ impl RawExternalItemFnCtx {
         let context = ctx.get::<String>(0)?;
         let request = ctx.get::<String>(1)?;
         let callback = ctx.get::<Function<'static>>(2)?;
-        let needs_details = if ctx.length() > 3 {
-          ctx.get::<bool>(3)?
-        } else {
-          true
-        };
 
         let first = first.clone();
         let second = second.clone();
@@ -182,15 +176,11 @@ impl RawExternalItemFnCtx {
 
             match resolver.resolve(Path::new(&context), &request).await {
               Ok(rspack_core::ResolveResult::Resource(resource)) => {
-                if needs_details {
-                  let resolve_request = ResolveRequest::from(resource);
-                  Ok(match resolve_request.to_json_string() {
-                    Ok(json) => Either::<String, ()>::A(json),
-                    Err(_) => Either::B(()),
-                  })
-                } else {
-                  Ok(Either::<String, ()>::A(resource.full_path()))
-                }
+                let resolve_request = ResolveRequest::from(resource);
+                Ok(match resolve_request.to_json_string() {
+                  Ok(json) => Either::<String, ()>::A(json),
+                  Err(_) => Either::B(()),
+                })
               }
               Ok(rspack_core::ResolveResult::Ignored) => Ok(Either::B(())),
               Err(err) => Err(napi::Error::new(

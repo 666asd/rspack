@@ -483,7 +483,7 @@ export declare class NativeWatchResult {
 
 export declare class RawExternalItemFnCtx {
   data(): RawExternalItemFnCtxData
-  getResolve(options?: RawResolveOptionsWithDependencyType | undefined | null): (context: string, path: string, callback: (error?: Error, text?: string) => void, needsDetails?: boolean) => void
+  getResolve(options?: RawResolveOptionsWithDependencyType | undefined | null): (context: string, path: string, callback: (error?: Error, text?: string) => void) => void
 }
 
 export declare class ReadonlyResourceData {

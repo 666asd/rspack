@@ -2785,8 +2785,7 @@ impl OutputOptionsBuilder {
       // Try reading from package.json
       let pkg_path = path.join("package.json");
       if let Ok(pkg_content) = std::fs::read_to_string(pkg_path)
-        && let Ok(pkg_json) =
-          simd_json::from_reader::<_, simd_json::OwnedValue>(pkg_content.as_bytes())
+        && let Ok(pkg_json) = simd_json::to_borrowed_value(&mut pkg_content.into_bytes())
         && let Some(name) = pkg_json.get("name").and_then(|n| n.as_str())
       {
         return name.to_string();
