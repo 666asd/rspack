@@ -369,13 +369,19 @@ fn to_cow<'a>(val: &'a Operand, runtime_globals: &RuntimeGlobalsRenderMap) -> Co
   }
 }
 
-fn join_to_string(val: &Operand, sep: &str, runtime_globals: &RuntimeGlobalsRenderMap) -> String {
+fn join_to_cow<'a>(
+  val: &'a Operand,
+  sep: &str,
+  runtime_globals: &RuntimeGlobalsRenderMap,
+) -> Cow<'a, str> {
   match val {
-    Operand::Array(items) => items
-      .iter()
-      .map(|item| to_cow(item, runtime_globals))
-      .join(sep),
-    _ => to_cow(val, runtime_globals).into_owned(),
+    Operand::Array(items) => Cow::Owned(
+      items
+        .iter()
+        .map(|item| to_cow(item, runtime_globals))
+        .join(sep),
+    ),
+    _ => to_cow(val, runtime_globals),
   }
 }
 
@@ -391,12 +397,12 @@ fn dojang_basic_function(
   {
     Operand::Value(Value::from(format!(
       r#"({}) =>"#,
-      join_to_string(&args, ", ", runtime_globals)
+      join_to_cow(&args, ", ", runtime_globals)
     )))
   } else {
     Operand::Value(Value::from(format!(
       r#"function({})"#,
-      join_to_string(&args, ", ", runtime_globals)
+      join_to_cow(&args, ", ", runtime_globals)
     )))
   }
 }
@@ -414,13 +420,13 @@ fn dojang_returning_function(
   {
     Operand::Value(Value::from(format!(
       "({}) => ({})",
-      join_to_string(&args, ", ", runtime_globals),
+      join_to_cow(&args, ", ", runtime_globals),
       to_cow(&return_value, runtime_globals)
     )))
   } else {
     Operand::Value(Value::from(format!(
       "function({}) {{ return {}; }}",
-      join_to_string(&args, ", ", runtime_globals),
+      join_to_cow(&args, ", ", runtime_globals),
       to_cow(&return_value, runtime_globals)
     )))
   }
@@ -439,13 +445,13 @@ fn dojang_expression_function(
   {
     Operand::Value(Value::from(format!(
       "({}) => ({})",
-      join_to_string(&args, ", ", runtime_globals),
+      join_to_cow(&args, ", ", runtime_globals),
       to_cow(&expression, runtime_globals)
     )))
   } else {
     Operand::Value(Value::from(format!(
       "function({}) {{ {}; }}",
-      join_to_string(&args, ", ", runtime_globals),
+      join_to_cow(&args, ", ", runtime_globals),
       to_cow(&expression, runtime_globals)
     )))
   }
@@ -472,7 +478,7 @@ fn dojang_array_destructure(
   if compiler_options.output.environment.supports_destructuring() {
     Operand::Value(Value::from(format!(
       "var [{}] = {};",
-      join_to_string(&items, ", ", runtime_globals),
+      join_to_cow(&items, ", ", runtime_globals),
       to_cow(&value, runtime_globals)
     )))
   } else {
