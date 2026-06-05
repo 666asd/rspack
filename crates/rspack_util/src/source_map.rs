@@ -22,21 +22,13 @@ impl Default for SourceMapKind {
 }
 
 impl SourceMapKind {
-  pub fn new_enabled() -> Self {
-    SourceMapKind::SourceMap
-  }
-
   pub fn new_inline() -> Self {
-    SourceMapKind::new_enabled().with_inline(true)
-  }
-
-  pub fn new_simple() -> Self {
-    SourceMapKind::SimpleSourceMap
+    SourceMapKind::SourceMap.with_inline(true)
   }
 
   pub fn from_enabled(enabled: bool) -> Self {
     if enabled {
-      SourceMapKind::new_enabled()
+      SourceMapKind::SourceMap
     } else {
       SourceMapKind::empty()
     }
@@ -44,9 +36,9 @@ impl SourceMapKind {
 
   pub fn from_module(module: bool) -> Self {
     if module {
-      SourceMapKind::new_enabled()
+      SourceMapKind::SourceMap
     } else {
-      SourceMapKind::new_simple()
+      SourceMapKind::SimpleSourceMap
     }
   }
 
