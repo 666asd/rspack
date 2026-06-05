@@ -83,11 +83,9 @@ impl RuntimeGlobalsRenderMap {
       .clone()
   }
 
-  fn render_by_name(&self, name: &str) -> String {
-    let (_, runtime_globals) = RuntimeGlobals::all()
-      .iter_names()
-      .find(|(runtime_global_name, _)| *runtime_global_name == name)
-      .expect("runtime global name should be known");
+  fn render_template_placeholder(&self, name: &str) -> String {
+    let runtime_globals =
+      RuntimeGlobals::from_name(name).expect("runtime global name should be known");
     self.render(&runtime_globals)
   }
 }
@@ -96,7 +94,7 @@ fn replace_runtime_globals(template: String, runtime_globals: &RuntimeGlobalsRen
   RUNTIME_GLOBALS_PATTERN
     .replace_all(&template, |caps: &Captures| {
       let name = caps.get(1).expect("name should be a string").as_str();
-      runtime_globals.render_by_name(name)
+      runtime_globals.render_template_placeholder(name)
     })
     .to_string()
 }
