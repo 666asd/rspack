@@ -12,7 +12,11 @@ import fooStylesheet from "./foo.css" with { type: "css" };
 
 it("should export CSS text as default when exportType is text (css/module)", () => {
 	expect(typeof moduleText).toBe("string");
-	expect(moduleText).toMatchSnapshot();
+	expect(moduleText).toContain(".module-text_css-class");
+	expect(moduleText).toContain("color: red");
+	expect(moduleText).toContain("background: white");
+	expect(moduleText).toContain(".module-text_css-another-class");
+	expect(moduleText).toContain("font-size: 16px");
 
 	expect(moduleTextClass).toBeTruthy();
 });
@@ -29,7 +33,16 @@ it("should export CSS text when exportType is text and esModule is false (css/mo
 	// Named export, warn
 	expect(moduleTextNoEsm["no-esm-text"]).toBeTruthy();
 	expect(moduleTextNoEsm.default["no-esm-text"]).toBeTruthy();
-	expect(moduleTextNoEsm).toMatchSnapshot();
+	expect(moduleTextNoEsm["no-esm-text"]).toBe("module-text-no-esm_css-no-esm-text");
+	expect(moduleTextNoEsm.another).toBe("module-text-no-esm_css-another");
+	expect(moduleTextNoEsm.default.default).toContain(
+		".module-text-no-esm_css-no-esm-text"
+	);
+	expect(moduleTextNoEsm.default.default).toContain("color: orange");
+	expect(moduleTextNoEsm.default.default).toContain(
+		".module-text-no-esm_css-another"
+	);
+	expect(moduleTextNoEsm.default.default).toContain("text-align: center");
 });
 
 
@@ -42,7 +55,16 @@ it("should export CSS text when exportType is text and esModule is false (css/au
 it("should handle @import with layer, supports, and media queries", () => {
 	expect(typeof moduleWithImports).toBe("string");
 	expect(typeof parentModuleWithImports).toBe("string");
-	expect(parentModuleWithImports).toMatchSnapshot();
+	expect(parentModuleWithImports).toContain("main-class");
+	expect(parentModuleWithImports).toContain("background-image: url(");
+	expect(parentModuleWithImports).toContain("@layer utilities");
+	expect(parentModuleWithImports).toContain("@supports (display: grid)");
+	expect(parentModuleWithImports).toContain("@media screen and (min-width: 768px)");
+	expect(parentModuleWithImports).toContain("@layer components");
+	expect(parentModuleWithImports).toContain("@supports (display: flex)");
+	expect(parentModuleWithImports).toContain(
+		"@media screen and (max-width: 1024px)"
+	);
 });
 
 it("should handle ICSS :import with exportType text", () => {

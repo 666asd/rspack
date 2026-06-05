@@ -12,8 +12,8 @@ use regex::{Captures, Regex};
 use rspack_core::{
   BoxDependency, ChunkGraph, Compilation, CompilerOptions, CssAutoOrModuleParserOptions,
   CssExportType, CssExportsConvention, CssModuleGeneratorOptions, CssModuleRenderCondition,
-  GeneratorOptions, LocalIdentName, Module, ModuleType, NormalModuleCreateData, ParserOptions,
-  PathData, ReplaceAllPlaceholder, ResourceData,
+  GeneratorOptions, ImportAttributes, LocalIdentName, Module, ModuleType, NormalModuleCreateData,
+  ParserOptions, PathData, ReplaceAllPlaceholder, ResourceData,
 };
 use rspack_error::{Diagnostic, Error, Result, Severity};
 use rspack_hash::{HashDigest, HashFunction, HashSalt, RspackHash};
@@ -116,6 +116,14 @@ pub(crate) fn append_css_export_type_key(
 ) {
   create_data.request.push_str("|css-export-type|");
   create_data.request.push_str(&export_type.to_string());
+}
+
+pub(crate) fn css_attribute_export_type(
+  attributes: Option<&ImportAttributes>,
+) -> Option<CssExportType> {
+  attributes
+    .and_then(|attributes| attributes.get("type"))
+    .and_then(|value| (value == "css").then_some(CssExportType::CssStyleSheet))
 }
 
 pub(crate) fn css_dependency_export_type(dependency: &BoxDependency) -> Option<CssExportType> {

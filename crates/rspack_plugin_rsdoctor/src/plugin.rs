@@ -616,6 +616,7 @@ impl Plugin for RsdoctorPlugin {
     SourceMapDevToolModuleOptionsPlugin::new(SourceMapDevToolModuleOptionsPluginOptions {
       cheap: self.options.source_map_features.cheap,
       module: self.options.source_map_features.module,
+      no_sources: false,
     })
     .apply(ctx)?;
 

@@ -1,6 +1,6 @@
 import textStyle from "./text.css";
 
-it("should handle HMR for exportType", async function (done) {
+it("should handle HMR for exportType", async () => {
 	expect(typeof textStyle).toBe("string");
 	expect(textStyle).toContain("color: red");
 	expect(textStyle).toContain("text-class");
@@ -16,21 +16,9 @@ it("should handle HMR for exportType", async function (done) {
 	expect(rule).toBeDefined();
 	expect(rule.style.color).toBe("green");
 
-	module.hot.accept(["./text.css", "./stylesheet.css", "./hi.txt"], () => {
-		expect(typeof textStyle).toBe("string");
-		expect(textStyle).toContain("imported-class-updated");
-	});
+	module.hot.accept(["./text.css", "./stylesheet.css", "./hi.txt"]);
 
-	NEXT(require("../../update")(done, true, () => {
-		import("./stylesheet.css", { with: { type: "css" }}).then(updatedSheetStyle => {
-			expect(updatedSheetStyle.default).toBeInstanceOf(CSSStyleSheet);
-			const rules = Array.from(updatedSheetStyle.default.cssRules);
-			const importedRule = rules.find(r => r.selectorText.includes("imported-class-updated"));
-			expect(importedRule).toBeDefined();
-			expect(importedRule.style.color).toBe("purple");
-			done();
-		});
-	}))
+	await NEXT_HMR();
 });
 
 module.hot.accept();

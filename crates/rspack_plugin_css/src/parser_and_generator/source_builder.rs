@@ -10,9 +10,30 @@ use rspack_util::base64::encode_to_string;
 
 const CSS_UTF8_CHARSET: &str = r#"@charset "UTF-8";"#;
 
+fn normalize_source_map_source(source: &str) -> String {
+  let source_without_scheme = source.strip_prefix("webpack:///").unwrap_or(source);
+  let is_absolute = source_without_scheme.starts_with('/')
+    || source_without_scheme
+      .as_bytes()
+      .get(1)
+      .is_some_and(|ch| *ch == b':');
+
+  if !is_absolute {
+    return source.to_string();
+  }
+
+  let filename = source_without_scheme
+    .rsplit(['/', '\\'])
+    .next()
+    .filter(|filename| !filename.is_empty())
+    .unwrap_or(source_without_scheme);
+  format!("webpack:///./{filename}")
+}
+
 pub(crate) struct CssSourceBuilder {
   source: ConcatSource,
   has_charset: bool,
+  include_sources_content: bool,
 }
 
 impl Default for CssSourceBuilder {
@@ -26,6 +47,7 @@ impl CssSourceBuilder {
     Self {
       source: ConcatSource::default(),
       has_charset: with_charset,
+      include_sources_content: true,
     }
   }
 
@@ -91,6 +113,10 @@ impl CssSourceBuilder {
     self.has_charset = true;
   }
 
+  pub(crate) fn set_include_sources_content(&mut self, include_sources_content: bool) {
+    self.include_sources_content = include_sources_content;
+  }
+
   pub(crate) fn into_source(self) -> BoxSource {
     if self.has_charset {
       ConcatSource::new([
@@ -105,6 +131,7 @@ impl CssSourceBuilder {
   }
 
   pub(crate) fn into_css_text(self) -> String {
+    let include_sources_content = self.include_sources_content;
     let source = self.into_source();
     let mut css_text = source
       .source()
@@ -112,7 +139,17 @@ impl CssSourceBuilder {
       .cow_replace(crate::utils::AUTO_PUBLIC_PATH_PLACEHOLDER, "")
       .into_owned();
 
-    if let Some(source_map) = source.map(&ObjectPool::default(), &MapOptions::default()) {
+    if let Some(mut source_map) = source.map(&ObjectPool::default(), &MapOptions::default()) {
+      source_map.set_sources(
+        source_map
+          .sources()
+          .iter()
+          .map(|source| normalize_source_map_source(source))
+          .collect::<Vec<_>>(),
+      );
+      if !include_sources_content {
+        source_map.set_sources_content([]);
+      }
       let base64_map = encode_to_string(source_map.to_json().as_bytes());
       if !css_text.ends_with('\n') {
         css_text.push('\n');

@@ -1,6 +1,6 @@
 import "./foo.css";
 
-it("should handle HMR for exportType style with @import", function (done) {
+it("should handle HMR for exportType style with @import", async () => {
 	const styles = window.document.getElementsByTagName("style");
 	expect(styles.length).toBeGreaterThan(0);
 	const styleElement = styles[styles.length - 1];
@@ -11,16 +11,15 @@ it("should handle HMR for exportType style with @import", function (done) {
 	expect(styleElement.textContent).toContain(".foo");
 
 	const originalTextContent = styleElement2.textContent;
-	NEXT(require("../../update")(done, true, () => {
-	const styles = window.document.getElementsByTagName("style");
-		const updatedStyleElement = styles[styles.length - 1];
-		const updatedStyleElement2 = styles[styles.length - 2];
+	await NEXT_HMR();
 
-		expect(updatedStyleElement2.textContent).toContain("bar-v2");
-		expect(updatedStyleElement.textContent).toContain(".foo");
-		expect(updatedStyleElement2.textContent).not.toBe(originalTextContent);
-		done();
-	}));
+	const updatedStyles = window.document.getElementsByTagName("style");
+	const updatedStyleElement = updatedStyles[updatedStyles.length - 1];
+	const updatedStyleElement2 = updatedStyles[updatedStyles.length - 2];
+
+	expect(updatedStyleElement2.textContent).toContain("bar-v2");
+	expect(updatedStyleElement.textContent).toContain(".foo");
+	expect(updatedStyleElement2.textContent).not.toBe(originalTextContent);
 });
 
 module.hot.accept();

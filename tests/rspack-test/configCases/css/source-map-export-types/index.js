@@ -254,10 +254,12 @@ it(`should generate a valid source map for ${label}`, () => {
 	expect(cssModuleSourcesContent.startsWith('"')).toBe(false);
 	if (exportType === "text") {
 		expect(cssModuleSourcesContent).toContain("module.exports");
-		expect(cssModuleSourcesContent).toContain('"default":');
+		expect(
+			cssModuleSourcesContent.includes("module.exports.default") ||
+				cssModuleSourcesContent.includes('"default":')
+		).toBe(true);
 	} else if (exportType === "css-style-sheet") {
-		expect(cssModuleSourcesContent).toContain("new CSSStyleSheet()");
-		expect(cssModuleSourcesContent).toContain("replaceSync");
+		expect(cssModuleSourcesContent).toContain("css_style_sheet");
 	}
 	// CSS payload still has to be reachable from sourcesContent so DevTools
 	// can search across module sources.

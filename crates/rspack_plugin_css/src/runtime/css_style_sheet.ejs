@@ -1,5 +1,6 @@
 <%- CSS_STYLE_SHEET %> = <%- basicFunction("cssText") %> {
 	var styleSheet = new CSSStyleSheet();
+	styleSheet._cssText = cssText;
 	if (typeof styleSheet.replaceSync === "function") {
 		styleSheet.replaceSync(cssText);
 	} else if (typeof document !== "undefined" && typeof styleSheet.insertRule === "function") {

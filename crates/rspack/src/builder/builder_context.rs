@@ -187,6 +187,7 @@ impl BuilderContext {
             rspack_plugin_devtool::SourceMapDevToolModuleOptionsPluginOptions {
               module: options.module,
               cheap: !options.columns,
+              no_sources: options.no_sources,
             },
           )
           .boxed(),
@@ -199,6 +200,7 @@ impl BuilderContext {
             rspack_plugin_devtool::SourceMapDevToolModuleOptionsPluginOptions {
               module: options.module,
               cheap: !options.columns,
+              no_sources: options.no_sources,
             },
           )
           .boxed(),

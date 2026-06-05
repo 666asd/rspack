@@ -10,6 +10,7 @@ use rspack_util::source_map::SourceMapKind;
 pub struct SourceMapDevToolModuleOptionsPluginOptions {
   pub module: bool,
   pub cheap: bool,
+  pub no_sources: bool,
 }
 
 #[plugin]
@@ -17,11 +18,12 @@ pub struct SourceMapDevToolModuleOptionsPluginOptions {
 pub struct SourceMapDevToolModuleOptionsPlugin {
   module: bool,
   cheap: bool,
+  no_sources: bool,
 }
 
 impl SourceMapDevToolModuleOptionsPlugin {
   pub fn new(options: SourceMapDevToolModuleOptionsPluginOptions) -> Self {
-    Self::new_inner(options.module, options.cheap)
+    Self::new_inner(options.module, options.cheap, options.no_sources)
   }
 }
 
@@ -40,6 +42,10 @@ async fn build_module(
   if self.cheap {
     let current_kind = *module.get_source_map_kind();
     module.set_source_map_kind(current_kind | SourceMapKind::Cheap)
+  }
+  if self.no_sources {
+    let current_kind = *module.get_source_map_kind();
+    module.set_source_map_kind(current_kind | SourceMapKind::NoSources)
   }
   Ok(())
 }
@@ -63,6 +69,10 @@ async fn runtime_module(
   if self.cheap {
     let current_kind = *runtime_module.get_source_map_kind();
     runtime_module.set_source_map_kind(current_kind | SourceMapKind::Cheap)
+  }
+  if self.no_sources {
+    let current_kind = *runtime_module.get_source_map_kind();
+    runtime_module.set_source_map_kind(current_kind | SourceMapKind::NoSources)
   }
   Ok(())
 }

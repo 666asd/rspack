@@ -34,6 +34,13 @@ module.exports = {
           exportType: 'link',
         },
       },
+      {
+        test: /style-.*\.css$/,
+        type: 'css/module',
+        parser: {
+          exportType: 'style',
+        },
+      },
     ],
   },
   experiments: {

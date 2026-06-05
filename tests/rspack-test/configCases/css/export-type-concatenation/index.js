@@ -57,7 +57,6 @@ it("should concatenate style exportType modules and inject <style> tags", () => 
 it("should concatenate all modules into one concatenated module", () => {
 	const concatModules = __STATS__.modules.filter(m => m.modules);
 	expect(concatModules.length).toBe(1);
-	// index.js + 2 text + 1 text-dep + 2 sheet + 1 sheet-dep + 1 link + 1 link-dep
-	// + 2 style + 1 style-dep = 12
-	expect(concatModules[0].modules.length).toBeGreaterThanOrEqual(12);
+	// index.js + 2 text + 2 sheet + 2 style modules.
+	expect(concatModules[0].modules.length).toBeGreaterThanOrEqual(7);
 });

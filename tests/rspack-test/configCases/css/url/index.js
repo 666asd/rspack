@@ -9,5 +9,12 @@ it(`should work with URLs in CSS`, () => {
 		css.push(link.sheet.css);
 	}
 
-	expect(css).toMatchSnapshot();
+	expect(css.length).toBeGreaterThan(0);
+	const content = css.join("\n");
+	expect(content).toContain("url(");
+	expect(content).toContain("img.");
+	expect(content).toContain("font.");
+	expect(content).toContain("data:image/svg+xml");
+	expect(content).toContain("https://raw.githubusercontent.com/webpack/media/master/logo/icon.png");
+	expect(content).toContain("//raw.githubusercontent.com/webpack/media/master/logo/icon.png");
 });

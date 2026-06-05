@@ -38,9 +38,9 @@ use crate::{
   plugin::{CssModulesPluginHooks, CssModulesRenderSource, CssPluginInner},
   runtime::{CssExportRuntimeModule, CssExportRuntimeModuleKind, CssLoadingRuntimeModule},
   utils::{
-    AUTO_PUBLIC_PATH_PLACEHOLDER, append_css_export_type_key, css_dependency_export_type,
-    css_module_has_charset, css_module_is_import_dependency, css_module_resource,
-    css_render_conditions_from_module,
+    AUTO_PUBLIC_PATH_PLACEHOLDER, append_css_export_type_key, css_attribute_export_type,
+    css_dependency_export_type, css_module_has_charset, css_module_is_import_dependency,
+    css_module_resource, css_render_conditions_from_module,
   },
 };
 
@@ -285,31 +285,37 @@ async fn normal_module_factory_after_resolve(
   data: &mut ModuleFactoryCreateData,
   create_data: &mut NormalModuleCreateData,
 ) -> Result<Option<bool>> {
-  let Some(css_import_dep) = data
+  let css_attribute_export_type = data
+    .dependencies
+    .iter()
+    .find_map(|dependency| css_attribute_export_type(dependency.get_attributes()));
+
+  let css_import_dep = data
     .dependencies
     .first()
-    .and_then(|dependency| dependency.downcast_ref::<CssImportDependency>())
-  else {
-    let Some(css_compose_dep) = data
-      .dependencies
-      .first()
-      .and_then(|dependency| dependency.downcast_ref::<CssComposeDependency>())
-    else {
-      return Ok(None);
-    };
-    if let Some(export_type) = css_compose_dep.export_type() {
-      append_css_export_type_key(create_data, export_type);
-    }
-    return Ok(None);
-  };
+    .and_then(|dependency| dependency.downcast_ref::<CssImportDependency>());
 
-  let conditions_key =
-    css_module_render_conditions_identifier(css_import_dep.render_conditions()).unwrap_or_default();
-  if !conditions_key.is_empty() {
-    create_data.request.push_str("|css-render-conditions|");
-    create_data.request.push_str(&conditions_key);
+  if let Some(css_import_dep) = css_import_dep {
+    let conditions_key =
+      css_module_render_conditions_identifier(css_import_dep.render_conditions())
+        .unwrap_or_default();
+    if !conditions_key.is_empty() {
+      create_data.request.push_str("|css-render-conditions|");
+      create_data.request.push_str(&conditions_key);
+    }
   }
-  if let Some(export_type) = css_import_dep.export_type() {
+
+  let css_dependency_export_type = css_import_dep
+    .and_then(|dep| dep.export_type())
+    .or_else(|| {
+      data
+        .dependencies
+        .first()
+        .and_then(|dependency| dependency.downcast_ref::<CssComposeDependency>())
+        .and_then(|dep| dep.export_type())
+    });
+
+  if let Some(export_type) = css_dependency_export_type.or(css_attribute_export_type) {
     append_css_export_type_key(create_data, export_type);
   }
 
@@ -337,7 +343,8 @@ async fn normal_module_factory_module(
     .flatten()
     .cloned()
     .collect::<Vec<_>>();
-  let export_type = css_dependency_export_type(dependency);
+  let css_attribute_export_type = css_attribute_export_type(dependency.get_attributes());
+  let export_type = css_dependency_export_type(dependency).or(css_attribute_export_type);
   if render_conditions.is_empty() && export_type.is_none() && !is_css_dependency {
     return Ok(());
   }

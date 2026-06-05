@@ -1,6 +1,6 @@
 import { textA, textB, sheetA, sheetB, linkAClass, linkBClass, styleB } from "./lib.js";
 
-it("should handle HMR for all exportTypes with concatenation", function (done) {
+it("should handle HMR for all exportTypes with concatenation", async () => {
 	// Verify modules are concatenated: only index.js and lib.js (+ update helper)
 	// should exist as separate modules, all CSS modules should be inlined into lib.js
 	const moduleIds = Object.keys(__webpack_require__.m);
@@ -39,34 +39,27 @@ it("should handle HMR for all exportTypes with concatenation", function (done) {
 	expect(allLinkCss()).toContain("letter-spacing: 1px");
 	expect(allLinkCss()).toContain("text-align: right");
 
-	module.hot.accept(
-		["./lib.js"],
-		() => {
-			// After HMR: text
-			expect(textA).toContain("font-size: 14px");
-			expect(textB).toContain("color: cyan");
+	module.hot.accept(["./lib.js"]);
 
-			// After HMR: css-style-sheet
-			expect(sheetA._cssText).toContain("font-weight: normal");
-			expect(sheetB._cssText).toContain("color: violet");
+	await NEXT_HMR();
 
-			// After HMR: style (style-a no longer has @import after update)
-			expect(typeof styleB).toBe("string");
-			expect(allStyles().length).toBe(2);
-			expect(allStyles().some(c => c.includes("font-size: 12px"))).toBe(false);
-			expect(allStyles().some(c => c.includes("color: blue"))).toBe(true);
+	// After HMR: text
+	expect(textA).toContain("font-size: 14px");
+	expect(textB).toContain("color: cyan");
 
-			// After HMR: link
-			expect(allLinkCss()).toContain("letter-spacing: 2px");
-			expect(allLinkCss()).toContain("text-align: left");
-		}
-	);
+	// After HMR: css-style-sheet
+	expect(sheetA._cssText).toContain("font-weight: normal");
+	expect(sheetB._cssText).toContain("color: violet");
 
-	NEXT(
-		require("../../update")(done, true, () => {
-			done();
-		})
-	);
+	// After HMR: style (style-a no longer has @import after update)
+	expect(typeof styleB).toBe("string");
+	expect(allStyles().length).toBe(2);
+	expect(allStyles().some(c => c.includes("font-size: 12px"))).toBe(false);
+	expect(allStyles().some(c => c.includes("color: blue"))).toBe(true);
+
+	// After HMR: link
+	expect(allLinkCss()).toContain("letter-spacing: 2px");
+	expect(allLinkCss()).toContain("text-align: left");
 });
 
 module.hot.accept();
